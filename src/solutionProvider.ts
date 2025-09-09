@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { SolutionManager } from './solutionManager';
 import { ProjectFileParser } from './projectFileParser';
 import { SolutionItem } from './solutionItem';
+import { FileNestingService, NestedFile } from './fileNesting';
 
 
 export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
@@ -12,6 +13,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private solutionManager?: SolutionManager;
     private projectFileParser?: ProjectFileParser;
     private expandedItems = new Set<string>(); // Track expanded items by their resource path
+    private copiedFile?: string; // Track copied file path for paste operations
 
     constructor(private workspaceRoot?: string) { 
         if (workspaceRoot) {
@@ -83,6 +85,12 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
         if (element.itemType === 'folder' && element.resourceUri && element.projectPath) {
             return this.getFilesFromFolder(element.resourceUri, element.projectPath);
+        }
+
+        if (element.itemType === 'file' && (element as any).nestedChildren) {
+            // Handle nested files (e.g., expanding EditUser.cshtml to show EditUser.cshtml.cs)
+            const nestedChildren = (element as any).nestedChildren as NestedFile[];
+            return Promise.resolve(this.convertNestedFilesToSolutionItems(nestedChildren, element.projectPath || ''));
         }
 
         return Promise.resolve([]);
@@ -218,6 +226,64 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return this.solutionManager.getAvailableProjects();
     }
 
+    // Copy/Paste functionality
+    copyFile(filePath: string): void {
+        this.copiedFile = filePath;
+    }
+
+    async pasteFile(targetDir: string): Promise<boolean> {
+        if (!this.copiedFile) {
+            return false;
+        }
+
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const sourceFile = this.copiedFile;
+            const fileName = path.basename(sourceFile);
+            const fileExt = path.extname(fileName);
+            const baseName = path.basename(fileName, fileExt);
+            
+            // Generate a unique filename
+            let copyCounter = 1;
+            let targetFileName = fileName;
+            let targetPath = path.join(targetDir, targetFileName);
+            
+            // Check if file already exists and generate unique name
+            while (await this.fileExists(targetPath)) {
+                targetFileName = `${baseName} - Copy${copyCounter > 1 ? ` (${copyCounter})` : ''}${fileExt}`;
+                targetPath = path.join(targetDir, targetFileName);
+                copyCounter++;
+            }
+            
+            // Copy the file
+            await fs.copyFile(sourceFile, targetPath);
+            
+            // Refresh the tree to show the new file
+            this.refresh();
+            
+            return true;
+        } catch (error) {
+            console.error('Error copying file:', error);
+            return false;
+        }
+    }
+
+    private async fileExists(filePath: string): Promise<boolean> {
+        try {
+            const fs = require('fs').promises;
+            await fs.access(filePath);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    getCopiedFile(): string | undefined {
+        return this.copiedFile;
+    }
+
     private async getFilesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
         
@@ -230,7 +296,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             const projectDir = path.dirname(projectUri.fsPath);
             
             // Group files by directory
-            const filesByDir = new Map<string, SolutionItem[]>();
+            const filesByDir = new Map<string, { name: string; path: string }[]>();
             filesByDir.set('', []); // Root files
             
             for (const file of structure.files) {
@@ -246,20 +312,16 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 }
                 
                 const fileName = path.basename(file.relativePath);
-                const fileUri = vscode.Uri.file(file.path);
-                
-                filesByDir.get(normalizedDirPath)!.push(new SolutionItem(
-                    fileName,
-                    vscode.TreeItemCollapsibleState.None,
-                    fileUri,
-                    'file',
-                    undefined,
-                    projectUri.fsPath
-                ));
+                filesByDir.get(normalizedDirPath)!.push({
+                    name: fileName,
+                    path: file.path
+                });
             }
             
-            // Add root files first
-            items.push(...(filesByDir.get('') || []));
+            // Process root files with nesting
+            const rootFiles = filesByDir.get('') || [];
+            const nestedFiles = FileNestingService.nestFiles(rootFiles);
+            items.push(...this.convertNestedFilesToSolutionItems(nestedFiles, projectUri.fsPath));
             
             // Add folders and their immediate children
             const rootFolders = new Set<string>();
@@ -291,6 +353,33 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return items;
     }
 
+    private convertNestedFilesToSolutionItems(nestedFiles: NestedFile[], projectPath: string): SolutionItem[] {
+        const items: SolutionItem[] = [];
+        
+        for (const nestedFile of nestedFiles) {
+            const fileUri = vscode.Uri.file(nestedFile.path);
+            const hasChildren = nestedFile.children && nestedFile.children.length > 0;
+            
+            const item = new SolutionItem(
+                nestedFile.name,
+                hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+                fileUri,
+                'file',
+                undefined,
+                projectPath
+            );
+            
+            // Store nested children for later retrieval
+            if (hasChildren) {
+                (item as any).nestedChildren = nestedFile.children;
+            }
+            
+            items.push(item);
+        }
+        
+        return items;
+    }
+
     private async getFilesFromFolder(folderUri: vscode.Uri, projectPath: string): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
         
@@ -311,20 +400,14 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 return normalizedFileDir === folderRelativePath;
             });
             
-            // Add files
-            for (const file of filesInFolder) {
-                const fileName = path.basename(file.relativePath);
-                const fileUri = vscode.Uri.file(file.path);
-                
-                items.push(new SolutionItem(
-                    fileName,
-                    vscode.TreeItemCollapsibleState.None,
-                    fileUri,
-                    'file',
-                    undefined,
-                    projectPath
-                ));
-            }
+            // Convert files to nested structure and add to items
+            const folderFiles = filesInFolder.map(file => ({
+                name: path.basename(file.relativePath),
+                path: file.path
+            }));
+            
+            const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
+            items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
             
             // Add subfolders
             const subFolders = new Set<string>();

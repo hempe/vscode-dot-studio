@@ -53,6 +53,61 @@
         "command": "dotnet-extension.openInTerminal",
         "title": "Open in Terminal",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.copyFile",
+        "title": "Copy File",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.pasteFile",
+        "title": "Paste File",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.deleteFile",
+        "title": "Delete",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.renameFile",
+        "title": "Rename...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.cutFile",
+        "title": "Cut",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.copyPath",
+        "title": "Copy Path",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.copyRelativePath",
+        "title": "Copy Relative Path",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.openToSide",
+        "title": "Open to the Side",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.newFile",
+        "title": "New File...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.newFolder",
+        "title": "New Folder...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.findReferences",
+        "title": "Find All References",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -111,16 +166,131 @@
         },
         {
           "command": "dotnet-extension.revealInExplorer",
-          "when": "view == dotnet-solution && viewItem == file",
+          "when": "focusedView == dotnet-solution",
           "group": "2_workspace"
         },
         {
           "command": "dotnet-extension.openInTerminal",
-          "when": "view == dotnet-solution && viewItem == file",
+          "when": "focusedView == dotnet-solution",
           "group": "2_workspace"
+        },
+        {
+          "command": "dotnet-extension.copyFile",
+          "when": "focusedView == dotnet-solution",
+          "group": "3_copy"
+        },
+        {
+          "command": "dotnet-extension.pasteFile",
+          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
+          "group": "3_copy"
+        },
+        {
+          "command": "dotnet-extension.cutFile",
+          "when": "focusedView == dotnet-solution",
+          "group": "3_copy"
+        },
+        {
+          "command": "dotnet-extension.openToSide",
+          "when": "focusedView == dotnet-solution",
+          "group": "navigation"
+        },
+        {
+          "command": "dotnet-extension.copyPath",
+          "when": "focusedView == dotnet-solution",
+          "group": "4_paths"
+        },
+        {
+          "command": "dotnet-extension.copyRelativePath",
+          "when": "focusedView == dotnet-solution",
+          "group": "4_paths"
+        },
+        {
+          "command": "dotnet-extension.renameFile",
+          "when": "focusedView == dotnet-solution",
+          "group": "5_modifications"
+        },
+        {
+          "command": "dotnet-extension.deleteFile",
+          "when": "focusedView == dotnet-solution",
+          "group": "5_modifications"
+        },
+        {
+          "command": "dotnet-extension.newFile",
+          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
+          "group": "1_creation"
+        },
+        {
+          "command": "dotnet-extension.newFolder",
+          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
+          "group": "1_creation"
+        },
+        {
+          "command": "dotnet-extension.findReferences",
+          "when": "view == dotnet-solution && viewItem == file && resourceExtname =~ /\\.(cs|vb|fs)$/",
+          "group": "6_references"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "dotnet-extension.copyFile",
+        "key": "ctrl+c",
+        "mac": "cmd+c",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.pasteFile", 
+        "key": "ctrl+v",
+        "mac": "cmd+v",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.cutFile",
+        "key": "ctrl+x",
+        "mac": "cmd+x",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.deleteFile",
+        "key": "delete",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.renameFile",
+        "key": "f2",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.openToSide",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.copyPath",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.copyRelativePath",
+        "key": "ctrl+shift+alt+c",
+        "mac": "cmd+shift+alt+c",
+        "when": "focusedView == dotnet-solution"
+      },
+      {
+        "command": "dotnet-extension.newFile",
+        "key": "ctrl+n",
+        "mac": "cmd+n",
+        "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
+      },
+      {
+        "command": "dotnet-extension.newFolder",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

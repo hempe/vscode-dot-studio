@@ -27,13 +27,7 @@ export class SolutionItem extends vscode.TreeItem {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
 
-        // Only set command for actual files, not containers (solutions, projects, folders)
-        if (itemType === 'file' && resourceUri) {
-            this.command = {
-                command: 'dotnet-extension.openFile',
-                title: 'Open File',
-                arguments: [resourceUri]
-            };
-        }
+        // Don't set single-click command for files to allow keyboard shortcuts to work
+        // Files will open on double-click or Enter key through VS Code's default behavior
     }
 }
