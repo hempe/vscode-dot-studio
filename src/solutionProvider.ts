@@ -23,6 +23,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     }
 
     refresh(): void {
+        // Clear parser cache to ensure fresh data
+        if (this.projectFileParser) {
+            this.projectFileParser.clearCache();
+        }
         this._onDidChangeTreeData.fire(undefined);
     }
 
@@ -91,6 +95,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             // Handle nested files (e.g., expanding EditUser.cshtml to show EditUser.cshtml.cs)
             const nestedChildren = (element as any).nestedChildren as NestedFile[];
             return Promise.resolve(this.convertNestedFilesToSolutionItems(nestedChildren, element.projectPath || ''));
+        }
+
+        if (element.itemType === 'dependencies' && element.resourceUri) {
+            return this.getDependenciesFromProject(element.resourceUri);
         }
 
         return Promise.resolve([]);
@@ -318,12 +326,19 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 });
             }
             
-            // Process root files with nesting
-            const rootFiles = filesByDir.get('') || [];
-            const nestedFiles = FileNestingService.nestFiles(rootFiles);
-            items.push(...this.convertNestedFilesToSolutionItems(nestedFiles, projectUri.fsPath));
-            
-            // Add folders and their immediate children
+            // Add Dependencies node first if there are any dependencies
+            if (structure.dependencies && structure.dependencies.length > 0) {
+                items.push(new SolutionItem(
+                    'Dependencies',
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    projectUri, // Use project URI as resource
+                    'dependencies',
+                    undefined,
+                    projectUri.fsPath
+                ));
+            }
+
+            // Add folders first (before files)
             const rootFolders = new Set<string>();
             for (const dir of structure.directories) {
                 const parts = dir.split('/');
@@ -332,7 +347,9 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 }
             }
             
-            for (const folder of rootFolders) {
+            // Sort folders alphabetically
+            const sortedFolders = Array.from(rootFolders).sort();
+            for (const folder of sortedFolders) {
                 const folderPath = path.resolve(projectDir, folder);
                 const folderUri = vscode.Uri.file(folderPath);
                 
@@ -345,6 +362,11 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                     projectUri.fsPath
                 ));
             }
+
+            // Then add root files with nesting (after folders)
+            const rootFiles = filesByDir.get('') || [];
+            const nestedFiles = FileNestingService.nestFiles(rootFiles);
+            items.push(...this.convertNestedFilesToSolutionItems(nestedFiles, projectUri.fsPath));
             
         } catch (error) {
             console.error('Error getting files from project:', error);
@@ -400,16 +422,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 return normalizedFileDir === folderRelativePath;
             });
             
-            // Convert files to nested structure and add to items
-            const folderFiles = filesInFolder.map(file => ({
-                name: path.basename(file.relativePath),
-                path: file.path
-            }));
-            
-            const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
-            items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
-            
-            // Add subfolders
+            // Add subfolders first (before files)
             const subFolders = new Set<string>();
             for (const dir of structure.directories) {
                 if (dir.startsWith(folderRelativePath + '/')) {
@@ -419,7 +432,9 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 }
             }
             
-            for (const subFolder of subFolders) {
+            // Sort subfolders alphabetically
+            const sortedSubFolders = Array.from(subFolders).sort();
+            for (const subFolder of sortedSubFolders) {
                 const subFolderPath = path.resolve(folderUri.fsPath, subFolder);
                 const subFolderUri = vscode.Uri.file(subFolderPath);
                 
@@ -432,9 +447,54 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                     projectPath
                 ));
             }
+
+            // Then add files (after subfolders)
+            const folderFiles = filesInFolder.map(file => ({
+                name: path.basename(file.relativePath),
+                path: file.path
+            }));
+            
+            const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
+            items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
             
         } catch (error) {
             console.error('Error getting files from folder:', error);
+        }
+        
+        return items;
+    }
+
+    private async getDependenciesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
+        const items: SolutionItem[] = [];
+        
+        if (!this.projectFileParser) {
+            return items;
+        }
+
+        try {
+            const structure = await this.projectFileParser.parseProjectFiles(projectUri.fsPath);
+            
+            for (const dep of structure.dependencies) {
+                let label = dep.name;
+                if (dep.version) {
+                    label = `${dep.name} (${dep.version})`;
+                }
+
+                items.push(new SolutionItem(
+                    label,
+                    vscode.TreeItemCollapsibleState.None,
+                    undefined, // Dependencies don't have file URIs
+                    'dependency',
+                    undefined,
+                    projectUri.fsPath,
+                    undefined,
+                    dep.type,
+                    dep.version
+                ));
+            }
+
+        } catch (error) {
+            console.error('Error getting dependencies from project:', error);
         }
         
         return items;

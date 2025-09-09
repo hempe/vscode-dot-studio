@@ -11,45 +11,77 @@ export interface ProjectFile {
     itemType?: string; // Compile, Content, None, etc.
 }
 
+export interface Dependency {
+    name: string;
+    version?: string;
+    type: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkAssembly';
+    path?: string; // For ProjectReferences
+}
+
 export interface ProjectFileStructure {
     files: ProjectFile[];
     directories: Set<string>;
+    dependencies: Dependency[];
 }
 
 export class ProjectFileParser {
+    private fileCache = new Map<string, { files: string[]; timestamp: number }>();
+    private cacheTimeout = 30000; // 30 seconds
+    
     constructor(private workspaceRoot: string) {}
 
     async parseProjectFiles(projectPath: string): Promise<ProjectFileStructure> {
         try {
-            const projectContent = await fs.promises.readFile(projectPath, 'utf8');
             const projectDir = path.dirname(projectPath);
             
-            // Parse the XML
-            const parsedXml = await parseStringPromise(projectContent);
-            const project = parsedXml.Project;
+            // Parse dependencies from project file
+            const dependencies = await this.parseDependencies(projectPath);
             
-            if (!project) {
-                return { files: [], directories: new Set() };
+            // Simple approach: get common source files without complex XML parsing
+            const commonPatterns = [
+                '**/*.cs', '**/*.vb', '**/*.fs',           // Source files
+                '**/*.cshtml', '**/*.vbhtml',             // Razor views
+                '**/*.xaml',                               // XAML files
+                '**/*.resx',                               // Resources
+                '**/*.json', '**/*.xml', '**/*.config'     // Config files
+            ];
+            
+            const allFiles: string[] = [];
+            const relativePath = path.relative(this.workspaceRoot, projectDir);
+            
+            for (const pattern of commonPatterns) {
+                const searchPattern = relativePath ? `${relativePath}/${pattern}` : pattern;
+                const excludePattern = `{${relativePath}/bin/**,${relativePath}/obj/**}`;
+                
+                try {
+                    const uris = await vscode.workspace.findFiles(searchPattern, excludePattern);
+                    allFiles.push(...uris.map(uri => uri.fsPath));
+                } catch (error) {
+                    // Continue with other patterns even if one fails
+                    console.log(`Pattern ${pattern} failed:`, error);
+                }
             }
-
-            // Get all files in the project directory recursively
-            const allFiles = await this.getAllFiles(projectDir);
             
-            // Filter out the project file itself
-            const filteredFiles = allFiles.filter(file => !this.shouldSkipFile(file, projectPath));
+            // Remove duplicates and filter
+            const uniqueFiles = [...new Set(allFiles)];
+            const filteredFiles = uniqueFiles.filter(file => !this.shouldSkipFile(file, projectPath));
             
-            // Process include/exclude patterns
-            const includedFiles = this.processIncludeExcludePatterns(filteredFiles, project, projectDir);
-            
-            return this.buildFileStructure(includedFiles, projectDir);
+            // Build structure with dependencies
+            const fileStructure = this.buildSimpleFileStructure(filteredFiles, projectDir);
+            return {
+                ...fileStructure,
+                dependencies
+            };
             
         } catch (error) {
             console.error('Error parsing project file:', error);
-            return { files: [], directories: new Set() };
+            return { files: [], directories: new Set(), dependencies: [] };
         }
     }
 
-    private async getAllFiles(dir: string): Promise<string[]> {
+    private async getAllFiles(dir: string, maxDepth: number = 5): Promise<string[]> {
+        if (maxDepth <= 0) return [];
+        
         const files: string[] = [];
         
         try {
@@ -61,7 +93,7 @@ export class ProjectFileParser {
                 if (entry.isDirectory()) {
                     // Skip common directories that shouldn't be included
                     if (!this.shouldSkipDirectory(entry.name)) {
-                        const subFiles = await this.getAllFiles(fullPath);
+                        const subFiles = await this.getAllFiles(fullPath, maxDepth - 1);
                         files.push(...subFiles);
                     }
                 } else {
@@ -75,8 +107,49 @@ export class ProjectFileParser {
         return files;
     }
 
+    private async getAllFilesCached(dir: string): Promise<string[]> {
+        const now = Date.now();
+        const cached = this.fileCache.get(dir);
+        
+        // Return cached result if still valid
+        if (cached && (now - cached.timestamp) < this.cacheTimeout) {
+            return cached.files;
+        }
+        
+        // Get fresh file list
+        const files = await this.getAllFiles(dir);
+        
+        // Cache the result
+        this.fileCache.set(dir, { files, timestamp: now });
+        
+        return files;
+    }
+
+    private async getFilesUsingVSCode(projectDir: string): Promise<string[]> {
+        try {
+            const relativePath = path.relative(this.workspaceRoot, projectDir);
+            const searchPattern = relativePath ? `${relativePath}/**/*` : '**/*';
+            
+            // Use VS Code's optimized file search
+            const uris = await vscode.workspace.findFiles(
+                searchPattern,
+                `{${relativePath}/bin/**,${relativePath}/obj/**,${relativePath}/.git/**,${relativePath}/.vs/**,${relativePath}/.vscode/**,${relativePath}/node_modules/**,${relativePath}/packages/**,${relativePath}/.nuget/**,${relativePath}/TestResults/**}`
+            );
+            
+            return uris.map(uri => uri.fsPath);
+        } catch (error) {
+            console.error('Error using VS Code file search, falling back:', error);
+            // Fallback to manual scanning if VS Code search fails
+            return this.getAllFiles(projectDir);
+        }
+    }
+
+    public clearCache(): void {
+        this.fileCache.clear();
+    }
+
     private shouldSkipDirectory(dirName: string): boolean {
-        const skipDirs = ['bin', 'obj', 'node_modules', '.git', '.vs', '.vscode'];
+        const skipDirs = ['bin', 'obj', 'node_modules', '.git', '.vs', '.vscode', 'packages', '.nuget', 'TestResults'];
         return skipDirs.includes(dirName);
     }
 
@@ -133,11 +206,10 @@ export class ProjectFileParser {
                         if (includePattern.includes('*') || includePattern.includes('?')) {
                             this.processGlobPattern(includePattern, result, projectDir, includeType);
                         } else {
-                            // Direct file reference
+                            // Direct file reference - add it even if it doesn't exist yet
+                            // This handles cases where files are referenced but not yet created
                             const absolutePath = path.resolve(projectDir, includePattern);
-                            if (fs.existsSync(absolutePath)) {
-                                result.set(absolutePath, includeType);
-                            }
+                            result.set(absolutePath, includeType);
                         }
                     }
                 }
@@ -233,6 +305,165 @@ export class ProjectFileParser {
             });
         }
         
-        return { files, directories };
+        return { files, directories, dependencies: [] };
+    }
+
+    private buildSimpleFileStructure(files: string[], projectDir: string): ProjectFileStructure {
+        const result: ProjectFile[] = [];
+        const directories = new Set<string>();
+        
+        for (const filePath of files) {
+            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
+            
+            result.push({
+                path: filePath,
+                relativePath,
+                isDirectory: false,
+                itemType: this.getDefaultItemType(filePath)
+            });
+            
+            // Add parent directories
+            const dirPath = path.dirname(relativePath);
+            if (dirPath !== '.') {
+                const parts = dirPath.split('/');
+                let currentPath = '';
+                
+                for (const part of parts) {
+                    currentPath = currentPath ? `${currentPath}/${part}` : part;
+                    directories.add(currentPath);
+                }
+            }
+        }
+        
+        // Add directory entries
+        for (const dir of directories) {
+            result.push({
+                path: path.resolve(projectDir, dir),
+                relativePath: dir,
+                isDirectory: true
+            });
+        }
+        
+        return { files: result, directories, dependencies: [] };
+    }
+
+    private async parseDependencies(projectPath: string): Promise<Dependency[]> {
+        try {
+            const projectContent = await fs.promises.readFile(projectPath, 'utf8');
+            const parsedXml = await parseStringPromise(projectContent);
+            const project = parsedXml.Project;
+            
+            if (!project || !project.ItemGroup) {
+                return [];
+            }
+
+            const dependencies: Dependency[] = [];
+
+            for (const itemGroup of project.ItemGroup) {
+                // Parse PackageReferences
+                if (itemGroup.PackageReference) {
+                    const packages = Array.isArray(itemGroup.PackageReference) 
+                        ? itemGroup.PackageReference 
+                        : [itemGroup.PackageReference];
+                    
+                    for (const pkg of packages) {
+                        if (pkg.$ && pkg.$.Include) {
+                            dependencies.push({
+                                name: pkg.$.Include,
+                                version: pkg.$.Version,
+                                type: 'PackageReference'
+                            });
+                        }
+                    }
+                }
+
+                // Parse ProjectReferences
+                if (itemGroup.ProjectReference) {
+                    const projects = Array.isArray(itemGroup.ProjectReference) 
+                        ? itemGroup.ProjectReference 
+                        : [itemGroup.ProjectReference];
+                    
+                    for (const proj of projects) {
+                        if (proj.$ && proj.$.Include) {
+                            const projectName = path.basename(proj.$.Include, path.extname(proj.$.Include));
+                            dependencies.push({
+                                name: projectName,
+                                type: 'ProjectReference',
+                                path: proj.$.Include
+                            });
+                        }
+                    }
+                }
+
+                // Parse regular References (for .NET Framework projects)
+                if (itemGroup.Reference) {
+                    const references = Array.isArray(itemGroup.Reference) 
+                        ? itemGroup.Reference 
+                        : [itemGroup.Reference];
+                    
+                    for (const ref of references) {
+                        if (ref.$ && ref.$.Include) {
+                            const fullName = ref.$.Include;
+                            const refName = fullName.split(',')[0]; // Remove version info
+                            
+                            // Distinguish between Framework assemblies and regular references
+                            const isFrameworkAssembly = this.isFrameworkAssembly(refName);
+                            
+                            dependencies.push({
+                                name: refName,
+                                type: isFrameworkAssembly ? 'FrameworkAssembly' : 'Reference',
+                                version: this.extractVersionFromReference(fullName)
+                            });
+                        }
+                    }
+                }
+            }
+
+            return dependencies.sort((a, b) => {
+                // Sort by type first, then by name
+                if (a.type !== b.type) {
+                    const typeOrder = { 
+                        'PackageReference': 1, 
+                        'ProjectReference': 2, 
+                        'FrameworkAssembly': 3, 
+                        'Reference': 4 
+                    };
+                    return typeOrder[a.type] - typeOrder[b.type];
+                }
+                return a.name.localeCompare(b.name);
+            });
+
+        } catch (error) {
+            console.error('Error parsing dependencies from project file:', error);
+            return [];
+        }
+    }
+
+    private isFrameworkAssembly(assemblyName: string): boolean {
+        // Common .NET Framework assemblies
+        const frameworkAssemblies = [
+            'System', 'System.Core', 'System.Data', 'System.Drawing', 'System.Web',
+            'System.Windows.Forms', 'System.Xml', 'System.Configuration',
+            'System.ServiceModel', 'System.Runtime.Serialization', 'System.Transactions',
+            'System.EnterpriseServices', 'System.Security', 'System.DirectoryServices',
+            'System.Management', 'System.Net.Http', 'System.ComponentModel.DataAnnotations',
+            'System.Web.Http', 'System.Web.Mvc', 'System.Data.Entity',
+            'Microsoft.CSharp', 'Microsoft.VisualBasic', 'WindowsBase', 'PresentationCore',
+            'PresentationFramework', 'System.Xaml', 'System.Activities',
+            'System.ServiceProcess', 'System.Messaging', 'System.Runtime.Caching',
+            'System.Web.Extensions', 'System.IdentityModel', 'System.Runtime.DurableInstancing',
+            'System.Workflow.Activities', 'System.Workflow.ComponentModel', 
+            'System.Workflow.Runtime', 'System.Net', 'System.Numerics'
+        ];
+        
+        return frameworkAssemblies.some(framework => 
+            assemblyName === framework || assemblyName.startsWith(framework + '.')
+        );
+    }
+
+    private extractVersionFromReference(fullReference: string): string | undefined {
+        // Extract version from reference like "System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+        const versionMatch = fullReference.match(/Version=([^,]+)/);
+        return versionMatch ? versionMatch[1] : undefined;
     }
 }
