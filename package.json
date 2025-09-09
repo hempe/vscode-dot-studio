@@ -1,0 +1,141 @@
+{
+  "name": "dotnet-extension",
+  "displayName": ".NET Extension",
+  "description": "Enhanced .NET development features including NuGet UI, solution support, and project management",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:*.sln"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dotnet-extension.manageNugetPackages",
+        "title": "Manage NuGet Packages",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.setAsStartup",
+        "title": "Set as Startup Project",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.refreshSolution",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dotnet-extension.openFile",
+        "title": "Open File"
+      },
+      {
+        "command": "dotnet-extension.removeProject",
+        "title": "Remove Project from Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.addExistingProject",
+        "title": "Add Existing Project",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.revealInExplorer",
+        "title": "Reveal in File Explorer",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.openInTerminal",
+        "title": "Open in Terminal",
+        "category": ".NET"
+      }
+    ],
+    "views": {
+      "solution-explorer": [
+        {
+          "id": "dotnet-solution",
+          "name": "Solution Explorer",
+          "when": "workspaceHasDotnetFiles"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "solution-explorer",
+          "title": "Solution",
+          "icon": "$(folder-library)"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "dotnet-extension.manageNugetPackages",
+          "when": "resourceExtname == .csproj",
+          "group": "dotnet"
+        },
+        {
+          "command": "dotnet-extension.setAsStartup",
+          "when": "resourceExtname == .csproj",
+          "group": "dotnet"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "dotnet-extension.refreshSolution",
+          "when": "view == dotnet-solution",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dotnet-extension.openFile",
+          "when": "view == dotnet-solution && (viewItem == project || viewItem == solution || viewItem == file)",
+          "group": "navigation"
+        },
+        {
+          "command": "dotnet-extension.removeProject",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.addExistingProject",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.revealInExplorer",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "2_workspace"
+        },
+        {
+          "command": "dotnet-extension.openInTerminal",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "2_workspace"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "xml2js": "^0.6.2",
+    "minimatch": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@types/xml2js": "^0.4.14",
+    "@types/minimatch": "^5.1.2",
+    "typescript": "^4.9.4"
+  }
+}
