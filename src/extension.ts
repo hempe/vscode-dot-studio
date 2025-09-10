@@ -562,6 +562,355 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
+    // .NET specific commands
+    const addProjectReferenceCommand = vscode.commands.registerCommand('dotnet-extension.addProjectReference', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot add project reference: no project selected');
+            return;
+        }
+
+        const projectDir = path.dirname(projectPath);
+        const availableProjects = await solutionProvider.getAvailableProjects();
+        const filteredProjects = availableProjects.filter(proj => proj !== projectPath);
+        
+        if (filteredProjects.length === 0) {
+            vscode.window.showInformationMessage('No other projects available for reference.');
+            return;
+        }
+
+        const projectItems = filteredProjects.map(proj => ({
+            label: path.basename(proj, path.extname(proj)),
+            detail: path.relative(workspaceRoot || '', proj),
+            path: proj
+        }));
+
+        const selectedProject = await vscode.window.showQuickPick(projectItems, {
+            placeHolder: 'Select project to reference'
+        });
+
+        if (selectedProject) {
+            try {
+                const terminal = vscode.window.createTerminal({
+                    name: 'Add Project Reference',
+                    cwd: projectDir
+                });
+                
+                terminal.sendText(`dotnet add reference "${selectedProject.path}"`);
+                terminal.show();
+                
+                solutionProvider.refresh();
+                vscode.window.showInformationMessage(`Added reference to ${selectedProject.label}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to add project reference: ${error}`);
+            }
+        }
+    });
+
+    const addNugetPackageCommand = vscode.commands.registerCommand('dotnet-extension.addNugetPackage', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot add NuGet package: no project selected');
+            return;
+        }
+
+        const packageName = await vscode.window.showInputBox({
+            prompt: 'Enter NuGet package name',
+            placeHolder: 'e.g. Newtonsoft.Json',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Package name cannot be empty';
+                }
+                return null;
+            }
+        });
+
+        if (packageName) {
+            const projectDir = path.dirname(projectPath);
+            const projectName = path.basename(projectPath, path.extname(projectPath));
+            
+            try {
+                const terminal = vscode.window.createTerminal({
+                    name: `Add Package - ${projectName}`,
+                    cwd: projectDir
+                });
+                
+                terminal.sendText(`dotnet add package ${packageName.trim()}`);
+                terminal.show();
+                
+                solutionProvider.refresh();
+                vscode.window.showInformationMessage(`Adding package ${packageName} to ${projectName}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to add NuGet package: ${error}`);
+            }
+        }
+    });
+
+
+    const buildCommand = vscode.commands.registerCommand('dotnet-extension.build', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot build project: no project selected');
+            return;
+        }
+
+        const projectDir = path.dirname(projectPath);
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        
+        const terminal = vscode.window.createTerminal({
+            name: `Build - ${projectName}`,
+            cwd: projectDir
+        });
+        
+        terminal.sendText('dotnet build');
+        terminal.show();
+        
+        vscode.window.showInformationMessage(`Building ${projectName}...`);
+    });
+
+    const rebuildCommand = vscode.commands.registerCommand('dotnet-extension.rebuild', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot rebuild project: no project selected');
+            return;
+        }
+
+        const projectDir = path.dirname(projectPath);
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        
+        const terminal = vscode.window.createTerminal({
+            name: `Rebuild - ${projectName}`,
+            cwd: projectDir
+        });
+        
+        terminal.sendText('dotnet clean');
+        terminal.sendText('dotnet build');
+        terminal.show();
+        
+        vscode.window.showInformationMessage(`Rebuilding ${projectName}...`);
+    });
+
+    const cleanCommand = vscode.commands.registerCommand('dotnet-extension.clean', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot clean project: no project selected');
+            return;
+        }
+
+        const projectDir = path.dirname(projectPath);
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        
+        const terminal = vscode.window.createTerminal({
+            name: `Clean - ${projectName}`,
+            cwd: projectDir
+        });
+        
+        terminal.sendText('dotnet clean');
+        terminal.show();
+        
+        vscode.window.showInformationMessage(`Cleaning ${projectName}...`);
+    });
+
+    const openContainingFolderCommand = vscode.commands.registerCommand('dotnet-extension.openContainingFolder', async (item: any) => {
+        let projectPath: string;
+        
+        if (item instanceof vscode.Uri) {
+            projectPath = item.fsPath;
+        } else if (item && item.resourceUri) {
+            projectPath = item.resourceUri.fsPath;
+        } else {
+            vscode.window.showErrorMessage('Cannot open containing folder: no project selected');
+            return;
+        }
+
+        try {
+            await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(path.dirname(projectPath)));
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open containing folder: ${error}`);
+        }
+    });
+
+    const removeProjectFromSolutionCommand = vscode.commands.registerCommand('dotnet-extension.removeProjectFromSolution', async (item: any) => {
+        if (!item || !item.resourceUri) {
+            vscode.window.showErrorMessage('No project selected');
+            return;
+        }
+
+        const projectPath = item.resourceUri.fsPath;
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        
+        const confirmed = await vscode.window.showWarningMessage(
+            `Are you sure you want to remove "${projectName}" from the solution and delete the project files?`,
+            { modal: true },
+            'Remove & Delete'
+        );
+        
+        if (confirmed === 'Remove & Delete') {
+            try {
+                // Remove from solution first
+                if (item.solutionPath) {
+                    await solutionProvider.removeProjectFromSolution(item.solutionPath, projectPath);
+                }
+
+                // Then delete the project directory
+                const fs = require('fs');
+                const projectDir = path.dirname(projectPath);
+                await fs.promises.rm(projectDir, { recursive: true, force: true });
+                
+                solutionProvider.refresh();
+                vscode.window.showInformationMessage(`Removed and deleted project "${projectName}"`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to remove project: ${error}`);
+            }
+        }
+    });
+
+    const newProjectCommand = vscode.commands.registerCommand('dotnet-extension.newProject', async (item: any) => {
+        if (!item || !item.resourceUri) {
+            vscode.window.showErrorMessage('No solution selected');
+            return;
+        }
+
+        const solutionPath = item.resourceUri.fsPath;
+        const solutionDir = path.dirname(solutionPath);
+        const solutionName = path.basename(solutionPath, '.sln');
+        
+        // Show project templates
+        const templates = [
+            { label: 'Console App', template: 'console', description: 'A command line application' },
+            { label: 'Class Library', template: 'classlib', description: 'A .NET class library' },
+            { label: 'Web App (MVC)', template: 'mvc', description: 'ASP.NET Core MVC web application' },
+            { label: 'Web API', template: 'webapi', description: 'ASP.NET Core Web API' },
+            { label: 'Blazor Server App', template: 'blazorserver', description: 'Blazor Server application' },
+            { label: 'Worker Service', template: 'worker', description: 'Background service application' },
+            { label: 'xUnit Test Project', template: 'xunit', description: 'xUnit test project' }
+        ];
+
+        const selectedTemplate = await vscode.window.showQuickPick(templates, {
+            placeHolder: 'Select project template'
+        });
+
+        if (!selectedTemplate) {
+            return;
+        }
+
+        const projectName = await vscode.window.showInputBox({
+            prompt: 'Enter project name',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Project name cannot be empty';
+                }
+                if (value.includes('/') || value.includes('\\') || value.includes(' ')) {
+                    return 'Project name cannot contain spaces or path separators';
+                }
+                return null;
+            }
+        });
+
+        if (projectName) {
+            try {
+                const terminal = vscode.window.createTerminal({
+                    name: `New Project - ${projectName}`,
+                    cwd: solutionDir
+                });
+                
+                terminal.sendText(`dotnet new ${selectedTemplate.template} -n ${projectName.trim()}`);
+                terminal.sendText(`dotnet sln "${solutionPath}" add ${projectName.trim()}/${projectName.trim()}.csproj`);
+                terminal.show();
+                
+                solutionProvider.refresh();
+                vscode.window.showInformationMessage(`Creating ${selectedTemplate.label} project "${projectName}" and adding to solution...`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to create new project: ${error}`);
+            }
+        }
+    });
+
+    const newSolutionFolderCommand = vscode.commands.registerCommand('dotnet-extension.newSolutionFolder', async (item: any) => {
+        if (!item || !item.resourceUri) {
+            vscode.window.showErrorMessage('No solution selected');
+            return;
+        }
+
+        const solutionPath = item.resourceUri.fsPath;
+        const solutionName = path.basename(solutionPath, '.sln');
+        
+        const folderName = await vscode.window.showInputBox({
+            prompt: 'Enter solution folder name',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Folder name cannot be empty';
+                }
+                if (value.includes('/') || value.includes('\\')) {
+                    return 'Folder name cannot contain path separators';
+                }
+                return null;
+            }
+        });
+
+        if (folderName) {
+            try {
+                // Add solution folder to .sln file manually since dotnet CLI doesn't support this
+                const fs = require('fs');
+                const solutionContent = await fs.promises.readFile(solutionPath, 'utf8');
+                
+                // Generate a new GUID for the solution folder
+                const folderGuid = '{' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                }).toUpperCase() + '}';
+                
+                // Find the line with "Global" to insert the solution folder before it
+                const lines = solutionContent.split('\n');
+                let insertIndex = lines.findIndex((line: string) => line.trim() === 'Global');
+                
+                if (insertIndex === -1) {
+                    insertIndex = lines.length;
+                }
+                
+                // Add the solution folder project entry
+                const folderEntry = `Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "${folderName.trim()}", "${folderName.trim()}", "${folderGuid}"`;
+                const folderEnd = 'EndProject';
+                
+                lines.splice(insertIndex, 0, folderEntry, folderEnd);
+                
+                const updatedContent = lines.join('\n');
+                await fs.promises.writeFile(solutionPath, updatedContent, 'utf8');
+                
+                solutionProvider.refresh();
+                vscode.window.showInformationMessage(`Created solution folder "${folderName}" in ${solutionName}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to create solution folder: ${error}`);
+            }
+        }
+    });
+
     context.subscriptions.push(manageNugetCommand);
     context.subscriptions.push(setStartupCommand);
     context.subscriptions.push(refreshCommand);
@@ -581,6 +930,16 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(newFileCommand);
     context.subscriptions.push(newFolderCommand);
     context.subscriptions.push(findReferencesCommand);
+    // .NET specific commands
+    context.subscriptions.push(addProjectReferenceCommand);
+    context.subscriptions.push(addNugetPackageCommand);
+    context.subscriptions.push(buildCommand);
+    context.subscriptions.push(rebuildCommand);
+    context.subscriptions.push(cleanCommand);
+    context.subscriptions.push(openContainingFolderCommand);
+    context.subscriptions.push(removeProjectFromSolutionCommand);
+    context.subscriptions.push(newProjectCommand);
+    context.subscriptions.push(newSolutionFolderCommand);
     context.subscriptions.push(solutionTreeView);
 }
 

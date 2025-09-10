@@ -108,6 +108,51 @@
         "command": "dotnet-extension.findReferences",
         "title": "Find All References",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.addProjectReference",
+        "title": "Add Project Reference...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.addNugetPackage",
+        "title": "Add NuGet Package...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.build",
+        "title": "Build",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.rebuild",
+        "title": "Rebuild",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.clean",
+        "title": "Clean",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.openContainingFolder",
+        "title": "Open Containing Folder",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.removeProjectFromSolution",
+        "title": "Remove (Delete)",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.newProject",
+        "title": "New Project...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.newSolutionFolder",
+        "title": "New Solution Folder...",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -162,6 +207,21 @@
         {
           "command": "dotnet-extension.addExistingProject",
           "when": "view == dotnet-solution && viewItem == solution",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.newProject",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.newSolutionFolder",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.newSolutionFolder",
+          "when": "view == dotnet-solution && viewItem == solutionFolder",
           "group": "1_modification"
         },
         {
@@ -228,6 +288,41 @@
           "command": "dotnet-extension.findReferences",
           "when": "view == dotnet-solution && viewItem == file && resourceExtname =~ /\\.(cs|vb|fs)$/",
           "group": "6_references"
+        },
+        {
+          "command": "dotnet-extension.addProjectReference",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "1_dotnet"
+        },
+        {
+          "command": "dotnet-extension.addNugetPackage",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "1_dotnet"
+        },
+        {
+          "command": "dotnet-extension.build",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.rebuild",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.clean",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.openContainingFolder",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "2_workspace"
+        },
+        {
+          "command": "dotnet-extension.removeProjectFromSolution",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "5_modifications"
         }
       ]
     },

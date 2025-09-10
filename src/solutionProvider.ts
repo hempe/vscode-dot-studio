@@ -7,6 +7,15 @@ import { SolutionItem } from './solutionItem';
 import { FileNestingService, NestedFile } from './fileNesting';
 import { shouldSkipDirectory, isRelevantFileExtension } from './constants';
 
+interface SolutionEntry {
+    type: 'project' | 'solutionFolder';
+    name: string;
+    path?: string; // Only for projects
+    guid: string;
+    parentGuid?: string; // For nested relationships
+    children?: SolutionEntry[]; // Child entries
+}
+
 
 export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<SolutionItem | undefined | null | void> = new vscode.EventEmitter<SolutionItem | undefined | null | void>();
@@ -102,6 +111,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             return this.getDependenciesFromProject(element.resourceUri);
         }
 
+        if (element.itemType === 'solutionFolder') {
+            return this.getChildrenFromSolutionFolder(element);
+        }
+
         return Promise.resolve([]);
     }
 
@@ -144,57 +157,95 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             return items;
         }
 
-        try {
-            const projects = await this.solutionManager.listProjects(solutionUri.fsPath);
-
-            for (const project of projects) {
-                const projectUri = vscode.Uri.file(project.path);
-
-                items.push(new SolutionItem(
-                    project.name,
-                    this.getCollapsibleState('project', projectUri),
-                    projectUri,
-                    'project',
-                    undefined,
-                    undefined,
-                    solutionUri.fsPath
-                ));
-            }
-        } catch (error) {
-            console.error('Error getting projects from solution:', error);
-            // Fallback to manual parsing if dotnet CLI fails
-            return this.getProjectsFromSolutionFallback(solutionUri);
-        }
-
-        return items;
+        // Always use manual parsing to get both projects and solution folders
+        // The dotnet CLI only returns projects, not solution folders
+        return this.getProjectsFromSolutionFallback(solutionUri);
     }
+
+    private solutionEntryMap = new Map<string, SolutionEntry>(); // Cache for solution entries
 
     private async getProjectsFromSolutionFallback(solutionUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
         
         try {
             const solutionContent = await fs.promises.readFile(solutionUri.fsPath, 'utf8');
-            const projectPaths = this.parseSolutionFile(solutionContent, path.dirname(solutionUri.fsPath));
+            const solutionEntries = this.parseSolutionFileExtended(solutionContent, path.dirname(solutionUri.fsPath));
 
-            for (const projectPath of projectPaths) {
-                const projectName = path.basename(projectPath, path.extname(projectPath));
-                const projectUri = vscode.Uri.file(projectPath);
+            // Clear and rebuild entry cache
+            this.solutionEntryMap.clear();
+            this.buildEntryMap(solutionEntries);
 
-                items.push(new SolutionItem(
-                    projectName,
-                    this.getCollapsibleState('project', projectUri),
-                    projectUri,
-                    'project',
-                    undefined,
-                    undefined,
-                    solutionUri.fsPath
-                ));
-            }
+            return this.convertEntriesToSolutionItems(solutionEntries, solutionUri.fsPath);
         } catch (error) {
             console.error('Error with fallback solution parsing:', error);
         }
 
         return items;
+    }
+
+    private buildEntryMap(entries: SolutionEntry[]): void {
+        for (const entry of entries) {
+            this.solutionEntryMap.set(entry.guid, entry);
+            if (entry.children) {
+                this.buildEntryMap(entry.children);
+            }
+        }
+    }
+
+    private convertEntriesToSolutionItems(entries: SolutionEntry[], solutionPath: string): SolutionItem[] {
+        const items: SolutionItem[] = [];
+
+        // First add solution folders
+        for (const entry of entries) {
+            if (entry.type === 'solutionFolder') {
+                const item = new SolutionItem(
+                    entry.name,
+                    this.getCollapsibleState('solutionFolder', undefined, vscode.TreeItemCollapsibleState.Collapsed),
+                    undefined, // Solution folders don't have file URIs
+                    'solutionFolder',
+                    undefined,
+                    undefined,
+                    solutionPath
+                );
+                // Store the entry GUID so we can find children later
+                (item as any).entryGuid = entry.guid;
+                items.push(item);
+            }
+        }
+
+        // Then add projects
+        for (const entry of entries) {
+            if (entry.type === 'project' && entry.path) {
+                const projectUri = vscode.Uri.file(entry.path);
+                const item = new SolutionItem(
+                    entry.name,
+                    this.getCollapsibleState('project', projectUri),
+                    projectUri,
+                    'project',
+                    undefined,
+                    undefined,
+                    solutionPath
+                );
+                (item as any).entryGuid = entry.guid;
+                items.push(item);
+            }
+        }
+
+        return items;
+    }
+
+    private async getChildrenFromSolutionFolder(element: SolutionItem): Promise<SolutionItem[]> {
+        const entryGuid = (element as any).entryGuid;
+        if (!entryGuid) {
+            return [];
+        }
+
+        const entry = this.solutionEntryMap.get(entryGuid);
+        if (!entry || !entry.children) {
+            return [];
+        }
+
+        return this.convertEntriesToSolutionItems(entry.children, element.solutionPath || '');
     }
 
     private parseSolutionFile(content: string, solutionDir: string): string[] {
@@ -209,6 +260,77 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         }
 
         return projectPaths;
+    }
+
+    private parseSolutionFileExtended(content: string, solutionDir: string): SolutionEntry[] {
+        const entries: SolutionEntry[] = [];
+        const entryMap = new Map<string, SolutionEntry>(); // GUID -> Entry mapping
+        
+        // First pass: Parse all projects and solution folders
+        const projectRegex = /Project\("([^"]*)"\)\s*=\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)"/g;
+
+        let match;
+        while ((match = projectRegex.exec(content)) !== null) {
+            const [, typeGuid, name, pathOrName, itemGuid] = match;
+            
+            let entry: SolutionEntry;
+            
+            // Solution folder GUID: {2150E333-8FDC-42A3-9474-1A3956D46DE8}
+            if (typeGuid === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}') {
+                entry = {
+                    type: 'solutionFolder',
+                    name: name,
+                    guid: itemGuid,
+                    children: []
+                };
+            } else if (pathOrName.match(/\.(csproj|vbproj|fsproj)$/)) {
+                // It's a project
+                const relativePath = pathOrName.replace(/\\/g, '/');
+                const absolutePath = path.resolve(solutionDir, relativePath);
+                entry = {
+                    type: 'project',
+                    name: name,
+                    path: absolutePath,
+                    guid: itemGuid
+                };
+            } else {
+                // Skip unknown project types
+                continue;
+            }
+            
+            entries.push(entry);
+            entryMap.set(itemGuid, entry);
+        }
+
+        // Second pass: Parse nested relationships from GlobalSection(NestedProjects)
+        const nestedProjectsRegex = /GlobalSection\(NestedProjects\)\s*=\s*preSolution([\s\S]*?)EndGlobalSection/;
+        const nestedMatch = nestedProjectsRegex.exec(content);
+        
+        if (nestedMatch) {
+            const nestedSection = nestedMatch[1];
+            const nestedLines = nestedSection.split('\n');
+            
+            for (const line of nestedLines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine && trimmedLine.includes('=')) {
+                    const [childGuid, parentGuid] = trimmedLine.split('=').map(g => g.trim());
+                    
+                    const childEntry = entryMap.get(childGuid);
+                    const parentEntry = entryMap.get(parentGuid);
+                    
+                    if (childEntry && parentEntry) {
+                        // Set parent-child relationship
+                        childEntry.parentGuid = parentGuid;
+                        if (parentEntry.children) {
+                            parentEntry.children.push(childEntry);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Return only root level entries (no parentGuid)
+        return entries.filter(entry => !entry.parentGuid);
     }
 
     // Methods to expose SolutionManager functionality

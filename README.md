@@ -1,29 +1,36 @@
 # .NET Extension for VS Code
 
-Enhanced .NET development features for Visual Studio Code, adding missing functionality like NuGet package management UI and solution support.
+A comprehensive .NET development extension for Visual Studio Code that brings Visual Studio's Solution Explorer experience to VS Code, with complete solution/project management capabilities.
 
-## Planned Features
+## Features
 
-### ✅ Basic Extension Setup
-- [x] Extension structure and activation
-- [x] Basic commands registration
+### ✅ Solution Explorer
+- **Complete solution (.sln) support** with hierarchical project tree view
+- **Solution folder support** with unlimited nesting (just like Visual Studio)
+- **Project file parsing** with dependencies, references, and file organization
+- **Smart file nesting** (e.g., `User.cs` under `User.cshtml`)
+- **Dependencies tree** showing PackageReferences, ProjectReferences, and Framework assemblies
+- **Real-time tree updates** when files change
 
-### 🚧 NuGet Package Management
-- [ ] NuGet packages UI (similar to Visual Studio)
-- [ ] Package installation/removal
-- [ ] Package updates management
-- [ ] Package sources configuration
+### ✅ Solution Management
+- **New Solution Folder...** - Create virtual folders to organize projects
+- **New Project...** - Create new projects from templates (Console, Web API, MVC, Blazor, etc.)
+- **Add Existing Project...** - Add existing projects to solution
+- **Project context menus** with full Visual Studio-like functionality
 
-### 🚧 Solution (.sln) Support
-- [ ] Solution file parsing
-- [ ] Project hierarchy display
-- [ ] Set startup project functionality
-- [ ] Build configuration management
+### ✅ Project Management
+- **Add Project Reference...** - Reference other projects in the solution
+- **Add NuGet Package...** - Install NuGet packages via dotnet CLI
+- **Build/Rebuild/Clean** - Project build operations
+- **New File/Folder** - Create files and folders within projects
+- **File operations** - Copy, paste, rename, delete with keyboard shortcuts
 
-### 🚧 Project Management
-- [ ] Add/remove project references
-- [ ] Manage project dependencies
-- [ ] Project templates
+### ✅ Advanced Features
+- **External project support** - Handle projects outside workspace folder
+- **Performance optimized** - Fast folder expansion and file scanning
+- **Proper icons** - Distinctive icons for solutions, projects, solution folders, and dependencies
+- **Context-aware menus** - Different options for solutions, projects, folders, and files
+- **Keyboard shortcuts** - Standard shortcuts (Ctrl+C, Ctrl+V, F2, Delete, etc.)
 
 ## Development
 
@@ -61,17 +68,55 @@ Enhanced .NET development features for Visual Studio Code, adding missing functi
 ### Directory Structure
 ```
 .
-├── package.json          # Extension manifest
+├── package.json          # Extension manifest and command definitions
 ├── tsconfig.json         # TypeScript configuration
 ├── src/
-│   └── extension.ts      # Main extension code
+│   ├── extension.ts      # Main extension entry point and command handlers
+│   ├── solutionProvider.ts    # Solution Explorer tree data provider
+│   ├── solutionManager.ts     # Solution file operations (dotnet CLI)
+│   ├── projectFileParser.ts   # .csproj/.sln file parsing logic
+│   ├── solutionItem.ts        # Tree view item representation
+│   ├── fileNesting.ts         # Smart file nesting logic
+│   └── constants.ts           # Shared constants and utilities
 ├── out/                  # Compiled JavaScript (generated)
 └── .vscode/
     └── launch.json       # Debug configuration
 ```
 
-## Next Steps
-- Implement NuGet package management UI
-- Add solution file parsing
-- Create project hierarchy tree view
-- Add build and debug configurations
+## Usage
+
+1. **Open a .NET solution**: Open a folder containing `.sln` files in VS Code
+2. **View Solution Explorer**: The extension automatically activates and shows the Solution Explorer in the sidebar
+3. **Manage projects**: Right-click on solutions and projects to access context menus
+4. **Work with files**: Navigate the project structure, create files, and manage dependencies
+
+## Context Menus
+
+### Solution (.sln) Context Menu:
+- New Project...
+- Add Existing Project...
+- New Solution Folder...
+- Open In Integrated Terminal
+
+### Project (.csproj) Context Menu:
+- New File...
+- New Folder...
+- Open In Integrated Terminal
+- Add Project Reference...
+- Add NuGet Package...
+- Build / Rebuild / Clean
+- Open Containing Folder
+- Remove (Delete)
+- Rename... (F2)
+
+### Solution Folder Context Menu:
+- New Solution Folder...
+
+## Architecture
+
+The extension uses a modular architecture with separate concerns:
+- **SolutionProvider**: VS Code TreeDataProvider for the Solution Explorer view
+- **SolutionManager**: Handles dotnet CLI operations (sln add/remove)
+- **ProjectFileParser**: Parses .csproj/.sln files and builds file structure
+- **FileNesting**: Implements intelligent file nesting similar to Visual Studio
+- **Constants**: Centralized configuration for file types and skip directories

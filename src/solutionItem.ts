@@ -5,7 +5,7 @@ export class SolutionItem extends vscode.TreeItem {
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly resourceUri?: vscode.Uri,
-        public readonly itemType?: 'solution' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency',
+        public readonly itemType?: 'solution' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'solutionFolder',
         public readonly children?: SolutionItem[],
         public readonly projectPath?: string,
         public readonly solutionPath?: string,
@@ -21,10 +21,28 @@ export class SolutionItem extends vscode.TreeItem {
             // Use specific icon for .csproj files - VS Code's file icon with resource URI should work
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
+            
+            // Add command to open the project file when clicked
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open Project File',
+                    arguments: [resourceUri]
+                };
+            }
         } else if (itemType === 'solution') {
             // Use specific icon for .sln files 
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
+            
+            // Add command to open the solution file when clicked
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open Solution File',
+                    arguments: [resourceUri]
+                };
+            }
         } else if (itemType === 'folder') {
             // Use folder theme icon - try the standard folder icon
             this.iconPath = new vscode.ThemeIcon('folder');
@@ -44,6 +62,9 @@ export class SolutionItem extends vscode.TreeItem {
             } else {
                 this.iconPath = new vscode.ThemeIcon('references');
             }
+        } else if (itemType === 'solutionFolder') {
+            // Use a distinctive icon for solution folders (virtual folders in .sln)
+            this.iconPath = new vscode.ThemeIcon('folder-library');
         } else {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
