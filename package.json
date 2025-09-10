@@ -153,6 +153,21 @@
         "command": "dotnet-extension.newSolutionFolder",
         "title": "New Solution Folder...",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.addExistingFile",
+        "title": "Add Existing File...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.deleteSolutionFolder",
+        "title": "Delete",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.renameSolutionFolder",
+        "title": "Rename...",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -225,6 +240,26 @@
           "group": "1_modification"
         },
         {
+          "command": "dotnet-extension.addExistingFile",
+          "when": "view == dotnet-solution && viewItem == solutionFolder",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.newFile",
+          "when": "view == dotnet-solution && viewItem == solutionFolder",
+          "group": "1_modification"
+        },
+        {
+          "command": "dotnet-extension.renameSolutionFolder",
+          "when": "view == dotnet-solution && viewItem == solutionFolder",
+          "group": "5_modifications"
+        },
+        {
+          "command": "dotnet-extension.deleteSolutionFolder",
+          "when": "view == dotnet-solution && viewItem == solutionFolder",
+          "group": "5_modifications"
+        },
+        {
           "command": "dotnet-extension.revealInExplorer",
           "when": "focusedView == dotnet-solution",
           "group": "2_workspace"
@@ -290,6 +325,36 @@
           "group": "6_references"
         },
         {
+          "command": "dotnet-extension.openInTerminal",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "2_workspace"
+        },
+        {
+          "command": "dotnet-extension.revealInExplorer",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "2_workspace"
+        },
+        {
+          "command": "dotnet-extension.copyPath",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "4_paths"
+        },
+        {
+          "command": "dotnet-extension.copyRelativePath",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "4_paths"
+        },
+        {
+          "command": "dotnet-extension.renameFile",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "5_modifications"
+        },
+        {
+          "command": "dotnet-extension.deleteFile",
+          "when": "view == dotnet-solution && viewItem == file",
+          "group": "5_modifications"
+        },
+        {
           "command": "dotnet-extension.addProjectReference",
           "when": "view == dotnet-solution && viewItem == project",
           "group": "1_dotnet"
@@ -334,7 +399,7 @@
         "when": "focusedView == dotnet-solution"
       },
       {
-        "command": "dotnet-extension.pasteFile", 
+        "command": "dotnet-extension.pasteFile",
         "key": "ctrl+v",
         "mac": "cmd+v",
         "when": "focusedView == dotnet-solution"
@@ -384,6 +449,16 @@
         "key": "ctrl+shift+n",
         "mac": "cmd+shift+n",
         "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
+      },
+      {
+        "command": "dotnet-extension.renameSolutionFolder",
+        "key": "f2",
+        "when": "focusedView == dotnet-solution && viewItem == solutionFolder"
+      },
+      {
+        "command": "dotnet-extension.deleteSolutionFolder",
+        "key": "delete",
+        "when": "focusedView == dotnet-solution && viewItem == solutionFolder"
       }
     ]
   },
