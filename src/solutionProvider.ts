@@ -5,6 +5,7 @@ import { SolutionManager } from './solutionManager';
 import { ProjectFileParser } from './projectFileParser';
 import { SolutionItem } from './solutionItem';
 import { FileNestingService, NestedFile } from './fileNesting';
+import { shouldSkipDirectory, isRelevantFileExtension } from './constants';
 
 
 export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
@@ -405,41 +406,39 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private async getFilesFromFolder(folderUri: vscode.Uri, projectPath: string): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
         
-        if (!this.projectFileParser) {
-            return items;
-        }
-
         try {
-            const structure = await this.projectFileParser.parseProjectFiles(projectPath);
-            const projectDir = path.dirname(projectPath);
-            const folderRelativePath = path.relative(projectDir, folderUri.fsPath).replace(/\\/g, '/');
+            // Use fast directory scanning instead of parsing entire project
+            const folderPath = folderUri.fsPath;
+            const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
             
-            // Get files in this specific folder
-            const filesInFolder = structure.files.filter(file => {
-                if (file.isDirectory) return false;
-                const fileDir = path.dirname(file.relativePath);
-                const normalizedFileDir = fileDir === '.' ? '' : fileDir;
-                return normalizedFileDir === folderRelativePath;
-            });
+            // Separate files and directories
+            const files: string[] = [];
+            const subDirs: string[] = [];
             
-            // Add subfolders first (before files)
-            const subFolders = new Set<string>();
-            for (const dir of structure.directories) {
-                if (dir.startsWith(folderRelativePath + '/')) {
-                    const remainingPath = dir.substring(folderRelativePath.length + 1);
-                    const nextLevel = remainingPath.split('/')[0];
-                    subFolders.add(nextLevel);
+            for (const entry of entries) {
+                const fullPath = path.join(folderPath, entry.name);
+                
+                if (entry.isDirectory()) {
+                    // Skip common directories that shouldn't be shown
+                    if (!shouldSkipDirectory(entry.name)) {
+                        subDirs.push(entry.name);
+                    }
+                } else {
+                    // Only include relevant file types
+                    const ext = path.extname(entry.name);
+                    if (isRelevantFileExtension(ext)) {
+                        files.push(fullPath);
+                    }
                 }
             }
             
-            // Sort subfolders alphabetically
-            const sortedSubFolders = Array.from(subFolders).sort();
-            for (const subFolder of sortedSubFolders) {
-                const subFolderPath = path.resolve(folderUri.fsPath, subFolder);
+            // Add subfolders first (sorted alphabetically)
+            for (const subDir of subDirs.sort()) {
+                const subFolderPath = path.join(folderPath, subDir);
                 const subFolderUri = vscode.Uri.file(subFolderPath);
                 
                 items.push(new SolutionItem(
-                    subFolder,
+                    subDir,
                     this.getCollapsibleState('folder', subFolderUri),
                     subFolderUri,
                     'folder',
@@ -449,13 +448,15 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             }
 
             // Then add files (after subfolders)
-            const folderFiles = filesInFolder.map(file => ({
-                name: path.basename(file.relativePath),
-                path: file.path
-            }));
-            
-            const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
-            items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
+            if (files.length > 0) {
+                const folderFiles = files.map(file => ({
+                    name: path.basename(file),
+                    path: file
+                }));
+                
+                const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
+                items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
+            }
             
         } catch (error) {
             console.error('Error getting files from folder:', error);
@@ -499,4 +500,6 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         
         return items;
     }
+
+    // Remove this method since we now use the shared function from constants
 }

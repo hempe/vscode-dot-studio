@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
 import { minimatch } from 'minimatch';
+import { shouldSkipDirectory, isRelevantFileExtension, RELEVANT_FILE_EXTENSIONS } from './constants';
 
 export interface ProjectFile {
     path: string;
@@ -37,29 +38,37 @@ export class ProjectFileParser {
             // Parse dependencies from project file
             const dependencies = await this.parseDependencies(projectPath);
             
-            // Simple approach: get common source files without complex XML parsing
-            const commonPatterns = [
-                '**/*.cs', '**/*.vb', '**/*.fs',           // Source files
-                '**/*.cshtml', '**/*.vbhtml',             // Razor views
-                '**/*.xaml',                               // XAML files
-                '**/*.resx',                               // Resources
-                '**/*.json', '**/*.xml', '**/*.config'     // Config files
-            ];
+            // Use file patterns based on our relevant extensions
+            const commonPatterns = RELEVANT_FILE_EXTENSIONS.map(ext => `**/*${ext}`);
             
             const allFiles: string[] = [];
-            const relativePath = path.relative(this.workspaceRoot, projectDir);
             
-            for (const pattern of commonPatterns) {
-                const searchPattern = relativePath ? `${relativePath}/${pattern}` : pattern;
-                const excludePattern = `{${relativePath}/bin/**,${relativePath}/obj/**}`;
-                
-                try {
-                    const uris = await vscode.workspace.findFiles(searchPattern, excludePattern);
-                    allFiles.push(...uris.map(uri => uri.fsPath));
-                } catch (error) {
-                    // Continue with other patterns even if one fails
-                    console.log(`Pattern ${pattern} failed:`, error);
+            // Check if project is within workspace
+            const relativePath = path.relative(this.workspaceRoot, projectDir);
+            const isWithinWorkspace = !relativePath.startsWith('..');
+            
+            if (isWithinWorkspace) {
+                // Use VS Code's workspace search for projects within workspace
+                for (const pattern of commonPatterns) {
+                    const searchPattern = relativePath ? `${relativePath}/${pattern}` : pattern;
+                    const excludePattern = `{${relativePath}/bin/**,${relativePath}/obj/**}`;
+                    
+                    try {
+                        const uris = await vscode.workspace.findFiles(searchPattern, excludePattern);
+                        allFiles.push(...uris.map(uri => uri.fsPath));
+                    } catch (error) {
+                        // Continue with other patterns even if one fails
+                        console.log(`Pattern ${pattern} failed:`, error);
+                    }
                 }
+            } else {
+                // For projects outside workspace, use direct file system scanning
+                const projectFiles = await this.getAllFiles(projectDir);
+                const filteredByPattern = projectFiles.filter(file => {
+                    const ext = path.extname(file);
+                    return isRelevantFileExtension(ext);
+                });
+                allFiles.push(...filteredByPattern);
             }
             
             // Remove duplicates and filter
@@ -92,7 +101,7 @@ export class ProjectFileParser {
                 
                 if (entry.isDirectory()) {
                     // Skip common directories that shouldn't be included
-                    if (!this.shouldSkipDirectory(entry.name)) {
+                    if (!shouldSkipDirectory(entry.name)) {
                         const subFiles = await this.getAllFiles(fullPath, maxDepth - 1);
                         files.push(...subFiles);
                     }
@@ -148,10 +157,7 @@ export class ProjectFileParser {
         this.fileCache.clear();
     }
 
-    private shouldSkipDirectory(dirName: string): boolean {
-        const skipDirs = ['bin', 'obj', 'node_modules', '.git', '.vs', '.vscode', 'packages', '.nuget', 'TestResults'];
-        return skipDirs.includes(dirName);
-    }
+    // Remove this method since we now use the shared function from constants
 
     private shouldSkipFile(filePath: string, projectPath: string): boolean {
         // Skip the project file itself - it's the "node" that defines the tree
