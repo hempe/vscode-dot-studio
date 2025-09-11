@@ -18,7 +18,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private expandedItems = new Set<string>(); // Track expanded items by their resource path
     private copiedFile?: string; // Track copied file path for paste operations
 
-    constructor(private workspaceRoot?: string) { 
+    constructor(private workspaceRoot?: string) {
         if (workspaceRoot) {
             this.solutionManager = new SolutionManager(workspaceRoot);
             this.projectFileParser = new ProjectFileParser(workspaceRoot);
@@ -39,7 +39,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     // Methods to track expansion state
     setExpanded(item: SolutionItem, expanded: boolean): void {
         if (!item.resourceUri) return;
-        
+
         const key = item.resourceUri.fsPath;
         if (expanded) {
             this.expandedItems.add(key);
@@ -48,7 +48,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         }
     }
 
-    private isExpanded(resourcePath: string): boolean {
+    public isExpanded(resourcePath: string): boolean {
         return this.expandedItems.has(resourcePath);
     }
 
@@ -74,6 +74,14 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
     getTreeItem(element: SolutionItem): vscode.TreeItem {
         return element;
+    }
+
+    getParent(element: SolutionItem): SolutionItem | undefined {
+        // This method is required for TreeView.reveal() to work
+        // For now, return undefined as we don't track parent relationships
+        // TODO: If we need reveal functionality to work properly, we'd need to track parent-child relationships
+        console.log('getParent called for element:', element.label);
+        return undefined;
     }
 
     getChildren(element?: SolutionItem): Thenable<SolutionItem[]> {
@@ -163,11 +171,11 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
     private async getProjectsFromSolutionFallback(solutionUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
-        
+
         try {
             const solutionContent = await fs.promises.readFile(solutionUri.fsPath, 'utf8');
             const solutionFile = SolutionFileParser.parse(solutionContent, path.dirname(solutionUri.fsPath));
-            
+
             // Cache the parsed solution
             this.parsedSolutions.set(solutionUri.fsPath, solutionFile);
             this.projectHierarchy = SolutionFileParser.buildProjectHierarchy(solutionFile);
@@ -195,7 +203,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 const solutionItems = SolutionFileParser.getSolutionItems(project);
                 const hasContent = children.length > 0 || solutionItems.length > 0;
                 const collapsibleState = hasContent ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
-                
+
                 const item = new SolutionItem(
                     project.name,
                     this.getCollapsibleState('solutionFolder', undefined, collapsibleState),
@@ -258,11 +266,11 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 const solutionItems = SolutionFileParser.getSolutionItems(project);
                 if (solutionItems.length > 0) {
                     const solutionDir = element.solutionPath ? path.dirname(element.solutionPath) : this.workspaceRoot || '';
-                    
+
                     for (const solutionItem of solutionItems.sort()) {
                         const filePath = path.resolve(solutionDir, solutionItem);
                         const fileUri = vscode.Uri.file(filePath);
-                        
+
                         const item = new SolutionItem(
                             path.basename(solutionItem),
                             vscode.TreeItemCollapsibleState.None,
@@ -271,7 +279,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                             undefined,
                             element.solutionPath
                         );
-                        
+
                         items.push(item);
                     }
                 }
@@ -319,30 +327,30 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         try {
             const fs = require('fs').promises;
             const path = require('path');
-            
+
             const sourceFile = this.copiedFile;
             const fileName = path.basename(sourceFile);
             const fileExt = path.extname(fileName);
             const baseName = path.basename(fileName, fileExt);
-            
+
             // Generate a unique filename
             let copyCounter = 1;
             let targetFileName = fileName;
             let targetPath = path.join(targetDir, targetFileName);
-            
+
             // Check if file already exists and generate unique name
             while (await this.fileExists(targetPath)) {
                 targetFileName = `${baseName} - Copy${copyCounter > 1 ? ` (${copyCounter})` : ''}${fileExt}`;
                 targetPath = path.join(targetDir, targetFileName);
                 copyCounter++;
             }
-            
+
             // Copy the file
             await fs.copyFile(sourceFile, targetPath);
-            
+
             // Refresh the tree to show the new file
             this.refresh();
-            
+
             return true;
         } catch (error) {
             console.error('Error copying file:', error);
@@ -366,7 +374,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
     private async getFilesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
-        
+
         if (!this.projectFileParser) {
             return items;
         }
@@ -374,30 +382,30 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         try {
             const structure = await this.projectFileParser.parseProjectFiles(projectUri.fsPath);
             const projectDir = path.dirname(projectUri.fsPath);
-            
+
             // Group files by directory
             const filesByDir = new Map<string, { name: string; path: string }[]>();
             filesByDir.set('', []); // Root files
-            
+
             for (const file of structure.files) {
                 if (file.isDirectory) {
                     continue; // We'll create folder items separately
                 }
-                
+
                 const dirPath = path.dirname(file.relativePath);
                 const normalizedDirPath = dirPath === '.' ? '' : dirPath;
-                
+
                 if (!filesByDir.has(normalizedDirPath)) {
                     filesByDir.set(normalizedDirPath, []);
                 }
-                
+
                 const fileName = path.basename(file.relativePath);
                 filesByDir.get(normalizedDirPath)!.push({
                     name: fileName,
                     path: file.path
                 });
             }
-            
+
             // Add Dependencies node first if there are any dependencies
             if (structure.dependencies && structure.dependencies.length > 0) {
                 items.push(new SolutionItem(
@@ -418,13 +426,13 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                     rootFolders.add(parts[0]);
                 }
             }
-            
+
             // Sort folders alphabetically
             const sortedFolders = Array.from(rootFolders).sort();
             for (const folder of sortedFolders) {
                 const folderPath = path.resolve(projectDir, folder);
                 const folderUri = vscode.Uri.file(folderPath);
-                
+
                 items.push(new SolutionItem(
                     folder,
                     this.getCollapsibleState('folder', folderUri),
@@ -439,21 +447,21 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             const rootFiles = filesByDir.get('') || [];
             const nestedFiles = FileNestingService.nestFiles(rootFiles);
             items.push(...this.convertNestedFilesToSolutionItems(nestedFiles, projectUri.fsPath));
-            
+
         } catch (error) {
             console.error('Error getting files from project:', error);
         }
-        
+
         return items;
     }
 
     private convertNestedFilesToSolutionItems(nestedFiles: NestedFile[], projectPath: string): SolutionItem[] {
         const items: SolutionItem[] = [];
-        
+
         for (const nestedFile of nestedFiles) {
             const fileUri = vscode.Uri.file(nestedFile.path);
             const hasChildren = nestedFile.children && nestedFile.children.length > 0;
-            
+
             const item = new SolutionItem(
                 nestedFile.name,
                 hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
@@ -462,33 +470,33 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 undefined,
                 projectPath
             );
-            
+
             // Store nested children for later retrieval
             if (hasChildren) {
                 (item as any).nestedChildren = nestedFile.children;
             }
-            
+
             items.push(item);
         }
-        
+
         return items;
     }
 
     private async getFilesFromFolder(folderUri: vscode.Uri, projectPath: string): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
-        
+
         try {
             // Use fast directory scanning instead of parsing entire project
             const folderPath = folderUri.fsPath;
             const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
-            
+
             // Separate files and directories
             const files: string[] = [];
             const subDirs: string[] = [];
-            
+
             for (const entry of entries) {
                 const fullPath = path.join(folderPath, entry.name);
-                
+
                 if (entry.isDirectory()) {
                     // Skip common directories that shouldn't be shown
                     if (!shouldSkipDirectory(entry.name)) {
@@ -502,12 +510,12 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                     }
                 }
             }
-            
+
             // Add subfolders first (sorted alphabetically)
             for (const subDir of subDirs.sort()) {
                 const subFolderPath = path.join(folderPath, subDir);
                 const subFolderUri = vscode.Uri.file(subFolderPath);
-                
+
                 items.push(new SolutionItem(
                     subDir,
                     this.getCollapsibleState('folder', subFolderUri),
@@ -524,28 +532,28 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                     name: path.basename(file),
                     path: file
                 }));
-                
+
                 const nestedFolderFiles = FileNestingService.nestFiles(folderFiles);
                 items.push(...this.convertNestedFilesToSolutionItems(nestedFolderFiles, projectPath));
             }
-            
+
         } catch (error) {
             console.error('Error getting files from folder:', error);
         }
-        
+
         return items;
     }
 
     private async getDependenciesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
-        
+
         if (!this.projectFileParser) {
             return items;
         }
 
         try {
             const structure = await this.projectFileParser.parseProjectFiles(projectUri.fsPath);
-            
+
             for (const dep of structure.dependencies) {
                 let label = dep.name;
                 if (dep.version) {
@@ -568,7 +576,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         } catch (error) {
             console.error('Error getting dependencies from project:', error);
         }
-        
+
         return items;
     }
 

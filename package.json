@@ -168,6 +168,16 @@
         "command": "dotnet-extension.renameSolutionFolder",
         "title": "Rename...",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.renameSolution",
+        "title": "Rename...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.itemClick",
+        "title": "Item Click Handler",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -235,6 +245,11 @@
           "group": "1_modification"
         },
         {
+          "command": "dotnet-extension.renameSolution",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "5_modifications"
+        },
+        {
           "command": "dotnet-extension.newSolutionFolder",
           "when": "view == dotnet-solution && viewItem == solutionFolder",
           "group": "1_modification"
@@ -298,16 +313,6 @@
           "command": "dotnet-extension.copyRelativePath",
           "when": "focusedView == dotnet-solution",
           "group": "4_paths"
-        },
-        {
-          "command": "dotnet-extension.renameFile",
-          "when": "focusedView == dotnet-solution",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.deleteFile",
-          "when": "focusedView == dotnet-solution",
-          "group": "5_modifications"
         },
         {
           "command": "dotnet-extension.newFile",
@@ -413,12 +418,12 @@
       {
         "command": "dotnet-extension.deleteFile",
         "key": "delete",
-        "when": "focusedView == dotnet-solution"
+        "when": "focusedView == dotnet-solution && viewItem == file"
       },
       {
         "command": "dotnet-extension.renameFile",
         "key": "f2",
-        "when": "focusedView == dotnet-solution"
+        "when": "focusedView == dotnet-solution && viewItem == file"
       },
       {
         "command": "dotnet-extension.openToSide",
@@ -459,6 +464,11 @@
         "command": "dotnet-extension.deleteSolutionFolder",
         "key": "delete",
         "when": "focusedView == dotnet-solution && viewItem == solutionFolder"
+      },
+      {
+        "command": "dotnet-extension.renameSolution",
+        "key": "f2",
+        "when": "focusedView == dotnet-solution && viewItem == solution"
       }
     ]
   },

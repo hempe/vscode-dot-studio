@@ -21,28 +21,12 @@ export class SolutionItem extends vscode.TreeItem {
             // Use specific icon for .csproj files - VS Code's file icon with resource URI should work
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
-            
-            // Add command to open the project file when clicked
-            if (resourceUri) {
-                this.command = {
-                    command: 'vscode.open',
-                    title: 'Open Project File',
-                    arguments: [resourceUri]
-                };
-            }
+            // Project file opening will be handled by double-click detection
         } else if (itemType === 'solution') {
             // Use specific icon for .sln files 
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
-            
-            // Add command to open the solution file when clicked
-            if (resourceUri) {
-                this.command = {
-                    command: 'vscode.open',
-                    title: 'Open Solution File',
-                    arguments: [resourceUri]
-                };
-            }
+            // Solution file opening will be handled by double-click detection
         } else if (itemType === 'folder') {
             // Use folder theme icon - try the standard folder icon
             this.iconPath = new vscode.ThemeIcon('folder');
@@ -92,7 +76,13 @@ export class SolutionItem extends vscode.TreeItem {
             }
         }
 
-        // Don't set single-click command for files to allow keyboard shortcuts to work
-        // Files will open on double-click or Enter key through VS Code's default behavior
+        // Set click command for files, projects, and solutions to handle double-click opening
+        if (itemType === 'file' || itemType === 'project' || itemType === 'solution') {
+            this.command = {
+                command: 'dotnet-extension.itemClick',
+                title: 'Handle Item Click',
+                arguments: [this]
+            };
+        }
     }
 }

@@ -33,7 +33,8 @@ A comprehensive .NET development extension for Visual Studio Code that brings Vi
 - **Proper icons** - Distinctive icons for solutions, projects, solution folders, and dependencies
 - **Context-aware menus** - Different options for solutions, projects, folders, and files
 - **Keyboard shortcuts** - Standard shortcuts (Ctrl+C, Ctrl+V, F2, Delete, etc.)
-- **Clean codebase** - Refactored with utilities for maintainability and reduced duplication
+- **Modular architecture** - Clean, maintainable codebase with separated command modules
+- **Reduced duplication** - Utility functions eliminate ~20% code redundancy
 
 ## Development
 
@@ -74,7 +75,7 @@ A comprehensive .NET development extension for Visual Studio Code that brings Vi
 ├── package.json              # Extension manifest and command definitions
 ├── tsconfig.json             # TypeScript configuration
 ├── src/
-│   ├── extension.ts          # Main extension entry point and command handlers
+│   ├── extension.ts          # Main extension entry point (clean & minimal)
 │   ├── solutionProvider.ts  # Solution Explorer tree data provider
 │   ├── solutionManager.ts   # Solution file operations (dotnet CLI)
 │   ├── solutionFileParser.ts # Robust .sln file parser (JSON output)
@@ -82,7 +83,13 @@ A comprehensive .NET development extension for Visual Studio Code that brings Vi
 │   ├── solutionItem.ts      # Tree view item representation
 │   ├── fileNesting.ts       # Smart file nesting logic
 │   ├── constants.ts         # Shared constants and utilities
-│   └── utils.ts            # Utility functions (path, validation, terminal, etc.)
+│   ├── utils.ts             # Utility functions (path, validation, terminal, etc.)
+│   └── commands/            # Modular command handlers
+│       ├── commandManager.ts      # Central command registration
+│       ├── solutionCommands.ts    # Solution-level commands
+│       ├── projectCommands.ts     # Project-level commands
+│       ├── fileCommands.ts        # File operations
+│       └── solutionFolderCommands.ts # Solution folder operations
 ├── out/                     # Compiled JavaScript (generated)
 └── .vscode/
     └── launch.json          # Debug configuration
