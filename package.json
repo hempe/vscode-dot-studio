@@ -178,6 +178,26 @@
         "command": "dotnet-extension.itemClick",
         "title": "Item Click Handler",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.buildSolution",
+        "title": "Build Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.rebuildSolution",
+        "title": "Rebuild Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.cleanSolution",
+        "title": "Clean Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.manageSolutionNugetPackages",
+        "title": "Manage NuGet Packages for Solution",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -248,6 +268,26 @@
           "command": "dotnet-extension.renameSolution",
           "when": "view == dotnet-solution && viewItem == solution",
           "group": "5_modifications"
+        },
+        {
+          "command": "dotnet-extension.buildSolution",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.rebuildSolution",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.cleanSolution",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "2_build"
+        },
+        {
+          "command": "dotnet-extension.manageSolutionNugetPackages",
+          "when": "view == dotnet-solution && viewItem == solution",
+          "group": "1_dotnet"
         },
         {
           "command": "dotnet-extension.newSolutionFolder",
@@ -469,23 +509,43 @@
         "command": "dotnet-extension.renameSolution",
         "key": "f2",
         "when": "focusedView == dotnet-solution && viewItem == solution"
+      },
+      {
+        "command": "dotnet-extension.buildSolution",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "workspaceHasDotnetFiles"
+      },
+      {
+        "command": "dotnet-extension.rebuildSolution",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "workspaceHasDotnetFiles"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node ./out/test/runTest.js",
+    "test:unit": "npm run compile && mocha out/test/unit/**/*.test.js",
+    "test:watch": "npm run compile && mocha out/test/unit/**/*.test.js --watch"
   },
   "dependencies": {
-    "xml2js": "^0.6.2",
-    "minimatch": "^9.0.3"
+    "minimatch": "^9.0.3",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
-    "@types/node": "16.x",
-    "@types/xml2js": "^0.4.14",
     "@types/minimatch": "^5.1.2",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/sinon": "^10.0.16",
+    "@types/vscode": "^1.74.0",
+    "@types/xml2js": "^0.4.14",
+    "@vscode/test-electron": "^2.3.4",
+    "mocha": "^10.2.0",
+    "sinon": "^15.2.0",
     "typescript": "^4.9.4"
   }
 }
