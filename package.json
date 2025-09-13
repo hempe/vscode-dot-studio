@@ -32,11 +32,11 @@
       },
       {
         "command": "dotnet-extension.openFile",
-        "title": "Open File"
+        "title": "Open"
       },
       {
         "command": "dotnet-extension.removeProject",
-        "title": "Remove Project from Solution (Del)",
+        "title": "Remove Project from Solution",
         "category": ".NET"
       },
       {
@@ -46,7 +46,7 @@
       },
       {
         "command": "dotnet-extension.revealInExplorer",
-        "title": "Reveal in File Explorer",
+        "title": "Reveal in Explorer",
         "category": ".NET"
       },
       {
@@ -56,12 +56,12 @@
       },
       {
         "command": "dotnet-extension.copyFile",
-        "title": "Copy File",
+        "title": "Copy",
         "category": ".NET"
       },
       {
         "command": "dotnet-extension.pasteFile",
-        "title": "Paste File",
+        "title": "Paste",
         "category": ".NET"
       },
       {
@@ -166,7 +166,7 @@
       },
       {
         "command": "dotnet-extension.deleteSolutionItem",
-        "title": "Delete Solution Item",
+        "title": "Delete",
         "category": ".NET"
       },
       {
@@ -211,24 +211,24 @@
       },
       {
         "command": "dotnet-extension.smartRename",
-        "title": "Rename... (F2)",
+        "title": "Rename...",
         "category": ".NET"
       },
       {
         "command": "dotnet-extension.smartDelete",
-        "title": "Delete (Del)",
+        "title": "Delete",
         "category": ".NET"
       },
       {
         "command": "dotnet-extension.renameFolder",
-        "title": "Rename Folder",
+        "title": "Rename...",
         "category": ".NET"
       },
       {
         "command": "dotnet-extension.deleteFolder",
-        "title": "Delete Folder",
+        "title": "Delete",
         "category": ".NET"
-      },
+      }
     ],
     "views": {
       "solution-explorer": [
@@ -556,7 +556,7 @@
         "command": "dotnet-extension.debugContext",
         "key": "f3",
         "when": "workspaceHasDotnetFiles"
-      },
+      }
     ]
   },
   "scripts": {

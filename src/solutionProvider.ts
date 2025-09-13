@@ -5,7 +5,7 @@ import { SolutionManager } from './solutionManager';
 import { ProjectFileParser } from './projectFileParser';
 import { SolutionItem } from './solutionItem';
 import { FileNestingService, NestedFile } from './fileNesting';
-import { shouldSkipDirectory, isRelevantFileExtension } from './constants';
+import { shouldSkipDirectory } from './constants';
 import { SolutionFileParser, SolutionFile, SolutionProject } from './solutionFileParser';
 import { PathUtils, ErrorUtils } from './utils';
 
@@ -17,6 +17,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private projectFileParser?: ProjectFileParser;
     private expandedItems = new Set<string>(); // Track expanded items by their resource path
     private copiedFile?: string; // Track copied file path for paste operations
+    private isCutOperation = false; // Track if this is a cut (move) operation
 
     constructor(private workspaceRoot?: string) {
         if (workspaceRoot) {
@@ -215,6 +216,8 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 );
                 // Store the project GUID so we can find children later
                 (item as any).projectGuid = project.guid;
+                // Also set id property for commands to use
+                (item as any).id = project.guid;
                 solutionFolders.push(item);
             } else if (SolutionFileParser.isDotNetProject(project)) {
                 const projectUri = vscode.Uri.file(project.path);
@@ -275,9 +278,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                             path.basename(solutionItem),
                             vscode.TreeItemCollapsibleState.None,
                             fileUri,
-                            'file',
+                            'solutionItem',
                             undefined,
-                            element.solutionPath
+                            undefined, // projectPath
+                            element.solutionPath // solutionPath
                         );
 
                         items.push(item);
@@ -317,6 +321,12 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     // Copy/Paste functionality
     copyFile(filePath: string): void {
         this.copiedFile = filePath;
+        this.isCutOperation = false;
+    }
+
+    cutFile(filePath: string): void {
+        this.copiedFile = filePath;
+        this.isCutOperation = true;
     }
 
     async pasteFile(targetDir: string): Promise<boolean> {
@@ -345,10 +355,19 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                 copyCounter++;
             }
 
-            // Copy the file
-            await fs.copyFile(sourceFile, targetPath);
+            // Copy or move the file based on operation type
+            if (this.isCutOperation) {
+                // Move the file for cut operation
+                await fs.rename(sourceFile, targetPath);
+                // Clear the copied file since cut operation is complete
+                this.copiedFile = undefined;
+                this.isCutOperation = false;
+            } else {
+                // Copy the file for copy operation
+                await fs.copyFile(sourceFile, targetPath);
+            }
 
-            // Refresh the tree to show the new file
+            // Refresh the tree to show the changes
             this.refresh();
 
             return true;
@@ -370,6 +389,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
     getCopiedFile(): string | undefined {
         return this.copiedFile;
+    }
+
+    isCutOperationActive(): boolean {
+        return this.isCutOperation;
     }
 
     private async getFilesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
@@ -432,7 +455,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             for (const folder of sortedFolders) {
                 const folderPath = path.resolve(projectDir, folder);
                 const folderUri = vscode.Uri.file(folderPath);
-
+                console.info(`Checking folder ${folder} (${folderPath})`);
                 items.push(new SolutionItem(
                     folder,
                     this.getCollapsibleState('folder', folderUri),
@@ -503,11 +526,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
                         subDirs.push(entry.name);
                     }
                 } else {
-                    // Only include relevant file types
-                    const ext = path.extname(entry.name);
-                    if (isRelevantFileExtension(ext)) {
-                        files.push(fullPath);
-                    }
+                    files.push(fullPath);
                 }
             }
 

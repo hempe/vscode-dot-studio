@@ -68,7 +68,16 @@ export class FileCommands {
         terminal.show();
     }
 
-    private copyFile(item: any): void {
+    private async copyFile(item?: any): Promise<void> {
+        // If no item provided (keyboard shortcut), get selected item from tree view
+        if (!item) {
+            item = await this.getSelectedTreeItem();
+            if (!item) {
+                vscode.window.showWarningMessage('No item selected in Solution Explorer');
+                return;
+            }
+        }
+
         const filePath = PathUtils.getPathFromItem(item, 'copy file');
         if (!filePath) return;
 
@@ -76,17 +85,28 @@ export class FileCommands {
         vscode.window.showInformationMessage(`Copied: ${path.basename(filePath)}`);
     }
 
-    private async pasteFile(item: any): Promise<void> {
+    private async pasteFile(item?: any): Promise<void> {
+        // If no item provided (keyboard shortcut), get selected item from tree view
+        if (!item) {
+            item = await this.getSelectedTreeItem();
+            if (!item) {
+                vscode.window.showWarningMessage('No item selected in Solution Explorer');
+                return;
+            }
+        }
+
         const targetPath = PathUtils.getPathFromItem(item, 'paste file');
         if (!targetPath) return;
 
         const targetDir = PathUtils.ensureDirectory(targetPath);
+        const copiedFile = this.solutionProvider.getCopiedFile();
+        const wasCutOperation = this.solutionProvider.isCutOperationActive();
         const success = await this.solutionProvider.pasteFile(targetDir);
-        
+
         if (success) {
-            const copiedFile = this.solutionProvider.getCopiedFile();
             if (copiedFile) {
-                vscode.window.showInformationMessage(`Pasted: ${path.basename(copiedFile)}`);
+                const operation = wasCutOperation ? 'Moved' : 'Pasted';
+                vscode.window.showInformationMessage(`${operation}: ${path.basename(copiedFile)}`);
             }
         } else {
             ErrorUtils.showError('No file to paste or paste operation failed');
@@ -246,10 +266,21 @@ export class FileCommands {
         }
     }
 
-    private cutFile(item: any): void {
-        // For now, just copy the file - full cut/move functionality would require more complex state management
-        this.copyFile(item);
-        vscode.window.showInformationMessage('File copied to clipboard (cut functionality not yet implemented)');
+    private async cutFile(item?: any): Promise<void> {
+        // If no item provided (keyboard shortcut), get selected item from tree view
+        if (!item) {
+            item = await this.getSelectedTreeItem();
+            if (!item) {
+                vscode.window.showWarningMessage('No item selected in Solution Explorer');
+                return;
+            }
+        }
+
+        const filePath = PathUtils.getPathFromItem(item, 'cut file');
+        if (!filePath) return;
+
+        this.solutionProvider.cutFile(filePath);
+        vscode.window.showInformationMessage(`Cut: ${path.basename(filePath)}`);
     }
 
     private async copyPath(item: any): Promise<void> {
