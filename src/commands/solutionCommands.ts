@@ -343,7 +343,7 @@ export class SolutionCommands {
         );
 
         // Set the HTML content
-        panel.webview.html = this.getNugetManagerHtml(solutionName);
+        panel.webview.html = this.getImprovedNugetManagerHtml(solutionName);
     }
 
     private async handleNugetWebviewMessage(message: any, solutionPath: string, panel: vscode.WebviewPanel): Promise<void> {
@@ -1427,6 +1427,401 @@ export class SolutionCommands {
             // Initialize dropdowns
             setupDropdowns();
         }
+    </script>
+</body>
+</html>`;
+    }
+
+    private getImprovedNugetManagerHtml(solutionName: string): string {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NuGet Package Manager</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.39/dist/codicon.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit@1.4.0/dist/toolkit.js"></script>
+    <style>
+        body {
+            font-family: var(--vscode-font-family);
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .content-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .package-list-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--vscode-panel-border);
+        }
+        .details-panel {
+            width: 400px;
+            background-color: var(--vscode-sideBar-background);
+            display: flex;
+            flex-direction: column;
+        }
+        .details-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            background-color: var(--vscode-titleBar-activeBackground);
+        }
+        .details-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        vscode-panels {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        vscode-panel-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        vscode-data-grid {
+            flex: 1;
+            height: 100%;
+        }
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            padding: 40px 20px;
+        }
+        .search-toolbar {
+            padding: 12px;
+            background-color: var(--vscode-sideBar-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .package-details h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+        .version-badge {
+            background-color: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+        .project-list {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0;
+        }
+        .project-list li {
+            padding: 4px 0;
+            font-size: 13px;
+            color: var(--vscode-descriptionForeground);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Search toolbar -->
+        <div class="search-toolbar">
+            <vscode-text-field placeholder="Search packages..." id="search-input" style="flex: 1;">
+                <span slot="start" class="codicon codicon-search"></span>
+            </vscode-text-field>
+            <vscode-dropdown id="source-dropdown">
+                <vscode-option value="nuget.org">Package source: nuget.org</vscode-option>
+            </vscode-dropdown>
+            <vscode-checkbox id="prerelease-checkbox">Include prerelease</vscode-checkbox>
+        </div>
+
+        <div class="content-area">
+            <!-- Package list area -->
+            <div class="package-list-container">
+                <vscode-panels id="package-panels" activeid="tab-browse">
+                    <vscode-panel-tab id="tab-browse">Browse</vscode-panel-tab>
+                    <vscode-panel-tab id="tab-installed">Installed</vscode-panel-tab>
+                    <vscode-panel-tab id="tab-updates">Updates</vscode-panel-tab>
+                    <vscode-panel-tab id="tab-consolidate">Consolidate</vscode-panel-tab>
+
+                    <!-- Browse Panel -->
+                    <vscode-panel-view id="view-browse">
+                        <div class="empty-state">
+                            <span class="codicon codicon-search" style="font-size: 48px; margin-bottom: 16px; color: var(--vscode-descriptionForeground);"></span>
+                            <h3>Search for packages</h3>
+                            <p>Enter a search term to find NuGet packages</p>
+                        </div>
+                    </vscode-panel-view>
+
+                    <!-- Installed Panel -->
+                    <vscode-panel-view id="view-installed">
+                        <vscode-data-grid id="installed-grid" aria-label="Installed packages">
+                            <vscode-data-grid-row row-type="header">
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="1">Package</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="2">Version</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="3">Projects</vscode-data-grid-cell>
+                            </vscode-data-grid-row>
+                        </vscode-data-grid>
+                    </vscode-panel-view>
+
+                    <!-- Updates Panel -->
+                    <vscode-panel-view id="view-updates">
+                        <vscode-data-grid id="updates-grid" aria-label="Package updates">
+                            <vscode-data-grid-row row-type="header">
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="1">Package</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="2">Current</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="3">Latest</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="4">Projects</vscode-data-grid-cell>
+                            </vscode-data-grid-row>
+                        </vscode-data-grid>
+                    </vscode-panel-view>
+
+                    <!-- Consolidate Panel -->
+                    <vscode-panel-view id="view-consolidate">
+                        <vscode-data-grid id="consolidate-grid" aria-label="Package consolidation">
+                            <vscode-data-grid-row row-type="header">
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="1">Package</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="2">Versions</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="3">Recommended</vscode-data-grid-cell>
+                            </vscode-data-grid-row>
+                        </vscode-data-grid>
+                    </vscode-panel-view>
+                </vscode-panels>
+            </div>
+
+            <!-- Details panel -->
+            <div class="details-panel">
+                <div class="details-header">
+                    <h3>Package Details</h3>
+                    <p style="margin: 0; color: var(--vscode-descriptionForeground); font-size: 13px;">Select a package to view details</p>
+                </div>
+                <div class="details-content" id="details-content">
+                    <div class="empty-state">
+                        <span class="codicon codicon-info" style="font-size: 32px; margin-bottom: 8px; color: var(--vscode-descriptionForeground);"></span>
+                        <p>No package selected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        let searchTimeout;
+        let currentPackages = {};
+        let selectedPackage = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEventListeners();
+            loadInstalledPackages();
+        });
+
+        function initializeEventListeners() {
+            // Search input
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => performSearch(e.target.value), 500);
+            });
+
+            // Tab changes
+            document.getElementById('package-panels').addEventListener('change', (e) => {
+                handleTabChange(e.target.activeid);
+            });
+
+            // Grid selection
+            setupGridSelectionHandlers();
+        }
+
+        function setupGridSelectionHandlers() {
+            ['installed-grid', 'updates-grid', 'consolidate-grid'].forEach(gridId => {
+                const grid = document.getElementById(gridId);
+                if (grid) {
+                    grid.addEventListener('click', (e) => {
+                        const row = e.target.closest('vscode-data-grid-row[row-type="default"]');
+                        if (row) {
+                            const packageId = row.dataset.packageId;
+                            if (packageId && currentPackages[packageId]) {
+                                selectPackage(currentPackages[packageId]);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        function handleTabChange(activeTabId) {
+            switch(activeTabId) {
+                case 'tab-installed':
+                    loadInstalledPackages();
+                    break;
+                case 'tab-updates':
+                    loadUpdates();
+                    break;
+                case 'tab-consolidate':
+                    loadConsolidation();
+                    break;
+            }
+        }
+
+        function performSearch(query) {
+            if (!query.trim()) return;
+            // Implementation for search
+            vscode.postMessage({
+                type: 'searchPackages',
+                query: query,
+                includePrerelease: document.getElementById('prerelease-checkbox').checked
+            });
+        }
+
+        function loadInstalledPackages() {
+            const grid = document.getElementById('installed-grid');
+            clearGridData(grid);
+            vscode.postMessage({ type: 'loadInstalledPackages' });
+        }
+
+        function loadUpdates() {
+            const grid = document.getElementById('updates-grid');
+            clearGridData(grid);
+            vscode.postMessage({ type: 'checkForUpdates' });
+        }
+
+        function loadConsolidation() {
+            const grid = document.getElementById('consolidate-grid');
+            clearGridData(grid);
+            vscode.postMessage({ type: 'analyzeConflicts' });
+        }
+
+        function clearGridData(grid) {
+            const rows = grid.querySelectorAll('vscode-data-grid-row[row-type="default"]');
+            rows.forEach(row => row.remove());
+        }
+
+        function displayInstalledPackages(packages) {
+            const grid = document.getElementById('installed-grid');
+            currentPackages = {};
+
+            // Group packages by ID
+            const packageGroups = {};
+            packages.forEach(pkg => {
+                if (!packageGroups[pkg.id]) {
+                    packageGroups[pkg.id] = {
+                        id: pkg.id,
+                        versions: new Set(),
+                        projects: []
+                    };
+                }
+                packageGroups[pkg.id].versions.add(pkg.version);
+                packageGroups[pkg.id].projects.push({
+                    name: pkg.projectName,
+                    version: pkg.version,
+                    path: pkg.projectPath
+                });
+            });
+
+            // Create grid rows
+            Object.values(packageGroups).forEach(pkg => {
+                const versions = Array.from(pkg.versions);
+                const packageData = {
+                    ...pkg,
+                    versions: versions,
+                    versionText: versions.length === 1 ? versions[0] : \`\${versions.length} versions\`
+                };
+
+                currentPackages[pkg.id] = packageData;
+
+                const row = document.createElement('vscode-data-grid-row');
+                row.rowType = 'default';
+                row.dataset.packageId = pkg.id;
+
+                row.innerHTML = \`
+                    <vscode-data-grid-cell grid-column="1">\${pkg.id}</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="2">\${packageData.versionText}</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="3">\${pkg.projects.length}</vscode-data-grid-cell>
+                \`;
+
+                grid.appendChild(row);
+            });
+        }
+
+        function selectPackage(packageData) {
+            selectedPackage = packageData;
+            showPackageDetails(packageData);
+        }
+
+        function showPackageDetails(pkg) {
+            const detailsContent = document.getElementById('details-content');
+
+            detailsContent.innerHTML = \`
+                <div class="package-details">
+                    <h3>\${pkg.id}</h3>
+                    <div style="margin-bottom: 16px;">
+                        \${pkg.versions.map(v => \`<span class="version-badge">\${v}</span>\`).join('')}
+                    </div>
+
+                    <h4 style="margin: 16px 0 8px 0;">Projects (\${pkg.projects.length})</h4>
+                    <ul class="project-list">
+                        \${pkg.projects.map(proj => \`<li>\${proj.name} - \${proj.version}</li>\`).join('')}
+                    </ul>
+
+                    <div style="margin-top: 24px;">
+                        <vscode-button onclick="removePackage('\${pkg.id}')" appearance="secondary">
+                            <span slot="start" class="codicon codicon-trash"></span>
+                            Remove from all projects
+                        </vscode-button>
+                    </div>
+                </div>
+            \`;
+        }
+
+        function removePackage(packageId) {
+            if (confirm(\`Remove \${packageId} from all projects in the solution?\`)) {
+                vscode.postMessage({
+                    type: 'removePackage',
+                    packageId: packageId
+                });
+                // Refresh the installed packages list
+                setTimeout(() => loadInstalledPackages(), 1000);
+            }
+        }
+
+        // Message handler
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'installedPackages':
+                    displayInstalledPackages(message.packages);
+                    break;
+                case 'searchResults':
+                    // displaySearchResults(message.results);
+                    break;
+                case 'packageUpdates':
+                    // displayPackageUpdates(message.updates);
+                    break;
+                case 'packageConflicts':
+                    // displayPackageConflicts(message.conflicts);
+                    break;
+            }
+        });
     </script>
 </body>
 </html>`;
