@@ -1492,9 +1492,12 @@ export class SolutionCommands {
         }
         vscode-panel-view {
             flex: 1;
-            display: flex;
+            display: none; /* Hidden by default, shown via JavaScript */
             flex-direction: column;
             overflow: hidden;
+        }
+        vscode-panel-view.active {
+            display: flex;
         }
         vscode-data-grid {
             flex: 1;
@@ -1636,7 +1639,8 @@ export class SolutionCommands {
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initializeEventListeners();
-            loadInstalledPackages();
+            // Initialize with installed tab active
+            setTimeout(() => handleTabChange('tab-installed'), 100);
         });
 
         function initializeEventListeners() {
@@ -1646,9 +1650,20 @@ export class SolutionCommands {
                 searchTimeout = setTimeout(() => performSearch(e.target.value), 500);
             });
 
-            // Tab changes
-            document.getElementById('package-panels').addEventListener('change', (e) => {
+            // Tab changes - listen for both change and click events
+            const panels = document.getElementById('package-panels');
+            panels.addEventListener('change', (e) => {
+                console.log('Tab change event:', e.target.activeid);
                 handleTabChange(e.target.activeid);
+            });
+
+            // Also listen for tab clicks directly
+            document.querySelectorAll('vscode-panel-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const tabId = e.target.id;
+                    console.log('Tab clicked:', tabId);
+                    setTimeout(() => handleTabChange(tabId), 100);
+                });
             });
 
             // Grid selection
@@ -1673,22 +1688,45 @@ export class SolutionCommands {
         }
 
         function handleTabChange(activeTabId) {
+            console.log('Handling tab change to:', activeTabId);
+
             // Clear details panel when switching tabs
             showEmptyDetails();
 
+            // Hide all panel views first
+            document.querySelectorAll('vscode-panel-view').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            // Show the active panel view and load its content
+            let targetViewId = '';
             switch(activeTabId) {
                 case 'tab-browse':
+                    targetViewId = 'view-browse';
                     loadBrowsePackages();
                     break;
                 case 'tab-installed':
+                    targetViewId = 'view-installed';
                     loadInstalledPackages();
                     break;
                 case 'tab-updates':
+                    targetViewId = 'view-updates';
                     loadUpdates();
                     break;
                 case 'tab-consolidate':
+                    targetViewId = 'view-consolidate';
                     loadConsolidation();
                     break;
+            }
+
+            if (targetViewId) {
+                const targetView = document.getElementById(targetViewId);
+                if (targetView) {
+                    targetView.classList.add('active');
+                    console.log('Showing view:', targetViewId);
+                } else {
+                    console.error('Target view not found:', targetViewId);
+                }
             }
         }
 
@@ -1712,7 +1750,18 @@ export class SolutionCommands {
         function loadBrowsePackages() {
             const grid = document.getElementById('browse-grid');
             clearGridData(grid);
-            // Browse starts empty - user needs to search
+            console.log('Loading browse packages...');
+
+            // Add a message row to show it's the browse tab
+            const messageRow = document.createElement('vscode-data-grid-row');
+            messageRow.rowType = 'default';
+            messageRow.innerHTML = \`
+                <vscode-data-grid-cell grid-column="1">Type in the search box above to find packages</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="2">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="3">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="4">-</vscode-data-grid-cell>
+            \`;
+            grid.appendChild(messageRow);
         }
 
         function clearBrowseGrid() {
@@ -1729,12 +1778,37 @@ export class SolutionCommands {
         function loadUpdates() {
             const grid = document.getElementById('updates-grid');
             clearGridData(grid);
+            console.log('Loading updates...');
+
+            // Add a temporary row to show it's different from installed
+            const tempRow = document.createElement('vscode-data-grid-row');
+            tempRow.rowType = 'default';
+            tempRow.innerHTML = \`
+                <vscode-data-grid-cell grid-column="1">Loading updates...</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="2">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="3">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="4">-</vscode-data-grid-cell>
+            \`;
+            grid.appendChild(tempRow);
+
             vscode.postMessage({ type: 'checkForUpdates' });
         }
 
         function loadConsolidation() {
             const grid = document.getElementById('consolidate-grid');
             clearGridData(grid);
+            console.log('Loading consolidation...');
+
+            // Add a temporary row to show it's different from installed
+            const tempRow = document.createElement('vscode-data-grid-row');
+            tempRow.rowType = 'default';
+            tempRow.innerHTML = \`
+                <vscode-data-grid-cell grid-column="1">Analyzing packages...</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="2">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="3">-</vscode-data-grid-cell>
+            \`;
+            grid.appendChild(tempRow);
+
             vscode.postMessage({ type: 'analyzeConflicts' });
         }
 
