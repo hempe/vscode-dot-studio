@@ -5,6 +5,9 @@ out/
 # Dependencies
 node_modules/
 
+# VS Code test binaries
+.vscode-test/
+
 # Logs
 *.log
 

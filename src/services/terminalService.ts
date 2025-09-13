@@ -80,6 +80,35 @@ export class TerminalService {
     }
 
     /**
+     * Remove a NuGet package
+     */
+    static async removePackage(projectPath: string, packageId: string): Promise<vscode.Terminal> {
+        const command = `dotnet remove package ${packageId}`;
+        
+        return this.executeDotNetCommand({
+            name: `Remove ${packageId}`,
+            command: command,
+            workingDirectory: path.dirname(projectPath)
+        });
+    }
+
+    /**
+     * Update a NuGet package to a specific version
+     */
+    static async updatePackage(projectPath: string, packageId: string, version: string): Promise<vscode.Terminal> {
+        // To update a package, we need to remove it first, then add the new version
+        const removeCommand = `dotnet remove package ${packageId}`;
+        const addCommand = `dotnet add package ${packageId} --version ${version}`;
+        const combinedCommand = `${removeCommand} && ${addCommand}`;
+        
+        return this.executeDotNetCommand({
+            name: `Update ${packageId}`,
+            command: combinedCommand,
+            workingDirectory: path.dirname(projectPath)
+        });
+    }
+
+    /**
      * Check if dotnet CLI is available
      */
     static async isDotNetAvailable(): Promise<boolean> {
