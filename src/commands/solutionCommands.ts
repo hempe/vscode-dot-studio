@@ -1557,7 +1557,7 @@ export class SolutionCommands {
         <div class="content-area">
             <!-- Package list area -->
             <div class="package-list-container">
-                <vscode-panels id="package-panels" activeid="tab-browse">
+                <vscode-panels id="package-panels" activeid="tab-installed">
                     <vscode-panel-tab id="tab-browse">Browse</vscode-panel-tab>
                     <vscode-panel-tab id="tab-installed">Installed</vscode-panel-tab>
                     <vscode-panel-tab id="tab-updates">Updates</vscode-panel-tab>
@@ -1565,11 +1565,14 @@ export class SolutionCommands {
 
                     <!-- Browse Panel -->
                     <vscode-panel-view id="view-browse">
-                        <div class="empty-state">
-                            <span class="codicon codicon-search" style="font-size: 48px; margin-bottom: 16px; color: var(--vscode-descriptionForeground);"></span>
-                            <h3>Search for packages</h3>
-                            <p>Enter a search term to find NuGet packages</p>
-                        </div>
+                        <vscode-data-grid id="browse-grid" aria-label="Browse packages">
+                            <vscode-data-grid-row row-type="header">
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="1">Package</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="2">Version</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="3">Downloads</vscode-data-grid-cell>
+                                <vscode-data-grid-cell cell-type="columnheader" grid-column="4">Actions</vscode-data-grid-cell>
+                            </vscode-data-grid-row>
+                        </vscode-data-grid>
                     </vscode-panel-view>
 
                     <!-- Installed Panel -->
@@ -1653,7 +1656,7 @@ export class SolutionCommands {
         }
 
         function setupGridSelectionHandlers() {
-            ['installed-grid', 'updates-grid', 'consolidate-grid'].forEach(gridId => {
+            ['browse-grid', 'installed-grid', 'updates-grid', 'consolidate-grid'].forEach(gridId => {
                 const grid = document.getElementById(gridId);
                 if (grid) {
                     grid.addEventListener('click', (e) => {
@@ -1670,7 +1673,13 @@ export class SolutionCommands {
         }
 
         function handleTabChange(activeTabId) {
+            // Clear details panel when switching tabs
+            showEmptyDetails();
+
             switch(activeTabId) {
+                case 'tab-browse':
+                    loadBrowsePackages();
+                    break;
                 case 'tab-installed':
                     loadInstalledPackages();
                     break;
@@ -1684,13 +1693,31 @@ export class SolutionCommands {
         }
 
         function performSearch(query) {
-            if (!query.trim()) return;
-            // Implementation for search
+            if (!query.trim()) {
+                clearBrowseGrid();
+                return;
+            }
+
+            // Show search in browse tab
+            const browseGrid = document.getElementById('browse-grid');
+            clearGridData(browseGrid);
+
             vscode.postMessage({
                 type: 'searchPackages',
                 query: query,
                 includePrerelease: document.getElementById('prerelease-checkbox').checked
             });
+        }
+
+        function loadBrowsePackages() {
+            const grid = document.getElementById('browse-grid');
+            clearGridData(grid);
+            // Browse starts empty - user needs to search
+        }
+
+        function clearBrowseGrid() {
+            const grid = document.getElementById('browse-grid');
+            clearGridData(grid);
         }
 
         function loadInstalledPackages() {
@@ -1709,6 +1736,16 @@ export class SolutionCommands {
             const grid = document.getElementById('consolidate-grid');
             clearGridData(grid);
             vscode.postMessage({ type: 'analyzeConflicts' });
+        }
+
+        function showEmptyDetails() {
+            const detailsContent = document.getElementById('details-content');
+            detailsContent.innerHTML = \`
+                <div class="empty-state">
+                    <span class="codicon codicon-info" style="font-size: 32px; margin-bottom: 8px; color: var(--vscode-descriptionForeground);"></span>
+                    <p>No package selected</p>
+                </div>
+            \`;
         }
 
         function clearGridData(grid) {
