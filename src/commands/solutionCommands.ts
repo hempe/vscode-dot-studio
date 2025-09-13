@@ -1736,9 +1736,25 @@ export class SolutionCommands {
                 return;
             }
 
-            // Show search in browse tab
+            console.log('Performing search for:', query);
+
+            // Switch to Browse tab to show results
+            document.getElementById('package-panels').activeid = 'tab-browse';
+            handleTabChange('tab-browse');
+
+            // Show loading in browse grid
             const browseGrid = document.getElementById('browse-grid');
             clearGridData(browseGrid);
+
+            const loadingRow = document.createElement('vscode-data-grid-row');
+            loadingRow.rowType = 'default';
+            loadingRow.innerHTML = \`
+                <vscode-data-grid-cell grid-column="1">Searching for "\${query}"...</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="2">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="3">-</vscode-data-grid-cell>
+                <vscode-data-grid-cell grid-column="4">-</vscode-data-grid-cell>
+            \`;
+            browseGrid.appendChild(loadingRow);
 
             vscode.postMessage({
                 type: 'searchPackages',
@@ -1915,6 +1931,70 @@ export class SolutionCommands {
             }
         }
 
+        function displaySearchResults(results) {
+            console.log('Displaying search results:', results);
+            const grid = document.getElementById('browse-grid');
+            clearGridData(grid);
+
+            if (!results || results.length === 0) {
+                const noResultsRow = document.createElement('vscode-data-grid-row');
+                noResultsRow.rowType = 'default';
+                noResultsRow.innerHTML = \`
+                    <vscode-data-grid-cell grid-column="1">No packages found</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="2">-</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="3">-</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="4">-</vscode-data-grid-cell>
+                \`;
+                grid.appendChild(noResultsRow);
+                return;
+            }
+
+            // Display search results
+            results.forEach(pkg => {
+                const row = document.createElement('vscode-data-grid-row');
+                row.rowType = 'default';
+                row.dataset.packageId = pkg.id;
+
+                const latestVersion = pkg.version || (pkg.versions && pkg.versions[0] ? pkg.versions[0].version : 'Unknown');
+                const downloadCount = pkg.totalDownloads ? pkg.totalDownloads.toLocaleString() : 'N/A';
+
+                // Store package data for selection
+                currentPackages[pkg.id] = {
+                    id: pkg.id,
+                    version: latestVersion,
+                    description: pkg.description || 'No description available',
+                    downloads: downloadCount,
+                    authors: pkg.authors || [],
+                    projectUrl: pkg.projectUrl || '',
+                    iconUrl: pkg.iconUrl || ''
+                };
+
+                row.innerHTML = \`
+                    <vscode-data-grid-cell grid-column="1">\${pkg.id}</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="2">\${latestVersion}</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="3">\${downloadCount}</vscode-data-grid-cell>
+                    <vscode-data-grid-cell grid-column="4">
+                        <vscode-button onclick="installPackage('\${pkg.id}', '\${latestVersion}')" appearance="primary">
+                            Install
+                        </vscode-button>
+                    </vscode-data-grid-cell>
+                \`;
+
+                grid.appendChild(row);
+            });
+
+            console.log(\`Added \${results.length} search results to browse grid\`);
+        }
+
+        function installPackage(packageId, version) {
+            console.log(\`Installing package: \${packageId} v\${version}\`);
+            vscode.postMessage({
+                type: 'installPackage',
+                packageId: packageId,
+                version: version
+            });
+        }
+
         // Message handler
         window.addEventListener('message', event => {
             const message = event.data;
@@ -1923,7 +2003,7 @@ export class SolutionCommands {
                     displayInstalledPackages(message.packages);
                     break;
                 case 'searchResults':
-                    // displaySearchResults(message.results);
+                    displaySearchResults(message.results);
                     break;
                 case 'packageUpdates':
                     // displayPackageUpdates(message.updates);
