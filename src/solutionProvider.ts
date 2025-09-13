@@ -395,6 +395,39 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return this.isCutOperation;
     }
 
+    /**
+     * Gets the GUID of a project by its file path
+     */
+    getProjectGuid(projectPath: string): string | null {
+        for (const [solutionPath, solutionFile] of this.parsedSolutions) {
+            for (const project of solutionFile.projects) {
+                if (project.path === projectPath) {
+                    return project.guid;
+                }
+                // Also check absolute path in case paths are relative
+                const absolutePath = path.resolve(path.dirname(solutionPath), project.path);
+                if (absolutePath === projectPath) {
+                    return project.guid;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the current startup project GUID from the .sln.user file
+     */
+    async getCurrentStartupProject(solutionPath: string): Promise<string | null> {
+        try {
+            const { SolutionUserFile } = await import('./solutionUserFile');
+            const userFile = new SolutionUserFile(solutionPath);
+            return await userFile.getStartupProject();
+        } catch (error) {
+            console.error('Error getting startup project:', error);
+            return null;
+        }
+    }
+
     private async getFilesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
 

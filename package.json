@@ -228,6 +228,11 @@
         "command": "dotnet-extension.deleteFolder",
         "title": "Delete",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.runStartupProject",
+        "title": "Run Startup Project",
+        "category": ".NET"
       }
     ],
     "views": {
@@ -435,6 +440,11 @@
           "group": "5_modifications"
         },
         {
+          "command": "dotnet-extension.setAsStartup",
+          "when": "view == dotnet-solution && viewItem == project",
+          "group": "1_dotnet"
+        },
+        {
           "command": "dotnet-extension.addProjectReference",
           "when": "view == dotnet-solution && viewItem == project",
           "group": "1_dotnet"
@@ -555,6 +565,11 @@
       {
         "command": "dotnet-extension.debugContext",
         "key": "f3",
+        "when": "workspaceHasDotnetFiles"
+      },
+      {
+        "command": "dotnet-extension.runStartupProject",
+        "key": "f5",
         "when": "workspaceHasDotnetFiles"
       }
     ]
