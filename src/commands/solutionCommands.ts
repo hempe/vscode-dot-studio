@@ -5,6 +5,9 @@ import { PathUtils, ValidationUtils, ErrorUtils, InputUtils } from '../utils';
 import { NuGetService, NuGetSearchOptions } from '../services/nugetService';
 import { TerminalService } from '../services/terminalService';
 import { WebviewService } from '../services/webviewService';
+import { PackageDiscoveryService, InstalledPackage, ProjectPackageInfo } from '../services/packageDiscoveryService';
+import { PackageUpdateService, PackageUpdate } from '../services/packageUpdateService';
+import { PackageConsolidationService, PackageConflict, ConsolidationSummary } from '../services/packageConsolidationService';
 
 export class SolutionCommands {
     constructor(
@@ -162,14 +165,18 @@ export class SolutionCommands {
     }
 
     private async newSolutionFolder(item: any): Promise<void> {
-        if (!item || !item.solutionPath) {
-            ErrorUtils.showError('No solution selected');
-            return;
+        let solutionPath: string | undefined;
+        
+        // If item has solutionPath (solution folder or solution item), use it
+        if (item?.solutionPath) {
+            solutionPath = item.solutionPath;
+        } else {
+            // Otherwise, search for solution file
+            solutionPath = await this.getSolutionPath(item, 'create solution folder');
         }
-
-        const solutionPath = item.solutionPath || (item.resourceUri ? item.resourceUri.fsPath : null);
+        
         if (!solutionPath) {
-            ErrorUtils.showError('Cannot find solution path');
+            ErrorUtils.showError('Cannot find solution file');
             return;
         }
         
@@ -195,7 +202,14 @@ export class SolutionCommands {
             }).toUpperCase() + '}';
             
             // Insert solution folder entry
-            const folderEntry = `Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "${folderName}", "${folderName}", "${folderGuid}"\nEndProject`;
+            let folderEntry = `Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "${folderName}", "${folderName}", "${folderGuid}"\nEndProject`;
+            
+            // If creating under a parent folder, add nesting information
+            let nestedStructure = '';
+            if (item && item.contextValue === 'solutionFolder' && item.id) {
+                const parentGuid = item.id; // Solution folder ID is its GUID
+                nestedStructure = `\n\tGlobalSection(NestedProjects) = preSolution\n\t\t${folderGuid} = ${parentGuid}\n\tEndGlobalSection`;
+            }
             
             // Find a good insertion point (after last Project entry)
             const lines = solutionContent.split('\n');
@@ -218,6 +232,47 @@ export class SolutionCommands {
             }
             
             lines.splice(insertIndex, 0, folderEntry);
+            
+            // Handle nesting in Global section if needed
+            if (nestedStructure) {
+                const globalIndex = lines.findIndex((line: string) => line.trim() === 'Global');
+                if (globalIndex !== -1) {
+                    // Check if NestedProjects already exists
+                    let nestedIndex = -1;
+                    for (let i = globalIndex; i < lines.length; i++) {
+                        if (lines[i].includes('GlobalSection(NestedProjects)')) {
+                            nestedIndex = i;
+                            break;
+                        }
+                        if (lines[i].trim() === 'EndGlobal') {
+                            break;
+                        }
+                    }
+                    
+                    if (nestedIndex !== -1) {
+                        // Add to existing NestedProjects section
+                        const endSectionIndex = lines.findIndex((line: string, index: number) => 
+                            index > nestedIndex && line.trim() === 'EndGlobalSection'
+                        );
+                        if (endSectionIndex !== -1) {
+                            lines.splice(endSectionIndex, 0, `\t\t${folderGuid} = ${item.id}`);
+                        }
+                    } else {
+                        // Insert new NestedProjects section before EndGlobal
+                        const endGlobalIndex = lines.findIndex((line: string, index: number) => 
+                            index > globalIndex && line.trim() === 'EndGlobal'
+                        );
+                        if (endGlobalIndex !== -1) {
+                            lines.splice(endGlobalIndex, 0, 
+                                '\tGlobalSection(NestedProjects) = preSolution',
+                                `\t\t${folderGuid} = ${item.id}`,
+                                '\tEndGlobalSection'
+                            );
+                        }
+                    }
+                }
+            }
+            
             const updatedContent = lines.join('\n');
             
             await fs.promises.writeFile(solutionPath, updatedContent, 'utf8');
@@ -305,6 +360,45 @@ export class SolutionCommands {
                 case 'installPackage':
                     await this.installPackage(solutionPath, message.packageId, message.version);
                     break;
+                case 'loadInstalledPackages':
+                    const installedPackages = await this.getInstalledPackages(solutionPath);
+                    await WebviewService.postMessage(panel, {
+                        type: 'installedPackages',
+                        packages: installedPackages
+                    });
+                    break;
+                case 'removePackage':
+                    await this.removePackage(solutionPath, message.packageId, message.projectPath);
+                    break;
+                case 'loadProjectPackageInfo':
+                    const projectInfo = await this.getProjectPackageInfo(solutionPath);
+                    await WebviewService.postMessage(panel, {
+                        type: 'projectPackageInfo',
+                        projects: projectInfo
+                    });
+                    break;
+                case 'checkForUpdates':
+                    const updates = await this.checkForUpdates(solutionPath, message.includePrerelease || false);
+                    await WebviewService.postMessage(panel, {
+                        type: 'packageUpdates',
+                        updates: updates
+                    });
+                    break;
+                case 'updatePackage':
+                    await this.updatePackage(solutionPath, message.packageId, message.version, message.projectPath);
+                    break;
+                case 'analyzeConflicts':
+                    const conflicts = await this.analyzePackageConflicts(solutionPath);
+                    const summary = await this.getConsolidationSummary(solutionPath);
+                    await WebviewService.postMessage(panel, {
+                        type: 'packageConflicts',
+                        conflicts: conflicts,
+                        summary: summary
+                    });
+                    break;
+                case 'consolidatePackage':
+                    await this.consolidatePackageVersions(solutionPath, message.packageId, message.targetVersion);
+                    break;
                 default:
                     console.warn('Unknown webview message type:', message.type);
             }
@@ -365,6 +459,179 @@ export class SolutionCommands {
         }
     }
 
+    private async getInstalledPackages(solutionPath: string): Promise<InstalledPackage[]> {
+        try {
+            return await PackageDiscoveryService.discoverInstalledPackages(solutionPath);
+        } catch (error) {
+            console.error('Error getting installed packages:', error);
+            return [];
+        }
+    }
+
+    private async getProjectPackageInfo(solutionPath: string): Promise<ProjectPackageInfo[]> {
+        try {
+            return await PackageDiscoveryService.getProjectPackageInfo(solutionPath);
+        } catch (error) {
+            console.error('Error getting project package info:', error);
+            return [];
+        }
+    }
+
+    private async removePackage(solutionPath: string, packageId: string, projectPath?: string): Promise<void> {
+        // Validate inputs
+        if (!NuGetService.validatePackageId(packageId)) {
+            ErrorUtils.showError('Invalid package ID format');
+            return;
+        }
+
+        try {
+            if (projectPath) {
+                // Remove from specific project
+                await TerminalService.removePackage(projectPath, packageId);
+                const projectName = path.basename(projectPath, '.csproj');
+                vscode.window.showInformationMessage(`Removed ${packageId} from project: ${projectName}`);
+            } else {
+                // Remove from all projects in solution
+                const projectInfo = await this.getProjectPackageInfo(solutionPath);
+                const projectsWithPackage = projectInfo.filter(project => 
+                    project.packages.some(pkg => pkg.id === packageId)
+                );
+
+                for (const project of projectsWithPackage) {
+                    await TerminalService.removePackage(project.projectPath, packageId);
+                }
+
+                const solutionName = path.basename(solutionPath, '.sln');
+                vscode.window.showInformationMessage(`Removed ${packageId} from solution: ${solutionName}`);
+            }
+        } catch (error) {
+            ErrorUtils.showError('Failed to remove package', error);
+        }
+    }
+
+    private async checkForUpdates(solutionPath: string, includePrerelease: boolean = false): Promise<PackageUpdate[]> {
+        try {
+            return await PackageUpdateService.checkForUpdates(solutionPath, {
+                includePrerelease,
+                batchSize: 3 // Smaller batch size for responsiveness
+            });
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+            return [];
+        }
+    }
+
+    private async updatePackage(solutionPath: string, packageId: string, version: string, projectPath?: string): Promise<void> {
+        // Validate inputs
+        if (!NuGetService.validatePackageId(packageId)) {
+            ErrorUtils.showError('Invalid package ID format');
+            return;
+        }
+
+        if (!NuGetService.validateVersion(version)) {
+            ErrorUtils.showError('Invalid version format');
+            return;
+        }
+
+        try {
+            if (projectPath) {
+                // Update specific project
+                await TerminalService.updatePackage(projectPath, packageId, version);
+                const projectName = path.basename(projectPath, '.csproj');
+                vscode.window.showInformationMessage(`Updating ${packageId} to ${version} in project: ${projectName}`);
+            } else {
+                // Update all projects in solution that have the package
+                const projectInfo = await this.getProjectPackageInfo(solutionPath);
+                const projectsWithPackage = projectInfo.filter(project => 
+                    project.packages.some(pkg => pkg.id === packageId)
+                );
+
+                for (const project of projectsWithPackage) {
+                    await TerminalService.updatePackage(project.projectPath, packageId, version);
+                }
+
+                const solutionName = path.basename(solutionPath, '.sln');
+                vscode.window.showInformationMessage(`Updating ${packageId} to ${version} in solution: ${solutionName}`);
+            }
+        } catch (error) {
+            ErrorUtils.showError('Failed to update package', error);
+        }
+    }
+
+    private async analyzePackageConflicts(solutionPath: string): Promise<PackageConflict[]> {
+        try {
+            return await PackageConsolidationService.analyzePackageConflicts(solutionPath);
+        } catch (error) {
+            console.error('Error analyzing package conflicts:', error);
+            return [];
+        }
+    }
+
+    private async getConsolidationSummary(solutionPath: string): Promise<ConsolidationSummary> {
+        try {
+            return await PackageConsolidationService.getConsolidationSummary(solutionPath);
+        } catch (error) {
+            console.error('Error getting consolidation summary:', error);
+            return {
+                totalPackages: 0,
+                conflictedPackages: 0,
+                totalProjects: 0,
+                conflictSeverity: { high: 0, medium: 0, low: 0 }
+            };
+        }
+    }
+
+    private async consolidatePackageVersions(solutionPath: string, packageId: string, targetVersion: string): Promise<void> {
+        // Validate inputs
+        if (!NuGetService.validatePackageId(packageId)) {
+            ErrorUtils.showError('Invalid package ID format');
+            return;
+        }
+
+        if (!NuGetService.validateVersion(targetVersion)) {
+            ErrorUtils.showError('Invalid target version format');
+            return;
+        }
+
+        try {
+            // Get current conflicts to determine what needs updating
+            const conflicts = await this.analyzePackageConflicts(solutionPath);
+            const conflict = conflicts.find(c => c.packageId === packageId);
+            
+            if (!conflict) {
+                ErrorUtils.showError(`No conflicts found for package ${packageId}`);
+                return;
+            }
+
+            // Generate consolidation plan
+            const plan = PackageConsolidationService.generateConsolidationPlan(conflict);
+            
+            let updatedCount = 0;
+            
+            for (const project of plan.projectsToUpdate) {
+                try {
+                    await TerminalService.updatePackage(project.projectPath, packageId, targetVersion);
+                    updatedCount++;
+                } catch (error) {
+                    console.error(`Failed to update ${packageId} in ${project.projectName}:`, error);
+                    // Continue with other projects even if one fails
+                }
+            }
+
+            const solutionName = path.basename(solutionPath, '.sln');
+            
+            if (updatedCount === plan.projectsToUpdate.length) {
+                vscode.window.showInformationMessage(`Successfully consolidated ${packageId} to ${targetVersion} across ${updatedCount} projects in ${solutionName}`);
+            } else if (updatedCount > 0) {
+                vscode.window.showWarningMessage(`Partially consolidated ${packageId}: ${updatedCount}/${plan.projectsToUpdate.length} projects updated in ${solutionName}`);
+            } else {
+                ErrorUtils.showError(`Failed to consolidate ${packageId} in any projects`);
+            }
+        } catch (error) {
+            ErrorUtils.showError('Failed to consolidate package', error);
+        }
+    }
+
     private async installPackage(solutionPath: string, packageId: string, version?: string): Promise<void> {
         // Validate inputs
         if (!NuGetService.validatePackageId(packageId)) {
@@ -393,138 +660,113 @@ export class SolutionCommands {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NuGet Package Manager</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.39/dist/codicon.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit@1.4.0/dist/toolkit.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--vscode-font-family);
             background-color: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
-        
+
         .header {
-            background-color: var(--vscode-titleBar-activeBackground, var(--vscode-menu-background));
+            background-color: var(--vscode-titleBar-activeBackground);
             border-bottom: 1px solid var(--vscode-panel-border);
             padding: 12px 20px;
             flex-shrink: 0;
         }
-        
+
         .header h1 {
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 4px;
         }
-        
+
         .header .solution-name {
             font-size: 13px;
             opacity: 0.8;
         }
-        
-        .tab-container {
-            display: flex;
-            background-color: var(--vscode-tab-activeBackground, var(--vscode-editor-background));
-            border-bottom: 1px solid var(--vscode-panel-border);
-            flex-shrink: 0;
-        }
-        
-        .tab {
-            padding: 12px 20px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            font-size: 13px;
-            user-select: none;
-            transition: all 0.2s;
-        }
-        
-        .tab:hover {
-            background-color: var(--vscode-tab-hoverBackground, rgba(255,255,255,0.1));
-        }
-        
-        .tab.active {
-            border-bottom-color: var(--vscode-focusBorder, #007ACC);
-            background-color: var(--vscode-tab-activeBackground, var(--vscode-editor-background));
-        }
-        
-        .content {
+
+        .content-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
-        
-        .tab-content {
-            display: none;
+
+        vscode-panels {
             flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        
-        .tab-content.active {
             display: flex;
             flex-direction: column;
         }
-        
+
+        vscode-panel-view {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
         .search-container {
             margin-bottom: 20px;
         }
-        
-        .search-box {
+
+        .search-field {
             width: 100%;
-            padding: 8px 12px;
-            background-color: var(--vscode-input-background);
-            border: 1px solid var(--vscode-input-border);
-            color: var(--vscode-input-foreground);
-            border-radius: 4px;
-            font-size: 13px;
         }
-        
-        .search-box:focus {
-            outline: none;
-            border-color: var(--vscode-focusBorder, #007ACC);
-        }
-        
+
         .package-list {
             flex: 1;
-            background-color: var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.04));
+            background-color: var(--vscode-list-activeSelectionBackground);
             border: 1px solid var(--vscode-panel-border);
             border-radius: 4px;
             overflow-y: auto;
+            min-height: 200px;
         }
-        
+
         .package-item {
             padding: 16px;
             border-bottom: 1px solid var(--vscode-panel-border);
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        
+
         .package-item:hover {
-            background-color: var(--vscode-list-hoverBackground, rgba(255,255,255,0.08));
+            background-color: var(--vscode-list-hoverBackground);
         }
-        
+
         .package-item:last-child {
             border-bottom: none;
         }
-        
+
         .package-name {
             font-weight: 600;
             font-size: 14px;
             margin-bottom: 4px;
         }
-        
+
         .package-description {
             font-size: 12px;
             opacity: 0.8;
             margin-bottom: 8px;
         }
-        
+
         .package-meta {
             display: flex;
             justify-content: space-between;
@@ -532,14 +774,14 @@ export class SolutionCommands {
             font-size: 11px;
             opacity: 0.7;
         }
-        
+
         .package-version {
             background-color: var(--vscode-badge-background);
             color: var(--vscode-badge-foreground);
             padding: 2px 6px;
             border-radius: 3px;
         }
-        
+
         .empty-state {
             flex: 1;
             display: flex;
@@ -547,29 +789,14 @@ export class SolutionCommands {
             align-items: center;
             justify-content: center;
             opacity: 0.6;
+            padding: 40px 20px;
         }
-        
+
         .empty-icon {
             font-size: 48px;
             margin-bottom: 16px;
         }
-        
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-            align-items: center;
-        }
-        
-        .filter-select {
-            background-color: var(--vscode-dropdown-background);
-            border: 1px solid var(--vscode-dropdown-border);
-            color: var(--vscode-dropdown-foreground);
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-        
+
         .stats-bar {
             padding: 12px 20px;
             background-color: var(--vscode-statusBar-background);
@@ -579,6 +806,32 @@ export class SolutionCommands {
             justify-content: space-between;
             flex-shrink: 0;
         }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+        }
+
+        .codicon-spin {
+            animation: codicon-spin 1.5s steps(30) infinite;
+        }
+
+        @keyframes codicon-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        vscode-dropdown {
+            min-width: 180px;
+        }
     </style>
 </head>
 <body>
@@ -586,74 +839,97 @@ export class SolutionCommands {
         <h1>Manage NuGet Packages for Solution</h1>
         <div class="solution-name">Solution: ${solutionName}</div>
     </div>
-    
-    <div class="tab-container">
-        <div class="tab active" onclick="switchTab('browse')">Browse</div>
-        <div class="tab" onclick="switchTab('installed')">Installed</div>
-        <div class="tab" onclick="switchTab('updates')">Updates</div>
-        <div class="tab" onclick="switchTab('consolidate')">Consolidate</div>
-    </div>
-    
-    <div class="content">
-        <!-- Browse Tab -->
-        <div id="browse" class="tab-content active">
-            <div class="filter-bar">
-                <select class="filter-select">
-                    <option>Package source: nuget.org</option>
-                    <option>Package source: All</option>
-                </select>
-                <select class="filter-select">
-                    <option>Include prerelease: No</option>
-                    <option>Include prerelease: Yes</option>
-                </select>
-            </div>
-            <div class="search-container">
-                <input type="text" class="search-box" placeholder="Search packages..." />
-            </div>
-            <div class="package-list">
-                <div class="empty-state">
-                    <div class="empty-icon">🔍</div>
-                    <h3>Search for packages</h3>
-                    <p>Enter a search term to find NuGet packages</p>
+
+    <div class="content-container">
+        <vscode-panels id="nuget-panels" activeid="tab-browse" aria-label="NuGet Package Manager">
+            <!-- Tab Headers -->
+            <vscode-panel-tab id="tab-browse">
+                <span class="codicon codicon-search"></span>
+                Browse
+            </vscode-panel-tab>
+            <vscode-panel-tab id="tab-installed">
+                <span class="codicon codicon-package"></span>
+                Installed
+            </vscode-panel-tab>
+            <vscode-panel-tab id="tab-updates">
+                <span class="codicon codicon-cloud-download"></span>
+                Updates
+            </vscode-panel-tab>
+            <vscode-panel-tab id="tab-consolidate">
+                <span class="codicon codicon-filter"></span>
+                Consolidate
+            </vscode-panel-tab>
+
+            <!-- Browse Panel -->
+            <vscode-panel-view id="view-browse">
+                <div class="filter-bar">
+                    <vscode-dropdown id="package-source">
+                        <vscode-option value="nuget.org">Package source: nuget.org</vscode-option>
+                        <vscode-option value="all">Package source: All</vscode-option>
+                    </vscode-dropdown>
+                    <vscode-dropdown id="include-prerelease">
+                        <vscode-option value="false">Include prerelease: No</vscode-option>
+                        <vscode-option value="true">Include prerelease: Yes</vscode-option>
+                    </vscode-dropdown>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Installed Tab -->
-        <div id="installed" class="tab-content">
-            <div class="search-container">
-                <input type="text" class="search-box" placeholder="Search installed packages..." />
-            </div>
-            <div class="package-list">
-                <div class="empty-state">
-                    <div class="empty-icon">📦</div>
-                    <h3>No packages installed</h3>
-                    <p>Install packages from the Browse tab</p>
+                <div class="search-container">
+                    <vscode-text-field
+                        class="search-field"
+                        placeholder="Search packages..."
+                        id="browse-search">
+                        <span slot="start" class="codicon codicon-search"></span>
+                    </vscode-text-field>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Updates Tab -->
-        <div id="updates" class="tab-content">
-            <div class="package-list">
-                <div class="empty-state">
-                    <div class="empty-icon">⬆️</div>
-                    <h3>All packages are up to date</h3>
-                    <p>No updates available for installed packages</p>
+                <div class="package-list" id="browse-list">
+                    <div class="empty-state">
+                        <span class="codicon codicon-search empty-icon"></span>
+                        <h3>Search for packages</h3>
+                        <p>Enter a search term to find NuGet packages</p>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Consolidate Tab -->
-        <div id="consolidate" class="tab-content">
-            <div class="package-list">
-                <div class="empty-state">
-                    <div class="empty-icon">🔗</div>
-                    <h3>No version conflicts</h3>
-                    <p>All packages have consistent versions across projects</p>
+            </vscode-panel-view>
+
+            <!-- Installed Panel -->
+            <vscode-panel-view id="view-installed">
+                <div class="search-container">
+                    <vscode-text-field
+                        class="search-field"
+                        placeholder="Search installed packages..."
+                        id="installed-search">
+                        <span slot="start" class="codicon codicon-search"></span>
+                    </vscode-text-field>
                 </div>
-            </div>
-        </div>
+                <div class="package-list" id="installed-list">
+                    <div class="empty-state">
+                        <span class="codicon codicon-package empty-icon"></span>
+                        <h3>No packages installed</h3>
+                        <p>Install packages from the Browse tab</p>
+                    </div>
+                </div>
+            </vscode-panel-view>
+
+            <!-- Updates Panel -->
+            <vscode-panel-view id="view-updates">
+                <div class="package-list" id="updates-list">
+                    <div class="empty-state">
+                        <span class="codicon codicon-cloud-download empty-icon"></span>
+                        <h3>All packages are up to date</h3>
+                        <p>No updates available for installed packages</p>
+                    </div>
+                </div>
+            </vscode-panel-view>
+
+            <!-- Consolidate Panel -->
+            <vscode-panel-view id="view-consolidate">
+                <div class="package-list" id="consolidate-list">
+                    <div class="empty-state">
+                        <span class="codicon codicon-check empty-icon"></span>
+                        <h3>No version conflicts</h3>
+                        <p>All packages have consistent versions across projects</p>
+                    </div>
+                </div>
+            </vscode-panel-view>
+        </vscode-panels>
     </div>
     
     <div class="stats-bar">
@@ -666,21 +942,335 @@ export class SolutionCommands {
         let searchTimeout;
         let currentQuery = '';
         let includePrerelease = false;
+
+        // Initialize event listeners after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Listen for panel tab changes
+            const panels = document.getElementById('nuget-panels');
+            panels.addEventListener('change', function(e) {
+                const activeTabId = e.target.activeid;
+                handleTabChange(activeTabId);
+            });
+
+            // Initialize search inputs
+            setupSearchInputs();
+
+            // Initialize dropdowns
+            setupDropdowns();
+        });
+
+        function handleTabChange(activeTabId) {
+            switch(activeTabId) {
+                case 'tab-installed':
+                    loadInstalledPackages();
+                    break;
+                case 'tab-updates':
+                    loadUpdates();
+                    break;
+                case 'tab-consolidate':
+                    loadConsolidation();
+                    break;
+            }
+        }
+
+        function setupSearchInputs() {
+            // Browse search
+            const browseSearch = document.getElementById('browse-search');
+            browseSearch.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    performSearch(e.target.value);
+                }, 500);
+            });
+
+            // Installed search (client-side filtering)
+            const installedSearch = document.getElementById('installed-search');
+            installedSearch.addEventListener('input', function(e) {
+                filterInstalledPackages(e.target.value);
+            });
+        }
+
+        function setupDropdowns() {
+            // Package source dropdown
+            const packageSource = document.getElementById('package-source');
+            packageSource.addEventListener('change', function(e) {
+                // Handle package source change
+                if (currentQuery) {
+                    performSearch(currentQuery);
+                }
+            });
+
+            // Include prerelease dropdown
+            const prereleaseDropdown = document.getElementById('include-prerelease');
+            prereleaseDropdown.addEventListener('change', function(e) {
+                includePrerelease = e.target.value === 'true';
+                if (currentQuery) {
+                    performSearch(currentQuery);
+                }
+            });
+        }
         
-        function switchTab(tabName) {
-            // Hide all tab contents
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => content.classList.remove('active'));
+        function loadInstalledPackages() {
+            const packageList = document.getElementById('installed-list');
+            packageList.innerHTML = \`
+                <div class="loading-container">
+                    <span class="codicon codicon-loading codicon-spin"></span>
+                    <span>Loading installed packages...</span>
+                </div>
+            \`;
+
+            vscode.postMessage({
+                type: 'loadInstalledPackages'
+            });
+        }
+        
+        function displayInstalledPackages(packages) {
+            const packageList = document.getElementById('installed-list');
+
+            if (!packages || packages.length === 0) {
+                packageList.innerHTML = \`
+                    <div class="empty-state">
+                        <span class="codicon codicon-package empty-icon"></span>
+                        <h3>No packages installed</h3>
+                        <p>Install packages from the Browse tab</p>
+                    </div>
+                \`;
+                return;
+            }
+
+            // Group packages by ID (show all versions and projects)
+            const packageGroups = {};
+            packages.forEach(pkg => {
+                if (!packageGroups[pkg.id]) {
+                    packageGroups[pkg.id] = [];
+                }
+                packageGroups[pkg.id].push(pkg);
+            });
+
+            const packageItems = Object.keys(packageGroups).map(packageId => {
+                const versions = packageGroups[packageId];
+                const projectList = versions.map(v => \`\${v.projectName} (\${v.version})\`).join(', ');
+
+                return \`
+                    <div class="package-item" data-package-id="\${packageId}">
+                        <div class="package-name">\${packageId}</div>
+                        <div class="package-description">Used in: \${projectList}</div>
+                        <div class="package-meta">
+                            <span>Projects: \${versions.length}</span>
+                            <div class="action-buttons">
+                                <vscode-button appearance="secondary" onclick="removePackage('\${packageId}')">
+                                    <span slot="start" class="codicon codicon-remove"></span>
+                                    Remove
+                                </vscode-button>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+            }).join('');
+
+            packageList.innerHTML = packageItems;
+        }
+
+        function filterInstalledPackages(searchTerm) {
+            const packageItems = document.querySelectorAll('#installed-list .package-item');
+            const lowerSearch = searchTerm.toLowerCase();
+
+            packageItems.forEach(item => {
+                const packageName = item.querySelector('.package-name').textContent.toLowerCase();
+                const packageDesc = item.querySelector('.package-description').textContent.toLowerCase();
+                const matches = packageName.includes(lowerSearch) || packageDesc.includes(lowerSearch);
+                item.style.display = matches ? 'block' : 'none';
+            });
+        }
+        
+        function removePackage(packageId) {
+            const confirmed = confirm(\`Remove \${packageId} from all projects?\\n\\nThis will remove the package from all projects in the solution.\`);
+            if (confirmed) {
+                vscode.postMessage({
+                    type: 'removePackage',
+                    packageId: packageId
+                });
+                
+                // Reload installed packages after removal
+                setTimeout(() => {
+                    loadInstalledPackages();
+                }, 2000);
+            }
+        }
+        
+        function loadUpdates() {
+            const packageList = document.getElementById('updates-list');
+            packageList.innerHTML = \`
+                <div class="loading-container">
+                    <span class="codicon codicon-loading codicon-spin"></span>
+                    <span>Checking for updates...</span>
+                </div>
+            \`;
+
+            vscode.postMessage({
+                type: 'checkForUpdates',
+                includePrerelease: includePrerelease
+            });
+        }
+        
+        function displayPackageUpdates(updates) {
+            const packageList = document.getElementById('updates-list');
+
+            if (!updates || updates.length === 0) {
+                packageList.innerHTML = \`
+                    <div class="empty-state">
+                        <span class="codicon codicon-check empty-icon"></span>
+                        <h3>All packages are up to date</h3>
+                        <p>No updates available for installed packages</p>
+                    </div>
+                \`;
+                return;
+            }
+
+            const updateItems = updates.map(update => {
+                const projectList = update.projects.join(', ');
+                const isPrerelease = update.isPrerelease ? ' (Prerelease)' : '';
+
+                return \`
+                    <div class="package-item">
+                        <div class="package-name">\${update.id}\${isPrerelease}</div>
+                        <div class="package-description">Used in: \${projectList}</div>
+                        <div class="package-meta">
+                            <span>Current: \${update.currentVersion} → Latest: \${update.latestVersion}</span>
+                            <div class="action-buttons">
+                                <vscode-button appearance="primary" onclick="updatePackage('\${update.id}', '\${update.latestVersion}')">
+                                    <span slot="start" class="codicon codicon-cloud-download"></span>
+                                    Update
+                                </vscode-button>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+            }).join('');
+
+            packageList.innerHTML = updateItems;
+        }
+        
+        function updatePackage(packageId, version) {
+            const confirmed = confirm(\`Update \${packageId} to version \${version}?\\n\\nThis will update the package in all projects that use it.\`);
+            if (confirmed) {
+                vscode.postMessage({
+                    type: 'updatePackage',
+                    packageId: packageId,
+                    version: version
+                });
+                
+                // Reload updates after update
+                setTimeout(() => {
+                    loadUpdates();
+                }, 3000);
+            }
+        }
+        
+        function loadConsolidation() {
+            const packageList = document.getElementById('consolidate-list');
+            packageList.innerHTML = \`
+                <div class="loading-container">
+                    <span class="codicon codicon-loading codicon-spin"></span>
+                    <span>Analyzing package conflicts...</span>
+                </div>
+            \`;
+
+            vscode.postMessage({
+                type: 'analyzeConflicts'
+            });
+        }
+        
+        function displayPackageConflicts(conflicts, summary) {
+            const packageList = document.getElementById('consolidate-list');
+
+            if (!conflicts || conflicts.length === 0) {
+                packageList.innerHTML = \`
+                    <div class="empty-state">
+                        <span class="codicon codicon-check empty-icon"></span>
+                        <h3>No version conflicts</h3>
+                        <p>All packages have consistent versions across projects</p>
+                        \${summary ? \`<div style="margin-top: 16px; font-size: 12px; opacity: 0.8;">
+                            \${summary.totalPackages} packages across \${summary.totalProjects} projects analyzed
+                        </div>\` : ''}
+                    </div>
+                \`;
+                return;
+            }
             
-            // Remove active class from all tabs
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => tab.classList.remove('active'));
+            // Summary header
+            let summaryHtml = '';
+            if (summary) {
+                const { high, medium, low } = summary.conflictSeverity;
+                summaryHtml = \`
+                    <div style="background: var(--vscode-textBlockQuote-background); 
+                                border-left: 3px solid var(--vscode-focusBorder); 
+                                padding: 12px; margin-bottom: 16px; border-radius: 4px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">
+                            Found \${conflicts.length} package conflicts across \${summary.totalProjects} projects
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.8;">
+                            \${high > 0 ? \`\${high} high severity, \` : ''}\${medium > 0 ? \`\${medium} medium severity, \` : ''}\${low > 0 ? \`\${low} low severity\` : ''}
+                        </div>
+                    </div>
+                \`;
+            }
             
-            // Show selected tab content
-            document.getElementById(tabName).classList.add('active');
+            const conflictItems = conflicts.map(conflict => {
+                const severityColor = {
+                    high: '#f14c4c',
+                    medium: '#ff8c00', 
+                    low: '#ffcd3c'
+                }[conflict.conflictSeverity];
+                
+                const versionsDisplay = conflict.versions.map(v => 
+                    \`\${v.version} (used in \${v.usageCount} project\${v.usageCount > 1 ? 's' : ''})\`
+                ).join(', ');
+                
+                return \`
+                    <div class="package-item" style="border-left: 3px solid \${severityColor};">
+                        <div class="package-name">
+                            \${conflict.packageId}
+                            <span style="background: \${severityColor}; color: white; padding: 2px 6px;
+                                         border-radius: 3px; font-size: 10px; margin-left: 8px;">
+                                \${conflict.conflictSeverity.toUpperCase()}
+                            </span>
+                        </div>
+                        <div class="package-description">\${conflict.impactDescription}</div>
+                        <div style="margin: 8px 0; font-size: 11px; background: var(--vscode-textPreformat-background);
+                                    padding: 6px; border-radius: 3px;">
+                            Versions: \${versionsDisplay}
+                        </div>
+                        <div class="package-meta">
+                            <span>Recommended: \${conflict.recommendedVersion}</span>
+                            <div class="action-buttons">
+                                <vscode-button appearance="primary" onclick="consolidatePackage('\${conflict.packageId}', '\${conflict.recommendedVersion}')">
+                                    <span slot="start" class="codicon codicon-check"></span>
+                                    Consolidate
+                                </vscode-button>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+            }).join('');
             
-            // Mark selected tab as active
-            event.target.classList.add('active');
+            packageList.innerHTML = summaryHtml + conflictItems;
+        }
+        
+        function consolidatePackage(packageId, targetVersion) {
+            const confirmed = confirm(\`Consolidate \${packageId} to version \${targetVersion}?\\n\\nThis will update all projects to use the same version.\`);
+            if (confirmed) {
+                vscode.postMessage({
+                    type: 'consolidatePackage',
+                    packageId: packageId,
+                    targetVersion: targetVersion
+                });
+                
+                // Reload consolidation after operation
+                setTimeout(() => {
+                    loadConsolidation();
+                }, 3000);
+            }
         }
         
         function performSearch(query) {
@@ -688,10 +1278,10 @@ export class SolutionCommands {
                 showEmptySearch();
                 return;
             }
-            
+
             showSearching();
             currentQuery = query;
-            
+
             vscode.postMessage({
                 type: 'searchPackages',
                 query: query,
@@ -720,14 +1310,35 @@ export class SolutionCommands {
                 </div>
             \`;
         }
-        
+
+        function showSearching() {
+            const packageList = document.getElementById('browse-list');
+            packageList.innerHTML = \`
+                <div class="loading-container">
+                    <span class="codicon codicon-loading codicon-spin"></span>
+                    <span>Searching packages...</span>
+                </div>
+            \`;
+        }
+
+        function showEmptySearch() {
+            const packageList = document.getElementById('browse-list');
+            packageList.innerHTML = \`
+                <div class="empty-state">
+                    <span class="codicon codicon-search empty-icon"></span>
+                    <h3>Search for packages</h3>
+                    <p>Enter a search term to find NuGet packages</p>
+                </div>
+            \`;
+        }
+
         function displaySearchResults(results, query) {
-            const packageList = document.querySelector('#browse .package-list');
+            const packageList = document.getElementById('browse-list');
             
             if (!results || results.length === 0) {
                 packageList.innerHTML = \`
                     <div class="empty-state">
-                        <div class="empty-icon">📭</div>
+                        <span class="codicon codicon-package empty-icon"></span>
                         <h3>No packages found</h3>
                         <p>No packages match your search for "\${query}"</p>
                     </div>
@@ -746,7 +1357,13 @@ export class SolutionCommands {
                         <div class="package-description">\${description}</div>
                         <div class="package-meta">
                             <span>Downloads: \${downloadCount}</span>
-                            <span class="package-version">\${latestVersion}</span>
+                            <div class="action-buttons">
+                                <span class="package-version">\${latestVersion}</span>
+                                <vscode-button appearance="primary" onclick="selectPackage('\${pkg.id}', '\${latestVersion}'); event.stopPropagation();">
+                                    <span slot="start" class="codicon codicon-cloud-download"></span>
+                                    Install
+                                </vscode-button>
+                            </div>
                         </div>
                     </div>
                 \`;
@@ -773,37 +1390,43 @@ export class SolutionCommands {
                 case 'searchResults':
                     displaySearchResults(message.results, message.query);
                     break;
+                case 'installedPackages':
+                    displayInstalledPackages(message.packages);
+                    break;
+                case 'packageUpdates':
+                    displayPackageUpdates(message.updates);
+                    break;
+                case 'packageConflicts':
+                    displayPackageConflicts(message.conflicts, message.summary);
+                    break;
             }
         });
         
-        // Handle search input with debouncing
-        document.querySelectorAll('.search-box').forEach(searchBox => {
-            searchBox.addEventListener('input', function(e) {
-                const isInBrowseTab = e.target.closest('#browse');
-                if (!isInBrowseTab) return;
-                
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    performSearch(e.target.value);
-                }, 500); // 500ms debounce
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeUI();
             });
-        });
-        
-        // Handle prerelease filter
-        document.querySelectorAll('.filter-select').forEach(select => {
-            select.addEventListener('change', function(e) {
-                if (e.target.value.includes('Include prerelease: Yes')) {
-                    includePrerelease = true;
-                } else if (e.target.value.includes('Include prerelease: No')) {
-                    includePrerelease = false;
-                }
-                
-                // Re-search if there's a current query
-                if (currentQuery) {
-                    performSearch(currentQuery);
-                }
-            });
-        });
+        } else {
+            initializeUI();
+        }
+
+        function initializeUI() {
+            // Listen for panel tab changes
+            const panels = document.getElementById('nuget-panels');
+            if (panels) {
+                panels.addEventListener('change', function(e) {
+                    const activeTabId = e.target.activeid;
+                    handleTabChange(activeTabId);
+                });
+            }
+
+            // Initialize search inputs
+            setupSearchInputs();
+
+            // Initialize dropdowns
+            setupDropdowns();
+        }
     </script>
 </body>
 </html>`;

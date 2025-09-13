@@ -13,12 +13,13 @@ export class CommandManager {
 
     constructor(
         private context: vscode.ExtensionContext,
-        private solutionProvider: SolutionProvider
+        private solutionProvider: SolutionProvider,
+        private solutionTreeView: vscode.TreeView<any>
     ) {
         this.solutionCommands = new SolutionCommands(context, solutionProvider);
         this.projectCommands = new ProjectCommands(context, solutionProvider);
-        this.fileCommands = new FileCommands(context, solutionProvider);
-        this.solutionFolderCommands = new SolutionFolderCommands(context, solutionProvider);
+        this.fileCommands = new FileCommands(context, solutionProvider, solutionTreeView);
+        this.solutionFolderCommands = new SolutionFolderCommands(context, solutionProvider, solutionTreeView);
     }
 
     public registerAllCommands(): void {

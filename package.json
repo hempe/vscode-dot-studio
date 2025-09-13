@@ -36,7 +36,7 @@
       },
       {
         "command": "dotnet-extension.removeProject",
-        "title": "Remove Project from Solution",
+        "title": "Remove Project from Solution (Del)",
         "category": ".NET"
       },
       {
@@ -120,6 +120,11 @@
         "category": ".NET"
       },
       {
+        "command": "dotnet-extension.addFrameworkReference",
+        "title": "Add Framework Reference...",
+        "category": ".NET"
+      },
+      {
         "command": "dotnet-extension.build",
         "title": "Build",
         "category": ".NET"
@@ -140,11 +145,6 @@
         "category": ".NET"
       },
       {
-        "command": "dotnet-extension.removeProjectFromSolution",
-        "title": "Remove (Delete)",
-        "category": ".NET"
-      },
-      {
         "command": "dotnet-extension.newProject",
         "title": "New Project...",
         "category": ".NET"
@@ -162,6 +162,11 @@
       {
         "command": "dotnet-extension.deleteSolutionFolder",
         "title": "Delete",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.deleteSolutionItem",
+        "title": "Delete Solution Item",
         "category": ".NET"
       },
       {
@@ -198,7 +203,32 @@
         "command": "dotnet-extension.manageSolutionNugetPackages",
         "title": "Manage NuGet Packages for Solution",
         "category": ".NET"
-      }
+      },
+      {
+        "command": "dotnet-extension.debugContext",
+        "title": "Debug Context Variables",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.smartRename",
+        "title": "Rename... (F2)",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.smartDelete",
+        "title": "Delete (Del)",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.renameFolder",
+        "title": "Rename Folder",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet-extension.deleteFolder",
+        "title": "Delete Folder",
+        "category": ".NET"
+      },
     ],
     "views": {
       "solution-explorer": [
@@ -315,18 +345,23 @@
           "group": "5_modifications"
         },
         {
+          "command": "dotnet-extension.deleteSolutionItem",
+          "when": "view == dotnet-solution && viewItem == solutionItem",
+          "group": "5_modifications"
+        },
+        {
           "command": "dotnet-extension.revealInExplorer",
-          "when": "focusedView == dotnet-solution",
+          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
           "group": "2_workspace"
         },
         {
           "command": "dotnet-extension.openInTerminal",
-          "when": "focusedView == dotnet-solution",
+          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
           "group": "2_workspace"
         },
         {
           "command": "dotnet-extension.copyFile",
-          "when": "focusedView == dotnet-solution",
+          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
           "group": "3_copy"
         },
         {
@@ -336,22 +371,22 @@
         },
         {
           "command": "dotnet-extension.cutFile",
-          "when": "focusedView == dotnet-solution",
+          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
           "group": "3_copy"
         },
         {
           "command": "dotnet-extension.openToSide",
-          "when": "focusedView == dotnet-solution",
+          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == solution)",
           "group": "navigation"
         },
         {
           "command": "dotnet-extension.copyPath",
-          "when": "focusedView == dotnet-solution",
+          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == folder)",
           "group": "4_paths"
         },
         {
           "command": "dotnet-extension.copyRelativePath",
-          "when": "focusedView == dotnet-solution",
+          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == folder)",
           "group": "4_paths"
         },
         {
@@ -390,13 +425,13 @@
           "group": "4_paths"
         },
         {
-          "command": "dotnet-extension.renameFile",
-          "when": "view == dotnet-solution && viewItem == file",
+          "command": "dotnet-extension.smartRename",
+          "when": "view == dotnet-solution && (viewItem == file || viewItem == folder || viewItem == project || viewItem == solution || viewItem == solutionFolder || viewItem == solutionItem)",
           "group": "5_modifications"
         },
         {
-          "command": "dotnet-extension.deleteFile",
-          "when": "view == dotnet-solution && viewItem == file",
+          "command": "dotnet-extension.smartDelete",
+          "when": "view == dotnet-solution && (viewItem == file || viewItem == folder || viewItem == project || viewItem == solutionFolder || viewItem == solutionItem)",
           "group": "5_modifications"
         },
         {
@@ -430,9 +465,19 @@
           "group": "2_workspace"
         },
         {
-          "command": "dotnet-extension.removeProjectFromSolution",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "5_modifications"
+          "command": "dotnet-extension.addFrameworkReference",
+          "when": "view == dotnet-solution && viewItem == dependencies",
+          "group": "1_dotnet"
+        },
+        {
+          "command": "dotnet-extension.manageNugetPackages",
+          "when": "view == dotnet-solution && viewItem == dependencies",
+          "group": "1_dotnet"
+        },
+        {
+          "command": "dotnet-extension.addProjectReference",
+          "when": "view == dotnet-solution && viewItem == dependencies",
+          "group": "1_dotnet"
         }
       ]
     },
@@ -441,7 +486,7 @@
         "command": "dotnet-extension.copyFile",
         "key": "ctrl+c",
         "mac": "cmd+c",
-        "when": "focusedView == dotnet-solution"
+        "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies"
       },
       {
         "command": "dotnet-extension.pasteFile",
@@ -453,17 +498,17 @@
         "command": "dotnet-extension.cutFile",
         "key": "ctrl+x",
         "mac": "cmd+x",
-        "when": "focusedView == dotnet-solution"
+        "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies"
       },
       {
-        "command": "dotnet-extension.deleteFile",
+        "command": "dotnet-extension.smartDelete",
         "key": "delete",
-        "when": "focusedView == dotnet-solution && viewItem == file"
+        "when": "focusedView == dotnet-solution && !inputFocus"
       },
       {
-        "command": "dotnet-extension.renameFile",
+        "command": "dotnet-extension.smartRename",
         "key": "f2",
-        "when": "focusedView == dotnet-solution && viewItem == file"
+        "when": "focusedView == dotnet-solution && !inputFocus"
       },
       {
         "command": "dotnet-extension.openToSide",
@@ -496,21 +541,6 @@
         "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
       },
       {
-        "command": "dotnet-extension.renameSolutionFolder",
-        "key": "f2",
-        "when": "focusedView == dotnet-solution && viewItem == solutionFolder"
-      },
-      {
-        "command": "dotnet-extension.deleteSolutionFolder",
-        "key": "delete",
-        "when": "focusedView == dotnet-solution && viewItem == solutionFolder"
-      },
-      {
-        "command": "dotnet-extension.renameSolution",
-        "key": "f2",
-        "when": "focusedView == dotnet-solution && viewItem == solution"
-      },
-      {
         "command": "dotnet-extension.buildSolution",
         "key": "ctrl+b",
         "mac": "cmd+b",
@@ -521,7 +551,12 @@
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b",
         "when": "workspaceHasDotnetFiles"
-      }
+      },
+      {
+        "command": "dotnet-extension.debugContext",
+        "key": "f3",
+        "when": "workspaceHasDotnetFiles"
+      },
     ]
   },
   "scripts": {
@@ -530,9 +565,13 @@
     "watch": "tsc -watch -p ./",
     "test": "npm run compile && node ./out/test/runTest.js",
     "test:unit": "npm run compile && mocha out/test/unit/**/*.test.js",
-    "test:watch": "npm run compile && mocha out/test/unit/**/*.test.js --watch"
+    "test:integration": "npm run compile && node ./out/test/runTest.js",
+    "test:watch": "npm run compile && mocha out/test/unit/**/*.test.js --watch",
+    "test:all": "npm run test:unit && npm run test:integration"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.35",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
     "minimatch": "^9.0.3",
     "xml2js": "^0.6.2"
   },

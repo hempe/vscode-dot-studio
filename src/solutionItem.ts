@@ -5,11 +5,11 @@ export class SolutionItem extends vscode.TreeItem {
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly resourceUri?: vscode.Uri,
-        public readonly itemType?: 'solution' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'solutionFolder',
+        public readonly itemType?: 'solution' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'solutionFolder' | 'solutionItem',
         public readonly children?: SolutionItem[],
         public readonly projectPath?: string,
         public readonly solutionPath?: string,
-        public readonly dependencyType?: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkAssembly',
+        public readonly dependencyType?: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkReference',
         public readonly version?: string
     ) {
         super(label, collapsibleState);
@@ -21,12 +21,26 @@ export class SolutionItem extends vscode.TreeItem {
             // Use specific icon for .csproj files - VS Code's file icon with resource URI should work
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
-            // Project file opening will be handled by double-click detection
+            // Set command to open project file on click
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open Project File',
+                    arguments: [resourceUri]
+                };
+            }
         } else if (itemType === 'solution') {
-            // Use specific icon for .sln files 
+            // Use specific icon for .sln files
             this.iconPath = vscode.ThemeIcon.File;
             this.resourceUri = resourceUri; // Make sure resourceUri is set for proper file icon detection
-            // Solution file opening will be handled by double-click detection
+            // Set command to open solution file on click
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open Solution File',
+                    arguments: [resourceUri]
+                };
+            }
         } else if (itemType === 'folder') {
             // Use folder theme icon - try the standard folder icon
             this.iconPath = new vscode.ThemeIcon('folder');
@@ -34,6 +48,15 @@ export class SolutionItem extends vscode.TreeItem {
         } else if (itemType === 'file') {
             // Use ThemeIcon.File which should respect the file extension
             this.iconPath = vscode.ThemeIcon.File;
+            this.resourceUri = resourceUri;
+            // Set command to open file on click
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open File',
+                    arguments: [resourceUri]
+                };
+            }
         } else if (itemType === 'dependencies') {
             this.iconPath = new vscode.ThemeIcon('library');
         } else if (itemType === 'dependency') {
@@ -41,7 +64,7 @@ export class SolutionItem extends vscode.TreeItem {
                 this.iconPath = new vscode.ThemeIcon('package');
             } else if (dependencyType === 'ProjectReference') {
                 this.iconPath = new vscode.ThemeIcon('project');
-            } else if (dependencyType === 'FrameworkAssembly') {
+            } else if (dependencyType === 'FrameworkReference') {
                 this.iconPath = new vscode.ThemeIcon('library');
             } else {
                 this.iconPath = new vscode.ThemeIcon('references');
@@ -49,6 +72,18 @@ export class SolutionItem extends vscode.TreeItem {
         } else if (itemType === 'solutionFolder') {
             // Use a distinctive icon for solution folders (virtual folders in .sln)
             this.iconPath = new vscode.ThemeIcon('folder-library');
+        } else if (itemType === 'solutionItem') {
+            // Use file icon for solution items (files in solution folders)
+            this.iconPath = vscode.ThemeIcon.File;
+            this.resourceUri = resourceUri;
+            // Set command to open file on click
+            if (resourceUri) {
+                this.command = {
+                    command: 'vscode.open',
+                    title: 'Open File',
+                    arguments: [resourceUri]
+                };
+            }
         } else {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
@@ -69,20 +104,14 @@ export class SolutionItem extends vscode.TreeItem {
                 this.description = 'Package';
             } else if (dependencyType === 'ProjectReference') {
                 this.description = 'Project';
-            } else if (dependencyType === 'FrameworkAssembly') {
+            } else if (dependencyType === 'FrameworkReference') {
                 this.description = 'Framework';
             } else {
                 this.description = 'Assembly';
             }
         }
 
-        // Set click command for files, projects, and solutions to handle double-click opening
-        if (itemType === 'file' || itemType === 'project' || itemType === 'solution') {
-            this.command = {
-                command: 'dotnet-extension.itemClick',
-                title: 'Handle Item Click',
-                arguments: [this]
-            };
-        }
+        // VS Code will automatically handle file opening when resourceUri is set
+        // No need for custom commands - this allows tree view to keep focus for key bindings
     }
 }
