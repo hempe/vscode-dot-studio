@@ -23,6 +23,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotnet-solution-webview';
 
     private _view?: vscode.WebviewView;
+    private _isRenaming: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -114,6 +115,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Handle context menu actions based on data.type
                 break;
 
+            case 'rename':
+                console.log(`[SolutionWebviewProvider] Renaming ${data?.oldName} to ${data?.newName} at ${projectPath}`);
+                await this._handleRename(projectPath, data?.newName, data?.oldName, data?.type);
+                break;
+
             case 'build':
                 console.log(`[SolutionWebviewProvider] Building project: ${projectPath}`);
                 await vscode.commands.executeCommand('dotnet-extension.build', { path: projectPath });
@@ -131,6 +137,69 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             default:
                 console.warn(`[SolutionWebviewProvider] Unknown project action: ${action}`);
+        }
+    }
+
+    private async _handleRename(oldPath: string, newName: string, oldName: string, nodeType: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Attempting to rename ${nodeType} from "${oldName}" to "${newName}"`);
+
+            // Set flag to prevent file watcher from triggering refresh
+            this._isRenaming = true;
+
+            const path = require('path');
+            const fs = require('fs').promises;
+
+            // Calculate new path
+            const directory = path.dirname(oldPath);
+            const originalExtension = path.extname(oldPath);
+
+            // For files, check if user included extension in newName
+            let finalNewName = newName;
+            if (nodeType === 'file') {
+                const userProvidedExtension = path.extname(newName);
+                if (!userProvidedExtension && originalExtension) {
+                    // User didn't provide extension, add the original one
+                    finalNewName = newName + originalExtension;
+                }
+                // If user provided extension, use newName as-is
+            }
+
+            const newPath = path.join(directory, finalNewName);
+
+            console.log(`[SolutionWebviewProvider] Renaming path: ${oldPath} -> ${newPath}`);
+
+            // Use VS Code's workspace API to rename the file/folder
+            const oldUri = vscode.Uri.file(oldPath);
+            const newUri = vscode.Uri.file(newPath);
+
+            const edit = new vscode.WorkspaceEdit();
+            edit.renameFile(oldUri, newUri);
+
+            const success = await vscode.workspace.applyEdit(edit);
+
+            if (success) {
+                console.log(`[SolutionWebviewProvider] Successfully renamed ${oldName} to ${newName}`);
+                // Send a targeted update instead of full refresh to preserve tree state
+                this._view?.webview.postMessage({
+                    command: 'nodeRenamed',
+                    oldPath: oldPath,
+                    newPath: newPath,
+                    newName: path.basename(finalNewName)
+                });
+            } else {
+                console.error(`[SolutionWebviewProvider] Failed to rename ${oldName} to ${newName}`);
+                vscode.window.showErrorMessage(`Failed to rename ${oldName} to ${newName}`);
+            }
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error during rename:`, error);
+            vscode.window.showErrorMessage(`Error renaming file: ${error}`);
+        } finally {
+            // Clear the flag and allow refreshes again after a short delay
+            setTimeout(() => {
+                this._isRenaming = false;
+                console.log('[SolutionWebviewProvider] Rename operation completed, refreshes allowed again');
+            }, 1000); // 1 second delay to allow file system events to settle
         }
     }
 
@@ -635,6 +704,86 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         display: inline-block;
                     }
 
+                    .context-menu {
+                        background-color: var(--vscode-menu-background);
+                        border: 1px solid var(--vscode-widget-border);
+                        border-radius: 6px;
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                        padding: 4px 0;
+                        min-width: 200px;
+                        font-family: var(--vscode-font-family);
+                        font-size: 13px;
+                        line-height: 1.3;
+                    }
+
+                    .context-menu-content {
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    .context-menu-item {
+                        display: flex;
+                        align-items: center;
+                        padding: 6px 12px;
+                        cursor: pointer;
+                        color: var(--vscode-menu-foreground);
+                        transition: background-color 0.1s ease;
+                        position: relative;
+                    }
+
+                    .context-menu-item:hover {
+                        background-color: var(--vscode-list-hoverBackground);
+                    }
+
+                    .context-menu-item:active {
+                        background-color: var(--vscode-list-activeSelectionBackground);
+                    }
+
+                    .context-menu-icon {
+                        margin-right: 8px;
+                        width: 16px;
+                        height: 16px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        opacity: 0.8;
+                    }
+
+                    .context-menu-label {
+                        flex: 1;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .context-menu-shortcut {
+                        margin-left: 16px;
+                        color: var(--vscode-descriptionForeground);
+                        font-size: 12px;
+                        opacity: 0.7;
+                    }
+
+                    .context-menu-separator {
+                        height: 1px;
+                        background-color: var(--vscode-menu-separatorBackground);
+                        margin: 4px 8px;
+                    }
+
+                    .rename-input {
+                        background-color: var(--vscode-input-background);
+                        border: 1px solid var(--vscode-input-border);
+                        color: var(--vscode-input-foreground);
+                        font-family: var(--vscode-font-family);
+                        font-size: 12px;
+                        padding: 2px 4px;
+                        outline: none;
+                        border-radius: 2px;
+                    }
+
+                    .rename-input:focus {
+                        border-color: var(--vscode-focusBorder);
+                    }
+
                     .loading {
                         text-align: center;
                         color: var(--vscode-descriptionForeground);
@@ -665,6 +814,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public refresh() {
+        // Don't refresh if we're in the middle of a rename operation
+        if (this._isRenaming) {
+            console.log('[SolutionWebviewProvider] Skipping refresh during rename operation');
+            return;
+        }
         this._updateWebview();
     }
 }

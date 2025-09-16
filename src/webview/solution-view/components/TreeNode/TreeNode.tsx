@@ -1,5 +1,6 @@
 import React from 'react';
 import { TreeNodeProps } from '../../types';
+import { RenameInput } from '../RenameInput/RenameInput';
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
@@ -7,9 +8,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onProjectAction,
     onToggleExpand,
     onNodeFocus,
-    selectedNodePath
+    onContextMenu,
+    onRenameConfirm,
+    onRenameCancel,
+    selectedNodePath,
+    renamingNodePath
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
+
+    const isRenaming = renamingNodePath === node.path;
 
     const handleClick = () => {
         console.log(`[TreeNode] Single click on ${node.type}: ${node.name} (path: ${node.path})`);
@@ -58,8 +65,34 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
         console.log(`[TreeNode] Context menu on ${node.type}: ${node.name}`);
-        onProjectAction('contextMenu', node.path, { type: node.type });
+        onContextMenu(e.clientX, e.clientY, node);
     };
+
+    const handleRenameConfirmLocal = (newName: string) => {
+        console.log(`[TreeNode] Renaming ${node.name} to ${newName}`);
+        onRenameConfirm(newName, node.path, node.type, node.name);
+    };
+
+    const handleRenameCancelLocal = () => {
+        console.log(`[TreeNode] Cancelling rename for: ${node.name}`);
+        onRenameCancel();
+    };
+
+    // Add keyboard support for F2 (Rename)
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (selectedNodePath === node.path && e.key === 'F2') {
+                e.preventDefault();
+                // Start rename by triggering the parent's rename handler
+                onProjectAction('startRename', node.path, { type: node.type, name: node.name });
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [selectedNodePath, node.path]);
 
     const getIcon = () => {
         switch (node.type) {
@@ -154,7 +187,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     <span className="expand-icon-placeholder"></span>
                 )}
                 <span className={`node-icon codicon ${getIcon()}`}></span>
-                <span className="node-name">{node.name}</span>
+                {isRenaming ? (
+                    <RenameInput
+                        initialValue={node.name}
+                        onConfirm={handleRenameConfirmLocal}
+                        onCancel={handleRenameCancelLocal}
+                    />
+                ) : (
+                    <span className="node-name">{node.name}</span>
+                )}
             </div>
             {node.expanded && node.children && (
                 <div className="tree-children">
@@ -166,7 +207,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onProjectAction={onProjectAction}
                             onToggleExpand={onToggleExpand}
                             onNodeFocus={onNodeFocus}
+                            onContextMenu={onContextMenu}
+                            onRenameConfirm={onRenameConfirm}
+                            onRenameCancel={onRenameCancel}
                             selectedNodePath={selectedNodePath}
+                            renamingNodePath={renamingNodePath}
                         />
                     ))}
                 </div>
