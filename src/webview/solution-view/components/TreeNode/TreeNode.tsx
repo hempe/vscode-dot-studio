@@ -148,7 +148,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
             >
-                <span className={`node-icon ${getIcon()}`}></span>
+                <span className={`node-icon codicon ${getIcon()}`}></span>
                 <span className="node-name">{node.name}</span>
             </div>
             {node.expanded && node.children && (

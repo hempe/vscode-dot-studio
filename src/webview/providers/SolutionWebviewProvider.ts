@@ -467,9 +467,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this._extensionUri, 'out', 'webview', 'solution-view', 'bundle.js'
         ));
 
-        // Add Codicons font for proper VS Code icons
-        const codiconsFont = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._extensionUri, 'out', 'webview', 'codicons', 'codicon.ttf'
+        // Add Codicons CSS for proper VS Code icons
+        const codiconsCss = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._extensionUri, 'out', 'webview', 'codicons', 'codicon.css'
         ));
 
         const nonce = this._getNonce();
@@ -481,53 +481,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'unsafe-eval';">
                 <title>Solution Explorer</title>
+                <link rel="stylesheet" type="text/css" href="${codiconsCss}">
                 <style>
-                    /* Codicons font definition */
-                    @font-face {
-                        font-family: "codicon";
-                        font-display: block;
-                        src: url("${codiconsFont}") format("truetype");
-                    }
-
-                    .codicon[class*='codicon-'] {
-                        font: normal normal normal 16px/1 codicon;
-                        display: inline-block;
-                        text-decoration: none;
-                        text-rendering: auto;
-                        text-align: center;
-                        -webkit-font-smoothing: antialiased;
-                        -moz-osx-font-smoothing: grayscale;
-                        user-select: none;
-                        -webkit-user-select: none;
-                        -ms-user-select: none;
-                    }
-
-                    /* Codicon classes for our solution explorer */
-                    .codicon-symbol-namespace:before { content: "\\ea8b"; }
-                    .codicon-symbol-class:before { content: "\\eb5b"; }
-                    .codicon-symbol-method:before { content: "\\ea8c"; }
-                    .codicon-symbol-interface:before { content: "\\eb61"; }
-                    .codicon-symbol-color:before { content: "\\eb5c"; }
-                    .codicon-symbol-variable:before { content: "\\ea88"; }
-                    .codicon-symbol-string:before { content: "\\eb8d"; }
-                    .codicon-symbol-property:before { content: "\\eb65"; }
-                    .codicon-references:before { content: "\\eb36"; }
-                    .codicon-package:before { content: "\\eb29"; }
-                    .codicon-folder:before { content: "\\ea83"; }
-                    .codicon-folder-opened:before { content: "\\ea84"; }
-                    .codicon-file:before { content: "\\ea7b"; }
-                    .codicon-file-code:before { content: "\\eae9"; }
-                    .codicon-file-directory:before { content: "\\ea83"; }
-                    .codicon-file-text:before { content: "\\ea7b"; }
-                    .codicon-json:before { content: "\\eb0f"; }
-                    .codicon-markdown:before { content: "\\eb1d"; }
-                    .codicon-database:before { content: "\\eace"; }
-                    .codicon-gear:before { content: "\\eaf8"; }
-                    .codicon-settings-gear:before { content: "\\eb51"; }
-                    .codicon-globe:before { content: "\\eb01"; }
-                    .codicon-vm:before { content: "\\ea7a"; }
-                    .codicon-info:before { content: "\\ea74"; }
-                    .codicon-question:before { content: "\\eb32"; }
 
                     body {
                         font-family: var(--vscode-font-family);
