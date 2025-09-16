@@ -25,7 +25,11 @@ jest.mock('vscode', () => ({
 jest.mock('../../services/solutionService');
 jest.mock('../../services/frameworkDropdownService');
 jest.mock('../../parsers/projectFileParser');
-jest.mock('../../services/fileNesting');
+jest.mock('../../services/fileNesting', () => ({
+    FileNestingService: {
+        nestFiles: jest.fn((files) => files) // Return files as-is for testing
+    }
+}));
 
 describe('SolutionWebviewProvider', () => {
     let provider: SolutionWebviewProvider;
@@ -213,6 +217,201 @@ describe('SolutionWebviewProvider', () => {
             expect(result).toHaveLength(1);
             const projectNode = result[0].children[0];
             expect(projectNode.children).toHaveLength(0); // Should handle error gracefully
+        });
+    });
+
+    describe('Visual Studio-style sorting', () => {
+        it('should sort tree items in Visual Studio order: Dependencies -> Solution Folders -> Folders -> Files', async () => {
+            const mockSolutionData = {
+                projects: [
+                    {
+                        name: 'TestProject',
+                        path: 'src/TestProject/TestProject.csproj',
+                        typeGuid: '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}',
+                        guid: '{12345678-1234-1234-1234-123456789012}',
+                        dependencies: [
+                            { name: 'System.Text.Json', version: '6.0.0' }
+                        ]
+                    }
+                ]
+            };
+
+            const mockProjectData = {
+                files: [
+                    { path: '/test/workspace/src/TestProject/Program.cs', isDirectory: false, relativePath: 'Program.cs' },
+                    { path: '/test/workspace/src/TestProject/Properties/AssemblyInfo.cs', isDirectory: false, relativePath: 'Properties/AssemblyInfo.cs' }
+                ],
+                directories: new Set(),
+                dependencies: [
+                    { name: 'System.Text.Json', version: '6.0.0' }
+                ]
+            };
+
+            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
+            (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
+
+            const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);
+            jest.mocked(ProjectFileParser).mockImplementation(() => ({
+                parseProjectFiles: mockParseProjectFiles
+            } as any));
+
+            const vscode = require('vscode');
+            vscode.workspace.fs.stat.mockResolvedValue({});
+
+            const getSolutionData = (provider as any)._getSolutionData.bind(provider);
+            const result = await getSolutionData();
+
+            expect(result).toHaveLength(1);
+            const solutionNode = result[0];
+
+            // Find the project node (should have children including Dependencies)
+            const projectNode = solutionNode.children.find((child: any) => child.name === 'TestProject');
+            expect(projectNode).toBeDefined();
+
+            // Should have Dependencies folder since we provided dependencies
+            expect(projectNode.children.some((child: any) => child.name === 'Dependencies')).toBe(true);
+
+            // Get the child names in order
+            const childNames = projectNode.children.map((child: any) => child.name);
+
+            // Dependencies should come first if it exists
+            const dependenciesIndex = childNames.indexOf('Dependencies');
+            if (dependenciesIndex >= 0) {
+                expect(dependenciesIndex).toBe(0); // Dependencies first when present
+            }
+
+            // Test that folders come before files in general
+            const folderIndices = projectNode.children
+                .map((child: any, index: number) => child.type === 'folder' ? index : -1)
+                .filter((index: number) => index >= 0);
+
+            const fileIndices = projectNode.children
+                .map((child: any, index: number) => child.type === 'file' ? index : -1)
+                .filter((index: number) => index >= 0);
+
+            if (folderIndices.length > 0 && fileIndices.length > 0) {
+                const maxFolderIndex = Math.max(...folderIndices);
+                const minFileIndex = Math.min(...fileIndices);
+                expect(maxFolderIndex).toBeLessThan(minFileIndex); // All folders before all files
+            }
+        });
+
+        it('should sort solution folders before regular projects', async () => {
+            const mockSolutionData = {
+                projects: [
+                    {
+                        name: 'RegularProject',
+                        path: 'src/RegularProject/RegularProject.csproj',
+                        typeGuid: '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}',
+                        guid: '{12345678-1234-1234-1234-123456789012}'
+                    },
+                    {
+                        name: 'Solution Items',
+                        path: 'Solution Items',
+                        typeGuid: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
+                        guid: '{87654321-4321-4321-4321-210987654321}'
+                    },
+                    {
+                        name: 'Another Solution Folder',
+                        path: 'Another Solution Folder',
+                        typeGuid: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
+                        guid: '{11111111-1111-1111-1111-111111111111}'
+                    }
+                ]
+            };
+
+            const mockProjectData = {
+                files: [],
+                directories: new Set(),
+                dependencies: []
+            };
+
+            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
+            (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
+
+            const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);
+            jest.mocked(ProjectFileParser).mockImplementation(() => ({
+                parseProjectFiles: mockParseProjectFiles
+            } as any));
+
+            const vscode = require('vscode');
+            vscode.workspace.fs.stat.mockResolvedValue({});
+
+            const getSolutionData = (provider as any)._getSolutionData.bind(provider);
+            const result = await getSolutionData();
+
+            expect(result).toHaveLength(1);
+            const solutionNode = result[0];
+
+            // Verify we have all expected children
+            expect(solutionNode.children).toHaveLength(3);
+
+            const childNames = solutionNode.children.map((child: any) => child.name);
+
+            // Solution folders should come before regular projects
+            const solutionItemsIndex = childNames.indexOf('Solution Items');
+            const anotherFolderIndex = childNames.indexOf('Another Solution Folder');
+            const projectIndex = childNames.indexOf('RegularProject');
+
+            // All should be found
+            expect(solutionItemsIndex).toBeGreaterThanOrEqual(0);
+            expect(anotherFolderIndex).toBeGreaterThanOrEqual(0);
+            expect(projectIndex).toBeGreaterThanOrEqual(0);
+
+            // Solution folders should come before regular projects
+            expect(solutionItemsIndex).toBeLessThan(projectIndex);
+            expect(anotherFolderIndex).toBeLessThan(projectIndex);
+
+            // Solution folders should be sorted alphabetically among themselves
+            expect(anotherFolderIndex).toBeLessThan(solutionItemsIndex); // "Another" comes before "Solution"
+        });
+
+        it('should identify solution folders correctly using isSolutionFolder flag', async () => {
+            const mockSolutionData = {
+                projects: [
+                    {
+                        name: 'Solution Items',
+                        path: 'Solution Items',
+                        typeGuid: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
+                        guid: '{87654321-4321-4321-4321-210987654321}'
+                    },
+                    {
+                        name: 'TestProject',
+                        path: 'src/TestProject/TestProject.csproj',
+                        typeGuid: '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}',
+                        guid: '{12345678-1234-1234-1234-123456789012}'
+                    }
+                ]
+            };
+
+            const mockProjectData = {
+                files: [],
+                directories: new Set(),
+                dependencies: []
+            };
+
+            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
+            (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
+
+            const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);
+            jest.mocked(ProjectFileParser).mockImplementation(() => ({
+                parseProjectFiles: mockParseProjectFiles
+            } as any));
+
+            const vscode = require('vscode');
+            vscode.workspace.fs.stat.mockResolvedValue({});
+
+            const getSolutionData = (provider as any)._getSolutionData.bind(provider);
+            const result = await getSolutionData();
+
+            expect(result).toHaveLength(1);
+            const solutionNode = result[0];
+
+            const solutionFolder = solutionNode.children.find((child: any) => child.name === 'Solution Items');
+            const project = solutionNode.children.find((child: any) => child.name === 'TestProject');
+
+            expect(solutionFolder.isSolutionFolder).toBe(true);
+            expect(project.isSolutionFolder).toBe(false);
         });
     });
 

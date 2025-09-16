@@ -241,7 +241,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     // Add framework information if available
                     frameworks: project.targetFrameworks || [],
                     // Store original typeGuid for debugging
-                    typeGuid: project.typeGuid
+                    typeGuid: project.typeGuid,
+                    // Flag to identify solution folders vs filesystem folders
+                    isSolutionFolder: itemType === 'folder' && project.typeGuid?.toUpperCase() === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}'
                 };
 
                 // Load project files only for actual projects (not solution folders)
@@ -309,9 +311,50 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     itemNode.children.push(depsNode);
                 }
 
+                // Sort project children using Visual Studio ordering
+                if (itemType === 'project') {
+                    itemNode.children.sort((a: any, b: any) => {
+                        // Visual Studio ordering: Dependencies -> Folders -> Files
+                        const getTypePriority = (item: any) => {
+                            if (item.name === 'Dependencies') return 0;  // Dependencies always first
+                            if (item.type === 'folder') return 1;  // Regular folders
+                            return 2;  // Files
+                        };
+
+                        const priorityA = getTypePriority(a);
+                        const priorityB = getTypePriority(b);
+
+                        if (priorityA !== priorityB) {
+                            return priorityA - priorityB;
+                        }
+
+                        // Within same type, sort alphabetically
+                        return a.name.localeCompare(b.name);
+                    });
+                }
+
                 solutionNode.children.push(itemNode);
             }
         }
+
+        // Sort solution-level items (projects and solution folders)
+        solutionNode.children.sort((a: any, b: any) => {
+            // Visual Studio ordering at solution level: Solution Folders -> Projects
+            const getTypePriority = (item: any) => {
+                if (item.isSolutionFolder || (item.type === 'folder' && item.name === 'Solution Items')) return 0;  // Solution folders first
+                return 1;  // Projects second
+            };
+
+            const priorityA = getTypePriority(a);
+            const priorityB = getTypePriority(b);
+
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+
+            // Within same type, sort alphabetically
+            return a.name.localeCompare(b.name);
+        });
 
         result.push(solutionNode);
         return result;
@@ -455,9 +498,22 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         return result.sort((a, b) => {
-            // Sort folders first, then files
-            if (a.type === 'folder' && b.type !== 'folder') return -1;
-            if (a.type !== 'folder' && b.type === 'folder') return 1;
+            // Visual Studio ordering: Dependencies -> Solution Folders -> Regular Folders -> Files
+            const getTypePriority = (item: any) => {
+                if (item.name === 'Dependencies') return 0;  // Dependencies always first
+                if (item.isSolutionFolder || (item.type === 'folder' && item.name === 'Solution Items')) return 1;  // Solution folders
+                if (item.type === 'folder') return 2;  // Regular filesystem folders
+                return 3;  // Files
+            };
+
+            const priorityA = getTypePriority(a);
+            const priorityB = getTypePriority(b);
+
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+
+            // Within same type, sort alphabetically
             return a.name.localeCompare(b.name);
         });
     }
@@ -559,6 +615,24 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     .node-name {
                         font-size: 12px;
+                    }
+
+                    .expand-icon {
+                        margin-right: 4px;
+                        font-size: 12px;
+                        width: 12px;
+                        height: 12px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                    }
+
+                    .expand-icon-placeholder {
+                        margin-right: 4px;
+                        width: 12px;
+                        height: 12px;
+                        display: inline-block;
                     }
 
                     .loading {
