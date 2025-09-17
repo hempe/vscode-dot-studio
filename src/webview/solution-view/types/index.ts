@@ -17,11 +17,13 @@ export interface TreeNodeProps {
     level: number;
     onProjectAction: (action: string, projectPath: string, data?: any) => void;
     onToggleExpand: (path: string) => void;
+    onNodeClick: (path: string) => void;
     onNodeFocus: (path: string) => void;
     onContextMenu: (x: number, y: number, node: ProjectNode) => void;
     onRenameConfirm: (newName: string, nodePath: string, nodeType: string, oldName: string) => void;
     onRenameCancel: () => void;
     selectedNodePath?: string;
+    focusedNodePath?: string;
     renamingNodePath?: string;
 }
 

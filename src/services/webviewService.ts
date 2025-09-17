@@ -1,51 +1,61 @@
-import * as vscode from 'vscode';
-
-export interface WebviewPanelConfig {
-    viewType: string;
-    title: string;
-    showOptions: vscode.ViewColumn | { viewColumn: vscode.ViewColumn; preserveFocus?: boolean };
-    options?: vscode.WebviewPanelOptions & vscode.WebviewOptions;
-}
+import { WebviewMessage, WebviewConfig, MessageHandler } from '../types/webview';
 
 export class WebviewService {
-    /**
-     * Create a new webview panel with standard configuration
-     */
-    static createPanel(config: WebviewPanelConfig): vscode.WebviewPanel {
-        const defaultOptions: vscode.WebviewPanelOptions & vscode.WebviewOptions = {
-            enableScripts: true,
-            retainContextWhenHidden: true,
-            localResourceRoots: []
-        };
+    private static messageHandlers: Map<string, MessageHandler[]> = new Map();
+    private static messageQueue: Map<string, WebviewMessage[]> = new Map();
 
-        return vscode.window.createWebviewPanel(
-            config.viewType,
-            config.title,
-            config.showOptions,
-            { ...defaultOptions, ...config.options }
-        );
+    /**
+     * Register a message handler for a specific webview instance
+     */
+    static registerMessageHandler(webviewId: string, handler: MessageHandler): void {
+        if (!this.messageHandlers.has(webviewId)) {
+            this.messageHandlers.set(webviewId, []);
+        }
+        this.messageHandlers.get(webviewId)!.push(handler);
     }
 
     /**
-     * Set up message handling for a webview panel
+     * Remove all message handlers for a webview instance
      */
-    static setupMessageHandling(
-        panel: vscode.WebviewPanel,
-        messageHandler: (message: any) => Promise<void> | void,
-        disposables: vscode.Disposable[]
-    ): void {
-        panel.webview.onDidReceiveMessage(
-            messageHandler,
-            undefined,
-            disposables
-        );
+    static unregisterMessageHandlers(webviewId: string): void {
+        this.messageHandlers.delete(webviewId);
+        this.messageQueue.delete(webviewId);
     }
 
     /**
-     * Post a message to a webview
+     * Handle an incoming message from the webview
      */
-    static postMessage(panel: vscode.WebviewPanel, message: any): Thenable<boolean> {
-        return panel.webview.postMessage(message);
+    static async handleIncomingMessage(webviewId: string, message: WebviewMessage): Promise<void> {
+        const handlers = this.messageHandlers.get(webviewId) || [];
+
+        for (const handler of handlers) {
+            try {
+                await handler(message);
+            } catch (error) {
+                console.error(`Error handling message ${message.type}:`, error);
+            }
+        }
+    }
+
+    /**
+     * Send a message to a webview (queues if webview not ready)
+     */
+    static sendMessage(webviewId: string, message: WebviewMessage): void {
+        // In a pure service, this would be handled by the webview implementation
+        // For now, we queue messages that can be picked up by the webview
+        if (!this.messageQueue.has(webviewId)) {
+            this.messageQueue.set(webviewId, []);
+        }
+        this.messageQueue.get(webviewId)!.push(message);
+    }
+
+    /**
+     * Get queued messages for a webview (used by webview to pull messages)
+     */
+    static getQueuedMessages(webviewId: string): WebviewMessage[] {
+        const messages = this.messageQueue.get(webviewId) || [];
+        this.messageQueue.set(webviewId, []); // Clear queue after retrieval
+        return messages;
     }
 
     /**

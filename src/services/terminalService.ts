@@ -1,37 +1,58 @@
-import * as vscode from 'vscode';
+import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
-
-export interface TerminalCommand {
-    name: string;
-    command: string;
-    workingDirectory?: string;
-    showTerminal?: boolean;
-}
+import { TerminalCommand, CommandResult } from '../types/terminal';
 
 export class TerminalService {
     /**
-     * Execute a dotnet command in a new terminal
+     * Execute a dotnet command using child_process
      */
-    static async executeDotNetCommand(command: TerminalCommand): Promise<vscode.Terminal> {
-        const terminal = vscode.window.createTerminal({
-            name: command.name,
-            cwd: command.workingDirectory
+    static async executeDotNetCommand(command: TerminalCommand): Promise<CommandResult> {
+        return new Promise((resolve) => {
+            const args = command.command.split(' ');
+            const cmd = args.shift() || '';
+
+            const childProcess = spawn(cmd, args, {
+                cwd: command.workingDirectory || process.cwd(),
+                shell: true
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            childProcess.stdout?.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            childProcess.stderr?.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            childProcess.on('close', (code) => {
+                resolve({
+                    success: code === 0,
+                    stdout,
+                    stderr,
+                    exitCode: code
+                });
+            });
+
+            childProcess.on('error', (error) => {
+                resolve({
+                    success: false,
+                    stdout,
+                    stderr: error.message,
+                    exitCode: null
+                });
+            });
         });
-
-        if (command.showTerminal !== false) {
-            terminal.show();
-        }
-
-        terminal.sendText(command.command);
-        return terminal;
     }
 
     /**
      * Build a solution or project
      */
-    static async buildSolution(solutionPath: string): Promise<vscode.Terminal> {
+    static async buildSolution(solutionPath: string): Promise<CommandResult> {
         const solutionName = path.basename(solutionPath, '.sln');
-        
+
         return this.executeDotNetCommand({
             name: `Build ${solutionName}`,
             command: `dotnet build "${solutionPath}"`,
@@ -42,9 +63,9 @@ export class TerminalService {
     /**
      * Rebuild a solution (clean + build)
      */
-    static async rebuildSolution(solutionPath: string): Promise<vscode.Terminal> {
+    static async rebuildSolution(solutionPath: string): Promise<CommandResult> {
         const solutionName = path.basename(solutionPath, '.sln');
-        
+
         return this.executeDotNetCommand({
             name: `Rebuild ${solutionName}`,
             command: `dotnet clean "${solutionPath}" && dotnet build "${solutionPath}"`,
@@ -55,9 +76,9 @@ export class TerminalService {
     /**
      * Clean a solution
      */
-    static async cleanSolution(solutionPath: string): Promise<vscode.Terminal> {
+    static async cleanSolution(solutionPath: string): Promise<CommandResult> {
         const solutionName = path.basename(solutionPath, '.sln');
-        
+
         return this.executeDotNetCommand({
             name: `Clean ${solutionName}`,
             command: `dotnet clean "${solutionPath}"`,
@@ -68,10 +89,10 @@ export class TerminalService {
     /**
      * Install a NuGet package
      */
-    static async installPackage(solutionPath: string, packageId: string, version?: string): Promise<vscode.Terminal> {
+    static async installPackage(solutionPath: string, packageId: string, version?: string): Promise<CommandResult> {
         const versionParam = version ? `--version ${version}` : '';
         const command = `dotnet add package ${packageId} ${versionParam}`.trim();
-        
+
         return this.executeDotNetCommand({
             name: `Install ${packageId}`,
             command: command,
@@ -82,9 +103,9 @@ export class TerminalService {
     /**
      * Remove a NuGet package
      */
-    static async removePackage(projectPath: string, packageId: string): Promise<vscode.Terminal> {
+    static async removePackage(projectPath: string, packageId: string): Promise<CommandResult> {
         const command = `dotnet remove package ${packageId}`;
-        
+
         return this.executeDotNetCommand({
             name: `Remove ${packageId}`,
             command: command,
@@ -95,12 +116,12 @@ export class TerminalService {
     /**
      * Update a NuGet package to a specific version
      */
-    static async updatePackage(projectPath: string, packageId: string, version: string): Promise<vscode.Terminal> {
+    static async updatePackage(projectPath: string, packageId: string, version: string): Promise<CommandResult> {
         // To update a package, we need to remove it first, then add the new version
         const removeCommand = `dotnet remove package ${packageId}`;
         const addCommand = `dotnet add package ${packageId} --version ${version}`;
         const combinedCommand = `${removeCommand} && ${addCommand}`;
-        
+
         return this.executeDotNetCommand({
             name: `Update ${packageId}`,
             command: combinedCommand,
@@ -112,16 +133,14 @@ export class TerminalService {
      * Check if dotnet CLI is available
      */
     static async isDotNetAvailable(): Promise<boolean> {
-        return new Promise((resolve) => {
-            const terminal = vscode.window.createTerminal({
+        try {
+            const result = await this.executeDotNetCommand({
                 name: 'dotnet-check',
-                hideFromUser: true
+                command: 'dotnet --version'
             });
-
-            // This is a simple check - in a real implementation you might want to use child_process
-            // For now, we'll assume dotnet is available if we can create a terminal
-            terminal.dispose();
-            resolve(true);
-        });
+            return result.success;
+        } catch (error) {
+            return false;
+        }
     }
 }

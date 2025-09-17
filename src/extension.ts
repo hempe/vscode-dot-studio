@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
-import { SolutionProvider } from './solutionProvider';
-import { CommandManager } from './commands/commandManager';
+import { SolutionProvider } from './services/solutionProvider';
+import { FrameworkDropdownService } from './services/frameworkDropdownService';
+import { SolutionService } from './services/solutionService';
+import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('.NET Extension is now active!');
@@ -16,38 +18,60 @@ export function activate(context: vscode.ExtensionContext) {
         }
         refreshTimeout = setTimeout(() => {
             console.log(`File system change detected (${reason}), refreshing solution explorer...`);
-            solutionProvider.refresh();
+            solutionWebviewProvider.refresh();
         }, 500); // 500ms delay
     };
 
 
 
-    // Now initialize solution provider and tree view AFTER command registration
-    const solutionProvider = new SolutionProvider(workspaceRoot);
-
-    // Create and register tree view
-    const solutionTreeView = vscode.window.createTreeView('dotnet-solution', {
-        treeDataProvider: solutionProvider,
-        showCollapseAll: true
-    });
-
-
-    // Track expansion state
-    solutionTreeView.onDidExpandElement((event) => {
-        solutionProvider.setExpanded(event.element, true);
-    });
-
-    solutionTreeView.onDidCollapseElement((event) => {
-        solutionProvider.setExpanded(event.element, false);
-    });
-
-
     // Set context for when workspace has .NET files
     vscode.commands.executeCommand('setContext', 'workspaceHasDotnetFiles', true);
 
-    // Initialize and register all commands through the command manager
-    const commandManager = new CommandManager(context, solutionProvider, solutionTreeView);
-    commandManager.registerAllCommands();
+    // Initialize framework dropdown service
+    const frameworkDropdownService = new FrameworkDropdownService();
+
+    // Initialize services
+    const solutionService = new SolutionService();
+
+    // Create and register webview providers
+    const solutionWebviewProvider = new SolutionWebviewProvider(
+        context.extensionUri,
+        solutionService,
+        frameworkDropdownService
+    );
+
+    // Register webview providers
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            SolutionWebviewProvider.viewType,
+            solutionWebviewProvider
+        )
+    );
+
+    // Keep the old SolutionProvider for backwards compatibility
+    const solutionProvider = new SolutionProvider(workspaceRoot);
+
+    // Set up callback to handle active framework changes
+    frameworkDropdownService.setFrameworkChangeCallback((framework) => {
+        // Store the active framework for debugging - don't filter the tree view
+        console.log(`Active framework changed to: ${framework || 'Auto'}`);
+        // The framework will be used when F5/debugging is triggered
+    });
+
+    // Note: CommandManager and related commands were removed as part of directory restructure
+
+    // Find and set initial solution for framework dropdown
+    const detectSolution = async () => {
+        try {
+            const solutionFiles = await vscode.workspace.findFiles('*.sln', '**/node_modules/**');
+            if (solutionFiles.length > 0) {
+                frameworkDropdownService.setSolution(solutionFiles[0].fsPath);
+            }
+        } catch (error) {
+            // Ignore errors
+        }
+    };
+    detectSolution();
 
     // Set up file system watchers for solution and project files
     const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
@@ -96,14 +120,16 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // Add all watchers to subscriptions
-    context.subscriptions.push(solutionTreeView, solutionWatcher, projectWatcher, allFilesWatcher);
+    context.subscriptions.push(solutionWatcher, projectWatcher, allFilesWatcher);
 
     console.log('.NET Extension activation complete!');
     
     // Export for testing
     return {
         solutionProvider,
-        solutionTreeView
+        solutionWebviewProvider,
+        solutionService,
+        frameworkDropdownService
     };
 }
 

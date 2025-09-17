@@ -29,7 +29,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         private readonly _extensionUri: vscode.Uri,
         private readonly _solutionService: SolutionService,
         private readonly _frameworkService: FrameworkDropdownService
-    ) {}
+    ) { }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -99,15 +99,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         switch (action) {
             case 'openFile':
                 console.log(`[SolutionWebviewProvider] Opening file: ${projectPath}`);
-                if (projectPath) {
-                    try {
-                        const uri = vscode.Uri.file(projectPath);
-                        await vscode.window.showTextDocument(uri);
-                        console.log(`[SolutionWebviewProvider] Successfully opened file: ${projectPath}`);
-                    } catch (error) {
-                        console.error(`[SolutionWebviewProvider] Failed to open file: ${projectPath}`, error);
-                    }
-                }
+                await this._handleOpenFile(projectPath);
                 break;
 
             case 'contextMenu':
@@ -122,17 +114,27 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'build':
                 console.log(`[SolutionWebviewProvider] Building project: ${projectPath}`);
-                await vscode.commands.executeCommand('dotnet-extension.build', { path: projectPath });
+                await this._handleBuild(projectPath, 'build');
                 break;
 
             case 'rebuild':
                 console.log(`[SolutionWebviewProvider] Rebuilding project: ${projectPath}`);
-                await vscode.commands.executeCommand('dotnet-extension.rebuild', { path: projectPath });
+                await this._handleBuild(projectPath, 'rebuild');
                 break;
 
             case 'clean':
                 console.log(`[SolutionWebviewProvider] Cleaning project: ${projectPath}`);
-                await vscode.commands.executeCommand('dotnet-extension.clean', { path: projectPath });
+                await this._handleBuild(projectPath, 'clean');
+                break;
+
+            case 'deleteFile':
+                console.log(`[SolutionWebviewProvider] Deleting file: ${projectPath}`);
+                await this._handleDelete(projectPath, data?.type);
+                break;
+
+            case 'revealInExplorer':
+                console.log(`[SolutionWebviewProvider] Revealing in explorer: ${projectPath}`);
+                await this._handleRevealInExplorer(projectPath);
                 break;
 
             default:
@@ -200,6 +202,80 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this._isRenaming = false;
                 console.log('[SolutionWebviewProvider] Rename operation completed, refreshes allowed again');
             }, 1000); // 1 second delay to allow file system events to settle
+        }
+    }
+
+    private async _handleBuild(projectPath: string, action: 'build' | 'rebuild' | 'clean') {
+        try {
+            const terminal = vscode.window.createTerminal(`${action} ${projectPath}`);
+            terminal.show();
+
+            let command: string;
+            switch (action) {
+                case 'build':
+                    command = `dotnet build "${projectPath}"`;
+                    break;
+                case 'rebuild':
+                    command = `dotnet clean "${projectPath}" && dotnet build "${projectPath}"`;
+                    break;
+                case 'clean':
+                    command = `dotnet clean "${projectPath}"`;
+                    break;
+            }
+
+            terminal.sendText(command);
+            console.log(`[SolutionWebviewProvider] Executed ${action} command: ${command}`);
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error during ${action}:`, error);
+            vscode.window.showErrorMessage(`Error during ${action}: ${error}`);
+        }
+    }
+
+    private async _handleOpenFile(filePath: string) {
+        try {
+            const uri = vscode.Uri.file(filePath);
+            await vscode.window.showTextDocument(uri);
+            console.log(`[SolutionWebviewProvider] Opened file: ${filePath}`);
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error opening file:`, error);
+            vscode.window.showErrorMessage(`Error opening file: ${error}`);
+        }
+    }
+
+    private async _handleDelete(itemPath: string, itemType?: string) {
+        try {
+            const uri = vscode.Uri.file(itemPath);
+            const fileName = require('path').basename(itemPath);
+
+            const confirmMessage = itemType === 'folder'
+                ? `Are you sure you want to delete the folder "${fileName}" and all its contents?`
+                : `Are you sure you want to delete "${fileName}"?`;
+
+            const result = await vscode.window.showWarningMessage(
+                confirmMessage,
+                { modal: true },
+                'Delete'
+            );
+
+            if (result === 'Delete') {
+                await vscode.workspace.fs.delete(uri, { recursive: true, useTrash: true });
+                console.log(`[SolutionWebviewProvider] Deleted: ${itemPath}`);
+                this._updateWebview(); // Refresh to show changes
+            }
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error deleting item:`, error);
+            vscode.window.showErrorMessage(`Error deleting item: ${error}`);
+        }
+    }
+
+    private async _handleRevealInExplorer(itemPath: string) {
+        try {
+            const uri = vscode.Uri.file(itemPath);
+            await vscode.commands.executeCommand('revealFileInOS', uri);
+            console.log(`[SolutionWebviewProvider] Revealed in explorer: ${itemPath}`);
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error revealing in explorer:`, error);
+            vscode.window.showErrorMessage(`Error revealing in explorer: ${error}`);
         }
     }
 
@@ -624,6 +700,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         height: 100%;
                     }
 
+                    .solution-tree {
+                        outline: none;
+                    }
+
+                    .solution-tree:focus,
+                    .solution-tree:focus-visible {
+                        outline: none;
+                        border: none;
+                    }
+
                     .header {
                         margin-bottom: 8px;
                         padding-bottom: 8px;
@@ -668,6 +754,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     }
 
                     .tree-node.selected {
+                        background-color: var(--vscode-list-inactiveSelectionBackground);
+                        color: var(--vscode-list-inactiveSelectionForeground);
+                    }
+
+                    .tree-node.focused {
+                        outline: 1px solid var(--vscode-focusBorder);
+                        outline-offset: -1px;
+                    }
+
+                    .tree-node.focused.selected {
                         background-color: var(--vscode-list-activeSelectionBackground);
                         color: var(--vscode-list-activeSelectionForeground);
                     }
@@ -706,14 +802,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     .context-menu {
                         background-color: var(--vscode-menu-background);
-                        border: 1px solid var(--vscode-widget-border);
+                        border: 1px solid var(--vscode-menu-border);
                         border-radius: 6px;
-                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
                         padding: 4px 0;
-                        min-width: 200px;
+                        min-width: 220px;
                         font-family: var(--vscode-font-family);
                         font-size: 13px;
-                        line-height: 1.3;
+                        line-height: 1.4;
                     }
 
                     .context-menu-content {
@@ -724,29 +820,33 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     .context-menu-item {
                         display: flex;
                         align-items: center;
-                        padding: 6px 12px;
+                        padding: 4px 32px;
+                        margin: 0 4px;
                         cursor: pointer;
                         color: var(--vscode-menu-foreground);
                         transition: background-color 0.1s ease;
                         position: relative;
+                        min-height: 18px;
+                        border-radius: 4px;
                     }
 
                     .context-menu-item:hover {
-                        background-color: var(--vscode-list-hoverBackground);
+                        background-color: var(--vscode-menu-selectionBackground);
+                        color: var(--vscode-menu-selectionForeground);
                     }
 
                     .context-menu-item:active {
-                        background-color: var(--vscode-list-activeSelectionBackground);
+                        background-color: var(--vscode-menu-selectionBackground);
                     }
 
                     .context-menu-icon {
-                        margin-right: 8px;
+                        margin-right: 12px;
                         width: 16px;
                         height: 16px;
                         display: inline-flex;
                         align-items: center;
                         justify-content: center;
-                        opacity: 0.8;
+                        opacity: 0.9;
                     }
 
                     .context-menu-label {
@@ -754,19 +854,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        font-weight: 400;
                     }
 
                     .context-menu-shortcut {
-                        margin-left: 16px;
-                        color: var(--vscode-descriptionForeground);
+                        margin-left: 24px;
+                        color: var(--vscode-menu-foreground);
                         font-size: 12px;
-                        opacity: 0.7;
+                        opacity: 1;
+                        font-weight: 400;
                     }
 
                     .context-menu-separator {
                         height: 1px;
                         background-color: var(--vscode-menu-separatorBackground);
-                        margin: 4px 8px;
+                        margin: 4px 0px;
                     }
 
                     .rename-input {

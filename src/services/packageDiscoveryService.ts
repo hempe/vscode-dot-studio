@@ -1,23 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as xml2js from 'xml2js';
-
-export interface InstalledPackage {
-    id: string;
-    version: string;
-    projectPath: string;
-    projectName: string;
-    targetFramework?: string;
-    isPrivateAssets?: boolean;
-    includeAssets?: string;
-}
-
-export interface ProjectPackageInfo {
-    projectPath: string;
-    projectName: string;
-    targetFramework?: string;
-    packages: InstalledPackage[];
-}
+import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery';
 
 export class PackageDiscoveryService {
     private static readonly parser = new xml2js.Parser({

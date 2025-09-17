@@ -5,6 +5,7 @@ export interface ContextMenuProps {
     y: number;
     onClose: () => void;
     onRename: () => void;
+    onAction: (action: string, data?: any) => void;
     nodeType: string;
     nodeName: string;
 }
@@ -14,6 +15,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     y,
     onClose,
     onRename,
+    onAction,
     nodeType,
     nodeName
 }) => {
@@ -43,7 +45,81 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         onClose();
     };
 
-    const canRename = nodeType === 'file' || nodeType === 'folder' || nodeType === 'project';
+    const handleActionClick = (e: React.MouseEvent, actionName: string, data?: any) => {
+        e.stopPropagation();
+        onAction(actionName, data);
+        onClose();
+    };
+
+    const renderMenuItems = () => {
+        const items = [];
+
+        // File-specific items
+        if (nodeType === 'file') {
+            items.push(
+                <div key="open" className="context-menu-item" onClick={(e) => handleActionClick(e, 'openFile')}>
+                    <span className="context-menu-label">Open</span>
+                </div>
+            );
+        }
+
+        // Rename (for files, folders, projects)
+        if (nodeType === 'file' || nodeType === 'folder' || nodeType === 'project') {
+            items.push(
+                <div key="rename" className="context-menu-item" onClick={(e) => handleMenuItemClick(e, onRename)}>
+                    <span className="context-menu-label">Rename</span>
+                    <span className="context-menu-shortcut">F2</span>
+                </div>
+            );
+        }
+
+        // Delete (for files and folders, but not projects)
+        if (nodeType === 'file' || nodeType === 'folder') {
+            items.push(
+                <div key="delete" className="context-menu-item" onClick={(e) => handleActionClick(e, 'deleteFile', { type: nodeType })}>
+                    <span className="context-menu-label">Delete</span>
+                </div>
+            );
+        }
+
+        // Project-specific items
+        if (nodeType === 'project') {
+            items.push(<div key="sep1" className="context-menu-separator"></div>);
+
+            items.push(
+                <div key="build" className="context-menu-item" onClick={(e) => handleActionClick(e, 'build')}>
+                    <span className="context-menu-label">Build</span>
+                </div>
+            );
+
+            items.push(
+                <div key="rebuild" className="context-menu-item" onClick={(e) => handleActionClick(e, 'rebuild')}>
+                    <span className="context-menu-label">Rebuild</span>
+                </div>
+            );
+
+            items.push(
+                <div key="clean" className="context-menu-item" onClick={(e) => handleActionClick(e, 'clean')}>
+                    <span className="context-menu-label">Clean</span>
+                </div>
+            );
+        }
+
+        // Reveal in Explorer (for all types except dependencies)
+        if (nodeType !== 'dependency') {
+            if (items.length > 0) {
+                items.push(<div key="sep2" className="context-menu-separator"></div>);
+            }
+
+            items.push(
+                <div key="reveal" className="context-menu-item" onClick={(e) => handleActionClick(e, 'revealInExplorer')}>
+                    <span className="context-menu-label">Reveal in Explorer</span>
+                </div>
+            );
+        }
+
+        return items;
+    };
 
     return (
         <div
@@ -57,33 +133,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             onClick={(e) => e.stopPropagation()}
         >
             <div className="context-menu-content">
-                {canRename && (
-                    <div
-                        className="context-menu-item"
-                        onClick={(e) => handleMenuItemClick(e, onRename)}
-                    >
-                        <span className="context-menu-icon codicon codicon-edit"></span>
-                        <span className="context-menu-label">Rename</span>
-                        <span className="context-menu-shortcut">F2</span>
-                    </div>
-                )}
-                {nodeType === 'project' && (
-                    <>
-                        <div className="context-menu-separator"></div>
-                        <div className="context-menu-item">
-                            <span className="context-menu-icon codicon codicon-tools"></span>
-                            <span className="context-menu-label">Build</span>
-                        </div>
-                        <div className="context-menu-item">
-                            <span className="context-menu-icon codicon codicon-refresh"></span>
-                            <span className="context-menu-label">Rebuild</span>
-                        </div>
-                        <div className="context-menu-item">
-                            <span className="context-menu-icon codicon codicon-clear-all"></span>
-                            <span className="context-menu-label">Clean</span>
-                        </div>
-                    </>
-                )}
+                {renderMenuItems()}
             </div>
         </div>
     );

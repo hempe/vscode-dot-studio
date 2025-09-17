@@ -9,6 +9,34 @@ declare global {
 
 const vscode = window.acquireVsCodeApi();
 
+// Helper function to update a node in the tree structure
+const updateNodeInTree = (solutionData: SolutionData, oldPath: string, newPath: string, newName: string): SolutionData => {
+    const updateNode = (node: any): any => {
+        if (node.path === oldPath) {
+            // This is the node we want to update
+            return {
+                ...node,
+                name: newName,
+                path: newPath
+            };
+        }
+
+        if (node.children) {
+            return {
+                ...node,
+                children: node.children.map(updateNode)
+            };
+        }
+
+        return node;
+    };
+
+    return {
+        ...solutionData,
+        projects: solutionData.projects.map(updateNode)
+    };
+};
+
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -41,6 +69,13 @@ export const useVsCodeApi = () => {
                 case 'error':
                     console.log('[useVsCodeApi] Received error:', message.message);
                     setLoading(false);
+                    break;
+                case 'nodeRenamed':
+                    console.log('[useVsCodeApi] Node renamed:', message);
+                    setSolutionData(prev => {
+                        if (!prev) return prev;
+                        return updateNodeInTree(prev, message.oldPath, message.newPath, message.newName);
+                    });
                     break;
                 default:
                     console.log('[useVsCodeApi] Unknown message command:', message.command);

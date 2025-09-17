@@ -14,232 +14,12 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "dotnet-extension.manageNugetPackages",
-        "title": "Manage NuGet Packages",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.setAsStartup",
-        "title": "Set as Startup Project",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.refreshSolution",
-        "title": "Refresh",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "dotnet-extension.openFile",
-        "title": "Open"
-      },
-      {
-        "command": "dotnet-extension.removeProject",
-        "title": "Remove Project from Solution",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.addExistingProject",
-        "title": "Add Existing Project",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.revealInExplorer",
-        "title": "Reveal in Explorer",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.openInTerminal",
-        "title": "Open in Terminal",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.copyFile",
-        "title": "Copy",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.pasteFile",
-        "title": "Paste",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.deleteFile",
-        "title": "Delete",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.renameFile",
-        "title": "Rename...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.cutFile",
-        "title": "Cut",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.copyPath",
-        "title": "Copy Path",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.copyRelativePath",
-        "title": "Copy Relative Path",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.openToSide",
-        "title": "Open to the Side",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.newFile",
-        "title": "New File...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.newFolder",
-        "title": "New Folder...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.findReferences",
-        "title": "Find All References",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.addProjectReference",
-        "title": "Add Project Reference...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.addNugetPackage",
-        "title": "Add NuGet Package...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.addFrameworkReference",
-        "title": "Add Framework Reference...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.build",
-        "title": "Build",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.rebuild",
-        "title": "Rebuild",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.clean",
-        "title": "Clean",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.openContainingFolder",
-        "title": "Open Containing Folder",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.newProject",
-        "title": "New Project...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.newSolutionFolder",
-        "title": "New Solution Folder...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.addExistingFile",
-        "title": "Add Existing File...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.deleteSolutionFolder",
-        "title": "Delete",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.deleteSolutionItem",
-        "title": "Delete",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.renameSolutionFolder",
-        "title": "Rename...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.renameSolution",
-        "title": "Rename...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.itemClick",
-        "title": "Item Click Handler",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.buildSolution",
-        "title": "Build Solution",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.rebuildSolution",
-        "title": "Rebuild Solution",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.cleanSolution",
-        "title": "Clean Solution",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.manageSolutionNugetPackages",
-        "title": "Manage NuGet Packages for Solution",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.debugContext",
-        "title": "Debug Context Variables",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.smartRename",
-        "title": "Rename...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.smartDelete",
-        "title": "Delete",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.renameFolder",
-        "title": "Rename...",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.deleteFolder",
-        "title": "Delete",
-        "category": ".NET"
-      },
-      {
-        "command": "dotnet-extension.runStartupProject",
-        "title": "Run Startup Project",
-        "category": ".NET"
-      }
-    ],
     "views": {
       "solution-explorer": [
         {
-          "id": "dotnet-solution",
+          "id": "dotnet-solution-webview",
           "name": "Solution Explorer",
+          "type": "webview",
           "when": "workspaceHasDotnetFiles"
         }
       ]
@@ -252,354 +32,56 @@
           "icon": "$(folder-library)"
         }
       ]
-    },
-    "menus": {
-      "explorer/context": [
-        {
-          "command": "dotnet-extension.manageNugetPackages",
-          "when": "resourceExtname == .csproj",
-          "group": "dotnet"
-        },
-        {
-          "command": "dotnet-extension.setAsStartup",
-          "when": "resourceExtname == .csproj",
-          "group": "dotnet"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "dotnet-extension.refreshSolution",
-          "when": "view == dotnet-solution",
-          "group": "navigation"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "dotnet-extension.openFile",
-          "when": "view == dotnet-solution && (viewItem == project || viewItem == solution || viewItem == file)",
-          "group": "navigation"
-        },
-        {
-          "command": "dotnet-extension.removeProject",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.addExistingProject",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.newProject",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.newSolutionFolder",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.renameSolution",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.buildSolution",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.rebuildSolution",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.cleanSolution",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.manageSolutionNugetPackages",
-          "when": "view == dotnet-solution && viewItem == solution",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.newSolutionFolder",
-          "when": "view == dotnet-solution && viewItem == solutionFolder",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.addExistingFile",
-          "when": "view == dotnet-solution && viewItem == solutionFolder",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.newFile",
-          "when": "view == dotnet-solution && viewItem == solutionFolder",
-          "group": "1_modification"
-        },
-        {
-          "command": "dotnet-extension.renameSolutionFolder",
-          "when": "view == dotnet-solution && viewItem == solutionFolder",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.deleteSolutionFolder",
-          "when": "view == dotnet-solution && viewItem == solutionFolder",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.deleteSolutionItem",
-          "when": "view == dotnet-solution && viewItem == solutionItem",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.revealInExplorer",
-          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
-          "group": "2_workspace"
-        },
-        {
-          "command": "dotnet-extension.openInTerminal",
-          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
-          "group": "2_workspace"
-        },
-        {
-          "command": "dotnet-extension.copyFile",
-          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
-          "group": "3_copy"
-        },
-        {
-          "command": "dotnet-extension.pasteFile",
-          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
-          "group": "3_copy"
-        },
-        {
-          "command": "dotnet-extension.cutFile",
-          "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies",
-          "group": "3_copy"
-        },
-        {
-          "command": "dotnet-extension.openToSide",
-          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == solution)",
-          "group": "navigation"
-        },
-        {
-          "command": "dotnet-extension.copyPath",
-          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == folder)",
-          "group": "4_paths"
-        },
-        {
-          "command": "dotnet-extension.copyRelativePath",
-          "when": "view == dotnet-solution && (viewItem == file || viewItem == project || viewItem == folder)",
-          "group": "4_paths"
-        },
-        {
-          "command": "dotnet-extension.newFile",
-          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
-          "group": "1_creation"
-        },
-        {
-          "command": "dotnet-extension.newFolder",
-          "when": "view == dotnet-solution && (viewItem == project || viewItem == folder)",
-          "group": "1_creation"
-        },
-        {
-          "command": "dotnet-extension.findReferences",
-          "when": "view == dotnet-solution && viewItem == file && resourceExtname =~ /\\.(cs|vb|fs)$/",
-          "group": "6_references"
-        },
-        {
-          "command": "dotnet-extension.openInTerminal",
-          "when": "view == dotnet-solution && viewItem == file",
-          "group": "2_workspace"
-        },
-        {
-          "command": "dotnet-extension.revealInExplorer",
-          "when": "view == dotnet-solution && viewItem == file",
-          "group": "2_workspace"
-        },
-        {
-          "command": "dotnet-extension.copyPath",
-          "when": "view == dotnet-solution && viewItem == file",
-          "group": "4_paths"
-        },
-        {
-          "command": "dotnet-extension.copyRelativePath",
-          "when": "view == dotnet-solution && viewItem == file",
-          "group": "4_paths"
-        },
-        {
-          "command": "dotnet-extension.smartRename",
-          "when": "view == dotnet-solution && (viewItem == file || viewItem == folder || viewItem == project || viewItem == solution || viewItem == solutionFolder || viewItem == solutionItem)",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.smartDelete",
-          "when": "view == dotnet-solution && (viewItem == file || viewItem == folder || viewItem == project || viewItem == solutionFolder || viewItem == solutionItem)",
-          "group": "5_modifications"
-        },
-        {
-          "command": "dotnet-extension.setAsStartup",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.addProjectReference",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.addNugetPackage",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.build",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.rebuild",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.clean",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "2_build"
-        },
-        {
-          "command": "dotnet-extension.openContainingFolder",
-          "when": "view == dotnet-solution && viewItem == project",
-          "group": "2_workspace"
-        },
-        {
-          "command": "dotnet-extension.addFrameworkReference",
-          "when": "view == dotnet-solution && viewItem == dependencies",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.manageNugetPackages",
-          "when": "view == dotnet-solution && viewItem == dependencies",
-          "group": "1_dotnet"
-        },
-        {
-          "command": "dotnet-extension.addProjectReference",
-          "when": "view == dotnet-solution && viewItem == dependencies",
-          "group": "1_dotnet"
-        }
-      ]
-    },
-    "keybindings": [
-      {
-        "command": "dotnet-extension.copyFile",
-        "key": "ctrl+c",
-        "mac": "cmd+c",
-        "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies"
-      },
-      {
-        "command": "dotnet-extension.pasteFile",
-        "key": "ctrl+v",
-        "mac": "cmd+v",
-        "when": "focusedView == dotnet-solution"
-      },
-      {
-        "command": "dotnet-extension.cutFile",
-        "key": "ctrl+x",
-        "mac": "cmd+x",
-        "when": "focusedView == dotnet-solution && viewItem != dependency && viewItem != dependencies"
-      },
-      {
-        "command": "dotnet-extension.smartDelete",
-        "key": "delete",
-        "when": "focusedView == dotnet-solution && !inputFocus"
-      },
-      {
-        "command": "dotnet-extension.smartRename",
-        "key": "f2",
-        "when": "focusedView == dotnet-solution && !inputFocus"
-      },
-      {
-        "command": "dotnet-extension.openToSide",
-        "key": "ctrl+enter",
-        "mac": "cmd+enter",
-        "when": "focusedView == dotnet-solution"
-      },
-      {
-        "command": "dotnet-extension.copyPath",
-        "key": "ctrl+alt+c",
-        "mac": "cmd+alt+c",
-        "when": "focusedView == dotnet-solution"
-      },
-      {
-        "command": "dotnet-extension.copyRelativePath",
-        "key": "ctrl+shift+alt+c",
-        "mac": "cmd+shift+alt+c",
-        "when": "focusedView == dotnet-solution"
-      },
-      {
-        "command": "dotnet-extension.newFile",
-        "key": "ctrl+n",
-        "mac": "cmd+n",
-        "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
-      },
-      {
-        "command": "dotnet-extension.newFolder",
-        "key": "ctrl+shift+n",
-        "mac": "cmd+shift+n",
-        "when": "focusedView == dotnet-solution && (viewItem == project || viewItem == folder)"
-      },
-      {
-        "command": "dotnet-extension.buildSolution",
-        "key": "ctrl+b",
-        "mac": "cmd+b",
-        "when": "workspaceHasDotnetFiles"
-      },
-      {
-        "command": "dotnet-extension.rebuildSolution",
-        "key": "ctrl+shift+b",
-        "mac": "cmd+shift+b",
-        "when": "workspaceHasDotnetFiles"
-      },
-      {
-        "command": "dotnet-extension.debugContext",
-        "key": "f3",
-        "when": "workspaceHasDotnetFiles"
-      },
-      {
-        "command": "dotnet-extension.runStartupProject",
-        "key": "f5",
-        "when": "workspaceHasDotnetFiles"
-      }
-    ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run build",
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "watch": "webpack --mode development --watch",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test": "npm run compile && node ./out/test/runTest.js",
-    "test:unit": "npm run compile && mocha out/test/unit/**/*.test.js",
-    "test:integration": "npm run compile && node ./out/test/runTest.js",
-    "test:watch": "npm run compile && mocha out/test/unit/**/*.test.js --watch",
-    "test:all": "npm run test:unit && npm run test:integration"
+    "compile:extension": "webpack --mode development --config-name extension",
+    "compile:webview": "webpack --mode development --config-name webview",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@vscode/codicons": "^0.0.35",
-    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "glob": "^10.4.5",
     "minimatch": "^9.0.3",
+    "vscrui": "^0.2.2",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/glob": "^8.1.0",
+    "@types/jest": "^29.5.14",
     "@types/minimatch": "^5.1.2",
-    "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
     "@types/sinon": "^10.0.16",
+    "@types/testing-library__jest-dom": "^5.14.9",
     "@types/vscode": "^1.74.0",
     "@types/xml2js": "^0.4.14",
     "@vscode/test-electron": "^2.3.4",
-    "mocha": "^10.2.0",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.4",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.1.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "sinon": "^15.2.0",
-    "typescript": "^4.9.4"
+    "style-loader": "^4.0.0",
+    "ts-jest": "^29.4.1",
+    "ts-loader": "^9.5.4",
+    "typescript": "^4.9.5",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
   }
 }

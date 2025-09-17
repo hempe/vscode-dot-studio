@@ -1,30 +1,6 @@
-import { PackageDiscoveryService, InstalledPackage, ProjectPackageInfo } from './packageDiscoveryService';
-
-export interface PackageConflict {
-    packageId: string;
-    versions: Array<{
-        version: string;
-        projects: Array<{
-            projectName: string;
-            projectPath: string;
-        }>;
-        usageCount: number;
-    }>;
-    recommendedVersion: string;
-    conflictSeverity: 'low' | 'medium' | 'high';
-    impactDescription: string;
-}
-
-export interface ConsolidationSummary {
-    totalPackages: number;
-    conflictedPackages: number;
-    totalProjects: number;
-    conflictSeverity: {
-        high: number;
-        medium: number;
-        low: number;
-    };
-}
+import { PackageDiscoveryService } from './packageDiscoveryService';
+import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery';
+import { PackageConflict, ConsolidationSummary } from '../types/packageConsolidation';
 
 export class PackageConsolidationService {
     /**

@@ -7,11 +7,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     level,
     onProjectAction,
     onToggleExpand,
+    onNodeClick,
     onNodeFocus,
     onContextMenu,
     onRenameConfirm,
     onRenameCancel,
     selectedNodePath,
+    focusedNodePath,
     renamingNodePath
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
@@ -31,8 +33,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         const timeout = setTimeout(() => {
             console.log(`[TreeNode] Executing single click action for: ${node.name}`);
 
-            // Always set focus first
-            onNodeFocus(node.path);
+            // Click selects and focuses the item
+            onNodeClick(node.path);
 
             // Expand/collapse if has children
             if (node.children && node.children.length > 0) {
@@ -81,7 +83,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     // Add keyboard support for F2 (Rename)
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (selectedNodePath === node.path && e.key === 'F2') {
+            if (focusedNodePath === node.path && e.key === 'F2') {
                 e.preventDefault();
                 // Start rename by triggering the parent's rename handler
                 onProjectAction('startRename', node.path, { type: node.type, name: node.name });
@@ -92,7 +94,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [selectedNodePath, node.path]);
+    }, [focusedNodePath, node.path]);
 
     const getIcon = () => {
         switch (node.type) {
@@ -171,11 +173,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const paddingLeft = level * 16;
     const isSelected = selectedNodePath === node.path;
+    const isFocused = focusedNodePath === node.path;
 
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''}`}
                 style={{ paddingLeft }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
@@ -206,11 +209,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             level={level + 1}
                             onProjectAction={onProjectAction}
                             onToggleExpand={onToggleExpand}
+                            onNodeClick={onNodeClick}
                             onNodeFocus={onNodeFocus}
                             onContextMenu={onContextMenu}
                             onRenameConfirm={onRenameConfirm}
                             onRenameCancel={onRenameCancel}
                             selectedNodePath={selectedNodePath}
+                            focusedNodePath={focusedNodePath}
                             renamingNodePath={renamingNodePath}
                         />
                     ))}

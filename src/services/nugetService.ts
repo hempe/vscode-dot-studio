@@ -1,19 +1,5 @@
 import * as https from 'https';
-
-export interface NuGetPackage {
-    id: string;
-    version: string;
-    description: string;
-    totalDownloads: number;
-    versions?: Array<{ version: string }>;
-}
-
-export interface NuGetSearchOptions {
-    query: string;
-    includePrerelease: boolean;
-    skip?: number;
-    take?: number;
-}
+import { NuGetPackage, NuGetSearchOptions } from '../types/nuget';
 
 export class NuGetService {
     private static readonly SEARCH_API_URL = 'https://azuresearch-usnc.nuget.org/query';

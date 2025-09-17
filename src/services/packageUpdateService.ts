@@ -1,21 +1,8 @@
-import { NuGetService, NuGetSearchOptions } from './nugetService';
-import { PackageDiscoveryService, InstalledPackage } from './packageDiscoveryService';
-
-export interface PackageUpdate {
-    id: string;
-    currentVersion: string;
-    latestVersion: string;
-    projects: string[];
-    description?: string;
-    releaseNotes?: string;
-    isPrerelease: boolean;
-    publishedDate?: string;
-}
-
-export interface UpdateCheckOptions {
-    includePrerelease: boolean;
-    batchSize?: number;
-}
+import { NuGetService } from './nugetService';
+import { NuGetSearchOptions } from '../types/nuget';
+import { PackageDiscoveryService } from './packageDiscoveryService';
+import { InstalledPackage } from '../types/packageDiscovery';
+import { PackageUpdate, UpdateCheckOptions } from '../types/packageUpdate';
 
 export class PackageUpdateService {
     private static readonly DEFAULT_BATCH_SIZE = 5;
