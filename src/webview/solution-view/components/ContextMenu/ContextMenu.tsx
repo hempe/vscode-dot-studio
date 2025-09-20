@@ -51,6 +51,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             }
 
             if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
                 onClose();
                 return;
             }
@@ -60,14 +62,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
+                    e.stopImmediatePropagation();
                     setFocusedItemIndex(prev => (prev + 1) % actionItems.length);
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
+                    e.stopImmediatePropagation();
                     setFocusedItemIndex(prev => (prev - 1 + actionItems.length) % actionItems.length);
                     break;
                 case 'Enter':
                     e.preventDefault();
+                    e.stopImmediatePropagation();
                     const focusedAction = actionItems[focusedItemIndex];
                     if (focusedAction) {
                         handleActionClick(focusedAction.action);

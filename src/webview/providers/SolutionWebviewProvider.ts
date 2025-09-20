@@ -872,6 +872,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         font-family: var(--vscode-font-family);
                         font-size: 13px;
                         line-height: 1.4;
+                        outline: none;
+                    }
+
+                    .context-menu:focus {
+                        outline: none;
                     }
 
                     .context-menu-content {

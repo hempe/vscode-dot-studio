@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ProjectNode, SolutionTreeProps } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction }) => {
+    const treeRef = useRef<HTMLDivElement>(null);
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
     const [selectedNodePath, setSelectedNodePath] = useState<string | undefined>();
     const [focusedNodePath, setFocusedNodePath] = useState<string | undefined>();
@@ -71,6 +72,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     const handleCloseContextMenu = () => {
         setContextMenu(null);
+        // Return focus to the tree container so keyboard navigation works again
+        if (treeRef.current) {
+            treeRef.current.focus();
+        }
     };
 
     const handleRename = () => {
@@ -121,7 +126,24 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!focusedNodePath) return;
+            if (!focusedNodePath) {
+                return;
+            }
+
+            // Don't handle tree navigation if user is editing text (rename input is focused)
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            // Don't handle tree navigation if context menu is open
+            if (contextMenu) {
+                return;
+            }
+
+            // Don't handle tree navigation if context menu is focused
+            if (document.activeElement?.closest('.context-menu')) {
+                return;
+            }
 
             const currentIndex = flatNodes.findIndex(item => item.node.path === focusedNodePath);
             if (currentIndex === -1) return;
@@ -199,14 +221,26 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             }
         };
 
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [focusedNodePath, flatNodes, handleToggleExpand]);
+        // Only listen for keyboard events when the tree has focus
+        if (treeRef.current) {
+            treeRef.current.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            if (treeRef.current) {
+                treeRef.current.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+    }, [focusedNodePath, flatNodes, handleToggleExpand, contextMenu]);
 
     console.log(`[SolutionTree] Rendering ${treeNodes.length} root nodes`);
 
     return (
-        <div className="solution-tree" tabIndex={0}>
+        <div
+            ref={treeRef}
+            className="solution-tree"
+            tabIndex={0}
+        >
             {treeNodes.map((node, index) => (
                 <TreeNode
                     key={`${node.path}-${index}`}

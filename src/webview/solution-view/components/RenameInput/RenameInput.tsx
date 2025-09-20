@@ -16,20 +16,26 @@ export const RenameInput: React.FC<RenameInputProps> = ({
 
     useEffect(() => {
         if (inputRef.current) {
-            inputRef.current.focus();
-            // Select filename without extension for files
-            const lastDotIndex = initialValue.lastIndexOf('.');
-            if (lastDotIndex > 0) {
-                inputRef.current.setSelectionRange(0, lastDotIndex);
-            } else {
-                inputRef.current.select();
-            }
+            // Use setTimeout to ensure focus happens after any other event handlers
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    // Select filename without extension for files
+                    const lastDotIndex = initialValue.lastIndexOf('.');
+                    if (lastDotIndex > 0) {
+                        inputRef.current.setSelectionRange(0, lastDotIndex);
+                    } else {
+                        inputRef.current.select();
+                    }
+                }
+            }, 0);
         }
     }, [initialValue]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation();
             if (value.trim() && value !== initialValue) {
                 onConfirm(value.trim());
             } else {
@@ -37,7 +43,11 @@ export const RenameInput: React.FC<RenameInputProps> = ({
             }
         } else if (e.key === 'Escape') {
             e.preventDefault();
+            e.stopPropagation();
             onCancel();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            // Stop propagation for arrow keys to prevent tree navigation
+            e.stopPropagation();
         }
     };
 
