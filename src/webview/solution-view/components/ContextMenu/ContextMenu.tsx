@@ -1,4 +1,6 @@
 import React from 'react';
+import { NodeType } from '../../types';
+import { contextMenus, MenuItem, MenuAction } from './menuActions';
 
 export interface ContextMenuProps {
     x: number;
@@ -6,7 +8,7 @@ export interface ContextMenuProps {
     onClose: () => void;
     onRename: () => void;
     onAction: (action: string, data?: any) => void;
-    nodeType: string;
+    nodeType: NodeType;
     nodeName: string;
 }
 
@@ -19,110 +21,110 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     nodeType,
     nodeName
 }) => {
-    React.useEffect(() => {
-        const handleClickOutside = () => {
-            onClose();
-        };
 
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
+    const menuRef = React.useRef<HTMLDivElement>(null);
+    const [focusedItemIndex, setFocusedItemIndex] = React.useState(0);
+
+    // Get the menu configuration for this node type
+    const menuItems = contextMenus[nodeType] || [];
+    const actionItems = menuItems.filter(item => item.kind === 'action') as MenuAction[];
+
+
+    React.useEffect(() => {
+        // Focus the menu when it opens
+        if (menuRef.current) {
+            menuRef.current.focus();
+        }
+    }, []);
+
+    React.useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 onClose();
             }
         };
 
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only handle keyboard events if the menu is focused or contains the focused element
+            if (!menuRef.current || (!menuRef.current.contains(document.activeElement) && document.activeElement !== menuRef.current)) {
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                onClose();
+                return;
+            }
+
+            if (actionItems.length === 0) return;
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    setFocusedItemIndex(prev => (prev + 1) % actionItems.length);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    setFocusedItemIndex(prev => (prev - 1 + actionItems.length) % actionItems.length);
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    const focusedAction = actionItems[focusedItemIndex];
+                    if (focusedAction) {
+                        handleActionClick(focusedAction.action);
+                    }
+                    break;
+            }
+        };
+
         document.addEventListener('click', handleClickOutside);
-        document.addEventListener('keydown', handleEscape);
+        document.addEventListener('keydown', handleKeyDown);
 
         return () => {
             document.removeEventListener('click', handleClickOutside);
-            document.removeEventListener('keydown', handleEscape);
+            document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onClose]);
+    }, [onClose, focusedItemIndex]);
 
-    const handleMenuItemClick = (e: React.MouseEvent, action: () => void) => {
-        e.stopPropagation();
-        action();
-        onClose();
-    };
-
-    const handleActionClick = (e: React.MouseEvent, actionName: string, data?: any) => {
-        e.stopPropagation();
-        onAction(actionName, data);
+    const handleActionClick = (action: string, data?: any) => {
+        // Handle special case for rename action
+        if (action === 'rename') {
+            onRename();
+        } else {
+            // For deleteFile action, pass the node type as data
+            const actionData = action === 'deleteFile' ? { type: nodeType, ...data } : data;
+            onAction(action, actionData);
+        }
         onClose();
     };
 
     const renderMenuItems = () => {
-        const items = [];
-
-        // File-specific items
-        if (nodeType === 'file') {
-            items.push(
-                <div key="open" className="context-menu-item" onClick={(e) => handleActionClick(e, 'openFile')}>
-                    <span className="context-menu-label">Open</span>
-                </div>
-            );
-        }
-
-        // Rename (for files, folders, projects)
-        if (nodeType === 'file' || nodeType === 'folder' || nodeType === 'project') {
-            items.push(
-                <div key="rename" className="context-menu-item" onClick={(e) => handleMenuItemClick(e, onRename)}>
-                    <span className="context-menu-label">Rename</span>
-                    <span className="context-menu-shortcut">F2</span>
-                </div>
-            );
-        }
-
-        // Delete (for files and folders, but not projects)
-        if (nodeType === 'file' || nodeType === 'folder') {
-            items.push(
-                <div key="delete" className="context-menu-item" onClick={(e) => handleActionClick(e, 'deleteFile', { type: nodeType })}>
-                    <span className="context-menu-label">Delete</span>
-                </div>
-            );
-        }
-
-        // Project-specific items
-        if (nodeType === 'project') {
-            items.push(<div key="sep1" className="context-menu-separator"></div>);
-
-            items.push(
-                <div key="build" className="context-menu-item" onClick={(e) => handleActionClick(e, 'build')}>
-                    <span className="context-menu-label">Build</span>
-                </div>
-            );
-
-            items.push(
-                <div key="rebuild" className="context-menu-item" onClick={(e) => handleActionClick(e, 'rebuild')}>
-                    <span className="context-menu-label">Rebuild</span>
-                </div>
-            );
-
-            items.push(
-                <div key="clean" className="context-menu-item" onClick={(e) => handleActionClick(e, 'clean')}>
-                    <span className="context-menu-label">Clean</span>
-                </div>
-            );
-        }
-
-        // Reveal in Explorer (for all types except dependencies)
-        if (nodeType !== 'dependency') {
-            if (items.length > 0) {
-                items.push(<div key="sep2" className="context-menu-separator"></div>);
+        return menuItems.map((item, index) => {
+            if (item.kind === 'separator') {
+                return <div key={`sep-${index}`} className="context-menu-separator"></div>;
             }
 
-            items.push(
-                <div key="reveal" className="context-menu-item" onClick={(e) => handleActionClick(e, 'revealInExplorer')}>
-                    <span className="context-menu-label">Reveal in Explorer</span>
+            const actionIndex = actionItems.findIndex(actionItem => actionItem === item);
+            const isFocused = focusedItemIndex === actionIndex;
+
+            return (
+                <div
+                    key={`${item.action}-${index}`}
+                    className={`context-menu-item ${isFocused ? 'focused' : ''}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleActionClick(item.action);
+                    }}
+                >
+                    <span className="context-menu-label">{item.name}</span>
+                    {item.shortcut && <span className="context-menu-shortcut">{item.shortcut}</span>}
                 </div>
             );
-        }
-
-        return items;
+        });
     };
 
     return (
         <div
+            ref={menuRef}
             className="context-menu"
             style={{
                 position: 'fixed',
@@ -131,6 +133,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 zIndex: 1000
             }}
             onClick={(e) => e.stopPropagation()}
+            tabIndex={0}
         >
             <div className="context-menu-content">
                 {renderMenuItems()}

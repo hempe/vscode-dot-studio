@@ -1,9 +1,12 @@
+export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency';
+
 export interface ProjectNode {
-    type: 'solution' | 'project' | 'folder' | 'file' | 'dependency';
+    type: NodeType;
     name: string;
     path: string;
     children?: ProjectNode[];
     expanded?: boolean;
+    isSolutionFolder?: boolean; // Flag to help distinguish virtual vs filesystem folders
 }
 
 export interface SolutionData {
@@ -20,7 +23,7 @@ export interface TreeNodeProps {
     onNodeClick: (path: string) => void;
     onNodeFocus: (path: string) => void;
     onContextMenu: (x: number, y: number, node: ProjectNode) => void;
-    onRenameConfirm: (newName: string, nodePath: string, nodeType: string, oldName: string) => void;
+    onRenameConfirm: (newName: string, nodePath: string, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
     selectedNodePath?: string;
     focusedNodePath?: string;

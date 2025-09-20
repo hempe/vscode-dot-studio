@@ -4,6 +4,8 @@ import { SolutionService } from '../../services/solutionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { FileNestingService } from '../../services/fileNesting';
 import { ProjectFileParser } from '../../parsers/projectFileParser';
+import { SolutionFileParser, SolutionProject } from '../../parsers/solutionFileParser';
+import { NodeType } from '../solution-view/types';
 
 interface DirectoryNode {
     name: string;
@@ -142,7 +144,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleRename(oldPath: string, newName: string, oldName: string, nodeType: string) {
+    private async _handleRename(oldPath: string, newName: string, oldName: string, nodeType: NodeType) {
         try {
             console.log(`[SolutionWebviewProvider] Attempting to rename ${nodeType} from "${oldName}" to "${newName}"`);
 
@@ -156,9 +158,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const directory = path.dirname(oldPath);
             const originalExtension = path.extname(oldPath);
 
-            // For files, check if user included extension in newName
+            // For files and solutions, check if user included extension in newName
             let finalNewName = newName;
-            if (nodeType === 'file') {
+            if (nodeType === 'file' || nodeType === 'solution') {
                 const userProvidedExtension = path.extname(newName);
                 if (!userProvidedExtension && originalExtension) {
                     // User didn't provide extension, add the original one
@@ -359,6 +361,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _convertToTreeStructure(solutionData: any, solutionPath: string): Promise<any[]> {
         const result: any[] = [];
 
+        // Parse the solution file to get proper hierarchy
+        console.log(`[SolutionWebviewProvider] Parsing solution file for hierarchy: ${solutionPath}`);
+        const solutionFileContent = await vscode.workspace.fs.readFile(vscode.Uri.file(solutionPath));
+        const solutionFile = await SolutionFileParser.parse(solutionFileContent.toString(), path.dirname(solutionPath));
+        const hierarchy = SolutionFileParser.buildProjectHierarchy(solutionFile);
+
+        console.log(`[SolutionWebviewProvider] Built project hierarchy with ${hierarchy.size} levels`);
+
         // Add the solution as the root node
         const solutionNode: any = {
             type: 'solution',
@@ -367,126 +377,18 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             children: []
         };
 
-        // Add projects and solution folders
-        if (solutionData.projects) {
-            for (const project of solutionData.projects) {
-                // Determine the item type based on typeGuid
-                const itemType = this._getItemType(project.typeGuid);
-                console.log(`[SolutionWebviewProvider] Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
+        // Get root level projects and solution folders from hierarchy
+        const rootProjects = hierarchy.get('ROOT') || [];
+        console.log(`[SolutionWebviewProvider] Found ${rootProjects.length} root-level items`);
 
-                // Ensure path is absolute (for both projects and solution items)
-                const absolutePath = this._resolveAbsolutePath(project.path || '', solutionPath);
-                console.log(`[SolutionWebviewProvider] Path resolution: ${project.path} -> ${absolutePath}`);
-
-                const itemNode: any = {
-                    type: itemType,
-                    name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
-                    path: absolutePath,
-                    children: [],
-                    // Add framework information if available
-                    frameworks: project.targetFrameworks || [],
-                    // Store original typeGuid for debugging
-                    typeGuid: project.typeGuid,
-                    // Flag to identify solution folders vs filesystem folders
-                    isSolutionFolder: itemType === 'folder' && project.typeGuid?.toUpperCase() === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}'
-                };
-
-                // Load project files only for actual projects (not solution folders)
-                if (itemType === 'project') {
-                    try {
-                        if (path.extname(absolutePath) === '.csproj' && await this._fileExists(absolutePath)) {
-                            console.log(`[SolutionWebviewProvider] Loading project files from: ${absolutePath}`);
-
-                            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
-                            const parser = new ProjectFileParser(workspaceRoot);
-                            const projectData = await parser.parseProjectFiles(absolutePath);
-                            console.log(`[SolutionWebviewProvider] Project data loaded:`, {
-                                files: projectData.files?.length || 0,
-                                dependencies: projectData.dependencies?.length || 0
-                            });
-
-                            // Add source files if available
-                            if (projectData.files && projectData.files.length > 0) {
-                                console.log(`[SolutionWebviewProvider] Adding ${projectData.files.length} source files for project ${project.name}`);
-
-                                // Filter to only source files (not directories)
-                                const sourceFiles = projectData.files
-                                    .filter(file => !file.isDirectory)
-                                    .map(file => file.path);
-
-                                if (sourceFiles.length > 0) {
-                                    console.log(`[SolutionWebviewProvider] Organizing ${sourceFiles.length} source files into directory structure`);
-
-                                    // First organize files by directory structure
-                                    const fileTree = this._buildDirectoryStructure(sourceFiles, path.dirname(absolutePath));
-
-                                    // Convert directory tree to nodes
-                                    const fileNodes = this._convertDirectoryTreeToNodes(fileTree);
-                                    itemNode.children.push(...fileNodes);
-                                }
-                            }
-
-                            // Use dependencies from project file if available
-                            if (projectData.dependencies && projectData.dependencies.length > 0) {
-                                console.log(`[SolutionWebviewProvider] Using dependencies from project file: ${projectData.dependencies.length}`);
-                                project.dependencies = projectData.dependencies;
-                            }
-                        } else {
-                            console.log(`[SolutionWebviewProvider] Skipping project file loading for ${project.name} (not a .csproj or file doesn't exist)`);
-                        }
-                    } catch (error) {
-                        console.error(`[SolutionWebviewProvider] Error loading project files for ${project.name}:`, error);
-                    }
-                } else {
-                    console.log(`[SolutionWebviewProvider] Item ${project.name} is a ${itemType}, not loading project files`);
-                }
-
-                // Add dependencies node (only for projects)
-                if (itemType === 'project' && project.dependencies && project.dependencies.length > 0) {
-                    const depsNode = {
-                        type: 'folder',
-                        name: 'Dependencies',
-                        path: `${absolutePath}/dependencies`,
-                        children: project.dependencies.slice(0, 20).map((dep: any) => ({
-                            type: 'dependency',
-                            name: `${dep.name}${dep.version ? ` (${dep.version})` : ''}`,
-                            path: `${absolutePath}/dependencies/${dep.name}`
-                        }))
-                    };
-                    itemNode.children.push(depsNode);
-                }
-
-                // Sort project children using Visual Studio ordering
-                if (itemType === 'project') {
-                    itemNode.children.sort((a: any, b: any) => {
-                        // Visual Studio ordering: Dependencies -> Folders -> Files
-                        const getTypePriority = (item: any) => {
-                            if (item.name === 'Dependencies') return 0;  // Dependencies always first
-                            if (item.type === 'folder') return 1;  // Regular folders
-                            return 2;  // Files
-                        };
-
-                        const priorityA = getTypePriority(a);
-                        const priorityB = getTypePriority(b);
-
-                        if (priorityA !== priorityB) {
-                            return priorityA - priorityB;
-                        }
-
-                        // Within same type, sort alphabetically
-                        return a.name.localeCompare(b.name);
-                    });
-                }
-
-                solutionNode.children.push(itemNode);
-            }
-        }
+        // Build tree recursively using hierarchy
+        solutionNode.children = await this._buildHierarchicalNodes(rootProjects, hierarchy, solutionPath);
 
         // Sort solution-level items (projects and solution folders)
         solutionNode.children.sort((a: any, b: any) => {
             // Visual Studio ordering at solution level: Solution Folders -> Projects
             const getTypePriority = (item: any) => {
-                if (item.isSolutionFolder || (item.type === 'folder' && item.name === 'Solution Items')) return 0;  // Solution folders first
+                if (item.type === 'solutionFolder') return 0;  // Solution folders first
                 return 1;  // Projects second
             };
 
@@ -503,6 +405,166 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         result.push(solutionNode);
         return result;
+    }
+
+    private async _buildHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solutionPath: string): Promise<any[]> {
+        const nodes: any[] = [];
+
+        for (const project of projects) {
+            // Determine the item type based on typeGuid
+            const itemType = this._getItemType(project.typeGuid);
+            console.log(`[SolutionWebviewProvider] Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
+
+            // Ensure path is absolute (for both projects and solution items)
+            const absolutePath = this._resolveAbsolutePath(project.path || '', solutionPath);
+            console.log(`[SolutionWebviewProvider] Path resolution: ${project.path} -> ${absolutePath}`);
+
+            const itemNode: any = {
+                type: itemType,
+                name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
+                path: absolutePath,
+                children: [],
+                // Add framework information if available
+                frameworks: project.targetFrameworks || [],
+                // Store original typeGuid for debugging
+                typeGuid: project.typeGuid,
+                // Store GUID for hierarchy lookup
+                guid: project.guid
+            };
+
+            // Handle solution folders - add their children recursively
+            if (itemType === 'solutionFolder') {
+                const childProjects = hierarchy.get(project.guid) || [];
+                console.log(`[SolutionWebviewProvider] Solution folder ${project.name} has ${childProjects.length} children`);
+
+                // Always initialize children array for solution folders
+                itemNode.children = [];
+
+                if (childProjects.length > 0) {
+                    itemNode.children = await this._buildHierarchicalNodes(childProjects, hierarchy, solutionPath);
+                }
+
+                // Add solution items (files directly in the solution folder)
+                const solutionItems = SolutionFileParser.getSolutionItems(project);
+                console.log(`[SolutionWebviewProvider] Solution folder ${project.name} has ${solutionItems.length} solution items`);
+
+                for (const itemPath of solutionItems) {
+                    itemNode.children.push({
+                        type: 'file',
+                        name: path.basename(itemPath),
+                        path: path.resolve(path.dirname(solutionPath), itemPath)
+                    });
+                }
+
+                // Sort solution folder children (solution folders first, then projects, then files)
+                if (itemNode.children && itemNode.children.length > 0) {
+                    itemNode.children.sort((a: any, b: any) => {
+                        const getTypePriority = (item: any) => {
+                            if (item.type === 'solutionFolder') return 0;  // Solution folders first
+                            if (item.type === 'project') return 1;         // Projects second
+                            if (item.type === 'file') return 2;            // Files third
+                            return 3;  // Other types last
+                        };
+
+                        const priorityA = getTypePriority(a);
+                        const priorityB = getTypePriority(b);
+
+                        if (priorityA !== priorityB) {
+                            return priorityA - priorityB;
+                        }
+
+                        return a.name.localeCompare(b.name);
+                    });
+                }
+            }
+            // Handle actual projects - load project files and dependencies
+            else if (itemType === 'project') {
+                try {
+                    if (path.extname(absolutePath) === '.csproj' && await this._fileExists(absolutePath)) {
+                        console.log(`[SolutionWebviewProvider] Loading project files from: ${absolutePath}`);
+
+                        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+                        const parser = new ProjectFileParser(workspaceRoot);
+                        const projectData = await parser.parseProjectFiles(absolutePath);
+                        console.log(`[SolutionWebviewProvider] Project data loaded:`, {
+                            files: projectData.files?.length || 0,
+                            dependencies: projectData.dependencies?.length || 0
+                        });
+
+                        // Add source files if available
+                        if (projectData.files && projectData.files.length > 0) {
+                            console.log(`[SolutionWebviewProvider] Adding ${projectData.files.length} source files for project ${project.name}`);
+
+                            // Filter to only source files (not directories)
+                            const sourceFiles = projectData.files
+                                .filter(file => !file.isDirectory)
+                                .map(file => file.path);
+
+                            if (sourceFiles.length > 0) {
+                                console.log(`[SolutionWebviewProvider] Organizing ${sourceFiles.length} source files into directory structure`);
+
+                                // First organize files by directory structure
+                                const fileTree = this._buildDirectoryStructure(sourceFiles, path.dirname(absolutePath));
+
+                                // Convert directory tree to nodes
+                                const fileNodes = this._convertDirectoryTreeToNodes(fileTree);
+                                itemNode.children.push(...fileNodes);
+                            }
+                        }
+
+                        // Store dependencies for later use
+                        if (projectData.dependencies && projectData.dependencies.length > 0) {
+                            console.log(`[SolutionWebviewProvider] Found dependencies from project file: ${projectData.dependencies.length}`);
+                            // Store dependencies in the item node for later use
+                            (itemNode as any).projectDependencies = projectData.dependencies;
+                        }
+                    } else {
+                        console.log(`[SolutionWebviewProvider] Skipping project file loading for ${project.name} (not a .csproj or file doesn't exist)`);
+                    }
+                } catch (error) {
+                    console.error(`[SolutionWebviewProvider] Error loading project files for ${project.name}:`, error);
+                }
+
+                // Add dependencies node (only for projects)
+                if ((itemNode as any).projectDependencies && (itemNode as any).projectDependencies.length > 0) {
+                    const depsNode = {
+                        type: 'dependencies',
+                        name: 'Dependencies',
+                        path: `${absolutePath}/dependencies`,
+                        children: (itemNode as any).projectDependencies.slice(0, 20).map((dep: any) => ({
+                            type: 'dependency',
+                            name: `${dep.name}${dep.version ? ` (${dep.version})` : ''}`,
+                            path: `${absolutePath}/dependencies/${dep.name}`
+                        }))
+                    };
+                    itemNode.children.push(depsNode);
+                }
+
+                // Sort project children using Visual Studio ordering
+                itemNode.children.sort((a: any, b: any) => {
+                    // Visual Studio ordering: Dependencies -> Folders -> Files
+                    const getTypePriority = (item: any) => {
+                        if (item.name === 'Dependencies') return 0;  // Dependencies always first
+                        if (item.type === 'folder') return 1;  // Regular folders
+                        return 2;  // Files
+                    };
+
+                    const priorityA = getTypePriority(a);
+                    const priorityB = getTypePriority(b);
+
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB;
+                    }
+
+                    // Within same type, sort alphabetically
+                    return a.name.localeCompare(b.name);
+                });
+            }
+
+            nodes.push(itemNode);
+        }
+
+        return nodes;
     }
 
     private _convertFilesToNodes(nestedFiles: any[]): any[] {
@@ -537,7 +599,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         switch (typeGuid.toUpperCase()) {
             case PROJECT_TYPE_GUIDS.SOLUTION_FOLDER:
-                return 'folder';
+                return 'solutionFolder';
             case PROJECT_TYPE_GUIDS.CSHARP_PROJECT:
             case PROJECT_TYPE_GUIDS.VB_PROJECT:
             case PROJECT_TYPE_GUIDS.FSHARP_PROJECT:
@@ -837,6 +899,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     .context-menu-item:active {
                         background-color: var(--vscode-menu-selectionBackground);
+                    }
+
+                    .context-menu-item.focused {
+                        background-color: var(--vscode-menu-selectionBackground);
+                        color: var(--vscode-menu-selectionForeground);
                     }
 
                     .context-menu-icon {

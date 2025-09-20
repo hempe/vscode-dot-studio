@@ -145,8 +145,20 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     if (focusedNode.type === 'file') {
                         // Open file like double-click
                         onProjectAction('openFile', focusedNode.path);
+                    } else if (focusedNode.type === 'solutionFolder') {
+                        // Solution folders should only expand/collapse, never open
+                        if (focusedNode.children) {
+                            handleToggleExpand(focusedNode.path);
+                        }
+                        setSelectedNodePath(focusedNodePath);
+                    } else if (focusedNode.type === 'dependencies') {
+                        // Dependencies folder should only expand/collapse
+                        if (focusedNode.children) {
+                            handleToggleExpand(focusedNode.path);
+                        }
+                        setSelectedNodePath(focusedNodePath);
                     } else {
-                        // For folders/projects, toggle expansion and select
+                        // For other node types (projects, regular folders), toggle expansion and select
                         if (focusedNode.children) {
                             handleToggleExpand(focusedNode.path);
                         }
@@ -168,7 +180,20 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     e.preventDefault();
                     const currentNodeLeft = flatNodes[currentIndex].node;
                     if (currentNodeLeft.children && currentNodeLeft.expanded) {
+                        // If current node has expanded children, collapse it
                         handleToggleExpand(currentNodeLeft.path);
+                    } else {
+                        // If current node has no children or is not expanded, move focus to parent
+                        const currentLevel = flatNodes[currentIndex].level;
+                        if (currentLevel > 0) {
+                            // Find parent node (previous node with level - 1)
+                            for (let i = currentIndex - 1; i >= 0; i--) {
+                                if (flatNodes[i].level === currentLevel - 1) {
+                                    setFocusedNodePath(flatNodes[i].node.path);
+                                    break;
+                                }
+                            }
+                        }
                     }
                     break;
             }
@@ -190,6 +215,26 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     onProjectAction={(action, path, data) => {
                         if (action === 'startRename') {
                             setRenamingNodePath(path);
+                        } else if (action === 'collapseParent') {
+                            // Find the parent of the clicked file and collapse it
+                            const allNodes = flattenNodes(treeNodes);
+                            const nodeIndex = allNodes.findIndex(item => item.node.path === path);
+                            if (nodeIndex >= 0) {
+                                const currentLevel = allNodes[nodeIndex].level;
+                                if (currentLevel > 0) {
+                                    // Find parent node (previous node with level - 1)
+                                    for (let i = nodeIndex - 1; i >= 0; i--) {
+                                        if (allNodes[i].level === currentLevel - 1) {
+                                            const parentNode = allNodes[i].node;
+                                            if (parentNode.children && parentNode.expanded) {
+                                                console.log(`[SolutionTree] Collapsing parent: ${parentNode.name}`);
+                                                handleToggleExpand(parentNode.path);
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             onProjectAction(action, path, data);
                         }

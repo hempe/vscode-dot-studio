@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ContextMenu } from '../../../../../webview/solution-view/components/ContextMenu/ContextMenu';
+import { NodeType } from '../../../../../webview/solution-view/types';
 
 describe('ContextMenu Tests', () => {
   const mockOnClose = jest.fn();
@@ -18,7 +19,7 @@ describe('ContextMenu Tests', () => {
     onAction: mockOnAction,
     nodeType: 'file',
     nodeName: 'Program.cs'
-  };
+  } as const;
 
   beforeEach(() => {
     user = userEvent.setup();
@@ -64,6 +65,8 @@ describe('ContextMenu Tests', () => {
       render(<ContextMenu {...defaultProps} nodeType="project" nodeName="WebApp" />);
 
       expect(screen.getByText('Rename')).toBeInTheDocument();
+      expect(screen.getByText('Remove from Solution')).toBeInTheDocument();
+      expect(screen.getByText('Delete')).toBeInTheDocument();
       expect(screen.getByText('Build')).toBeInTheDocument();
       expect(screen.getByText('Rebuild')).toBeInTheDocument();
       expect(screen.getByText('Clean')).toBeInTheDocument();
@@ -71,7 +74,6 @@ describe('ContextMenu Tests', () => {
 
       // Should not show file-specific items
       expect(screen.queryByText('Open')).not.toBeInTheDocument();
-      expect(screen.queryByText('Delete')).not.toBeInTheDocument();
     });
 
     test('should not show reveal option for dependencies', () => {

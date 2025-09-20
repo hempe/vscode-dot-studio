@@ -38,6 +38,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
             // Expand/collapse if has children
             if (node.children && node.children.length > 0) {
+                // Expand/collapse if has children
                 console.log(`[TreeNode] Toggling expansion for: ${node.name}`);
                 onToggleExpand(node.path);
             } else {
@@ -99,6 +100,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const getIcon = () => {
         switch (node.type) {
             case 'solution': return 'codicon-symbol-namespace';
+            case 'solutionFolder':
+                // Solution folders are virtual folders in the solution file
+                return node.expanded ? 'codicon-folder-opened' : 'codicon-folder';
             case 'project':
                 // Different icons based on project type
                 if (node.path.includes('.csproj')) return 'codicon-symbol-class';
