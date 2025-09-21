@@ -81,21 +81,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         onRenameCancel();
     };
 
-    // Add keyboard support for F2 (Rename)
-    React.useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (focusedNodePath === node.path && e.key === 'F2') {
-                e.preventDefault();
-                // Start rename by triggering the parent's rename handler
-                onProjectAction('startRename', node.path, { type: node.type, name: node.name });
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [focusedNodePath, node.path]);
 
     const getIcon = () => {
         switch (node.type) {

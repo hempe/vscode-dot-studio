@@ -5,7 +5,7 @@ import { FrameworkDropdownService } from '../../services/frameworkDropdownServic
 import { FileNestingService } from '../../services/fileNesting';
 import { ProjectFileParser } from '../../parsers/projectFileParser';
 import { SolutionFileParser, SolutionProject } from '../../parsers/solutionFileParser';
-import { NodeType } from '../solution-view/types';
+import { NodeType, ProjectActionType } from '../solution-view/types';
 
 interface DirectoryNode {
     name: string;
@@ -95,7 +95,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleProjectAction(action: string, projectPath: string, data?: any) {
+    private async _handleProjectAction(action: ProjectActionType, projectPath: string, data?: any) {
         console.log(`[SolutionWebviewProvider] Executing project action: ${action} on ${projectPath}`);
 
         switch (action) {
@@ -236,8 +236,25 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _handleOpenFile(filePath: string) {
         try {
             const uri = vscode.Uri.file(filePath);
-            await vscode.window.showTextDocument(uri);
-            console.log(`[SolutionWebviewProvider] Opened file: ${filePath}`);
+            const fileExtension = path.extname(filePath).toLowerCase();
+
+            // Check if it's a truly binary file that can't be handled by VS Code
+            const binaryExtensions = [
+                '.pdf', '.zip', '.rar', '.7z', '.tar', '.gz',
+                '.exe', '.dll', '.so', '.dylib',
+                '.mp3', '.mp4', '.avi', '.wav', '.mov',
+                '.docx', '.xlsx', '.pptx'
+            ];
+
+            if (binaryExtensions.includes(fileExtension)) {
+                // For binary files, use the default system application
+                await vscode.env.openExternal(uri);
+                console.log(`[SolutionWebviewProvider] Opened binary file externally: ${filePath}`);
+            } else {
+                // Use vscode.open command which automatically chooses the appropriate viewer (text editor, image preview, etc.)
+                await vscode.commands.executeCommand('vscode.open', uri);
+                console.log(`[SolutionWebviewProvider] Opened file in VS Code: ${filePath}`);
+            }
         } catch (error) {
             console.error(`[SolutionWebviewProvider] Error opening file:`, error);
             vscode.window.showErrorMessage(`Error opening file: ${error}`);

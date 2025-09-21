@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SolutionData } from '../types';
+import { SolutionData, ProjectActionType } from '../types';
 
 declare global {
     interface Window {
@@ -94,7 +94,7 @@ export const useVsCodeApi = () => {
         vscode.postMessage({ command: 'setFramework', framework });
     };
 
-    const handleProjectAction = (action: string, projectPath: string, data?: any) => {
+    const handleProjectAction = (action: ProjectActionType, projectPath: string, data?: any) => {
         console.log('[useVsCodeApi] Project action requested:', { action, projectPath, data });
         vscode.postMessage({ command: 'projectAction', action, projectPath, data });
     };

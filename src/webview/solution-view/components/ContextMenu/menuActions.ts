@@ -1,8 +1,8 @@
-import { NodeType } from '../../types';
+import { NodeType, MenuActionType } from '../../types';
 
 export interface MenuAction {
     name: string;
-    action: string;
+    action: MenuActionType;
     kind: 'action';
     shortcut?: string;
 }

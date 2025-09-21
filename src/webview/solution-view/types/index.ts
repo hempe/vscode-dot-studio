@@ -1,5 +1,11 @@
 export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency';
 
+// Context menu actions only
+export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean';
+
+// All project actions (includes menu actions + internal actions)
+export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent';
+
 export interface ProjectNode {
     type: NodeType;
     name: string;
@@ -18,7 +24,7 @@ export interface SolutionData {
 export interface TreeNodeProps {
     node: ProjectNode;
     level: number;
-    onProjectAction: (action: string, projectPath: string, data?: any) => void;
+    onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
     onToggleExpand: (path: string) => void;
     onNodeClick: (path: string) => void;
     onNodeFocus: (path: string) => void;
@@ -32,7 +38,7 @@ export interface TreeNodeProps {
 
 export interface SolutionTreeProps {
     projects: any[];
-    onProjectAction: (action: string, projectPath: string, data?: any) => void;
+    onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
 }
 
 export interface FrameworkSelectorProps {

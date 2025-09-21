@@ -1,5 +1,5 @@
 import React from 'react';
-import { NodeType } from '../../types';
+import { NodeType, MenuActionType } from '../../types';
 import { contextMenus, MenuItem, MenuAction } from './menuActions';
 
 export interface ContextMenuProps {
@@ -7,7 +7,7 @@ export interface ContextMenuProps {
     y: number;
     onClose: () => void;
     onRename: () => void;
-    onAction: (action: string, data?: any) => void;
+    onAction: (action: MenuActionType, data?: any) => void;
     nodeType: NodeType;
     nodeName: string;
 }
@@ -27,7 +27,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Get the menu configuration for this node type
     const menuItems = contextMenus[nodeType] || [];
-    const actionItems = menuItems.filter(item => item.kind === 'action') as MenuAction[];
+    const actionItems: MenuItem[] = menuItems.filter(item => item.kind === 'action') as MenuAction[];
 
 
     React.useEffect(() => {
@@ -74,7 +74,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     const focusedAction = actionItems[focusedItemIndex];
-                    if (focusedAction) {
+                    if (focusedAction && 'action' in focusedAction) {
                         handleActionClick(focusedAction.action);
                     }
                     break;
@@ -90,7 +90,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         };
     }, [onClose, focusedItemIndex]);
 
-    const handleActionClick = (action: string, data?: any) => {
+    const handleActionClick = (action: MenuActionType, data?: any) => {
         // Handle special case for rename action
         if (action === 'rename') {
             onRename();

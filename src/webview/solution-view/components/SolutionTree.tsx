@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ProjectNode, SolutionTreeProps } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
+import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction }) => {
     const treeRef = useRef<HTMLDivElement>(null);
@@ -216,6 +217,33 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                                 }
                             }
                         }
+                    }
+                    break;
+
+                // Handle context menu shortcuts
+                case 'F2':
+                    e.preventDefault();
+                    const focusedNodeForRename = flatNodes[currentIndex].node;
+                    // Check if rename action is available for this node type
+                    const nodeMenuItems = contextMenus[focusedNodeForRename.type] || [];
+                    const renameMenuItem = nodeMenuItems.find(item =>
+                        item.kind === 'action' && (item as MenuAction).action === 'rename'
+                    );
+                    if (renameMenuItem) {
+                        setRenamingNodePath(focusedNodeForRename.path);
+                    }
+                    break;
+
+                case 'Delete':
+                    e.preventDefault();
+                    const focusedNodeForDelete = flatNodes[currentIndex].node;
+                    // Check if delete action is available for this node type
+                    const deleteMenuItems = contextMenus[focusedNodeForDelete.type] || [];
+                    const deleteMenuItem = deleteMenuItems.find(item =>
+                        item.kind === 'action' && (item as MenuAction).action === 'deleteFile'
+                    );
+                    if (deleteMenuItem) {
+                        onProjectAction('deleteFile', focusedNodeForDelete.path, { type: focusedNodeForDelete.type });
                     }
                     break;
             }
