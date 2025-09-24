@@ -37,6 +37,7 @@ export class Project {
     private _changeEmitter = new vscode.EventEmitter<ProjectChangeEvent>();
     private _isInitialized = false;
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
+    private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
 
     public readonly onDidChange = this._changeEmitter.event;
 
@@ -578,11 +579,103 @@ export class Project {
         this._changeEmitter.fire({ type: 'filesChanged' });
     }
 
+    /**
+     * Creates a folder watcher for a specific directory when it's expanded
+     */
+    public createFolderWatcher(folderPath: string): void {
+        if (this._folderWatchers.has(folderPath)) {
+            console.log(`[Project] Folder watcher already exists for: ${folderPath}`);
+            return;
+        }
+
+        console.log(`[Project] Creating lazy folder watcher for: ${folderPath}`);
+
+        try {
+            // Watch the specific folder for file/directory changes
+            const watcher = vscode.workspace.createFileSystemWatcher(
+                new vscode.RelativePattern(folderPath, '*')
+            );
+
+            // Set up event handlers
+            watcher.onDidCreate((uri) => {
+                console.log(`[Project] File created in watched folder: ${uri.fsPath}`);
+                this.handleFileCreated(uri);
+            }, this, this._disposables);
+
+            watcher.onDidChange((uri) => {
+                console.log(`[Project] File changed in watched folder: ${uri.fsPath}`);
+                this.handleFileChanged(uri);
+            }, this, this._disposables);
+
+            watcher.onDidDelete((uri) => {
+                console.log(`[Project] File deleted in watched folder: ${uri.fsPath}`);
+                this.handleFileDeleted(uri);
+            }, this, this._disposables);
+
+            // Store the watcher
+            this._folderWatchers.set(folderPath, watcher);
+            this._disposables.push(watcher);
+
+            console.log(`[Project] Folder watcher created for: ${folderPath}`);
+        } catch (error) {
+            console.error(`[Project] Failed to create folder watcher for ${folderPath}:`, error);
+        }
+    }
+
+    /**
+     * Removes a folder watcher when a directory is collapsed
+     */
+    public removeFolderWatcher(folderPath: string): void {
+        const watcher = this._folderWatchers.get(folderPath);
+        if (!watcher) {
+            console.log(`[Project] No folder watcher to remove for: ${folderPath}`);
+            return;
+        }
+
+        console.log(`[Project] Removing folder watcher for: ${folderPath}`);
+
+        // Dispose the watcher
+        watcher.dispose();
+        this._folderWatchers.delete(folderPath);
+
+        // Remove from disposables array
+        const index = this._disposables.indexOf(watcher);
+        if (index > -1) {
+            this._disposables.splice(index, 1);
+        }
+
+        console.log(`[Project] Folder watcher removed for: ${folderPath}`);
+    }
+
+    /**
+     * Disposes all folder watchers
+     */
+    private _disposeAllFolderWatchers(): void {
+        console.log(`[Project] Disposing ${this._folderWatchers.size} folder watchers`);
+
+        for (const [folderPath, watcher] of this._folderWatchers) {
+            console.log(`[Project] Disposing folder watcher: ${folderPath}`);
+            watcher.dispose();
+        }
+
+        this._folderWatchers.clear();
+    }
+
+    /**
+     * Gets all currently watched folder paths
+     */
+    public getWatchedFolders(): string[] {
+        return Array.from(this._folderWatchers.keys());
+    }
+
     dispose(): void {
         console.log(`[Project] Disposing project: ${this.name}`);
 
         // Dispose event emitter
         this._changeEmitter.dispose();
+
+        // Dispose all folder watchers first
+        this._disposeAllFolderWatchers();
 
         // Dispose file watcher and other disposables
         for (const disposable of this._disposables) {

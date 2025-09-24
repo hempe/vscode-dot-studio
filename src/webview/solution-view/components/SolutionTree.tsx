@@ -127,11 +127,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             children: project.children ? buildTreeNodes(project.children) : undefined
         }));
 
-        // Debug: Log expansion states
-        const expandedNodes = result.filter(p => p.expanded);
-        if (expandedNodes.length > 0) {
-            console.log('[SolutionTree] BuildTreeNodes - Found expanded nodes:', expandedNodes.map(n => `${n.name}(${n.path})`));
-        }
 
         return result;
     };
@@ -151,14 +146,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const treeNodes = buildTreeNodes(projects);
     const flatNodes = flattenNodes(treeNodes);
 
-    // DEBUG: Track when projects prop changes and what the expansion states are
-    useEffect(() => {
-        const timestamp = new Date().toISOString();
-        const expandedNodes = treeNodes.filter(n => n.expanded);
-        console.log(`[SolutionTree] Projects prop changed at ${timestamp}`);
-        console.log(`[SolutionTree] Expanded nodes:`, expandedNodes.map(n => `${n.name}(${n.path})`));
-        console.log(`[SolutionTree] Total projects:`, projects.length);
-    }, [projects, treeNodes]);
 
     // Keyboard navigation
     useEffect(() => {

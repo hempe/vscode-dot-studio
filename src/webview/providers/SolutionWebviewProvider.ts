@@ -687,6 +687,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     console.log(`[SolutionWebviewProvider] Using Project.getRootChildren() for: ${project.name}`);
                     const rootChildren = await project.getRootChildren();
                     children = this._convertProjectChildrenToProjectNodes(rootChildren);
+
+                    // Create lazy folder watcher for the project root directory
+                    const projectDir = require('path').dirname(nodePath);
+                    console.log(`[SolutionWebviewProvider] Creating lazy folder watcher for project root: ${projectDir}`);
+                    project.createFolderWatcher(projectDir);
                 } else {
                     console.warn(`[SolutionWebviewProvider] Could not find project instance: ${nodePath}`);
                 }
@@ -710,6 +715,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         console.log(`[SolutionWebviewProvider] Using Project.getFolderChildren() for: ${nodePath}`);
                         const folderChildren = await project.getFolderChildren(nodePath);
                         children = this._convertProjectChildrenToProjectNodes(folderChildren);
+
+                        // Create lazy folder watcher for this expanded folder
+                        console.log(`[SolutionWebviewProvider] Creating lazy folder watcher for: ${nodePath}`);
+                        project.createFolderWatcher(nodePath);
                     }
                 }
             }
@@ -744,6 +753,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const project = solution.getProject(projectPath);
                 if (project) {
                     project.collapseFolder(nodePath);
+
+                    // Remove lazy folder watcher for this collapsed folder
+                    console.log(`[SolutionWebviewProvider] Removing lazy folder watcher for: ${nodePath}`);
+                    project.removeFolderWatcher(nodePath);
                 }
             }
 
@@ -1054,6 +1067,29 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     hasChildren: true,
                     isLoaded: true
                 });
+
+                // Create folder watcher for restored expanded folders
+                if (nodeType === 'folder') {
+                    const solution = SolutionService.getActiveSolution();
+                    const projectPath = this._findProjectPathForFolder(nodePath);
+                    if (solution && projectPath) {
+                        const project = solution.getProject(projectPath);
+                        if (project) {
+                            console.log(`[SolutionWebviewProvider] Creating folder watcher for restored folder: ${nodePath}`);
+                            project.createFolderWatcher(nodePath);
+                        }
+                    }
+                } else if (nodeType === 'project') {
+                    const solution = SolutionService.getActiveSolution();
+                    if (solution) {
+                        const project = solution.getProject(nodePath);
+                        if (project) {
+                            const projectDir = require('path').dirname(nodePath);
+                            console.log(`[SolutionWebviewProvider] Creating folder watcher for restored project: ${projectDir}`);
+                            project.createFolderWatcher(projectDir);
+                        }
+                    }
+                }
             }
 
         } catch (error) {
@@ -1136,10 +1172,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
 
-        // DEBUG: Add stack trace to see what's calling _updateWebview
-        const stack = new Error().stack;
-        const callerLine = stack?.split('\n')[2]?.trim();
-        console.log(`[SolutionWebviewProvider] _updateWebview called from: ${callerLine}`);
 
         try {
             // Show loading state immediately
@@ -1167,20 +1199,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Restore expansion states if this is initial load (this modifies solutionData in place)
             await this._restoreExpansionStates(solutionData);
 
-            // Debug: Log expansion states before sending to frontend
-            const logExpansionStates = (nodes: ProjectNode[], prefix = '') => {
-                for (const node of nodes) {
-                    if (node.expanded) {
-                        console.log(`[SolutionWebviewProvider] ${prefix}Expanded: ${node.name} (${node.path})`);
-                    }
-                    if (node.children) {
-                        logExpansionStates(node.children, prefix + '  ');
-                    }
-                }
-            };
-
-            console.log('[SolutionWebviewProvider] Expansion states being sent to frontend:');
-            logExpansionStates(solutionData);
 
             console.log('[SolutionWebviewProvider] Sending solution data to webview');
             const data: SolutionData = {

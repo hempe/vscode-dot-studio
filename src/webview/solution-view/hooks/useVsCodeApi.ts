@@ -149,11 +149,6 @@ export const useVsCodeApi = () => {
             const message = event.data;
             console.log('[useVsCodeApi] Received message from extension:', message);
 
-            // DEBUG: Track all solution data updates with stack trace
-            if (message.command === 'solutionData' || message.command === 'updateSolution' || message.command === 'solutionDataUpdate') {
-                const timestamp = new Date().toISOString();
-                console.log(`[useVsCodeApi] SOLUTION UPDATE at ${timestamp}:`, message.command);
-            }
 
             switch (message.command) {
                 case 'loading':
@@ -167,20 +162,6 @@ export const useVsCodeApi = () => {
                     break;
                 case 'solutionData':
                     console.log('[useVsCodeApi] Received solution data:', message.data);
-                    // Debug: Log expansion states received from backend
-                    const logInitialExpansion = (nodes: any[], prefix = '') => {
-                        for (const node of nodes) {
-                            if (node.expanded) {
-                                console.log(`[useVsCodeApi] ${prefix}Initial expanded: ${node.name} (${node.path})`);
-                            }
-                            if (node.children) {
-                                logInitialExpansion(node.children, prefix + '  ');
-                            }
-                        }
-                    };
-                    console.log('[useVsCodeApi] Initial expansion states received from backend:');
-                    logInitialExpansion(message.data?.projects || []);
-
                     setSolutionData(message.data);
                     setLoading(false);
                     setRefreshing(false);
@@ -242,20 +223,6 @@ export const useVsCodeApi = () => {
                     break;
                 case 'updateSolution':
                     console.log('[useVsCodeApi] Received complete solution update:', message);
-                    // Debug: Log expansion states received from backend
-                    const logReceivedExpansion = (nodes: any[], prefix = '') => {
-                        for (const node of nodes) {
-                            if (node.expanded) {
-                                console.log(`[useVsCodeApi] ${prefix}Received expanded: ${node.name} (${node.path})`);
-                            }
-                            if (node.children) {
-                                logReceivedExpansion(node.children, prefix + '  ');
-                            }
-                        }
-                    };
-                    console.log('[useVsCodeApi] Expansion states received from backend:');
-                    logReceivedExpansion(message.projects || []);
-
                     setSolutionData({
                         projects: message.projects || [],
                         frameworks: message.frameworks || [],
