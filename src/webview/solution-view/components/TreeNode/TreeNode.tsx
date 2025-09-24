@@ -181,18 +181,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${node.isLoading ? 'loading' : ''}`}
-                style={{ paddingLeft, opacity: node.isLoading ? 0.6 : 1, cursor: node.isLoading ? 'wait' : 'pointer' }}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''}`}
+                style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
             >
                 {(node.children?.length || node.hasChildren) ? (
-                    node.isLoading ? (
-                        <span className="expand-icon codicon codicon-loading codicon-modifier-spin"></span>
-                    ) : (
-                        <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
-                    )
+                    <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
                 ) : (
                     <span className="expand-icon-placeholder"></span>
                 )}

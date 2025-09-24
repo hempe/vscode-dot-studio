@@ -61,15 +61,22 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
 
-    // Single file watcher for all files (excluding common build/temp directories)
-    const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+    // Watch only .NET solution and project files to reduce load
+    const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
+    const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.{csproj,vbproj,fsproj}');
 
-    fileWatcher.onDidCreate((uri) => handleFileChange(uri, 'created'));
-    fileWatcher.onDidChange((uri) => handleFileChange(uri, 'changed'));
-    fileWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
+    // Set up handlers for both watchers
+    solutionWatcher.onDidCreate((uri) => handleFileChange(uri, 'created'));
+    solutionWatcher.onDidChange((uri) => handleFileChange(uri, 'changed'));
+    solutionWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
 
-    // Add watcher to subscriptions
-    context.subscriptions.push(fileWatcher);
+    projectWatcher.onDidCreate((uri) => handleFileChange(uri, 'created'));
+    projectWatcher.onDidChange((uri) => handleFileChange(uri, 'changed'));
+    projectWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
+
+    // Add watchers to subscriptions
+    context.subscriptions.push(solutionWatcher);
+    context.subscriptions.push(projectWatcher);
 
     console.log('.NET Extension activation complete!');
 

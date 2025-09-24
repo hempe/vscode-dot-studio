@@ -122,10 +122,18 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     // Convert the projects data into tree structure - backend controls expansion state
     const buildTreeNodes = (projects: any[]): ProjectNode[] => {
-        return projects.map(project => ({
+        const result = projects.map(project => ({
             ...project, // Preserve all properties from original data including expanded state
             children: project.children ? buildTreeNodes(project.children) : undefined
         }));
+
+        // Debug: Log expansion states
+        const expandedNodes = result.filter(p => p.expanded);
+        if (expandedNodes.length > 0) {
+            console.log('[SolutionTree] BuildTreeNodes - Found expanded nodes:', expandedNodes.map(n => `${n.name}(${n.path})`));
+        }
+
+        return result;
     };
 
     // Flatten tree nodes for keyboard navigation
@@ -142,6 +150,15 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     const treeNodes = buildTreeNodes(projects);
     const flatNodes = flattenNodes(treeNodes);
+
+    // DEBUG: Track when projects prop changes and what the expansion states are
+    useEffect(() => {
+        const timestamp = new Date().toISOString();
+        const expandedNodes = treeNodes.filter(n => n.expanded);
+        console.log(`[SolutionTree] Projects prop changed at ${timestamp}`);
+        console.log(`[SolutionTree] Expanded nodes:`, expandedNodes.map(n => `${n.name}(${n.path})`));
+        console.log(`[SolutionTree] Total projects:`, projects.length);
+    }, [projects, treeNodes]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -280,6 +297,43 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         };
     }, [focusedNodePath, flatNodes, handleToggleExpand, contextMenu]);
 
+    // Check if any node in the tree is loading
+    const hasLoadingNode = useCallback((nodes: ProjectNode[]): boolean => {
+        for (const node of nodes) {
+            if (node.isLoading) {
+                return true;
+            }
+            if (node.children && hasLoadingNode(node.children)) {
+                return true;
+            }
+        }
+        return false;
+    }, []);
+
+    // Delay showing the loading bar to avoid flashing for quick operations
+    const [showLoadingBar, setShowLoadingBar] = useState(false);
+    const isLoading = hasLoadingNode(treeNodes);
+
+    useEffect(() => {
+        let timeout: NodeJS.Timeout;
+
+        if (isLoading) {
+            // Show loading bar after 100ms
+            timeout = setTimeout(() => {
+                setShowLoadingBar(true);
+            }, 100);
+        } else {
+            // Hide loading bar immediately when done
+            setShowLoadingBar(false);
+        }
+
+        return () => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+        };
+    }, [isLoading]);
+
     console.log(`[SolutionTree] Rendering ${treeNodes.length} root nodes`);
 
     return (
@@ -288,6 +342,27 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             className="solution-tree"
             tabIndex={0}
         >
+            {/* Fixed loading progress bar - VS Code style */}
+            {showLoadingBar && (
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    backgroundColor: 'var(--vscode-progressBar-background)',
+                    zIndex: 1000,
+                    overflow: 'hidden'
+                }}>
+                    <div style={{
+                        height: '100%',
+                        backgroundColor: 'var(--vscode-progressBar-foreground)',
+                        animation: 'loading-progress 1.5s ease-in-out infinite',
+                        width: '30%',
+                        transform: 'translateX(-100%)'
+                    }}></div>
+                </div>
+            )}
             {treeNodes.map((node, index) => {
                 console.log(`[SolutionTree] Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
                 return (<TreeNode

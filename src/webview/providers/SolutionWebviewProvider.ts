@@ -918,6 +918,149 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         mergeStates(freshNodes);
     }
 
+    /**
+     * Restores expansion states from workspace storage on initial load
+     */
+    private async _restoreExpansionStates(solutionData: ProjectNode[]): Promise<void> {
+        try {
+            console.log('[SolutionWebviewProvider] Restoring expansion states...');
+
+            // Get saved expansion state from workspace
+            const savedExpandedNodes = this.getExpansionState();
+
+            if (!savedExpandedNodes || savedExpandedNodes.length === 0) {
+                console.log('[SolutionWebviewProvider] No saved expansion state found');
+                return;
+            }
+
+            console.log('[SolutionWebviewProvider] Found saved expansion state:', savedExpandedNodes);
+
+            // Get all valid paths from current tree
+            const validPaths = this._getAllValidPathsFromTree(solutionData);
+            const cleanedExpandedNodes = savedExpandedNodes.filter(path => validPaths.has(path));
+
+            console.log('[SolutionWebviewProvider] Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
+
+            if (cleanedExpandedNodes.length !== savedExpandedNodes.length) {
+                console.log('[SolutionWebviewProvider] Removed stale paths:', savedExpandedNodes.length - cleanedExpandedNodes.length);
+            }
+
+            // Set expansion states and load children for restored nodes
+            for (const expandedPath of cleanedExpandedNodes) {
+                const nodeType = this._getNodeTypeForPath(expandedPath, solutionData);
+                if (nodeType) {
+                    console.log(`[SolutionWebviewProvider] Restoring expansion for: ${expandedPath} (${nodeType})`);
+
+                    // Set expanded = true in the tree
+                    this._updateNodeInTree(solutionData, expandedPath, { expanded: true });
+
+                    // Load children for the expanded node
+                    await this._loadChildrenForNode(expandedPath, nodeType, solutionData);
+                }
+            }
+
+            // Update cache with restored states
+            this._cachedSolutionData = solutionData;
+            this._cacheTimestamp = Date.now();
+
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error restoring expansion states:', error);
+        }
+    }
+
+    /**
+     * Gets all valid paths from the tree structure
+     */
+    private _getAllValidPathsFromTree(nodes: ProjectNode[]): Set<string> {
+        const paths = new Set<string>();
+
+        const traverse = (nodeList: ProjectNode[]) => {
+            for (const node of nodeList) {
+                paths.add(node.path);
+                if (node.children) {
+                    traverse(node.children);
+                }
+            }
+        };
+
+        traverse(nodes);
+        return paths;
+    }
+
+    /**
+     * Gets the node type for a given path from the tree
+     */
+    private _getNodeTypeForPath(targetPath: string, nodes: ProjectNode[]): string | null {
+        const findNode = (nodeList: ProjectNode[]): ProjectNode | null => {
+            for (const node of nodeList) {
+                if (node.path === targetPath) {
+                    return node;
+                }
+                if (node.children) {
+                    const found = findNode(node.children);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const node = findNode(nodes);
+        return node ? node.type : null;
+    }
+
+    /**
+     * Loads children for a specific node during restoration
+     */
+    private async _loadChildrenForNode(nodePath: string, nodeType: string, treeData: ProjectNode[]): Promise<void> {
+        try {
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                return;
+            }
+
+            let children: ProjectNode[] = [];
+
+            if (nodeType === 'solution') {
+                // Solution children are already loaded in the initial tree
+                return;
+            } else if (nodeType === 'project') {
+                const project = solution.getProject(nodePath);
+                if (project) {
+                    const rootChildren = await project.getRootChildren();
+                    children = this._convertProjectChildrenToProjectNodes(rootChildren);
+                }
+            } else if (nodeType === 'dependencies') {
+                const projectPath = nodePath.replace('/dependencies', '');
+                const project = solution.getProject(projectPath);
+                if (project) {
+                    const dependencies = project.getDependencies();
+                    children = this._convertProjectChildrenToProjectNodes(dependencies);
+                }
+            } else if (nodeType === 'folder') {
+                const projectPath = this._findProjectPathForFolder(nodePath);
+                if (projectPath) {
+                    const project = solution.getProject(projectPath);
+                    if (project) {
+                        const folderChildren = await project.getFolderChildren(nodePath);
+                        children = this._convertProjectChildrenToProjectNodes(folderChildren);
+                    }
+                }
+            }
+
+            if (children.length > 0) {
+                // Update the node in the tree with its children
+                this._updateNodeInTree(treeData, nodePath, {
+                    children,
+                    hasChildren: true,
+                    isLoaded: true
+                });
+            }
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error loading children for ${nodePath}:`, error);
+        }
+    }
+
     private _convertProjectFileNodesToProjectNodes(fileNodes: ProjectFileNode[]): ProjectNode[] {
         return fileNodes.map(fileNode => ({
             type: fileNode.type === 'folder' ? 'folder' : 'file',
@@ -993,6 +1136,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
 
+        // DEBUG: Add stack trace to see what's calling _updateWebview
+        const stack = new Error().stack;
+        const callerLine = stack?.split('\n')[2]?.trim();
+        console.log(`[SolutionWebviewProvider] _updateWebview called from: ${callerLine}`);
+
         try {
             // Show loading state immediately
             console.log('[SolutionWebviewProvider] Sending loading message to webview');
@@ -1016,13 +1164,30 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework
             });
 
+            // Restore expansion states if this is initial load (this modifies solutionData in place)
+            await this._restoreExpansionStates(solutionData);
+
+            // Debug: Log expansion states before sending to frontend
+            const logExpansionStates = (nodes: ProjectNode[], prefix = '') => {
+                for (const node of nodes) {
+                    if (node.expanded) {
+                        console.log(`[SolutionWebviewProvider] ${prefix}Expanded: ${node.name} (${node.path})`);
+                    }
+                    if (node.children) {
+                        logExpansionStates(node.children, prefix + '  ');
+                    }
+                }
+            };
+
+            console.log('[SolutionWebviewProvider] Expansion states being sent to frontend:');
+            logExpansionStates(solutionData);
+
             console.log('[SolutionWebviewProvider] Sending solution data to webview');
             const data: SolutionData = {
                 projects: solutionData,
                 frameworks: frameworks || [],
                 activeFramework
             }
-
 
             this._view.webview.postMessage({
                 command: 'solutionData',
@@ -1611,6 +1776,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public async handleProjectAdded(projectPath: string) {
         console.log(`[SolutionWebviewProvider] Handling project added via file watcher: ${projectPath}`);
 
+
         if (!this._currentSolutionPath) {
             console.log('[SolutionWebviewProvider] No current solution path, doing full refresh');
             this._updateWebview();
@@ -1634,6 +1800,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
         console.log(`[SolutionWebviewProvider] Queueing file ${changeType}: ${filePath}`);
+
 
         // Check if we already have a event for this file to avoid duplicates
         const existingEventIndex = this._fileChangeQueue.findIndex(event =>

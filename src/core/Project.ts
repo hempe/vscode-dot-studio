@@ -97,9 +97,10 @@ export class Project {
     private setupFileWatcher(): void {
         const projectDir = path.dirname(this._projectPath);
 
-        // Watch the entire project directory for file changes
+        // Watch only the project file itself, not the entire directory
+        // Folder-specific watchers will be created lazily when folders are expanded
         this._fileWatcher = vscode.workspace.createFileSystemWatcher(
-            new vscode.RelativePattern(projectDir, '**/*')
+            new vscode.RelativePattern(projectDir, path.basename(this._projectPath))
         );
 
         this._fileWatcher.onDidCreate(this.handleFileCreated, this, this._disposables);
