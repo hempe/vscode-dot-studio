@@ -1,6 +1,7 @@
 import { SolutionService } from './solutionService';
 import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { FrameworkOption } from '../types/framework';
+import { SolutionFile } from '../parsers/solutionFileParser';
 
 /**
  * Pure framework selection service that handles .NET framework selection logic
@@ -13,14 +14,16 @@ import { FrameworkOption } from '../types/framework';
 export class FrameworkDropdownService {
     private activeFramework?: string;
     private solutionPath?: string;
+    private solutionFile?: SolutionFile;
     private onFrameworkChangeCallback?: (framework?: string) => void;
 
     constructor() {
         // Pure service constructor - no VS Code dependencies
     }
 
-    public setSolution(solutionPath: string): void {
+    public setSolution(solutionPath: string, solutionFile: SolutionFile): void {
         this.solutionPath = solutionPath;
+        this.solutionFile = solutionFile;
         this.loadSavedActiveFramework();
     }
 
@@ -49,21 +52,27 @@ export class FrameworkDropdownService {
     public async getFrameworkOptions(workspaceRoot?: string): Promise<FrameworkOption[]> {
         try {
             if (!this.solutionPath) {
-                if (workspaceRoot) {
-                    // Find active solution using SolutionService
-                    const solutionFile = await SolutionService.findSolutionFile(workspaceRoot);
-                    if (solutionFile) {
-                        this.solutionPath = solutionFile;
+                // Try to get the active solution from SolutionService
+                const solution = SolutionService.getActiveSolution();
+                if (solution && solution.solutionFile) {
+                    this.solutionPath = solution.solutionPath;
+                    this.solutionFile = solution.solutionFile;
+                } else if (workspaceRoot) {
+                    // Fallback: try to discover and initialize solution
+                    const newSolution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                    if (newSolution && newSolution.solutionFile) {
+                        this.solutionPath = newSolution.solutionPath;
+                        this.solutionFile = newSolution.solutionFile;
                     }
                 }
             }
 
-            if (!this.solutionPath) {
+            if (!this.solutionFile) {
                 return [];
             }
 
             // Get all available frameworks from the solution
-            const frameworks = await SolutionService.getAllFrameworks(this.solutionPath);
+            const frameworks = await SolutionService.getAllFrameworks(this.solutionFile);
 
             if (frameworks.length === 0) {
                 return [];
@@ -136,21 +145,27 @@ export class FrameworkDropdownService {
 
     public async getAvailableFrameworks(workspaceRoot?: string): Promise<string[]> {
         if (!this.solutionPath) {
-            if (workspaceRoot) {
-                // Try to find solution using SolutionService
-                const solutionFile = await SolutionService.findSolutionFile(workspaceRoot);
-                if (solutionFile) {
-                    this.solutionPath = solutionFile;
+            // Try to get the active solution from SolutionService
+            const solution = SolutionService.getActiveSolution();
+            if (solution) {
+                this.solutionPath = solution.solutionPath;
+                this.solutionFile = solution.solutionFile;
+            } else if (workspaceRoot) {
+                // Fallback: try to discover solution
+                const newSolution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                if (newSolution) {
+                    this.solutionPath = newSolution.solutionPath;
+                    this.solutionFile = newSolution.solutionFile;
                 }
             }
         }
 
-        if (!this.solutionPath) {
+        if (!this.solutionFile) {
             return [];
         }
 
         try {
-            return await SolutionService.getAllFrameworks(this.solutionPath);
+            return await SolutionService.getAllFrameworks(this.solutionFile);
         } catch (error) {
             console.error('Error getting available frameworks:', error);
             return [];
@@ -188,10 +203,10 @@ export class FrameworkDropdownService {
         }
 
         // Auto mode - select the best framework
-        if (!this.solutionPath) return undefined;
+        if (!this.solutionFile) return undefined;
 
         try {
-            const frameworks = await SolutionService.getAllFrameworks(this.solutionPath);
+            const frameworks = await SolutionService.getAllFrameworks(this.solutionFile);
             if (frameworks.length === 0) return undefined;
 
             // Prefer supported frameworks first, then latest version

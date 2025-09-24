@@ -9,6 +9,30 @@
                 "panel": "shared"
             },
             "problemMatcher": ["$tsc"]
+        },
+        {
+            "type": "npm",
+            "script": "watch",
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "panel": "dedicated",
+                "reveal": "always"
+            },
+            "problemMatcher": [
+                {
+                    "owner": "webpack",
+                    "pattern": {
+                        "regexp": "^\\s*ERROR in (.*)$",
+                        "file": 1
+                    },
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "webpack is watching the files",
+                        "endsPattern": "(webpack \\d+\\.\\d+\\.\\d+|compiled)"
+                    }
+                }
+            ]
         }
     ]
 }

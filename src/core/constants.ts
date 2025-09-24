@@ -1,3 +1,5 @@
+import { minimatch } from 'minimatch';
+
 /**
  * Common constants used throughout the .NET extension
  */
@@ -18,6 +20,19 @@ export const SYSTEM_DIRECTORIES = [
     '/boot', '/root', '/etc', '/tmp', '/opt'
 ];
 
+export const excludePatterns = SKIP_DIRECTORIES.map(dir => `**/${dir}/**`);
+
+export function isExcluded(filePath: string, workspaceRoot?: string): boolean {
+    let relPath = filePath;
+
+    // If we have a workspace root, make path relative to it
+    if (workspaceRoot) {
+        const path = require('path');
+        relPath = path.relative(workspaceRoot, filePath);
+    }
+
+    return excludePatterns.some(pattern => minimatch(relPath, pattern, { dot: true }));
+}
 /**
  * Check if a directory should be skipped during scanning
  */

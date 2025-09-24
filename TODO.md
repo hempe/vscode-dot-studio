@@ -4,6 +4,12 @@ This document tracks the missing functionality and improvements needed for the S
 
 ## 🚨 Critical Issues (Priority 1)
 
+### Tree
+
+- [] Right now we have a single file watcher on the root, I think this needs to change.
+  We need a file watcher for each project (project folder) as these can be outside the current directory.
+  And a watcher to watch the .sln file and its "solution files"
+
 ### Context Menu Fixes
 
 - [x] **Dependencies node** should NOT have Rename, Delete, or Reveal in Explorer options
@@ -31,8 +37,8 @@ This document tracks the missing functionality and improvements needed for the S
 
 ### Solution Node Context Menu
 
-- [ ] Add Existing Project (file dialog to select .csproj) [can we just use the file picker thingy?]
-- [ ] Add New Project (project template selection) [QuickPick for now]
+- [x] Add Existing Project (file dialog to select .csproj) [can we just use the file picker thingy?]
+- [x] Add New Project (project template selection) [QuickPick for now]
 - [ ] Add Solution Folder
 
 ### Solution Folder Context Menu
@@ -106,7 +112,6 @@ This document tracks the missing functionality and improvements needed for the S
 
 ### Keyboard Navigation Enhancements
 
-- [ ] Ctrl+F for search/filter in tree
 - [ ] Delete key for deletion
 - [ ] Ctrl+X/C/V for cut/copy/paste
 - [ ] Escape to cancel operations
@@ -118,6 +123,8 @@ This document tracks the missing functionality and improvements needed for the S
 - [ ] Dirty indicators for unsaved files
 - [ ] Build status indicators
 - [ ] Source control status indicators
+- [ ] Highlight currently active file in the tree.
+- [ ] Error visualizer, indicate files with errors / warnings
 
 ### Performance Optimizations
 

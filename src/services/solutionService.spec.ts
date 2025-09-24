@@ -3,10 +3,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('SolutionService', () => {
-  beforeEach(() => {
-    SolutionService.clearCache();
-  });
-
   describe('findSolutionFile', () => {
     it('should find solution file in current workspace if exists', async () => {
       // Test with current workspace
@@ -100,13 +96,6 @@ describe('SolutionService', () => {
         const recommendation = SolutionService.getUpgradeRecommendation('unknown');
         expect(recommendation).toBe('');
       });
-    });
-  });
-
-  describe('clearCache', () => {
-    it('should clear the solution cache', () => {
-      // This is a static method, so we can only test that it doesn't throw
-      expect(() => SolutionService.clearCache()).not.toThrow();
     });
   });
 

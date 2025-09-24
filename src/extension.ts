@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { SolutionProvider } from './services/solutionProvider';
+// import { SolutionProvider } from './services/solutionProvider'; // Legacy - not used, webview handles tree now
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
+import { isExcluded } from './core/constants';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('.NET Extension is now active!');
@@ -10,16 +11,17 @@ export function activate(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
         ? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
 
-    // Debounced refresh to prevent excessive refreshes
-    let refreshTimeout: NodeJS.Timeout | undefined;
-    const debouncedRefresh = (reason: string) => {
-        if (refreshTimeout) {
-            clearTimeout(refreshTimeout);
-        }
-        refreshTimeout = setTimeout(() => {
-            console.log(`File system change detected (${reason}), refreshing solution explorer...`);
-            solutionWebviewProvider.refresh();
-        }, 500); // 500ms delay
+    // Handle specific file changes for targeted updates
+    const handleFileChange = (uri: vscode.Uri, changeType: 'created' | 'changed' | 'deleted') => {
+        if (isExcluded(uri.fsPath, workspaceRoot))
+            return;
+
+        const filePath = uri.fsPath;
+        const fileName = filePath.split('/').pop() || '';
+        console.log(`File ${changeType}: ${fileName}`);
+
+        // Let the solution provider handle the specific file change
+        solutionWebviewProvider.handleFileChange(filePath, changeType);
     };
 
 
@@ -32,11 +34,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize services
     const solutionService = new SolutionService();
+    // const solutionProvider = new SolutionProvider(workspaceRoot); // Legacy - not used anymore
 
     // Create and register webview providers
     const solutionWebviewProvider = new SolutionWebviewProvider(
         context.extensionUri,
+        context,
         solutionService,
+        undefined, // solutionProvider not used anymore
         frameworkDropdownService
     );
 
@@ -48,9 +53,6 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    // Keep the old SolutionProvider for backwards compatibility
-    const solutionProvider = new SolutionProvider(workspaceRoot);
-
     // Set up callback to handle active framework changes
     frameworkDropdownService.setFrameworkChangeCallback((framework) => {
         // Store the active framework for debugging - don't filter the tree view
@@ -58,75 +60,22 @@ export function activate(context: vscode.ExtensionContext) {
         // The framework will be used when F5/debugging is triggered
     });
 
-    // Note: CommandManager and related commands were removed as part of directory restructure
 
-    // Find and set initial solution for framework dropdown
-    const detectSolution = async () => {
-        try {
-            const solutionFiles = await vscode.workspace.findFiles('*.sln', '**/node_modules/**');
-            if (solutionFiles.length > 0) {
-                frameworkDropdownService.setSolution(solutionFiles[0].fsPath);
-            }
-        } catch (error) {
-            // Ignore errors
-        }
-    };
-    detectSolution();
+    // Single file watcher for all files (excluding common build/temp directories)
+    const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
-    // Set up file system watchers for solution and project files
-    const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
-    
-    solutionWatcher.onDidChange(() => debouncedRefresh('solution file changed'));
-    solutionWatcher.onDidCreate(() => debouncedRefresh('solution file created'));
-    solutionWatcher.onDidDelete(() => debouncedRefresh('solution file deleted'));
+    fileWatcher.onDidCreate((uri) => handleFileChange(uri, 'created'));
+    fileWatcher.onDidChange((uri) => handleFileChange(uri, 'changed'));
+    fileWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
 
-    // Watch for project file changes (.csproj, .vbproj, .fsproj)
-    const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.{csproj,vbproj,fsproj}');
-    
-    projectWatcher.onDidChange(() => debouncedRefresh('project file changed'));
-    projectWatcher.onDidCreate(() => debouncedRefresh('project file created'));
-    projectWatcher.onDidDelete(() => debouncedRefresh('project file deleted'));
-
-    // Watch for ALL files (except some common excludes like build outputs and hidden files)
-    const allFilesWatcher = vscode.workspace.createFileSystemWatcher('**/*', false, false, false);
-    
-    allFilesWatcher.onDidCreate((uri) => {
-        // Skip certain directories and files that shouldn't trigger refreshes
-        const path = uri.fsPath.toLowerCase();
-        if (path.includes('/bin/') || 
-            path.includes('/obj/') || 
-            path.includes('/.git/') || 
-            path.includes('/.vs/') ||
-            path.includes('/node_modules/') ||
-            path.includes('/.vscode/') ||
-            path.endsWith('.tmp') ||
-            path.endsWith('.temp')) {
-            return;
-        }
-        debouncedRefresh('file created: ' + uri.fsPath.split('/').pop());
-    });
-    
-    allFilesWatcher.onDidDelete((uri) => {
-        const path = uri.fsPath.toLowerCase();
-        if (path.includes('/bin/') || 
-            path.includes('/obj/') || 
-            path.includes('/.git/') || 
-            path.includes('/.vs/') ||
-            path.includes('/node_modules/') ||
-            path.includes('/.vscode/')) {
-            return;
-        }
-        debouncedRefresh('file deleted: ' + uri.fsPath.split('/').pop());
-    });
-
-    // Add all watchers to subscriptions
-    context.subscriptions.push(solutionWatcher, projectWatcher, allFilesWatcher);
+    // Add watcher to subscriptions
+    context.subscriptions.push(fileWatcher);
 
     console.log('.NET Extension activation complete!');
-    
+
     // Export for testing
     return {
-        solutionProvider,
+        // solutionProvider, // Legacy - not used anymore
         solutionWebviewProvider,
         solutionService,
         frameworkDropdownService
@@ -135,4 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     console.log('.NET Extension is being deactivated');
+
+    // Dispose the solution service to clean up active solution
+    SolutionService.dispose();
 }

@@ -1,24 +1,35 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { SolutionService } from '../../services/solutionService';
+import { SolutionProvider } from '../../services/solutionProvider';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
-import { FileNestingService } from '../../services/fileNesting';
-import { ProjectFileParser } from '../../parsers/projectFileParser';
-import { SolutionFileParser, SolutionProject } from '../../parsers/solutionFileParser';
-import { NodeType, ProjectActionType } from '../solution-view/types';
+import { SolutionFile, SolutionFileParser, SolutionProject } from '../../parsers/solutionFileParser';
+import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
+import { Solution } from '../../core/Solution';
+import { ProjectFileNode } from '../../core/Project';
 
-interface DirectoryNode {
-    name: string;
-    path: string;
-    type: 'directory';
-    children: Map<string, DirectoryNode>;
-    files: FileItem[];
+interface FileChangeEvent {
+    filePath: string;
+    changeType: 'created' | 'changed' | 'deleted';
+    timestamp: number;
 }
 
-interface FileItem {
-    name: string;
-    path: string;
-    type: 'file';
+interface WebviewMessage {
+    command: string;
+    framework?: string;
+    action?: ProjectActionType;
+    projectPath?: string;
+    data?: MessageData;
+    expandedNodes?: string[];
+    nodePath?: string;
+    nodeType?: string;
+}
+
+interface MessageData {
+    type?: string;
+    oldName?: string;
+    newName?: string;
+    name?: string;
 }
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
@@ -26,10 +37,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;
+    private _currentSolutionPath?: string;
+    private _isInitialized: boolean = false;
+    private _fileChangeQueue: FileChangeEvent[] = [];
+    private _isProcessingQueue: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
+        private readonly _context: vscode.ExtensionContext,
         private readonly _solutionService: SolutionService,
+        private readonly _solutionProvider: SolutionProvider | undefined, // Legacy - not used anymore
         private readonly _frameworkService: FrameworkDropdownService
     ) { }
 
@@ -55,17 +72,25 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             []
         );
 
-        // Send initial data when webview is ready
-        this._updateWebview();
+        // Send initial data when webview is ready (only if not already initialized)
+        if (!this._isInitialized) {
+            console.log('[SolutionWebviewProvider] First time initialization');
+            this._updateWebview();
+            this._isInitialized = true;
+        } else {
+            console.log('[SolutionWebviewProvider] Webview reconnected, sending current data');
+            // Just send current data without full reload if we're already initialized
+            this._sendCurrentData();
+        }
     }
 
-    private async _handleMessage(message: any) {
+    private async _handleMessage(message: WebviewMessage) {
         console.log('[SolutionWebviewProvider] Received message:', message);
 
         switch (message.command) {
             case 'getSolutionData':
                 console.log('[SolutionWebviewProvider] Handling getSolutionData request');
-                await this._updateWebview();
+                await this._sendCurrentData();
                 break;
 
             case 'setFramework':
@@ -74,12 +99,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'projectAction':
-                console.log('[SolutionWebviewProvider] Handling projectAction:', {
-                    action: message.action,
-                    projectPath: message.projectPath,
-                    data: message.data
-                });
-                await this._handleProjectAction(message.action, message.projectPath, message.data);
+                if (message.action && message.projectPath) {
+                    console.log('[SolutionWebviewProvider] Handling projectAction:', {
+                        action: message.action,
+                        projectPath: message.projectPath,
+                        data: message.data
+                    });
+                    await this._handleProjectAction(message.action, message.projectPath, message.data);
+                }
                 break;
 
             case 'openFile':
@@ -90,12 +117,33 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 }
                 break;
 
+            case 'saveExpansionState':
+                if (message.expandedNodes) {
+                    console.log('[SolutionWebviewProvider] Handling saveExpansionState request:', message.expandedNodes);
+                    this.saveExpansionState(message.expandedNodes);
+                }
+                break;
+
+            case 'expandNode':
+                if (message.nodePath && message.nodeType) {
+                    console.log('[SolutionWebviewProvider] Handling expandNode request:', message.nodePath, message.nodeType);
+                    await this._handleExpandNode(message.nodePath, message.nodeType);
+                }
+                break;
+
+            case 'collapseNode':
+                if (message.nodePath) {
+                    console.log('[SolutionWebviewProvider] Handling collapseNode request:', message.nodePath);
+                    await this._handleCollapseNode(message.nodePath);
+                }
+                break;
+
             default:
                 console.log('[SolutionWebviewProvider] Unknown message command:', message.command);
         }
     }
 
-    private async _handleProjectAction(action: ProjectActionType, projectPath: string, data?: any) {
+    private async _handleProjectAction(action: ProjectActionType, projectPath: string, data?: MessageData) {
         console.log(`[SolutionWebviewProvider] Executing project action: ${action} on ${projectPath}`);
 
         switch (action) {
@@ -110,8 +158,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'rename':
-                console.log(`[SolutionWebviewProvider] Renaming ${data?.oldName} to ${data?.newName} at ${projectPath}`);
-                await this._handleRename(projectPath, data?.newName, data?.oldName, data?.type);
+                if (data?.newName && data?.oldName && data?.type) {
+                    console.log(`[SolutionWebviewProvider] Renaming ${data.oldName} to ${data.newName} at ${projectPath}`);
+                    await this._handleRename(projectPath, data.newName, data.oldName, data.type as NodeType);
+                }
                 break;
 
             case 'build':
@@ -137,6 +187,26 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'revealInExplorer':
                 console.log(`[SolutionWebviewProvider] Revealing in explorer: ${projectPath}`);
                 await this._handleRevealInExplorer(projectPath);
+                break;
+
+            case 'addExistingProject':
+                console.log(`[SolutionWebviewProvider] Adding existing project to solution: ${projectPath}`);
+                await this._handleAddExistingProject(projectPath);
+                break;
+
+            case 'addNewProject':
+                console.log(`[SolutionWebviewProvider] Adding new project to solution: ${projectPath}`);
+                await this._handleAddNewProject(projectPath);
+                break;
+
+            case 'removeProject':
+                console.log(`[SolutionWebviewProvider] Removing project from solution: ${projectPath}`);
+                await this._handleRemoveProject(projectPath);
+                break;
+
+            case 'deleteProject':
+                console.log(`[SolutionWebviewProvider] Deleting project: ${projectPath}`);
+                await this._handleDeleteProject(projectPath);
                 break;
 
             default:
@@ -298,6 +368,463 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    private async _handleAddExistingProject(solutionPath: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Opening file dialog to select project file`);
+
+            const options: vscode.OpenDialogOptions = {
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                filters: {
+                    'Project Files': ['csproj', 'vbproj', 'fsproj'],
+                    'All Files': ['*']
+                },
+                openLabel: 'Add Project',
+                title: 'Select Project to Add to Solution'
+            };
+
+            const fileUri = await vscode.window.showOpenDialog(options);
+
+            if (fileUri && fileUri[0]) {
+                const projectPath = fileUri[0].fsPath;
+                console.log(`[SolutionWebviewProvider] Selected project: ${projectPath}`);
+
+                // Add the project to the solution file
+                await this._addProjectToSolution(solutionPath, projectPath);
+
+                vscode.window.showInformationMessage(`Added project ${path.basename(projectPath)} to solution`);
+                await this._sendCurrentData();
+            } else {
+                console.log(`[SolutionWebviewProvider] User cancelled project selection`);
+            }
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error adding existing project:`, error);
+            vscode.window.showErrorMessage(`Error adding project to solution: ${error}`);
+        }
+    }
+
+    private async _addProjectToSolution(solutionPath: string, projectPath: string): Promise<void> {
+        // This is a simplified implementation - in a real scenario, you'd need to:
+        // 1. Parse the solution file
+        // 2. Add the project entry with a new GUID
+        // 3. Add it to the project configuration section
+        // 4. Save the solution file
+
+        // For now, we'll use the dotnet CLI command to add the project
+        const relativePath = path.relative(path.dirname(solutionPath), projectPath);
+        const command = `dotnet sln "${solutionPath}" add "${relativePath}"`;
+
+        console.log(`[SolutionWebviewProvider] Executing: ${command}`);
+
+        const { exec } = require('child_process');
+        const solutionDir = path.dirname(solutionPath);
+
+        await new Promise<void>((resolve, reject) => {
+            exec(command, { cwd: solutionDir }, (error: Error | null, stdout: string, stderr: string) => {
+                if (error) {
+                    console.error(`[SolutionWebviewProvider] Error adding project to solution:`, error);
+                    console.error(`[SolutionWebviewProvider] Command: ${command}`);
+                    console.error(`[SolutionWebviewProvider] Working directory: ${solutionDir}`);
+                    console.error(`[SolutionWebviewProvider] Relative path: ${relativePath}`);
+                    reject(error);
+                } else {
+                    console.log(`[SolutionWebviewProvider] Successfully added project to solution:`, stdout);
+                    resolve();
+                }
+            });
+        });
+
+        await this._sendCurrentData();
+    }
+
+    private async _handleAddNewProject(solutionPath: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Creating new project for solution: ${solutionPath}`);
+
+            // Define common project templates
+            const projectTemplates = [
+                { label: 'Console Application', detail: 'A command-line application', template: 'console' },
+                { label: 'Class Library', detail: 'A reusable library of classes', template: 'classlib' },
+                { label: 'ASP.NET Core Web Application', detail: 'A web application using ASP.NET Core', template: 'webapp' },
+                { label: 'ASP.NET Core Web API', detail: 'A RESTful web API using ASP.NET Core', template: 'webapi' },
+                { label: 'Blazor Server App', detail: 'A Blazor server-side application', template: 'blazorserver' },
+                { label: 'Blazor WebAssembly App', detail: 'A Blazor client-side application', template: 'blazorwasm' },
+                { label: 'xUnit Test Project', detail: 'A unit test project using xUnit', template: 'xunit' },
+                { label: 'NUnit Test Project', detail: 'A unit test project using NUnit', template: 'nunit' },
+                { label: 'MSTest Test Project', detail: 'A unit test project using MSTest', template: 'mstest' }
+            ];
+
+            // Show QuickPick for template selection
+            const selectedTemplate = await vscode.window.showQuickPick(projectTemplates, {
+                placeHolder: 'Select project template',
+                title: 'New Project Template'
+            });
+
+            if (!selectedTemplate) {
+                console.log(`[SolutionWebviewProvider] User cancelled template selection`);
+                return;
+            }
+
+            // Ask for project name
+            const projectName = await vscode.window.showInputBox({
+                prompt: 'Enter project name',
+                placeHolder: 'MyProject',
+                title: 'New Project Name',
+                validateInput: (value) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Project name cannot be empty';
+                    }
+                    if (!/^[a-zA-Z][a-zA-Z0-9._]*$/.test(value.trim())) {
+                        return 'Project name must start with a letter and contain only letters, numbers, dots, and underscores';
+                    }
+                    return null;
+                }
+            });
+
+            if (!projectName) {
+                console.log(`[SolutionWebviewProvider] User cancelled project name input`);
+                return;
+            }
+
+            console.log(`[SolutionWebviewProvider] Creating project: ${projectName} with template: ${selectedTemplate.template}`);
+
+            // Create the project
+            await this._createNewProject(solutionPath, projectName.trim(), selectedTemplate.template);
+
+            vscode.window.showInformationMessage(`Created project ${projectName} and added to solution`);
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error creating new project:`, error);
+            vscode.window.showErrorMessage(`Error creating new project: ${error}`);
+        }
+    }
+
+    private async _createNewProject(solutionPath: string, projectName: string, template: string): Promise<void> {
+        const solutionDir = path.dirname(solutionPath);
+        const projectPath = path.join(solutionDir, projectName);
+
+        // Use dotnet CLI to create the project
+        const createCommand = `dotnet new ${template} -n "${projectName}" -o "${projectPath}"`;
+        console.log(`[SolutionWebviewProvider] Executing: ${createCommand}`);
+
+        const { exec } = require('child_process');
+
+        // Create the project
+        await new Promise<void>((resolve, reject) => {
+            exec(createCommand, { cwd: solutionDir }, (error: Error | null, stdout: string, stderr: string) => {
+                if (error) {
+                    console.error(`[SolutionWebviewProvider] Error creating project:`, error);
+                    reject(error);
+                } else {
+                    console.log(`[SolutionWebviewProvider] Successfully created project:`, stdout);
+                    resolve();
+                }
+            });
+        });
+
+        // Add the project to the solution
+        const projectFile = path.join(projectPath, `${projectName}.csproj`);
+        await this._addProjectToSolution(solutionPath, projectFile);
+    }
+
+    private async _handleRemoveProject(projectPath: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Removing project from solution: ${projectPath}`);
+
+            // Use the current solution path
+            if (!this._currentSolutionPath) {
+                vscode.window.showErrorMessage('No solution file loaded');
+                return;
+            }
+
+            // Confirm with user
+            const answer = await vscode.window.showWarningMessage(
+                `Remove project "${path.basename(projectPath)}" from solution?`,
+                { modal: true },
+                'Remove'
+            );
+
+            if (answer !== 'Remove') {
+                console.log(`[SolutionWebviewProvider] User cancelled project removal`);
+                return;
+            }
+
+            // Remove the project from solution using dotnet CLI
+            // TODO: Move this to SolutionManager or Solution class
+            const success = await this._removeProjectFromSolution(this._currentSolutionPath, projectPath);
+
+            if (success) {
+                vscode.window.showInformationMessage(`Removed project from solution`);
+            } else {
+                vscode.window.showErrorMessage(`Failed to remove project from solution`);
+            }
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error removing project:`, error);
+            vscode.window.showErrorMessage(`Error removing project: ${error}`);
+        }
+    }
+
+    private async _handleDeleteProject(projectPath: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Deleting project: ${projectPath}`);
+
+            const projectName = path.basename(projectPath);
+            const projectDir = path.dirname(projectPath);
+
+            // Confirm with user - this is destructive
+            const answer = await vscode.window.showWarningMessage(
+                `Delete project "${projectName}" and all its files permanently?`,
+                { modal: true },
+                'Delete Permanently'
+            );
+
+            if (answer !== 'Delete Permanently') {
+                console.log(`[SolutionWebviewProvider] User cancelled project deletion`);
+                return;
+            }
+
+            // First remove from solution
+            if (this._currentSolutionPath) {
+                await this._removeProjectFromSolution(this._currentSolutionPath, projectPath);
+            }
+
+            // Then delete the project directory
+            const fs = require('fs').promises;
+            await fs.rmdir(projectDir, { recursive: true });
+
+            vscode.window.showInformationMessage(`Deleted project "${projectName}"`);
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error deleting project:`, error);
+            vscode.window.showErrorMessage(`Error deleting project: ${error}`);
+        }
+    }
+
+    private async _sendProjectAddedUpdate(solutionPath: string, projectName: string) {
+        try {
+            // Get fresh solution data to find the new project
+            const solution = SolutionService.getActiveSolution();
+            if (!solution || !solution.solutionFile) {
+                console.warn('[SolutionWebviewProvider] No active solution for project added update');
+                this._updateWebview(); // Fallback to full reload
+                return;
+            }
+
+            const treeStructure = await this._convertToTreeStructureWithLazyLoading(solution);
+
+            // Find the newly added project in the tree structure
+            const findProject = (nodes: ProjectNode[]): ProjectNode | null => {
+                for (const node of nodes) {
+                    if (node.type === 'project' && node.name === projectName) {
+                        return node;
+                    }
+                    if (node.children) {
+                        const found = findProject(node.children);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const newProject = findProject(treeStructure);
+            if (newProject && this._view) {
+                console.log(`[SolutionWebviewProvider] Sending projectAdded update for: ${projectName}`);
+                this._view.webview.postMessage({
+                    command: 'projectAdded',
+                    project: newProject
+                });
+            } else {
+                console.warn(`[SolutionWebviewProvider] Could not find new project ${projectName} in tree structure`);
+                // Fallback to full reload if we can't find the project
+                this._updateWebview();
+            }
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error sending project added update:`, error);
+            // Fallback to full reload on error
+            this._updateWebview();
+        }
+    }
+
+    private async _handleExpandNode(nodePath: string, nodeType: string): Promise<void> {
+        console.log(`[SolutionWebviewProvider] Expanding ${nodeType} node: ${nodePath}`);
+
+        try {
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                console.warn('[SolutionWebviewProvider] No active solution for expand operation');
+                return;
+            }
+
+            console.log(`[SolutionWebviewProvider] Available solutions projects:`, Array.from(solution.projects.keys()));
+
+            if (nodeType === 'project') {
+                // Expanding a project - load its file tree using the new Project methods
+                const project = solution.getProject(nodePath);
+                if (project) {
+                    console.log(`[SolutionWebviewProvider] Using Project.getRootChildren() for: ${project.name}`);
+                    const rootChildren = await project.getRootChildren();
+
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            command: 'nodeExpanded',
+                            nodePath: nodePath,
+                            children: this._convertProjectChildrenToProjectNodes(rootChildren)
+                        });
+                    }
+                } else {
+                    console.warn(`[SolutionWebviewProvider] Could not find project instance: ${nodePath}`);
+                }
+            } else if (nodeType === 'dependencies') {
+                // Expanding a Dependencies node - get the project and load its dependencies
+                const projectPath = nodePath.replace('/dependencies', ''); // Remove the '/dependencies' suffix
+                const project = solution.getProject(projectPath);
+                if (project) {
+                    console.log(`[SolutionWebviewProvider] Using Project.getDependencies() for: ${projectPath}`);
+                    const dependencies = project.getDependencies();
+
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            command: 'nodeExpanded',
+                            nodePath: nodePath,
+                            children: this._convertProjectChildrenToProjectNodes(dependencies)
+                        });
+                    }
+                } else {
+                    console.warn(`[SolutionWebviewProvider] Could not find project instance for dependencies: ${projectPath}`);
+                }
+            } else if (nodeType === 'folder') {
+                // Expanding a folder within a project using the new Project methods
+                const projectPath = this._findProjectPathForFolder(nodePath);
+                if (projectPath) {
+                    const project = solution.getProject(projectPath);
+                    if (project) {
+                        console.log(`[SolutionWebviewProvider] Using Project.getFolderChildren() for: ${nodePath}`);
+                        const folderChildren = await project.getFolderChildren(nodePath);
+
+                        if (this._view) {
+                            this._view.webview.postMessage({
+                                command: 'nodeExpanded',
+                                nodePath: nodePath,
+                                children: this._convertProjectChildrenToProjectNodes(folderChildren)
+                            });
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error expanding node:', error);
+        }
+    }
+
+    private async _handleCollapseNode(nodePath: string): Promise<void> {
+        console.log(`[SolutionWebviewProvider] Collapsing node: ${nodePath}`);
+
+        try {
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                console.warn('[SolutionWebviewProvider] No active solution for collapse operation');
+                return;
+            }
+
+            // Find the project that contains this path
+            const projectPath = this._findProjectPathForFolder(nodePath);
+            if (projectPath) {
+                const project = solution.getProject(projectPath);
+                if (project) {
+                    project.collapseFolder(nodePath);
+
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            command: 'nodeCollapsed',
+                            nodePath: nodePath
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error collapsing node:', error);
+        }
+    }
+
+    private _findProjectPathForFolder(folderPath: string): string | undefined {
+        const solution = SolutionService.getActiveSolution();
+        if (!solution) return undefined;
+
+        // Check each project to see if this folder path is within it
+        for (const project of solution.getDotNetProjects()) {
+            const projectDir = path.dirname(project.projectPath);
+            if (folderPath.startsWith(projectDir)) {
+                return project.projectPath;
+            }
+        }
+
+        return undefined;
+    }
+
+    private _convertProjectFileNodesToProjectNodes(fileNodes: ProjectFileNode[]): ProjectNode[] {
+        return fileNodes.map(fileNode => ({
+            type: fileNode.type === 'folder' ? 'folder' : 'file',
+            name: fileNode.name,
+            path: fileNode.path,
+            children: fileNode.children ? this._convertProjectFileNodesToProjectNodes(fileNode.children) : undefined,
+            isLoaded: fileNode.isLoaded,
+            hasChildren: fileNode.type === 'folder' && !fileNode.isLoaded
+        }));
+    }
+
+    /**
+     * Converts Project class output format to ProjectNode format for the webview
+     */
+    private _convertProjectChildrenToProjectNodes(children: { type: 'dependencies' | 'dependency' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string }[]): ProjectNode[] {
+        return children.map(child => {
+            if (child.type === 'dependency') {
+                return {
+                    type: 'dependency' as NodeType,
+                    name: child.name,
+                    path: child.path,
+                    version: child.version,
+                    dependencyType: child.dependencyType
+                };
+            } else if (child.type === 'dependencies') {
+                return {
+                    type: 'dependencies' as NodeType,
+                    name: child.name,
+                    path: child.path,
+                    hasChildren: true, // Dependencies node has children
+                    isLoaded: false // Not loaded initially for lazy loading
+                };
+            } else {
+                return {
+                    type: child.type as NodeType,
+                    name: child.name,
+                    path: child.path,
+                    hasChildren: child.type === 'folder', // Folders might have children
+                    isLoaded: false // Not loaded initially for lazy loading
+                };
+            }
+        });
+    }
+
+    /**
+     * Helper method to remove project from solution using dotnet CLI
+     * TODO: Move this to SolutionManager class
+     */
+    private async _removeProjectFromSolution(solutionPath: string, projectPath: string): Promise<boolean> {
+        try {
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+
+            await execAsync(`dotnet sln "${solutionPath}" remove "${projectPath}"`);
+            return true;
+        } catch (error) {
+            console.error('Error removing project from solution:', error);
+            return false;
+        }
+    }
+
     private async _updateWebview() {
         console.log('[SolutionWebviewProvider] Updating webview...');
 
@@ -330,13 +857,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
 
             console.log('[SolutionWebviewProvider] Sending solution data to webview');
+            const data: SolutionData = {
+                projects: solutionData,
+                frameworks: frameworks || [],
+                activeFramework,
+                expandedNodes: this.getExpansionState()
+            }
+
+
             this._view.webview.postMessage({
                 command: 'solutionData',
-                data: {
-                    projects: solutionData,
-                    frameworks: frameworks || [],
-                    activeFramework
-                }
+                data
             });
         } catch (error) {
             console.error('[SolutionWebviewProvider] Error updating solution webview:', error);
@@ -347,47 +878,52 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _getSolutionData(): Promise<any[]> {
+    private async _getSolutionData(): Promise<ProjectNode[]> {
         console.log('[SolutionWebviewProvider] Getting solution data...');
 
-        // Find solution file using the static method
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
         console.log('[SolutionWebviewProvider] Workspace root:', workspaceRoot);
 
-        const solutionPath = await SolutionService.findSolutionFile(workspaceRoot);
-        console.log('[SolutionWebviewProvider] Found solution file:', solutionPath);
-
-        if (!solutionPath) {
-            console.log('[SolutionWebviewProvider] No solution file found');
+        // Use the new solution discovery and initialization
+        const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+        if (!solution) {
+            console.log('[SolutionWebviewProvider] No solution found or failed to initialize');
             return [];
         }
 
-        // Parse solution file using the static method
-        const solutionData = await SolutionService.parseSolutionFile(solutionPath);
-        console.log('[SolutionWebviewProvider] Parsed solution data:', solutionData);
+        // Store the current solution path for later use
+        this._currentSolutionPath = solution.solutionPath;
 
+        // Get solution file data
+        const solutionData = solution.solutionFile;
         if (!solutionData) {
-            console.log('[SolutionWebviewProvider] Failed to parse solution data');
+            console.log('[SolutionWebviewProvider] Failed to get solution data');
             return [];
         }
+
+        console.log('[SolutionWebviewProvider] Got solution data:', solutionData);
+
+        this._frameworkService.setSolution(solution.solutionPath, solutionData);
 
         // Convert solution data to tree structure for the React component
-        return await this._convertToTreeStructure(solutionData, solutionPath);
+        const treeStructure = await this._convertToTreeStructureWithLazyLoading(solution);
+
+        return treeStructure;
     }
 
-    private async _convertToTreeStructure(solutionData: any, solutionPath: string): Promise<any[]> {
-        const result: any[] = [];
+    private async _convertToTreeStructureWithLazyLoading(solution: Solution): Promise<ProjectNode[]> {
+        const result: ProjectNode[] = [];
 
-        // Parse the solution file to get proper hierarchy
-        console.log(`[SolutionWebviewProvider] Parsing solution file for hierarchy: ${solutionPath}`);
-        const solutionFileContent = await vscode.workspace.fs.readFile(vscode.Uri.file(solutionPath));
-        const solutionFile = await SolutionFileParser.parse(solutionFileContent.toString(), path.dirname(solutionPath));
-        const hierarchy = SolutionFileParser.buildProjectHierarchy(solutionFile);
+        if (!solution.solutionFile) return result;
 
-        console.log(`[SolutionWebviewProvider] Built project hierarchy with ${hierarchy.size} levels`);
+        // Get project hierarchy
+        const hierarchy = solution.getProjectHierarchy();
+        const solutionPath = solution.solutionPath;
+
+        console.log(`[SolutionWebviewProvider] Building lazy-loaded tree structure for: ${solutionPath}`);
 
         // Add the solution as the root node
-        const solutionNode: any = {
+        const solutionNode: ProjectNode = {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
             path: solutionPath,
@@ -398,13 +934,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         const rootProjects = hierarchy.get('ROOT') || [];
         console.log(`[SolutionWebviewProvider] Found ${rootProjects.length} root-level items`);
 
-        // Build tree recursively using hierarchy
-        solutionNode.children = await this._buildHierarchicalNodes(rootProjects, hierarchy, solutionPath);
+        // Build tree using lazy loading approach
+        solutionNode.children = await this._buildLazyHierarchicalNodes(rootProjects, hierarchy, solution);
 
         // Sort solution-level items (projects and solution folders)
-        solutionNode.children.sort((a: any, b: any) => {
+        solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
             // Visual Studio ordering at solution level: Solution Folders -> Projects
-            const getTypePriority = (item: any) => {
+            const getTypePriority = (item: ProjectNode) => {
                 if (item.type === 'solutionFolder') return 0;  // Solution folders first
                 return 1;  // Projects second
             };
@@ -424,8 +960,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         return result;
     }
 
-    private async _buildHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solutionPath: string): Promise<any[]> {
-        const nodes: any[] = [];
+
+    private async _buildLazyHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solution: Solution): Promise<ProjectNode[]> {
+        const nodes: ProjectNode[] = [];
 
         for (const project of projects) {
             // Determine the item type based on typeGuid
@@ -433,10 +970,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             console.log(`[SolutionWebviewProvider] Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
 
             // Ensure path is absolute (for both projects and solution items)
-            const absolutePath = this._resolveAbsolutePath(project.path || '', solutionPath);
+            const absolutePath = this._resolveAbsolutePath(project.path || '', solution.solutionPath);
             console.log(`[SolutionWebviewProvider] Path resolution: ${project.path} -> ${absolutePath}`);
 
-            const itemNode: any = {
+            const itemNode: ProjectNode = {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
                 path: absolutePath,
@@ -446,41 +983,64 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Store original typeGuid for debugging
                 typeGuid: project.typeGuid,
                 // Store GUID for hierarchy lookup
-                guid: project.guid
+                guid: project.guid,
+                // Mark as not loaded for lazy loading
+                isLoaded: false
             };
+
+            // Check if project nodes actually have children
+            if (itemType === 'project') {
+                try {
+                    const projectInstance = solution.getProject(absolutePath);
+                    if (projectInstance && projectInstance.isInitialized) {
+                        const rootChildren = await projectInstance.getRootChildren();
+                        itemNode.hasChildren = rootChildren.length > 0;
+                        console.log(`[SolutionWebviewProvider] Project ${project.name} has ${rootChildren.length} root children, hasChildren: ${itemNode.hasChildren}`);
+                    } else {
+                        // If project not initialized yet, assume it has children
+                        itemNode.hasChildren = true;
+                        console.log(`[SolutionWebviewProvider] Project ${project.name} not initialized yet, assuming hasChildren: true`);
+                    }
+                } catch (error) {
+                    console.warn(`[SolutionWebviewProvider] Error checking children for project ${project.name}:`, error);
+                    // Fallback to assuming it has children
+                    itemNode.hasChildren = true;
+                }
+            }
 
             // Handle solution folders - add their children recursively
             if (itemType === 'solutionFolder') {
                 const childProjects = hierarchy.get(project.guid) || [];
                 console.log(`[SolutionWebviewProvider] Solution folder ${project.name} has ${childProjects.length} children`);
 
-                // Always initialize children array for solution folders
-                itemNode.children = [];
-
                 if (childProjects.length > 0) {
-                    itemNode.children = await this._buildHierarchicalNodes(childProjects, hierarchy, solutionPath);
+                    itemNode.children = await this._buildLazyHierarchicalNodes(childProjects, hierarchy, solution);
                 }
 
                 // Add solution items (files directly in the solution folder)
-                const solutionItems = SolutionFileParser.getSolutionItems(project);
+                const solutionItems = solution.getSolutionItems(project);
                 console.log(`[SolutionWebviewProvider] Solution folder ${project.name} has ${solutionItems.length} solution items`);
+
+                if (!itemNode.children) {
+                    itemNode.children = [];
+                }
 
                 for (const itemPath of solutionItems) {
                     itemNode.children.push({
                         type: 'file',
                         name: path.basename(itemPath),
-                        path: path.resolve(path.dirname(solutionPath), itemPath)
+                        path: path.resolve(path.dirname(solution.solutionPath), itemPath)
                     });
                 }
 
-                // Sort solution folder children (solution folders first, then projects, then files)
+                // Sort solution folder children
                 if (itemNode.children && itemNode.children.length > 0) {
-                    itemNode.children.sort((a: any, b: any) => {
-                        const getTypePriority = (item: any) => {
-                            if (item.type === 'solutionFolder') return 0;  // Solution folders first
-                            if (item.type === 'project') return 1;         // Projects second
-                            if (item.type === 'file') return 2;            // Files third
-                            return 3;  // Other types last
+                    itemNode.children.sort((a: ProjectNode, b: ProjectNode) => {
+                        const getTypePriority = (item: ProjectNode) => {
+                            if (item.type === 'solutionFolder') return 0;
+                            if (item.type === 'project') return 1;
+                            if (item.type === 'file') return 2;
+                            return 3;
                         };
 
                         const priorityA = getTypePriority(a);
@@ -494,88 +1054,20 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     });
                 }
             }
-            // Handle actual projects - load project files and dependencies
+            // Handle actual projects - don't load files yet, just set up lazy loading
             else if (itemType === 'project') {
-                try {
-                    if (path.extname(absolutePath) === '.csproj' && await this._fileExists(absolutePath)) {
-                        console.log(`[SolutionWebviewProvider] Loading project files from: ${absolutePath}`);
-
-                        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
-                        const parser = new ProjectFileParser(workspaceRoot);
-                        const projectData = await parser.parseProjectFiles(absolutePath);
-                        console.log(`[SolutionWebviewProvider] Project data loaded:`, {
-                            files: projectData.files?.length || 0,
-                            dependencies: projectData.dependencies?.length || 0
-                        });
-
-                        // Add source files if available
-                        if (projectData.files && projectData.files.length > 0) {
-                            console.log(`[SolutionWebviewProvider] Adding ${projectData.files.length} source files for project ${project.name}`);
-
-                            // Filter to only source files (not directories)
-                            const sourceFiles = projectData.files
-                                .filter(file => !file.isDirectory)
-                                .map(file => file.path);
-
-                            if (sourceFiles.length > 0) {
-                                console.log(`[SolutionWebviewProvider] Organizing ${sourceFiles.length} source files into directory structure`);
-
-                                // First organize files by directory structure
-                                const fileTree = this._buildDirectoryStructure(sourceFiles, path.dirname(absolutePath));
-
-                                // Convert directory tree to nodes
-                                const fileNodes = this._convertDirectoryTreeToNodes(fileTree);
-                                itemNode.children.push(...fileNodes);
-                            }
-                        }
-
-                        // Store dependencies for later use
-                        if (projectData.dependencies && projectData.dependencies.length > 0) {
-                            console.log(`[SolutionWebviewProvider] Found dependencies from project file: ${projectData.dependencies.length}`);
-                            // Store dependencies in the item node for later use
-                            (itemNode as any).projectDependencies = projectData.dependencies;
-                        }
-                    } else {
-                        console.log(`[SolutionWebviewProvider] Skipping project file loading for ${project.name} (not a .csproj or file doesn't exist)`);
-                    }
-                } catch (error) {
-                    console.error(`[SolutionWebviewProvider] Error loading project files for ${project.name}:`, error);
+                const projectInstance = solution.getProject(absolutePath);
+                if (projectInstance) {
+                    // Use the new lazy loading approach - don't pre-load children
+                    // Children will be loaded on demand when user expands the project
+                    itemNode.hasChildren = true; // Projects can be expanded
+                    itemNode.isLoaded = false; // Children not loaded yet
+                } else {
+                    console.warn(`[SolutionWebviewProvider] Could not find project instance for: ${absolutePath}`);
+                    // If no project instance, mark as not expandable
+                    itemNode.hasChildren = false;
+                    itemNode.isLoaded = true;
                 }
-
-                // Add dependencies node (only for projects)
-                if ((itemNode as any).projectDependencies && (itemNode as any).projectDependencies.length > 0) {
-                    const depsNode = {
-                        type: 'dependencies',
-                        name: 'Dependencies',
-                        path: `${absolutePath}/dependencies`,
-                        children: (itemNode as any).projectDependencies.slice(0, 20).map((dep: any) => ({
-                            type: 'dependency',
-                            name: `${dep.name}${dep.version ? ` (${dep.version})` : ''}`,
-                            path: `${absolutePath}/dependencies/${dep.name}`
-                        }))
-                    };
-                    itemNode.children.push(depsNode);
-                }
-
-                // Sort project children using Visual Studio ordering
-                itemNode.children.sort((a: any, b: any) => {
-                    // Visual Studio ordering: Dependencies -> Folders -> Files
-                    const getTypePriority = (item: any) => {
-                        if (item.name === 'Dependencies') return 0;  // Dependencies always first
-                        if (item.type === 'folder') return 1;  // Regular folders
-                        return 2;  // Files
-                    };
-
-                    const priorityA = getTypePriority(a);
-                    const priorityB = getTypePriority(b);
-
-                    if (priorityA !== priorityB) {
-                        return priorityA - priorityB;
-                    }
-
-                    // Within same type, sort alphabetically
-                    return a.name.localeCompare(b.name);
-                });
             }
 
             nodes.push(itemNode);
@@ -584,25 +1076,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         return nodes;
     }
 
-    private _convertFilesToNodes(nestedFiles: any[]): any[] {
-        return nestedFiles.map(file => ({
-            type: 'file',
-            name: file.name,
-            path: file.path,
-            children: file.children ? this._convertFilesToNodes(file.children) : undefined
-        }));
-    }
 
-    private async _fileExists(filePath: string): Promise<boolean> {
-        try {
-            await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-            return true;
-        } catch {
-            return false;
-        }
-    }
 
-    private _getItemType(typeGuid: string): string {
+    private _getItemType(typeGuid: string): NodeType {
         // Project type GUIDs from VS solution files
         const PROJECT_TYPE_GUIDS = {
             SOLUTION_FOLDER: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
@@ -644,103 +1120,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         return path.resolve(path.dirname(solutionPath), itemPath);
     }
 
-    private _buildDirectoryStructure(filePaths: string[], projectRoot: string): DirectoryNode {
-        console.log(`[SolutionWebviewProvider] Building directory structure for project root: ${projectRoot}`);
 
-        const root: DirectoryNode = {
-            name: '',
-            path: projectRoot,
-            type: 'directory',
-            children: new Map(),
-            files: []
-        };
-
-        for (const filePath of filePaths) {
-            // Get relative path from project root
-            const relativePath = path.relative(projectRoot, filePath);
-            console.log(`[SolutionWebviewProvider] Processing file: ${filePath} -> ${relativePath}`);
-
-            // Skip files outside project directory
-            if (relativePath.startsWith('..')) {
-                console.log(`[SolutionWebviewProvider] Skipping file outside project: ${filePath}`);
-                continue;
-            }
-
-            // Split the path into directory segments
-            const segments = relativePath.split(path.sep);
-            const fileName = segments.pop()!;
-
-            // Navigate to the correct directory, creating folders as needed
-            let currentDir = root;
-            for (const segment of segments) {
-                if (!currentDir.children.has(segment)) {
-                    const dirPath = path.join(currentDir.path, segment);
-                    currentDir.children.set(segment, {
-                        name: segment,
-                        path: dirPath,
-                        type: 'directory',
-                        children: new Map(),
-                        files: []
-                    });
-                }
-                currentDir = currentDir.children.get(segment)!;
-            }
-
-            // Add the file to the directory
-            currentDir.files.push({
-                name: fileName,
-                path: filePath,
-                type: 'file'
-            });
-        }
-
-        return root;
-    }
-
-    private _convertDirectoryTreeToNodes(dirNode: DirectoryNode): any[] {
-        const result: any[] = [];
-
-        // First add all subdirectories
-        for (const [, childDir] of dirNode.children) {
-            const folderNode = {
-                type: 'folder',
-                name: childDir.name,
-                path: childDir.path,
-                children: this._convertDirectoryTreeToNodes(childDir)
-            };
-            result.push(folderNode);
-        }
-
-        // Then add files in this directory, applying file nesting
-        if (dirNode.files.length > 0) {
-            console.log(`[SolutionWebviewProvider] Applying file nesting to ${dirNode.files.length} files in ${dirNode.path}`);
-
-            // Apply file nesting within this directory
-            const nestedFiles = FileNestingService.nestFiles(dirNode.files);
-            const fileNodes = this._convertFilesToNodes(nestedFiles);
-            result.push(...fileNodes);
-        }
-
-        return result.sort((a, b) => {
-            // Visual Studio ordering: Dependencies -> Solution Folders -> Regular Folders -> Files
-            const getTypePriority = (item: any) => {
-                if (item.name === 'Dependencies') return 0;  // Dependencies always first
-                if (item.isSolutionFolder || (item.type === 'folder' && item.name === 'Solution Items')) return 1;  // Solution folders
-                if (item.type === 'folder') return 2;  // Regular filesystem folders
-                return 3;  // Files
-            };
-
-            const priorityA = getTypePriority(a);
-            const priorityB = getTypePriority(b);
-
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-
-            // Within same type, sort alphabetically
-            return a.name.localeCompare(b.name);
-        });
-    }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(
@@ -1010,6 +1390,291 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             console.log('[SolutionWebviewProvider] Skipping refresh during rename operation');
             return;
         }
+        // Use incremental update instead of full refresh
         this._updateWebview();
+    }
+
+    private saveExpansionState(expandedNodes: string[]) {
+        console.log('[SolutionWebviewProvider] Saving expansion state:', expandedNodes);
+        this._context.workspaceState.update('solutionTreeExpanded', expandedNodes);
+    }
+
+    private getExpansionState(): string[] {
+        const state = this._context.workspaceState.get('solutionTreeExpanded', []);
+        console.log('[SolutionWebviewProvider] Retrieved expansion state:', state);
+        return state;
+    }
+
+    private async _sendCurrentData() {
+        console.log('[SolutionWebviewProvider] Sending current data to reconnected webview');
+
+        if (!this._view) {
+            console.log('[SolutionWebviewProvider] No webview available, skipping send');
+            return;
+        }
+
+        try {
+            console.log('[SolutionWebviewProvider] Rebuilding solution data for reconnection');
+            const solutionData = await this._getSolutionData();
+
+            const frameworks = await this._frameworkService.getAvailableFrameworks();
+
+            const data: SolutionData = {
+                projects: solutionData,
+                frameworks: frameworks,
+                activeFramework: this._frameworkService.getActiveFramework(),
+                expandedNodes: this.getExpansionState()
+            };
+
+            console.log('[SolutionWebviewProvider] Sending solutionData to reconnected webview');
+            this._view.webview.postMessage({
+                command: 'solutionData',
+                data: data
+            });
+
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error sending current data:', error);
+            // Fallback to full update on error
+            this._updateWebview();
+        }
+    }
+
+    public async handleProjectAdded(projectPath: string) {
+        console.log(`[SolutionWebviewProvider] Handling project added via file watcher: ${projectPath}`);
+
+        if (!this._currentSolutionPath) {
+            console.log('[SolutionWebviewProvider] No current solution path, doing full refresh');
+            this._updateWebview();
+            return;
+        }
+
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        await this._sendProjectAddedUpdate(this._currentSolutionPath, projectName);
+    }
+
+    public handleProjectRemoved(projectPath: string) {
+        console.log(`[SolutionWebviewProvider] Handling project removed via file watcher: ${projectPath}`);
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                command: 'projectRemoved',
+                projectPath: projectPath
+            });
+        }
+    }
+
+    public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
+        console.log(`[SolutionWebviewProvider] Queueing file ${changeType}: ${filePath}`);
+
+        // Check if we already have a event for this file to avoid duplicates
+        const existingEventIndex = this._fileChangeQueue.findIndex(event =>
+            event.filePath === filePath &&
+            event.changeType === changeType
+        );
+
+        if (existingEventIndex >= 0) {
+            console.log(`[SolutionWebviewProvider] Ignoring duplicate file change event for: ${filePath}`);
+            return;
+        }
+
+        // Add to queue with timestamp
+        this._fileChangeQueue.push({
+            filePath,
+            changeType,
+            timestamp: Date.now()
+        });
+
+        // Process queue if not already processing
+        this._processFileChangeQueue();
+    }
+
+    private async _processFileChangeQueue() {
+        if (this._isProcessingQueue || this._fileChangeQueue.length === 0) {
+            return;
+        }
+
+        this._isProcessingQueue = true;
+
+        try {
+            // Process all queued changes
+            while (this._fileChangeQueue.length > 0) {
+                const event = this._fileChangeQueue.shift()!;
+                console.log(`[SolutionWebviewProvider] Processing queued file ${event.changeType}: ${event.filePath}`);
+
+                // Add small delay between processing events to prevent race conditions
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                await this._handleSingleFileChange(event.filePath, event.changeType);
+            }
+        } finally {
+            this._isProcessingQueue = false;
+        }
+    }
+
+    private async _handleSingleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
+        const fileName = path.basename(filePath);
+
+        // Handle different types of file changes
+        if (fileName.endsWith('.sln')) {
+            // Solution file changed - do incremental update instead of full refresh
+            console.log(`[SolutionWebviewProvider] Solution file ${changeType}, doing incremental update`);
+            await this._handleSolutionFileChange(filePath, changeType);
+        } else if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) {
+            // Project file changes
+            if (changeType === 'created') {
+                console.log(`[SolutionWebviewProvider] Project file created: ${filePath}`);
+                await this.handleProjectAdded(filePath);
+            } else if (changeType === 'deleted') {
+                console.log(`[SolutionWebviewProvider] Project file deleted: ${filePath}`);
+                this.handleProjectRemoved(filePath);
+            } else {
+                // Project file content changed - do incremental update
+                console.log(`[SolutionWebviewProvider] Project file content changed: ${fileName}`);
+                await this._handleProjectFileChange(filePath);
+            }
+        } else {
+            // All other files - add/remove from tree incrementally
+            if (changeType === 'created') {
+                await this._handleFileAdded(filePath);
+            } else if (changeType === 'deleted') {
+                await this._handleFileRemoved(filePath);
+            } else {
+                // File content changed - could show modification indicator in the future
+                console.log(`[SolutionWebviewProvider] File content changed: ${fileName}`);
+            }
+        }
+    }
+
+    private async _handleFileAdded(filePath: string) {
+        console.log(`[SolutionWebviewProvider] Adding file to tree: ${filePath}`);
+
+        // Find which project this file belongs to
+        const projectPath = await this._findProjectForFile(filePath);
+        if (!projectPath) {
+            console.log(`[SolutionWebviewProvider] Could not find project for file: ${filePath}`);
+            return;
+        }
+
+        // Create file node data
+        const fileNode = {
+            type: 'file',
+            name: path.basename(filePath),
+            path: filePath
+        };
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                command: 'fileAdded',
+                file: fileNode,
+                parentPath: projectPath
+            });
+        }
+    }
+
+    private _handleFileRemoved(filePath: string) {
+        console.log(`[SolutionWebviewProvider] Removing file from tree: ${filePath}`);
+
+        if (this._view) {
+            this._view.webview.postMessage({
+                command: 'fileRemoved',
+                filePath: filePath
+            });
+        }
+    }
+
+    private async _findProjectForFile(filePath: string): Promise<string | undefined> {
+        // Find the closest .csproj file by walking up the directory tree
+        let currentDir = path.dirname(filePath);
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        while (currentDir && currentDir !== workspaceRoot && currentDir !== path.dirname(currentDir)) {
+            try {
+                const files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(currentDir));
+                const projectFile = files.find(([name, type]) =>
+                    type === vscode.FileType.File &&
+                    (name.endsWith('.csproj') || name.endsWith('.vbproj') || name.endsWith('.fsproj'))
+                );
+
+                if (projectFile) {
+                    return path.join(currentDir, projectFile[0]);
+                }
+            } catch (error) {
+                console.warn(`[SolutionWebviewProvider] Error reading directory ${currentDir}:`, error);
+            }
+
+            currentDir = path.dirname(currentDir);
+        }
+
+        return undefined;
+    }
+
+    private async _handleSolutionFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
+        console.log(`[SolutionWebviewProvider] Handling solution file change: ${changeType} for ${filePath}`);
+
+        if (changeType === 'deleted') {
+            // Solution file was deleted - clear everything
+            console.log(`[SolutionWebviewProvider] Solution file deleted, clearing tree`);
+            if (this._view) {
+                this._view.webview.postMessage({
+                    command: 'solutionDataUpdate',
+                    projects: [],
+                    frameworks: [],
+                    expandedNodes: this.getExpansionState()
+                });
+            }
+            return;
+        }
+
+        try {
+            // Get the current solution data (should be automatically updated by Solution class file watcher)
+            const solution = SolutionService.getActiveSolution();
+            if (!solution || !solution.solutionFile) {
+                console.warn('[SolutionWebviewProvider] No active solution after file change');
+                return;
+            }
+
+            const newSolutionData = solution.solutionFile;
+            console.log('[SolutionWebviewProvider] Got updated solution data:', newSolutionData);
+
+            // Since the Solution class already handles change detection and notifications,
+            // we just need to refresh the UI
+            console.log('[SolutionWebviewProvider] Solution file changed, refreshing UI');
+            await this._updateWebview();
+
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error handling solution file change:', error);
+            // Fallback to current cached state - don't reload
+            console.log('[SolutionWebviewProvider] Keeping current state due to parse error');
+        }
+    }
+
+
+
+    private async _handleProjectFileChange(projectPath: string) {
+        console.log(`[SolutionWebviewProvider] Handling project file change: ${projectPath}`);
+
+        try {
+            // The Project class will handle this change automatically through its file watcher
+            // We just need to refresh the affected project in the UI
+            const projectName = path.basename(projectPath, path.extname(projectPath));
+            await this._sendProjectRefreshUpdate(projectPath, projectName);
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error handling project file change:`, error);
+        }
+    }
+
+
+    private async _sendProjectRefreshUpdate(projectPath: string, projectName: string) {
+        console.log(`[SolutionWebviewProvider] Sending project refresh update for: ${projectName}`);
+
+        if (!this._view) return;
+
+        // Send targeted project update instead of full tree reload
+        this._view.webview.postMessage({
+            command: 'projectRefresh',
+            projectPath: projectPath,
+            projectName: projectName
+        });
     }
 }

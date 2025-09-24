@@ -69,6 +69,18 @@ export const cleanAction: MenuAction = {
     kind: "action"
 };
 
+export const addExistingProjectAction: MenuAction = {
+    name: "Add Existing Project...",
+    action: "addExistingProject",
+    kind: "action"
+};
+
+export const addNewProjectAction: MenuAction = {
+    name: "Add New Project...",
+    action: "addNewProject",
+    kind: "action"
+};
+
 export const separator: MenuSeparator = {
     kind: 'separator'
 };
@@ -76,6 +88,9 @@ export const separator: MenuSeparator = {
 // Define menu configurations for each node type
 export const contextMenus: Record<NodeType, MenuItem[]> = {
     solution: [
+        addNewProjectAction,
+        addExistingProjectAction,
+        separator,
         renameAction,
         separator,
         revealInExplorerAction

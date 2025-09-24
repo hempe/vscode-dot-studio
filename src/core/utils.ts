@@ -6,10 +6,10 @@ export class PathUtils {
     /**
      * Extracts file system path from VS Code URI or SolutionItem
      */
-    static getPathFromItem(item: any, actionName: string): string | null {
+    static getPathFromItem(item: unknown, actionName: string): string | null {
         if (item instanceof vscode.Uri) {
             return item.fsPath;
-        } else if (item && item.resourceUri) {
+        } else if (item && typeof item === 'object' && 'resourceUri' in item && item.resourceUri instanceof vscode.Uri) {
             return item.resourceUri.fsPath;
         } else {
             vscode.window.showErrorMessage(`Cannot ${actionName}: no valid path found`);
@@ -122,7 +122,7 @@ export class TerminalUtils {
         const projectName = PathUtils.getProjectName(projectPath);
         const projectDir = path.dirname(projectPath);
         const terminalName = `${operation} - ${projectName}`;
-        
+
         return this.createAndShow(terminalName, projectDir, command);
     }
 }
@@ -131,7 +131,7 @@ export class ErrorUtils {
     /**
      * Shows error message with optional error details
      */
-    static showError(message: string, error?: any): void {
+    static showError(message: string, error?: Error | unknown): void {
         const errorMsg = error ? `${message}: ${error}` : message;
         vscode.window.showErrorMessage(errorMsg);
         console.error(errorMsg, error);
@@ -195,16 +195,16 @@ export class FileSystemUtils {
      */
     static async findFiles(rootPath: string, extensions: string[], maxDepth: number = 10): Promise<string[]> {
         const results: string[] = [];
-        
+
         const searchDirectory = async (dirPath: string, depth: number) => {
             if (depth > maxDepth) return;
-            
+
             try {
                 const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-                
+
                 for (const entry of entries) {
                     const fullPath = path.join(dirPath, entry.name);
-                    
+
                     if (entry.isFile()) {
                         if (extensions.some(ext => entry.name.endsWith(ext))) {
                             results.push(fullPath);
@@ -221,7 +221,7 @@ export class FileSystemUtils {
                 console.error(`Error searching directory ${dirPath}:`, error);
             }
         };
-        
+
         await searchDirectory(rootPath, 0);
         return results;
     }
@@ -244,13 +244,13 @@ export class FileSystemUtils {
         let counter = 1;
         let fileName = `${baseName}${extension}`;
         let fullPath = path.join(dirPath, fileName);
-        
+
         while (fs.existsSync(fullPath)) {
             fileName = `${baseName}${counter}${extension}`;
             fullPath = path.join(dirPath, fileName);
             counter++;
         }
-        
+
         return fileName;
     }
 }
@@ -260,8 +260,8 @@ export class InputUtils {
      * Shows input box with common configuration
      */
     static async showInputBox(
-        prompt: string, 
-        placeholder?: string, 
+        prompt: string,
+        placeholder?: string,
         validator?: (value: string) => string | null
     ): Promise<string | undefined> {
         return vscode.window.showInputBox({
@@ -275,8 +275,8 @@ export class InputUtils {
      * Shows quick pick with common configuration
      */
     static async showQuickPick<T extends vscode.QuickPickItem>(
-        items: T[], 
-        placeholder?: string, 
+        items: T[],
+        placeholder?: string,
         canPickMany: boolean = false
     ): Promise<T | T[] | undefined> {
         return vscode.window.showQuickPick(items, {

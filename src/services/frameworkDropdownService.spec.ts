@@ -18,7 +18,7 @@ describe('FrameworkDropdownService', () => {
     it('should return framework options including Auto option', async () => {
       const mockFrameworks = ['net8.0', 'net6.0', 'netcoreapp3.1'];
       mockSolutionService.findSolutionFile.mockResolvedValue('/test/solution.sln');
-      mockSolutionService.getAllFrameworks.mockResolvedValue(mockFrameworks);
+      mockSolutionService.getAllFrameworks.mockReturnValue(mockFrameworks);
       mockSolutionService.isFrameworkSupported.mockImplementation((fw) => fw === 'net8.0');
       mockSolutionService.getFrameworkDisplayName.mockImplementation((fw) => `Display: ${fw}`);
 
@@ -93,8 +93,7 @@ describe('FrameworkDropdownService', () => {
   describe('getAvailableFrameworks', () => {
     it('should return available frameworks from solution', async () => {
       const mockFrameworks = ['net8.0', 'net6.0'];
-      service.setSolution('/test/solution.sln');
-      mockSolutionService.getAllFrameworks.mockResolvedValue(mockFrameworks);
+      mockSolutionService.getAllFrameworks.mockReturnValue(mockFrameworks);
 
       const frameworks = await service.getAvailableFrameworks();
 
@@ -105,7 +104,7 @@ describe('FrameworkDropdownService', () => {
     it('should find solution when no solution path set', async () => {
       const mockFrameworks = ['net8.0'];
       mockSolutionService.findSolutionFile.mockResolvedValue('/found/solution.sln');
-      mockSolutionService.getAllFrameworks.mockResolvedValue(mockFrameworks);
+      mockSolutionService.getAllFrameworks.mockReturnValue(mockFrameworks);
 
       const frameworks = await service.getAvailableFrameworks('/workspace');
 
@@ -132,9 +131,8 @@ describe('FrameworkDropdownService', () => {
     });
 
     it('should return best available framework in Auto mode', async () => {
-      service.setSolution('/test/solution.sln');
       const mockFrameworks = ['net6.0', 'net8.0', 'netcoreapp3.1'];
-      mockSolutionService.getAllFrameworks.mockResolvedValue(mockFrameworks);
+      mockSolutionService.getAllFrameworks.mockReturnValue(mockFrameworks);
       mockSolutionService.isFrameworkSupported.mockImplementation((fw) => fw === 'net8.0');
 
       const framework = await service.getFrameworkForDebugging();

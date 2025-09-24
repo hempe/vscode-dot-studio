@@ -22,12 +22,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     nodeName
 }) => {
 
+    console.log(`[ContextMenu] RENDERING for nodeType: ${nodeType}, nodeName: ${nodeName}`);
+    console.log(`[ContextMenu] Available contextMenus keys:`, Object.keys(contextMenus));
+    console.log(`[ContextMenu] Full contextMenus object:`, contextMenus);
+
     const menuRef = React.useRef<HTMLDivElement>(null);
     const [focusedItemIndex, setFocusedItemIndex] = React.useState(0);
 
     // Get the menu configuration for this node type
+    console.log(`[ContextMenu] Looking up contextMenus[${nodeType}]`);
     const menuItems = contextMenus[nodeType] || [];
+    console.log(`[ContextMenu] Found ${menuItems.length} menu items:`, menuItems);
     const actionItems: MenuItem[] = menuItems.filter(item => item.kind === 'action') as MenuAction[];
+    console.log(`[ContextMenu] Filtered to ${actionItems.length} action items:`, actionItems);
 
 
     React.useEffect(() => {
@@ -103,7 +110,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     };
 
     const renderMenuItems = () => {
+        console.log(`[ContextMenu] renderMenuItems called, rendering ${menuItems.length} items`);
         return menuItems.map((item, index) => {
+            console.log(`[ContextMenu] Rendering item ${index}:`, item);
             if (item.kind === 'separator') {
                 return <div key={`sep-${index}`} className="context-menu-separator"></div>;
             }

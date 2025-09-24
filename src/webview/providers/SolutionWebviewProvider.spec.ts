@@ -39,6 +39,12 @@ describe('SolutionWebviewProvider', () => {
 
     beforeEach(() => {
         mockExtensionUri = { fsPath: '/mock/extension' };
+        const mockContext = {
+            workspaceState: {
+                get: jest.fn().mockReturnValue([]),
+                update: jest.fn().mockResolvedValue(undefined)
+            }
+        } as any;
         mockSolutionService = {
             findSolutionFile: jest.fn(),
             parseSolutionFile: jest.fn()
@@ -58,9 +64,13 @@ describe('SolutionWebviewProvider', () => {
             parseProjectFiles: jest.fn()
         } as any));
 
+        const mockSolutionProvider = {} as any;
+
         provider = new SolutionWebviewProvider(
             mockExtensionUri,
+            mockContext,
             mockSolutionService,
+            mockSolutionProvider,
             mockFrameworkService
         );
 

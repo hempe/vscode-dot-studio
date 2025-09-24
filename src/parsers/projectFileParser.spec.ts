@@ -11,9 +11,6 @@ describe('ProjectFileParser', () => {
     parser = new ProjectFileParser(testFixturePath);
   });
 
-  afterEach(() => {
-    parser.clearCache();
-  });
 
   describe('parseProjectFiles', () => {
     it('should parse WebApp project file structure', async () => {
@@ -319,13 +316,6 @@ describe('ProjectFileParser', () => {
           // Ignore cleanup errors
         }
       }
-    });
-  });
-
-  describe('cache management', () => {
-    it('should clear cache when requested', () => {
-      // This is mainly a smoke test since cache is private
-      expect(() => parser.clearCache()).not.toThrow();
     });
   });
 

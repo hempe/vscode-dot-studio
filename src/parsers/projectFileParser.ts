@@ -2,8 +2,7 @@ import { glob } from 'glob';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
-import { minimatch } from 'minimatch';
-import { shouldSkipDirectory, isSystemPath, isValidWorkspacePath } from '../core/constants';
+import { excludePatterns, isSystemPath } from '../core/constants';
 
 export interface ProjectFile {
     path: string;
@@ -25,9 +24,9 @@ export interface ProjectFileStructure {
     dependencies: Dependency[];
 }
 
+const searchPattern = '**/*';  // everything under projectDir
+
 export class ProjectFileParser {
-    private fileCache = new Map<string, { files: string[]; timestamp: number }>();
-    private cacheTimeout = 30000; // 30 seconds
 
     constructor(private workspaceRoot: string) { }
 
@@ -65,34 +64,24 @@ export class ProjectFileParser {
 
             // Check if project is within workspace
             const relativePath = path.relative(this.workspaceRoot, projectDir);
-            const isWithinWorkspace = !relativePath.startsWith('..');
 
-            if (isWithinWorkspace) {
-                // Use glob search for projects within workspace
-                const searchPattern = path.join(projectDir, pattern);
-                const excludePatterns = [
-                    path.join(projectDir, 'bin', '**'),
-                    path.join(projectDir, 'obj', '**')
-                ];
+            if (isSystemPath(projectDir)) {
+                console.warn(`Skipping system directory project: ${projectDir}`);
+
+            } else {
+                // Use glob search for projects within workspace                
                 try {
                     const files = await glob(searchPattern, {
+                        cwd: projectDir,
                         ignore: excludePatterns,
                         absolute: true,
                         dot: false
                     });
+
                     allFiles.push(...files);
                 } catch (error) {
                     // Continue with other patterns even if one fails
                     console.error(`Pattern ${pattern} failed:`, error);
-                }
-            } else {
-                // For projects outside workspace, use direct file system scanning
-                // BUT ONLY if it's a valid, safe path
-                if (isSystemPath(projectDir)) {
-                    console.warn(`Skipping system directory project: ${projectDir}`);
-                } else {
-                    const projectFiles = await this.getAllFiles(projectDir);
-                    allFiles.push(...projectFiles);
                 }
             }
 
@@ -113,61 +102,6 @@ export class ProjectFileParser {
         }
     }
 
-    private async getAllFiles(dir: string, maxDepth: number = 5): Promise<string[]> {
-        if (maxDepth <= 0) return [];
-
-        // CRITICAL: Validate that we're not trying to access system directories
-        if (isSystemPath(dir)) {
-            console.warn(`Blocked access to system directory: ${dir}`);
-            return [];
-        }
-
-        // CRITICAL: Validate that we're within workspace boundaries
-        if (!isValidWorkspacePath(dir, this.workspaceRoot)) {
-            console.warn(`Blocked access to path outside workspace: ${dir}`);
-            return [];
-        }
-
-        const files: string[] = [];
-
-        try {
-            const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-
-            for (const entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-
-                // Double-check every full path before proceeding
-                if (isSystemPath(fullPath)) {
-                    console.warn(`Blocked access to system path: ${fullPath}`);
-                    continue;
-                }
-
-                if (!isValidWorkspacePath(fullPath, this.workspaceRoot)) {
-                    console.warn(`Blocked access to path outside workspace: ${fullPath}`);
-                    continue;
-                }
-
-                if (entry.isDirectory()) {
-                    // Skip common directories that shouldn't be included
-                    if (!shouldSkipDirectory(entry.name)) {
-                        const subFiles = await this.getAllFiles(fullPath, maxDepth - 1);
-                        files.push(...subFiles);
-                    }
-                } else {
-                    files.push(fullPath);
-                }
-            }
-        } catch (error) {
-            console.error(`Error reading directory ${dir}:`, error);
-        }
-
-        return files;
-    }
-
-    public clearCache(): void {
-        this.fileCache.clear();
-    }
-
     // Remove this method since we now use the shared function from constants
 
     private shouldSkipFile(filePath: string, projectPath: string): boolean {
@@ -181,90 +115,6 @@ export class ProjectFileParser {
         const skipFiles = ['.gitignore', '.gitattributes', 'Directory.Build.props', 'Directory.Build.targets'];
 
         return skipFiles.includes(fileName);
-    }
-
-    private processIncludeExcludePatterns(allFiles: string[], project: any, projectDir: string): Map<string, string> {
-        // Map of file path -> item type (Compile, Content, etc.)
-        const result = new Map<string, string>();
-
-        // First, add all files with default item types based on extension
-        for (const filePath of allFiles) {
-            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
-            const defaultItemType = this.getDefaultItemType(filePath);
-            result.set(filePath, defaultItemType);
-        }
-
-        // Process ItemGroups
-        if (project.ItemGroup) {
-            for (const itemGroup of project.ItemGroup) {
-                // Process explicit includes first
-                this.processExplicitIncludes(itemGroup, result, projectDir);
-
-                // Then process removes
-                this.processRemoves(itemGroup, result, projectDir);
-            }
-        }
-
-        return result;
-    }
-
-    private processExplicitIncludes(itemGroup: any, result: Map<string, string>, projectDir: string): void {
-        const includeTypes = ['Compile', 'Content', 'EmbeddedResource', 'None', 'Reference', 'ProjectReference', 'PackageReference'];
-
-        for (const includeType of includeTypes) {
-            if (itemGroup[includeType]) {
-                const items = Array.isArray(itemGroup[includeType]) ? itemGroup[includeType] : [itemGroup[includeType]];
-
-                for (const item of items) {
-                    if (item.$ && item.$.Include) {
-                        const includePattern = item.$.Include;
-
-                        // Handle glob patterns
-                        if (includePattern.includes('*') || includePattern.includes('?')) {
-                            this.processGlobPattern(includePattern, result, projectDir, includeType);
-                        } else {
-                            // Direct file reference - add it even if it doesn't exist yet
-                            // This handles cases where files are referenced but not yet created
-                            const absolutePath = path.resolve(projectDir, includePattern);
-                            result.set(absolutePath, includeType);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private processRemoves(itemGroup: any, result: Map<string, string>, projectDir: string): void {
-        const removeTypes = ['Compile', 'Content', 'EmbeddedResource', 'None'];
-
-        for (const removeType of removeTypes) {
-            if (itemGroup[removeType]) {
-                const items = Array.isArray(itemGroup[removeType]) ? itemGroup[removeType] : [itemGroup[removeType]];
-
-                for (const item of items) {
-                    if (item.$ && item.$.Remove) {
-                        const removePattern = item.$.Remove;
-
-                        // Remove matching files
-                        for (const [filePath] of result) {
-                            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
-                            if (minimatch(relativePath, removePattern)) {
-                                result.delete(filePath);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private processGlobPattern(pattern: string, result: Map<string, string>, projectDir: string, itemType: string): void {
-        for (const [filePath] of result) {
-            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
-            if (minimatch(relativePath, pattern)) {
-                result.set(filePath, itemType);
-            }
-        }
     }
 
     private getDefaultItemType(filePath: string): string {

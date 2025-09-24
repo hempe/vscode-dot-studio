@@ -9,6 +9,9 @@ import { shouldSkipDirectory } from '../core/constants';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
 import { PathUtils, ErrorUtils } from '../core/utils';
 import { SolutionUserFile } from '../parsers/solutionUserFile';
+import { SolutionService } from './solutionService';
+import { Solution } from '../core/Solution';
+import { Project } from '../core/Project';
 
 
 export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
@@ -29,10 +32,6 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     }
 
     refresh(): void {
-        // Clear parser cache to ensure fresh data
-        if (this.projectFileParser) {
-            this.projectFileParser.clearCache();
-        }
         // Clear solution parsing caches to ensure fresh solution structure
         this.parsedSolutions.clear();
         this.projectHierarchy.clear();
@@ -109,6 +108,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     }
 
     getTreeItem(element: SolutionItem): vscode.TreeItem {
+        console.log(`[SolutionProvider] getTreeItem called for: ${element.itemType} - ${element.label}, collapsibleState: ${element.collapsibleState}`);
         return element;
     }
 
@@ -121,40 +121,51 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     }
 
     getChildren(element?: SolutionItem): Thenable<SolutionItem[]> {
+        console.log(`[SolutionProvider] getChildren called with element:`, element ? `${element.itemType} - ${element.label}` : 'root');
+
         if (!this.workspaceRoot) {
+            console.log(`[SolutionProvider] No workspace root, returning empty array`);
             return Promise.resolve([]);
         }
 
         if (!element) {
+            console.log(`[SolutionProvider] Getting root solutions and projects`);
             return this.getSolutionAndProjects();
         }
 
         if (element.itemType === 'solution' && element.resourceUri) {
+            console.log(`[SolutionProvider] Getting projects from solution: ${element.label}`);
             return this.getProjectsFromSolution(element.resourceUri);
         }
 
         if (element.itemType === 'project' && element.resourceUri) {
+            console.log(`[SolutionProvider] Getting files from project: ${element.label} (${element.resourceUri.fsPath})`);
             return this.getFilesFromProject(element.resourceUri);
         }
 
         if (element.itemType === 'folder' && element.resourceUri && element.projectPath) {
+            console.log(`[SolutionProvider] Getting files from folder: ${element.label} (${element.resourceUri.fsPath})`);
             return this.getFilesFromFolder(element.resourceUri, element.projectPath);
         }
 
         if (element.itemType === 'file' && (element as any).nestedChildren) {
+            console.log(`[SolutionProvider] Getting nested children for file: ${element.label}`);
             // Handle nested files (e.g., expanding EditUser.cshtml to show EditUser.cshtml.cs)
             const nestedChildren = (element as any).nestedChildren as NestedFile[];
             return Promise.resolve(this.convertNestedFilesToSolutionItems(nestedChildren, element.projectPath || ''));
         }
 
         if (element.itemType === 'dependencies' && element.resourceUri) {
+            console.log(`[SolutionProvider] Getting dependencies for project: ${element.projectPath}`);
             return this.getDependenciesFromProject(element.resourceUri);
         }
 
         if (element.itemType === 'solutionFolder') {
+            console.log(`[SolutionProvider] Getting children from solution folder: ${element.label}`);
             return this.getChildrenFromSolutionFolder(element);
         }
 
+        console.log(`[SolutionProvider] Unknown element type or missing data, returning empty array`);
         return Promise.resolve([]);
     }
 
@@ -197,13 +208,43 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
             return items;
         }
 
-        // Always use manual parsing to get both projects and solution folders
-        // The dotnet CLI only returns projects, not solution folders
+        // Try to use the active solution from SolutionService first
+        const activeSolution = SolutionService.getActiveSolution();
+        if (activeSolution && activeSolution.solutionPath === solutionUri.fsPath) {
+            return this.getProjectsFromSolutionInstance(activeSolution);
+        }
+
+        // Fallback to manual parsing if no active solution
         return this.getProjectsFromSolutionFallback(solutionUri);
     }
 
     private parsedSolutions = new Map<string, SolutionFile>(); // Cache for parsed solutions
     private projectHierarchy = new Map<string, SolutionProject[]>(); // Cache for project hierarchy
+
+    /**
+     * Gets projects and solution folders from a Solution instance
+     */
+    private async getProjectsFromSolutionInstance(solution: Solution): Promise<SolutionItem[]> {
+        if (!solution.solutionFile) {
+            return [];
+        }
+
+        try {
+            // Initialize framework filter from .sln.user file
+            await this.initializeFrameworkFilter(solution.solutionPath);
+
+            // Cache the solution file data for compatibility with existing methods
+            this.parsedSolutions.set(solution.solutionPath, solution.solutionFile);
+            this.projectHierarchy = solution.getProjectHierarchy();
+
+            // Get root level projects and solution folders
+            const rootProjects = this.projectHierarchy.get('ROOT') || [];
+            return await this.convertProjectsToSolutionItems(rootProjects, solution.solutionPath);
+        } catch (error) {
+            ErrorUtils.showError('Error getting projects from solution instance', error);
+            return [];
+        }
+    }
 
     private async getProjectsFromSolutionFallback(solutionUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
@@ -362,11 +403,6 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return success;
     }
 
-    async getAvailableProjects(): Promise<string[]> {
-        if (!this.solutionManager) return [];
-        return this.solutionManager.getAvailableProjects();
-    }
-
     // Copy/Paste functionality
     copyFile(filePath: string): void {
         this.copiedFile = filePath;
@@ -480,6 +516,28 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private async getFilesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
 
+        console.log(`[SolutionProvider] getFilesFromProject called for: ${projectUri.fsPath}`);
+
+        // Try to use the Project instance from the active solution first
+        const activeSolution = SolutionService.getActiveSolution();
+        console.log(`[SolutionProvider] Active solution:`, activeSolution ? activeSolution.solutionPath : 'null');
+
+        if (activeSolution) {
+            const project = activeSolution.getProject(projectUri.fsPath);
+            console.log(`[SolutionProvider] Found project instance:`, project ? project.name : 'null');
+
+            if (project) {
+                console.log(`[SolutionProvider] Using Project instance for: ${project.name}`);
+                return this.getFilesFromProjectInstance(project);
+            } else {
+                console.log(`[SolutionProvider] No project instance found for: ${projectUri.fsPath}`);
+                console.log(`[SolutionProvider] Available projects:`, Array.from(activeSolution.projects.keys()));
+            }
+        } else {
+            console.log(`[SolutionProvider] No active solution available`);
+        }
+
+        // Fallback to manual parsing
         if (!this.projectFileParser) {
             return items;
         }
@@ -560,6 +618,64 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return items;
     }
 
+    /**
+     * Gets files from a Project instance using its own methods
+     */
+    private async getFilesFromProjectInstance(project: Project): Promise<SolutionItem[]> {
+        const items: SolutionItem[] = [];
+
+        try {
+            console.log(`[SolutionProvider] Getting files from project instance: ${project.name}`);
+            console.log(`[SolutionProvider] Project initialized: ${project.isInitialized}`);
+
+            // Let the Project class handle getting its root children
+            const rootChildren = await project.getRootChildren();
+            console.log(`[SolutionProvider] Project returned ${rootChildren.length} root children`);
+
+            // Convert project items to SolutionItems
+            for (const child of rootChildren) {
+                if (child.type === 'dependencies') {
+                    // Create a Dependencies container node
+                    items.push(new SolutionItem(
+                        child.name,
+                        vscode.TreeItemCollapsibleState.Collapsed,
+                        vscode.Uri.file(project.projectPath), // Use project URI as resource
+                        'dependencies',
+                        undefined,
+                        project.projectPath
+                    ));
+                } else if (child.type === 'folder') {
+                    const folderUri = vscode.Uri.file(child.path);
+                    items.push(new SolutionItem(
+                        child.name,
+                        this.getCollapsibleState('folder', folderUri),
+                        folderUri,
+                        'folder',
+                        undefined,
+                        project.projectPath
+                    ));
+                } else if (child.type === 'file') {
+                    const fileUri = vscode.Uri.file(child.path);
+                    items.push(new SolutionItem(
+                        child.name,
+                        vscode.TreeItemCollapsibleState.None,
+                        fileUri,
+                        'file',
+                        undefined,
+                        project.projectPath
+                    ));
+                }
+            }
+
+            console.log(`[SolutionProvider] Converted to ${items.length} SolutionItems`);
+
+        } catch (error) {
+            console.error('[SolutionProvider] Error getting files from project instance:', error);
+        }
+
+        return items;
+    }
+
     private convertNestedFilesToSolutionItems(nestedFiles: NestedFile[], projectPath: string): SolutionItem[] {
         const items: SolutionItem[] = [];
 
@@ -590,8 +706,17 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private async getFilesFromFolder(folderUri: vscode.Uri, projectPath: string): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
 
+        // Try to use the Project instance from the active solution first
+        const activeSolution = SolutionService.getActiveSolution();
+        if (activeSolution) {
+            const project = activeSolution.getProject(projectPath);
+            if (project) {
+                return this.getFilesFromFolderProjectInstance(project, folderUri.fsPath);
+            }
+        }
+
         try {
-            // Use fast directory scanning instead of parsing entire project
+            // Fallback: Use fast directory scanning instead of parsing entire project
             const folderPath = folderUri.fsPath;
             const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
 
@@ -645,9 +770,89 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
         return items;
     }
 
+    /**
+     * Gets files from a folder using the Project instance's methods
+     */
+    private async getFilesFromFolderProjectInstance(project: Project, folderPath: string): Promise<SolutionItem[]> {
+        const items: SolutionItem[] = [];
+
+        try {
+            console.log(`[SolutionProvider] Getting folder children for: ${folderPath}`);
+
+            // Use the project's getFolderChildren method
+            const children = await project.getFolderChildren(folderPath);
+            console.log(`[SolutionProvider] Project returned ${children.length} children for folder`);
+
+            for (const child of children) {
+                if (child.type === 'folder') {
+                    const folderUri = vscode.Uri.file(child.path);
+                    items.push(new SolutionItem(
+                        child.name,
+                        this.getCollapsibleState('folder', folderUri),
+                        folderUri,
+                        'folder',
+                        undefined,
+                        project.projectPath
+                    ));
+                } else if (child.type === 'file') {
+                    const fileUri = vscode.Uri.file(child.path);
+                    items.push(new SolutionItem(
+                        child.name,
+                        vscode.TreeItemCollapsibleState.None,
+                        fileUri,
+                        'file',
+                        undefined,
+                        project.projectPath
+                    ));
+                }
+            }
+
+        } catch (error) {
+            console.error('[SolutionProvider] Error getting files from folder using project instance:', error);
+        }
+
+        return items;
+    }
+
     private async getDependenciesFromProject(projectUri: vscode.Uri): Promise<SolutionItem[]> {
         const items: SolutionItem[] = [];
 
+        console.log(`[SolutionProvider] getDependenciesFromProject called for: ${projectUri.fsPath}`);
+
+        // Try to use the Project instance from the active solution first
+        const activeSolution = SolutionService.getActiveSolution();
+        if (activeSolution) {
+            const project = activeSolution.getProject(projectUri.fsPath);
+            if (project) {
+                console.log(`[SolutionProvider] Using Project instance for dependencies: ${project.name}`);
+                for (const dep of project.dependencies) {
+                    let label = dep.name;
+                    if (dep.version) {
+                        label = `${dep.name} (${dep.version})`;
+                    }
+
+                    items.push(new SolutionItem(
+                        label,
+                        vscode.TreeItemCollapsibleState.None,
+                        undefined, // Dependencies don't have file URIs
+                        'dependency',
+                        undefined,
+                        projectUri.fsPath,
+                        undefined,
+                        dep.type as 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkReference' | undefined,
+                        dep.version
+                    ));
+                }
+                console.log(`[SolutionProvider] Added ${items.length} dependencies from Project instance`);
+                return items;
+            } else {
+                console.log(`[SolutionProvider] No Project instance found for dependencies`);
+            }
+        } else {
+            console.log(`[SolutionProvider] No active solution for dependencies`);
+        }
+
+        // Fallback to manual parsing
         if (!this.projectFileParser) {
             return items;
         }

@@ -4,25 +4,45 @@ import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 
-export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction }) => {
+export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onSaveExpansionState, onExpandNode, onCollapseNode, initialExpandedNodes }) => {
     const treeRef = useRef<HTMLDivElement>(null);
-    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(initialExpandedNodes || []));
     const [selectedNodePath, setSelectedNodePath] = useState<string | undefined>();
     const [focusedNodePath, setFocusedNodePath] = useState<string | undefined>();
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
     const [renamingNodePath, setRenamingNodePath] = useState<string | undefined>();
 
-    const handleToggleExpand = (path: string) => {
-        console.log(`[SolutionTree] Toggle expand for path: ${path}`);
+    // Update expanded nodes when initialExpandedNodes changes (on data refresh)
+    useEffect(() => {
+        if (initialExpandedNodes) {
+            console.log('[SolutionTree] Restoring expansion state:', initialExpandedNodes);
+            setExpandedNodes(new Set(initialExpandedNodes));
+        }
+    }, [initialExpandedNodes]);
+
+    const handleToggleExpand = (path: string, nodeType: string) => {
+        console.log(`[SolutionTree] Toggle expand for path: ${path}, type: ${nodeType}`);
         setExpandedNodes(prev => {
             const newSet = new Set(prev);
             if (newSet.has(path)) {
                 console.log(`[SolutionTree] Collapsing: ${path}`);
                 newSet.delete(path);
+
+                // Call backend to collapse node
+                onCollapseNode?.(path);
             } else {
                 console.log(`[SolutionTree] Expanding: ${path}`);
                 newSet.add(path);
+
+                // Call backend to expand node and load children
+                onExpandNode?.(path, nodeType);
             }
+
+            // Save the updated expansion state
+            const expandedArray = Array.from(newSet);
+            console.log(`[SolutionTree] Saving expansion state:`, expandedArray);
+            onSaveExpansionState?.(expandedArray);
+
             return newSet;
         });
     };
@@ -39,7 +59,9 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     };
 
     const handleContextMenu = (x: number, y: number, node: ProjectNode) => {
-        console.log(`[SolutionTree] Context menu for ${node.type}: ${node.name}`);
+        console.log(`[SolutionTree] HANDLE CONTEXT MENU CALLED for ${node.type}: ${node.name}`);
+        console.log(`[SolutionTree] Coordinates:`, x, y);
+        console.log(`[SolutionTree] Current contextMenu state:`, contextMenu);
 
         // Right-click focuses the item but doesn't select it
         setFocusedNodePath(node.path);
@@ -69,6 +91,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         adjustedY = Math.max(0, adjustedY);
 
         setContextMenu({ x: adjustedX, y: adjustedY, node });
+        console.log(`[SolutionTree] Context menu state SET:`, { x: adjustedX, y: adjustedY, node });
     };
 
     const handleCloseContextMenu = () => {
@@ -101,9 +124,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     // Convert the projects data into tree structure
     const buildTreeNodes = (projects: any[]): ProjectNode[] => {
         return projects.map(project => ({
-            type: project.type || 'project',
-            name: project.name || 'Unknown',
-            path: project.path || '',
+            ...project, // Preserve all properties from original data
             children: project.children ? buildTreeNodes(project.children) : undefined,
             expanded: expandedNodes.has(project.path || '')
         }));
@@ -171,19 +192,19 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     } else if (focusedNode.type === 'solutionFolder') {
                         // Solution folders should only expand/collapse, never open
                         if (focusedNode.children) {
-                            handleToggleExpand(focusedNode.path);
+                            handleToggleExpand(focusedNode.path, focusedNode.type);
                         }
                         setSelectedNodePath(focusedNodePath);
                     } else if (focusedNode.type === 'dependencies') {
                         // Dependencies folder should only expand/collapse
                         if (focusedNode.children) {
-                            handleToggleExpand(focusedNode.path);
+                            handleToggleExpand(focusedNode.path, focusedNode.type);
                         }
                         setSelectedNodePath(focusedNodePath);
                     } else {
                         // For other node types (projects, regular folders), toggle expansion and select
                         if (focusedNode.children) {
-                            handleToggleExpand(focusedNode.path);
+                            handleToggleExpand(focusedNode.path, focusedNode.type);
                         }
                         setSelectedNodePath(focusedNodePath);
                     }
@@ -196,7 +217,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     e.preventDefault();
                     const currentNode = flatNodes[currentIndex].node;
                     if (currentNode.children && !currentNode.expanded) {
-                        handleToggleExpand(currentNode.path);
+                        handleToggleExpand(currentNode.path, currentNode.type);
                     }
                     break;
                 case 'ArrowLeft':
@@ -204,7 +225,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     const currentNodeLeft = flatNodes[currentIndex].node;
                     if (currentNodeLeft.children && currentNodeLeft.expanded) {
                         // If current node has expanded children, collapse it
-                        handleToggleExpand(currentNodeLeft.path);
+                        handleToggleExpand(currentNodeLeft.path, currentNodeLeft.type);
                     } else {
                         // If current node has no children or is not expanded, move focus to parent
                         const currentLevel = flatNodes[currentIndex].level;
@@ -269,8 +290,9 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             className="solution-tree"
             tabIndex={0}
         >
-            {treeNodes.map((node, index) => (
-                <TreeNode
+            {treeNodes.map((node, index) => {
+                console.log(`[SolutionTree] Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
+                return (<TreeNode
                     key={`${node.path}-${index}`}
                     node={node}
                     level={0}
@@ -290,7 +312,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                                             const parentNode = allNodes[i].node;
                                             if (parentNode.children && parentNode.expanded) {
                                                 console.log(`[SolutionTree] Collapsing parent: ${parentNode.name}`);
-                                                handleToggleExpand(parentNode.path);
+                                                handleToggleExpand(parentNode.path, parentNode.type);
                                             }
                                             break;
                                         }
@@ -310,8 +332,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     selectedNodePath={selectedNodePath}
                     focusedNodePath={focusedNodePath}
                     renamingNodePath={renamingNodePath}
-                />
-            ))}
+                />);
+            })}
             {contextMenu && (
                 <ContextMenu
                     x={contextMenu.x}

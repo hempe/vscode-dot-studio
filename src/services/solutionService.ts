@@ -2,35 +2,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
 import { SolutionUserFile } from '../parsers/solutionUserFile';
+import { Solution } from '../core/Solution';
+import { SolutionDiscovery } from './solutionDiscovery';
 
 /**
  * Centralized service for solution file operations
- * Eliminates code duplication across command classes
+ * Now uses the Solution class for better architecture
  */
 export class SolutionService {
-    private static solutionCache = new Map<string, { content: SolutionFile; timestamp: number }>();
-    private static readonly CACHE_TTL = 5000; // 5 seconds
+    private static activeSolution?: Solution;
 
     /**
      * Reads and parses a solution file with caching, including framework detection
      */
     static async parseSolutionFile(solutionPath: string): Promise<SolutionFile> {
         try {
-            // Check cache first
-            const cached = this.solutionCache.get(solutionPath);
-            const now = Date.now();
-
-            if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
-                return cached.content;
-            }
-
-            // Read and parse solution file
             const solutionContent = await fs.promises.readFile(solutionPath, 'utf8');
             const solutionFile = await SolutionFileParser.parse(solutionContent, path.dirname(solutionPath));
-
-            // Update cache
-            this.solutionCache.set(solutionPath, { content: solutionFile, timestamp: now });
-
             return solutionFile;
         } catch (error) {
             console.error('Error parsing solution file:', error);
@@ -50,8 +38,6 @@ export class SolutionService {
      */
     static async writeSolutionContent(solutionPath: string, content: string): Promise<void> {
         await fs.promises.writeFile(solutionPath, content, 'utf8');
-        // Clear cache for this solution
-        this.solutionCache.delete(solutionPath);
     }
 
     /**
@@ -134,16 +120,70 @@ export class SolutionService {
     }
 
     /**
-     * Finds the first solution file in a workspace
+     * Discovers and selects the solution to use based on workspace contents
+     * Implements the new discovery logic: single solution auto-selected,
+     * multiple solutions prompt user selection, no solution offers creation
+     */
+    static async discoverAndInitializeSolution(workspaceRoot: string): Promise<Solution | null> {
+        try {
+            // First dispose any existing active solution
+            if (this.activeSolution) {
+                this.activeSolution.dispose();
+                this.activeSolution = undefined;
+            }
+
+            // Use the new discovery logic
+            const solutionPath = await SolutionDiscovery.discoverAndSelectSolution(workspaceRoot);
+            if (!solutionPath) {
+                return null;
+            }
+
+            // Create and initialize the Solution instance
+            const solution = new Solution(solutionPath);
+
+            // Wait for initialization to complete
+            let retries = 0;
+            while (!solution.isInitialized && retries < 50) { // Wait up to 5 seconds
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+
+            if (!solution.isInitialized) {
+                throw new Error('Solution initialization timed out');
+            }
+
+            this.activeSolution = solution;
+            console.log(`[SolutionService] Initialized solution: ${path.basename(solutionPath)}`);
+
+            return solution;
+        } catch (error) {
+            console.error('[SolutionService] Error discovering and initializing solution:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Gets the currently active solution instance
+     */
+    static getActiveSolution(): Solution | undefined {
+        return this.activeSolution;
+    }
+
+    /**
+     * Finds the first solution file in a workspace (legacy method, kept for compatibility)
      */
     static async findSolutionFile(workspaceRoot: string): Promise<string | null> {
         try {
-            const files = await fs.promises.readdir(workspaceRoot);
-            const solutionFiles = files
-                .filter(file => file.endsWith('.sln'))
-                .map(file => path.join(workspaceRoot, file));
+            const discovery = await SolutionDiscovery.discoverSolutions(workspaceRoot);
 
-            return solutionFiles.length > 0 ? solutionFiles[0] : null;
+            switch (discovery.type) {
+                case 'single':
+                    return discovery.solutionPath!;
+                case 'multiple':
+                    return discovery.availableSolutions![0]; // Return first one for legacy compatibility
+                default:
+                    return null;
+            }
         } catch (error) {
             console.error('Error finding solution files:', error);
             return null;
@@ -151,10 +191,13 @@ export class SolutionService {
     }
 
     /**
-     * Clears the solution cache (useful for testing or after major changes)
+     * Disposes the active solution and clears cache
      */
-    static clearCache(): void {
-        this.solutionCache.clear();
+    static dispose(): void {
+        if (this.activeSolution) {
+            this.activeSolution.dispose();
+            this.activeSolution = undefined;
+        }
     }
 
     /**
@@ -180,8 +223,7 @@ export class SolutionService {
     /**
      * Get all target frameworks from projects in the solution
      */
-    static async getAllFrameworks(solutionPath: string): Promise<string[]> {
-        const solutionFile = await this.parseSolutionFile(solutionPath);
+    static getAllFrameworks(solutionFile: SolutionFile): string[] {
         const allFrameworks = new Set<string>();
 
         for (const project of solutionFile.projects) {

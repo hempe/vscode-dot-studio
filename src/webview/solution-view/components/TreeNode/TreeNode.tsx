@@ -20,6 +20,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const isRenaming = renamingNodePath === node.path;
 
+
     const handleClick = () => {
         console.log(`[TreeNode] Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
@@ -36,11 +37,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             // Click selects and focuses the item
             onNodeClick(node.path);
 
-            // Expand/collapse if has children
-            if (node.children && node.children.length > 0) {
-                // Expand/collapse if has children
+            // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
+            if ((node.children && node.children.length > 0) || node.hasChildren) {
                 console.log(`[TreeNode] Toggling expansion for: ${node.name}`);
-                onToggleExpand(node.path);
+                onToggleExpand(node.path, node.type);
             } else {
                 console.log(`[TreeNode] Node ${node.name} has no children, just focused`);
             }
@@ -67,8 +67,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
-        console.log(`[TreeNode] Context menu on ${node.type}: ${node.name}`);
+        console.log(`[TreeNode] RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
+        console.log(`[TreeNode] Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
         onContextMenu(e.clientX, e.clientY, node);
+        console.log(`[TreeNode] onContextMenu called successfully`);
     };
 
     const handleRenameConfirmLocal = (newName: string) => {
@@ -173,7 +175,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
             >
-                {node.children && node.children.length > 0 ? (
+                {(node.children?.length || node.hasChildren) ? (
                     <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
                 ) : (
                     <span className="expand-icon-placeholder"></span>
