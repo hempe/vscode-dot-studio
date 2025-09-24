@@ -24,6 +24,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const handleClick = () => {
         console.log(`[TreeNode] Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
+        // Don't handle clicks if node is loading
+        if (node.isLoading) {
+            console.log(`[TreeNode] Node ${node.name} is loading, ignoring click`);
+            return;
+        }
+
         // Clear any existing timeout
         if (clickTimeout) {
             clearTimeout(clickTimeout);
@@ -53,6 +59,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const handleDoubleClick = () => {
         console.log(`[TreeNode] Double click on ${node.type}: ${node.name} (path: ${node.path})`);
+
+        // Don't handle clicks if node is loading
+        if (node.isLoading) {
+            console.log(`[TreeNode] Node ${node.name} is loading, ignoring double click`);
+            return;
+        }
 
         // Clear single click timeout since this is a double click
         if (clickTimeout) {
@@ -169,14 +181,18 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''}`}
-                style={{ paddingLeft }}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${node.isLoading ? 'loading' : ''}`}
+                style={{ paddingLeft, opacity: node.isLoading ? 0.6 : 1, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
             >
                 {(node.children?.length || node.hasChildren) ? (
-                    <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
+                    node.isLoading ? (
+                        <span className="expand-icon codicon codicon-loading codicon-modifier-spin"></span>
+                    ) : (
+                        <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
+                    )
                 ) : (
                     <span className="expand-icon-placeholder"></span>
                 )}

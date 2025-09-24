@@ -9,7 +9,15 @@ import { minimatch } from 'minimatch';
  */
 export const SKIP_DIRECTORIES = [
     'bin', 'obj', 'node_modules', '.git', '.vs', '.vscode',
-    'packages', '.nuget', 'TestResults'
+    'packages', '.nuget', 'TestResults', 'coverage', 'build'
+];
+
+/**
+ * File extensions that should be ignored for file change events
+ */
+export const SKIP_FILE_EXTENSIONS = [
+    '.dll', '.exe', '.pdb', '.cache', '.tmp', '.temp', '.log',
+    '.user', '.suo', '.bak', '.swp', '~'
 ];
 
 /**
@@ -23,15 +31,24 @@ export const SYSTEM_DIRECTORIES = [
 export const excludePatterns = SKIP_DIRECTORIES.map(dir => `**/${dir}/**`);
 
 export function isExcluded(filePath: string, workspaceRoot?: string): boolean {
+    const path = require('path');
     let relPath = filePath;
 
     // If we have a workspace root, make path relative to it
     if (workspaceRoot) {
-        const path = require('path');
         relPath = path.relative(workspaceRoot, filePath);
     }
 
-    return excludePatterns.some(pattern => minimatch(relPath, pattern, { dot: true }));
+    // Check if path matches excluded directory patterns
+    const matchesDirectoryPattern = excludePatterns.some(pattern =>
+        minimatch(relPath, pattern, { dot: true })
+    );
+
+    // Check if file extension should be excluded
+    const fileExtension = path.extname(filePath).toLowerCase();
+    const matchesFileExtension = SKIP_FILE_EXTENSIONS.includes(fileExtension);
+
+    return matchesDirectoryPattern || matchesFileExtension;
 }
 /**
  * Check if a directory should be skipped during scanning

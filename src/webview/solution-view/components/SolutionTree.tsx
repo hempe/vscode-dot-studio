@@ -4,114 +4,46 @@ import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 
-export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onSaveExpansionState, onExpandNode, onCollapseNode, initialExpandedNodes }) => {
+export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode }) => {
     const treeRef = useRef<HTMLDivElement>(null);
-    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(initialExpandedNodes || []));
+    // Backend controls all expansion state - no local expansion management
     const [selectedNodePath, setSelectedNodePath] = useState<string | undefined>();
     const [focusedNodePath, setFocusedNodePath] = useState<string | undefined>();
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
     const [renamingNodePath, setRenamingNodePath] = useState<string | undefined>();
 
-    // Helper function to get all valid paths from current tree
-    const getAllValidPaths = useCallback((nodes: any[]): Set<string> => {
-        const paths = new Set<string>();
 
-        const traverse = (nodeList: any[]) => {
-            for (const node of nodeList) {
-                paths.add(node.path);
-                if (node.children) {
-                    traverse(node.children);
-                }
+    // Helper function to find node in tree by path
+    const findNodeByPath = useCallback((targetPath: string, nodes: ProjectNode[]): ProjectNode | null => {
+        for (const node of nodes) {
+            if (node.path === targetPath) {
+                return node;
             }
-        };
-
-        traverse(nodes);
-        return paths;
-    }, []);
-
-    // Helper function to find node type for a given path
-    const getNodeTypeForPath = useCallback((targetPath: string, nodes: any[]): string | null => {
-        const findNode = (nodeList: any[]): any => {
-            for (const node of nodeList) {
-                if (node.path === targetPath) {
-                    return node;
-                }
-                if (node.children) {
-                    const found = findNode(node.children);
-                    if (found) return found;
-                }
+            if (node.children) {
+                const found = findNodeByPath(targetPath, node.children);
+                if (found) return found;
             }
-            return null;
-        };
-
-        const node = findNode(nodes);
-        return node ? node.type : null;
-    }, []);
-
-    // Initialize expansion state ONCE on component mount/data load
-    const [isInitialized, setIsInitialized] = useState(false);
-
-    useEffect(() => {
-        // Only run this effect once when we first get data
-        if (!isInitialized && initialExpandedNodes && projects.length > 0) {
-            console.log('[SolutionTree] INITIAL expansion state setup');
-            console.log('  initialExpandedNodes:', initialExpandedNodes.length, 'nodes');
-            console.log('  projects:', projects.length, 'projects');
-
-            const validPaths = getAllValidPaths(projects);
-            const cleanedExpandedNodes = initialExpandedNodes.filter(path => validPaths.has(path));
-
-            console.log('[SolutionTree] Initial expansion state cleanup:');
-            console.log('  Original paths:', initialExpandedNodes.length);
-            console.log('  Valid paths after cleanup:', cleanedExpandedNodes.length);
-
-            if (cleanedExpandedNodes.length !== initialExpandedNodes.length) {
-                console.log('  Removed stale paths:', initialExpandedNodes.length - cleanedExpandedNodes.length);
-            }
-
-            console.log('[SolutionTree] Setting initial expanded nodes:', cleanedExpandedNodes);
-            setExpandedNodes(new Set(cleanedExpandedNodes));
-
-            // Load children for all restored expanded nodes
-            console.log('[SolutionTree] Loading children for restored expanded nodes');
-            for (const expandedPath of cleanedExpandedNodes) {
-                // Find the node type for this path
-                const nodeType = getNodeTypeForPath(expandedPath, projects);
-                if (nodeType) {
-                    console.log(`[SolutionTree] Auto-loading children for restored node: ${expandedPath} (${nodeType})`);
-                    onExpandNode?.(expandedPath, nodeType);
-                }
-            }
-
-            setIsInitialized(true);
         }
-    }, [initialExpandedNodes, projects, getAllValidPaths, getNodeTypeForPath, isInitialized, onExpandNode]);
+        return null;
+    }, []);
 
     const handleToggleExpand = (path: string, nodeType: string) => {
-        console.log(`[SolutionTree] Toggle expand for path: ${path}, type: ${nodeType}`);
-        setExpandedNodes(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(path)) {
-                console.log(`[SolutionTree] Collapsing: ${path}`);
-                newSet.delete(path);
+        console.log(`[SolutionTree] Toggle expand request for path: ${path}, type: ${nodeType}`);
 
-                // Call backend to collapse node
-                onCollapseNode?.(path);
-            } else {
-                console.log(`[SolutionTree] Expanding: ${path}`);
-                newSet.add(path);
+        // Find the node to check its current state
+        const node = findNodeByPath(path, treeNodes);
+        if (!node) {
+            console.warn(`[SolutionTree] Node not found: ${path}`);
+            return;
+        }
 
-                // Call backend to expand node and load children
-                onExpandNode?.(path, nodeType);
-            }
-
-            // Save the updated expansion state
-            const expandedArray = Array.from(newSet);
-            console.log(`[SolutionTree] Saving expansion state:`, expandedArray);
-            onSaveExpansionState?.(expandedArray);
-
-            return newSet;
-        });
+        if (node.expanded) {
+            console.log(`[SolutionTree] Requesting collapse: ${path}`);
+            onCollapseNode?.(path);
+        } else {
+            console.log(`[SolutionTree] Requesting expand: ${path}`);
+            onExpandNode?.(path, nodeType);
+        }
     };
 
     const handleNodeClick = (path: string) => {
@@ -188,12 +120,11 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         setRenamingNodePath(undefined);
     };
 
-    // Convert the projects data into tree structure
+    // Convert the projects data into tree structure - backend controls expansion state
     const buildTreeNodes = (projects: any[]): ProjectNode[] => {
         return projects.map(project => ({
-            ...project, // Preserve all properties from original data
-            children: project.children ? buildTreeNodes(project.children) : undefined,
-            expanded: expandedNodes.has(project.path || '')
+            ...project, // Preserve all properties from original data including expanded state
+            children: project.children ? buildTreeNodes(project.children) : undefined
         }));
     };
 

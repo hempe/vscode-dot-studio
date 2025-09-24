@@ -42,6 +42,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _fileChangeQueue: FileChangeEvent[] = [];
     private _isProcessingQueue: boolean = false;
 
+    // Cache for solution tree data to improve expand performance
+    private _cachedSolutionData?: ProjectNode[];
+    private _cacheTimestamp?: number;
+    private readonly _cacheTimeout = 30000; // 30 seconds cache
+
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
@@ -657,22 +662,31 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            // First, set loading state and send updated tree
+            await this._setNodeLoadingState(nodePath, true);
+
             console.log(`[SolutionWebviewProvider] Available solutions projects:`, Array.from(solution.projects.keys()));
 
-            if (nodeType === 'project') {
+            // Load the children based on node type
+            let children: ProjectNode[] = [];
+
+            if (nodeType === 'solution') {
+                // Expanding a solution - get the cached solution tree
+                console.log(`[SolutionWebviewProvider] Re-expanding solution node: ${nodePath}`);
+                const solutionData = await this._getSolutionData();
+                if (solutionData && solutionData.length > 0) {
+                    const solutionNode = solutionData.find(node => node.path === nodePath);
+                    if (solutionNode && solutionNode.children) {
+                        children = solutionNode.children;
+                    }
+                }
+            } else if (nodeType === 'project') {
                 // Expanding a project - load its file tree using the new Project methods
                 const project = solution.getProject(nodePath);
                 if (project) {
                     console.log(`[SolutionWebviewProvider] Using Project.getRootChildren() for: ${project.name}`);
                     const rootChildren = await project.getRootChildren();
-
-                    if (this._view) {
-                        this._view.webview.postMessage({
-                            command: 'nodeExpanded',
-                            nodePath: nodePath,
-                            children: this._convertProjectChildrenToProjectNodes(rootChildren)
-                        });
-                    }
+                    children = this._convertProjectChildrenToProjectNodes(rootChildren);
                 } else {
                     console.warn(`[SolutionWebviewProvider] Could not find project instance: ${nodePath}`);
                 }
@@ -683,14 +697,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 if (project) {
                     console.log(`[SolutionWebviewProvider] Using Project.getDependencies() for: ${projectPath}`);
                     const dependencies = project.getDependencies();
-
-                    if (this._view) {
-                        this._view.webview.postMessage({
-                            command: 'nodeExpanded',
-                            nodePath: nodePath,
-                            children: this._convertProjectChildrenToProjectNodes(dependencies)
-                        });
-                    }
+                    children = this._convertProjectChildrenToProjectNodes(dependencies);
                 } else {
                     console.warn(`[SolutionWebviewProvider] Could not find project instance for dependencies: ${projectPath}`);
                 }
@@ -702,19 +709,22 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     if (project) {
                         console.log(`[SolutionWebviewProvider] Using Project.getFolderChildren() for: ${nodePath}`);
                         const folderChildren = await project.getFolderChildren(nodePath);
-
-                        if (this._view) {
-                            this._view.webview.postMessage({
-                                command: 'nodeExpanded',
-                                nodePath: nodePath,
-                                children: this._convertProjectChildrenToProjectNodes(folderChildren)
-                            });
-                        }
+                        children = this._convertProjectChildrenToProjectNodes(folderChildren);
                     }
                 }
             }
+
+            // Update backend state: set expanded = true and attach children
+            await this._updateNodeExpansionState(nodePath, true, children);
+
+            // Clear loading state and send complete updated tree
+            await this._setNodeLoadingState(nodePath, false);
+            await this._sendCompleteTreeUpdate();
+
         } catch (error) {
             console.error('[SolutionWebviewProvider] Error expanding node:', error);
+            // Clear loading state on error
+            await this._setNodeLoadingState(nodePath, false);
         }
     }
 
@@ -728,21 +738,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
-            // Find the project that contains this path
+            // Find the project that contains this path and collapse it in the project state
             const projectPath = this._findProjectPathForFolder(nodePath);
             if (projectPath) {
                 const project = solution.getProject(projectPath);
                 if (project) {
                     project.collapseFolder(nodePath);
-
-                    if (this._view) {
-                        this._view.webview.postMessage({
-                            command: 'nodeCollapsed',
-                            nodePath: nodePath
-                        });
-                    }
                 }
             }
+
+            // Update backend state: set expanded = false
+            await this._updateNodeExpansionState(nodePath, false);
+
+            // Send complete updated tree
+            await this._sendCompleteTreeUpdate();
+
         } catch (error) {
             console.error('[SolutionWebviewProvider] Error collapsing node:', error);
         }
@@ -761,6 +771,151 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         return undefined;
+    }
+
+    /**
+     * Sets the loading state for a specific node
+     */
+    private async _setNodeLoadingState(nodePath: string, isLoading: boolean): Promise<void> {
+        // Update the loading state in our cached data if available
+        if (this._cachedSolutionData) {
+            this._updateNodeInTree(this._cachedSolutionData, nodePath, { isLoading });
+        }
+
+        // Send the current tree with updated loading state
+        await this._sendCompleteTreeUpdate();
+    }
+
+    /**
+     * Updates the expansion state and children for a specific node
+     */
+    private async _updateNodeExpansionState(nodePath: string, expanded: boolean, children?: ProjectNode[]): Promise<void> {
+        // Update the expansion state in our cached data
+        if (this._cachedSolutionData) {
+            const updates: Partial<ProjectNode> = { expanded, isLoading: false };
+            if (children !== undefined) {
+                updates.children = children;
+                updates.hasChildren = children.length > 0;
+                updates.isLoaded = true;
+            }
+            this._updateNodeInTree(this._cachedSolutionData, nodePath, updates);
+        }
+
+        // Update expansion state in persistent storage
+        const expandedNodes = this.getExpandedNodePaths(this._cachedSolutionData || []);
+        this.saveExpansionState(expandedNodes);
+    }
+
+    /**
+     * Recursively updates a node in the tree
+     */
+    private _updateNodeInTree(nodes: ProjectNode[], targetPath: string, updates: Partial<ProjectNode>): boolean {
+        for (const node of nodes) {
+            if (node.path === targetPath) {
+                // Update the node with the new properties
+                Object.assign(node, updates);
+                return true;
+            }
+            if (node.children && this._updateNodeInTree(node.children, targetPath, updates)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets all expanded node paths from the tree
+     */
+    private getExpandedNodePaths(nodes: ProjectNode[]): string[] {
+        const expandedPaths: string[] = [];
+
+        const traverse = (nodeList: ProjectNode[]) => {
+            for (const node of nodeList) {
+                if (node.expanded) {
+                    expandedPaths.push(node.path);
+                }
+                if (node.children) {
+                    traverse(node.children);
+                }
+            }
+        };
+
+        traverse(nodes);
+        return expandedPaths;
+    }
+
+    /**
+     * Sends the complete current tree state to the webview
+     */
+    private async _sendCompleteTreeUpdate(): Promise<void> {
+        if (!this._view) {
+            return;
+        }
+
+        try {
+            // Get fresh solution data but preserve expansion and loading states from cache
+            const freshSolutionData = await this._getSolutionData();
+
+            if (this._cachedSolutionData && freshSolutionData) {
+                // Merge the expansion/loading states from cache with fresh data
+                this._mergeTreeStates(freshSolutionData, this._cachedSolutionData);
+            }
+
+            // Update cache with the merged data
+            this._cachedSolutionData = freshSolutionData;
+            this._cacheTimestamp = Date.now();
+
+            // Get frameworks for complete update
+            const frameworks = await this._frameworkService.getAvailableFrameworks();
+            const activeFramework = this._frameworkService.getActiveFramework();
+
+            this._view.webview.postMessage({
+                command: 'updateSolution',
+                projects: freshSolutionData || [],
+                frameworks: frameworks,
+                activeFramework: activeFramework
+            });
+
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error sending complete tree update:', error);
+        }
+    }
+
+    /**
+     * Merges expansion and loading states from cached tree into fresh tree
+     */
+    private _mergeTreeStates(freshNodes: ProjectNode[], cachedNodes: ProjectNode[]): void {
+        const cachedMap = new Map<string, ProjectNode>();
+
+        // Build map of cached nodes by path
+        const buildCacheMap = (nodes: ProjectNode[]) => {
+            for (const node of nodes) {
+                cachedMap.set(node.path, node);
+                if (node.children) {
+                    buildCacheMap(node.children);
+                }
+            }
+        };
+        buildCacheMap(cachedNodes);
+
+        // Merge states into fresh nodes
+        const mergeStates = (nodes: ProjectNode[]) => {
+            for (const node of nodes) {
+                const cached = cachedMap.get(node.path);
+                if (cached) {
+                    node.expanded = cached.expanded;
+                    node.isLoading = cached.isLoading;
+                    // Only merge children if the cached node has them and is expanded
+                    if (cached.expanded && cached.children) {
+                        node.children = cached.children;
+                    }
+                }
+                if (node.children) {
+                    mergeStates(node.children);
+                }
+            }
+        };
+        mergeStates(freshNodes);
     }
 
     private _convertProjectFileNodesToProjectNodes(fileNodes: ProjectFileNode[]): ProjectNode[] {
@@ -865,8 +1020,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const data: SolutionData = {
                 projects: solutionData,
                 frameworks: frameworks || [],
-                activeFramework,
-                expandedNodes: this.getExpansionState()
+                activeFramework
             }
 
 
@@ -885,6 +1039,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _getSolutionData(): Promise<ProjectNode[]> {
         console.log('[SolutionWebviewProvider] Getting solution data...');
+
+        // Check cache first for better expand performance
+        const now = Date.now();
+        if (this._cachedSolutionData &&
+            this._cacheTimestamp &&
+            (now - this._cacheTimestamp) < this._cacheTimeout) {
+            console.log('[SolutionWebviewProvider] Using cached solution data');
+            return this._cachedSolutionData;
+        }
 
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
         console.log('[SolutionWebviewProvider] Workspace root:', workspaceRoot);
@@ -962,9 +1125,23 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         });
 
         result.push(solutionNode);
+
+        // Cache the result for faster subsequent calls
+        this._cachedSolutionData = result;
+        this._cacheTimestamp = Date.now();
+        console.log('[SolutionWebviewProvider] Cached solution data');
+
         return result;
     }
 
+    /**
+     * Clear cached solution data when solution changes
+     */
+    private _clearCache() {
+        this._cachedSolutionData = undefined;
+        this._cacheTimestamp = undefined;
+        console.log('[SolutionWebviewProvider] Cache cleared');
+    }
 
     private async _buildLazyHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solution: Solution): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
@@ -1415,8 +1592,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const data: SolutionData = {
                 projects: solutionData,
                 frameworks: frameworks,
-                activeFramework: this._frameworkService.getActiveFramework(),
-                expandedNodes: this.getExpansionState()
+                activeFramework: this._frameworkService.getActiveFramework()
             };
 
             console.log('[SolutionWebviewProvider] Sending solutionData to reconnected webview');
@@ -1611,8 +1787,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this._view.webview.postMessage({
                     command: 'solutionDataUpdate',
                     projects: [],
-                    frameworks: [],
-                    expandedNodes: this.getExpansionState()
+                    frameworks: []
                 });
             }
             return;

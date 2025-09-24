@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
 import { SolutionProject } from '../parsers/solutionFileParser';
-import { shouldSkipDirectory } from '../core/constants';
+import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
 
 export interface ProjectFileNode {
@@ -113,6 +113,11 @@ export class Project {
         const filePath = uri.fsPath;
         const fileName = path.basename(filePath);
 
+        // Skip excluded files (build artifacts, temp files, etc.)
+        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+            return;
+        }
+
         console.log(`[Project] File created: ${fileName}`);
 
         if (fileName === path.basename(this._projectPath)) {
@@ -129,6 +134,11 @@ export class Project {
         const filePath = uri.fsPath;
         const fileName = path.basename(filePath);
 
+        // Skip excluded files (build artifacts, temp files, etc.)
+        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+            return;
+        }
+
         if (fileName === path.basename(this._projectPath)) {
             console.log(`[Project] Project file changed: ${fileName}`);
             await this.parseProjectFile();
@@ -139,6 +149,12 @@ export class Project {
 
     private async handleFileDeleted(uri: vscode.Uri): Promise<void> {
         const filePath = uri.fsPath;
+
+        // Skip excluded files (build artifacts, temp files, etc.)
+        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+            return;
+        }
+
         console.log(`[Project] File deleted: ${path.basename(filePath)}`);
 
         if (filePath === this._projectPath) {

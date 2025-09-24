@@ -132,67 +132,6 @@ const removeFileFromTree = (solutionData: SolutionData, filePath: string): Solut
     };
 };
 
-const updateExpandedNodeInTree = (solutionData: SolutionData, nodePath: string, children: any[]): SolutionData => {
-    const updateNode = (nodes: any[]): any[] => {
-        return nodes.map(node => {
-            if (node.path === nodePath) {
-                // Found the node to expand, add children to it
-                return {
-                    ...node,
-                    children: children,
-                    hasChildren: children.length > 0,
-                    isLoaded: true
-                };
-            }
-
-            // Recursively check children
-            if (node.children) {
-                return {
-                    ...node,
-                    children: updateNode(node.children)
-                };
-            }
-
-            return node;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: updateNode(solutionData.projects)
-    };
-};
-
-const updateCollapsedNodeInTree = (solutionData: SolutionData, nodePath: string): SolutionData => {
-    const updateNode = (nodes: any[]): any[] => {
-        return nodes.map(node => {
-            if (node.path === nodePath) {
-                // Found the node to collapse, clear its children
-                return {
-                    ...node,
-                    children: undefined,
-                    hasChildren: true, // Still has children, just not loaded
-                    isLoaded: false
-                };
-            }
-
-            // Recursively check children
-            if (node.children) {
-                return {
-                    ...node,
-                    children: updateNode(node.children)
-                };
-            }
-
-            return node;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: updateNode(solutionData.projects)
-    };
-};
 
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
@@ -281,19 +220,15 @@ export const useVsCodeApi = () => {
                         return removeFileFromTree(prev, message.filePath);
                     });
                     break;
-                case 'nodeExpanded':
-                    console.log('[useVsCodeApi] Node expanded:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        return updateExpandedNodeInTree(prev, message.nodePath, message.children);
+                case 'updateSolution':
+                    console.log('[useVsCodeApi] Received complete solution update:', message);
+                    setSolutionData({
+                        projects: message.projects || [],
+                        frameworks: message.frameworks || [],
+                        activeFramework: message.activeFramework
                     });
-                    break;
-                case 'nodeCollapsed':
-                    console.log('[useVsCodeApi] Node collapsed:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        return updateCollapsedNodeInTree(prev, message.nodePath);
-                    });
+                    setLoading(false);
+                    setRefreshing(false);
                     break;
                 default:
                     console.log('[useVsCodeApi] Unknown message command:', message.command);
@@ -317,10 +252,6 @@ export const useVsCodeApi = () => {
         vscode.postMessage({ command: 'projectAction', action, projectPath, data });
     };
 
-    const saveExpansionState = (expandedNodes: string[]) => {
-        console.log('[useVsCodeApi] Saving expansion state:', expandedNodes);
-        vscode.postMessage({ command: 'saveExpansionState', expandedNodes });
-    };
 
     const expandNode = (nodePath: string, nodeType: string) => {
         console.log('[useVsCodeApi] Expanding node:', nodePath, nodeType);
@@ -338,7 +269,6 @@ export const useVsCodeApi = () => {
         refreshing,
         handleFrameworkChange,
         handleProjectAction,
-        saveExpansionState,
         expandNode,
         collapseNode
     };

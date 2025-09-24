@@ -21,13 +21,13 @@ export interface ProjectNode {
     guid?: string;
     isLoaded?: boolean; // For lazy loading - indicates if children have been loaded
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
+    isLoading?: boolean; // Show loading state while backend processes expand/collapse
 }
 
 export interface SolutionData {
     projects: any[];
     frameworks: string[];
     activeFramework?: string;
-    expandedNodes?: string[];
 }
 
 export interface TreeNodeProps {
@@ -48,10 +48,8 @@ export interface TreeNodeProps {
 export interface SolutionTreeProps {
     projects: any[];
     onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
-    onSaveExpansionState?: (expandedNodes: string[]) => void;
     onExpandNode?: (nodePath: string, nodeType: string) => void;
     onCollapseNode?: (nodePath: string) => void;
-    initialExpandedNodes?: string[];
 }
 
 export interface FrameworkSelectorProps {
