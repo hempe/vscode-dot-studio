@@ -38,7 +38,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             onNodeClick(node.path);
 
             // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
-            if ((node.children && node.children.length > 0) || node.hasChildren) {
+            if (node.children?.length || node.hasChildren) {
                 console.log(`[TreeNode] Toggling expansion for: ${node.name}`);
                 onToggleExpand(node.path, node.type);
             } else {

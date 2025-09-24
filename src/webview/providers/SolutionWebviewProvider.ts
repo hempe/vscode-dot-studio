@@ -777,7 +777,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Converts Project class output format to ProjectNode format for the webview
      */
-    private _convertProjectChildrenToProjectNodes(children: { type: 'dependencies' | 'dependency' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string }[]): ProjectNode[] {
+    private _convertProjectChildrenToProjectNodes(children: any[]): ProjectNode[] {
         return children.map(child => {
             if (child.type === 'dependency') {
                 return {
@@ -796,12 +796,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     isLoaded: false // Not loaded initially for lazy loading
                 };
             } else {
+                // Handle both simple objects and ProjectFileNode objects
+                const hasChildren = child.hasChildren !== undefined ? child.hasChildren : (child.type === 'folder');
+                const isLoaded = child.isLoaded !== undefined ? child.isLoaded : false;
+
                 return {
                     type: child.type as NodeType,
                     name: child.name,
                     path: child.path,
-                    hasChildren: child.type === 'folder', // Folders might have children
-                    isLoaded: false // Not loaded initially for lazy loading
+                    hasChildren: hasChildren,
+                    isLoaded: isLoaded,
+                    children: child.children ? this._convertProjectChildrenToProjectNodes(child.children) : undefined
                 };
             }
         });
@@ -988,14 +993,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 isLoaded: false
             };
 
-            // Check if project nodes actually have children
+            // Check if project nodes actually have children (optimized check)
             if (itemType === 'project') {
                 try {
                     const projectInstance = solution.getProject(absolutePath);
                     if (projectInstance && projectInstance.isInitialized) {
-                        const rootChildren = await projectInstance.getRootChildren();
-                        itemNode.hasChildren = rootChildren.length > 0;
-                        console.log(`[SolutionWebviewProvider] Project ${project.name} has ${rootChildren.length} root children, hasChildren: ${itemNode.hasChildren}`);
+                        itemNode.hasChildren = await projectInstance.hasAnyChildren();
+                        console.log(`[SolutionWebviewProvider] Project ${project.name} hasChildren: ${itemNode.hasChildren}`);
                     } else {
                         // If project not initialized yet, assume it has children
                         itemNode.hasChildren = true;
@@ -1009,7 +1013,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
             // Handle solution folders - add their children recursively
-            if (itemType === 'solutionFolder') {
+            else if (itemType === 'solutionFolder') {
                 const childProjects = hierarchy.get(project.guid) || [];
                 console.log(`[SolutionWebviewProvider] Solution folder ${project.name} has ${childProjects.length} children`);
 
@@ -1034,7 +1038,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 }
 
                 // Sort solution folder children
-                if (itemNode.children && itemNode.children.length > 0) {
+                if (itemNode.children?.length) {
                     itemNode.children.sort((a: ProjectNode, b: ProjectNode) => {
                         const getTypePriority = (item: ProjectNode) => {
                             if (item.type === 'solutionFolder') return 0;
@@ -1052,21 +1056,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                         return a.name.localeCompare(b.name);
                     });
-                }
-            }
-            // Handle actual projects - don't load files yet, just set up lazy loading
-            else if (itemType === 'project') {
-                const projectInstance = solution.getProject(absolutePath);
-                if (projectInstance) {
-                    // Use the new lazy loading approach - don't pre-load children
-                    // Children will be loaded on demand when user expands the project
-                    itemNode.hasChildren = true; // Projects can be expanded
-                    itemNode.isLoaded = false; // Children not loaded yet
-                } else {
-                    console.warn(`[SolutionWebviewProvider] Could not find project instance for: ${absolutePath}`);
-                    // If no project instance, mark as not expandable
-                    itemNode.hasChildren = false;
-                    itemNode.isLoaded = true;
                 }
             }
 
@@ -1395,13 +1384,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private saveExpansionState(expandedNodes: string[]) {
-        console.log('[SolutionWebviewProvider] Saving expansion state:', expandedNodes);
+        console.log('[SolutionWebviewProvider] Saving expansion state to workspace:', expandedNodes.length, 'nodes');
+        console.log('[SolutionWebviewProvider] Expansion paths:', expandedNodes);
         this._context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
     private getExpansionState(): string[] {
         const state = this._context.workspaceState.get('solutionTreeExpanded', []);
-        console.log('[SolutionWebviewProvider] Retrieved expansion state:', state);
+        console.log('[SolutionWebviewProvider] Retrieved expansion state from workspace:', state.length, 'nodes');
+        if (state.length > 0) {
+            console.log('[SolutionWebviewProvider] Restored expansion paths:', state);
+        }
         return state;
     }
 

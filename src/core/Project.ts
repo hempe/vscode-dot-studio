@@ -4,6 +4,7 @@ import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { shouldSkipDirectory } from '../core/constants';
+import { FileNestingService, NestedFile } from '../services/fileNesting';
 
 export interface ProjectFileNode {
     name: string;
@@ -11,6 +12,7 @@ export interface ProjectFileNode {
     type: 'file' | 'folder';
     children?: ProjectFileNode[];
     isLoaded?: boolean; // Track if children have been loaded
+    hasChildren?: boolean; // Indicates if the node has children that can be loaded
 }
 
 export interface ProjectChangeEvent {
@@ -230,13 +232,13 @@ export class Project {
 
             // Separate folders and files
             const folders: fs.Dirent[] = [];
-            const files: fs.Dirent[] = [];
+            const rawFiles: fs.Dirent[] = [];
 
             for (const entry of entries) {
                 if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
                     folders.push(entry);
                 } else if (entry.isFile()) {
-                    files.push(entry);
+                    rawFiles.push(entry);
                 }
             }
 
@@ -251,16 +253,37 @@ export class Project {
                 });
             }
 
-            // Add files (sorted)
-            for (const file of files.sort((a, b) => a.name.localeCompare(b.name))) {
-                children.push({
-                    name: file.name,
-                    path: path.join(folderPath, file.name),
-                    type: 'file'
-                });
-            }
+            // Apply file nesting to files
+            const fileList = rawFiles.map(file => ({
+                name: file.name,
+                path: path.join(folderPath, file.name)
+            }));
 
-            console.log(`[Project] Loaded ${children.length} children for folder: ${folderPath}`);
+            const nestedFiles = FileNestingService.nestFiles(fileList);
+
+            // Convert nested files to ProjectFileNode structure
+            const convertNestedFiles = (nestedFiles: NestedFile[]): ProjectFileNode[] => {
+                return nestedFiles.map(nestedFile => {
+                    const node: ProjectFileNode = {
+                        name: nestedFile.name,
+                        path: nestedFile.path,
+                        type: 'file'
+                    };
+
+                    // If this file has nested children, add them and mark as expandable
+                    if (nestedFile.children?.length) {
+                        node.children = convertNestedFiles(nestedFile.children);
+                        node.isLoaded = true; // Children are already loaded
+                        node.hasChildren = true; // Mark as expandable so UI shows arrow
+                    }
+
+                    return node;
+                });
+            };
+
+            children.push(...convertNestedFiles(nestedFiles));
+
+            console.log(`[Project] Loaded ${children.length} children for folder: ${folderPath} (with nesting)`);
             return children;
         } catch (error) {
             console.error(`[Project] Error loading folder children for ${folderPath}:`, error);
@@ -369,6 +392,47 @@ export class Project {
         }
 
         return paths;
+    }
+
+    /**
+     * Quick check if project has any children without loading them
+     */
+    async hasAnyChildren(): Promise<boolean> {
+        try {
+            // Quick check for dependencies
+            if (this._dependencies && this._dependencies.length > 0) {
+                return true;
+            }
+
+            // Quick check for root level files/folders
+            const projectDir = path.dirname(this._projectPath);
+
+            try {
+                const entries = await fs.promises.readdir(projectDir, { withFileTypes: true });
+
+                // Check if there are any non-project files or folders
+                for (const entry of entries) {
+                    if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
+                        return true; // Found a folder
+                    } else if (entry.isFile()) {
+                        // Skip project files
+                        if (!(entry.name.endsWith('.csproj') ||
+                              entry.name.endsWith('.vbproj') ||
+                              entry.name.endsWith('.fsproj'))) {
+                            return true; // Found a non-project file
+                        }
+                    }
+                }
+
+                return false; // No children found
+            } catch (error) {
+                console.error(`[Project] Error checking children for ${this.name}:`, error);
+                return true; // Assume it has children on error
+            }
+        } catch (error) {
+            console.error(`[Project] Error in hasAnyChildren for ${this.name}:`, error);
+            return true; // Safe fallback
+        }
     }
 
     /**

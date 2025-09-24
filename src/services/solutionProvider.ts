@@ -681,7 +681,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
 
         for (const nestedFile of nestedFiles) {
             const fileUri = vscode.Uri.file(nestedFile.path);
-            const hasChildren = nestedFile.children && nestedFile.children.length > 0;
+            const hasChildren = nestedFile.children?.length;
 
             const item = new SolutionItem(
                 nestedFile.name,

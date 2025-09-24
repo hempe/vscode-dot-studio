@@ -12,13 +12,80 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
     const [renamingNodePath, setRenamingNodePath] = useState<string | undefined>();
 
-    // Update expanded nodes when initialExpandedNodes changes (on data refresh)
+    // Helper function to get all valid paths from current tree
+    const getAllValidPaths = useCallback((nodes: any[]): Set<string> => {
+        const paths = new Set<string>();
+
+        const traverse = (nodeList: any[]) => {
+            for (const node of nodeList) {
+                paths.add(node.path);
+                if (node.children) {
+                    traverse(node.children);
+                }
+            }
+        };
+
+        traverse(nodes);
+        return paths;
+    }, []);
+
+    // Helper function to find node type for a given path
+    const getNodeTypeForPath = useCallback((targetPath: string, nodes: any[]): string | null => {
+        const findNode = (nodeList: any[]): any => {
+            for (const node of nodeList) {
+                if (node.path === targetPath) {
+                    return node;
+                }
+                if (node.children) {
+                    const found = findNode(node.children);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const node = findNode(nodes);
+        return node ? node.type : null;
+    }, []);
+
+    // Initialize expansion state ONCE on component mount/data load
+    const [isInitialized, setIsInitialized] = useState(false);
+
     useEffect(() => {
-        if (initialExpandedNodes) {
-            console.log('[SolutionTree] Restoring expansion state:', initialExpandedNodes);
-            setExpandedNodes(new Set(initialExpandedNodes));
+        // Only run this effect once when we first get data
+        if (!isInitialized && initialExpandedNodes && projects.length > 0) {
+            console.log('[SolutionTree] INITIAL expansion state setup');
+            console.log('  initialExpandedNodes:', initialExpandedNodes.length, 'nodes');
+            console.log('  projects:', projects.length, 'projects');
+
+            const validPaths = getAllValidPaths(projects);
+            const cleanedExpandedNodes = initialExpandedNodes.filter(path => validPaths.has(path));
+
+            console.log('[SolutionTree] Initial expansion state cleanup:');
+            console.log('  Original paths:', initialExpandedNodes.length);
+            console.log('  Valid paths after cleanup:', cleanedExpandedNodes.length);
+
+            if (cleanedExpandedNodes.length !== initialExpandedNodes.length) {
+                console.log('  Removed stale paths:', initialExpandedNodes.length - cleanedExpandedNodes.length);
+            }
+
+            console.log('[SolutionTree] Setting initial expanded nodes:', cleanedExpandedNodes);
+            setExpandedNodes(new Set(cleanedExpandedNodes));
+
+            // Load children for all restored expanded nodes
+            console.log('[SolutionTree] Loading children for restored expanded nodes');
+            for (const expandedPath of cleanedExpandedNodes) {
+                // Find the node type for this path
+                const nodeType = getNodeTypeForPath(expandedPath, projects);
+                if (nodeType) {
+                    console.log(`[SolutionTree] Auto-loading children for restored node: ${expandedPath} (${nodeType})`);
+                    onExpandNode?.(expandedPath, nodeType);
+                }
+            }
+
+            setIsInitialized(true);
         }
-    }, [initialExpandedNodes]);
+    }, [initialExpandedNodes, projects, getAllValidPaths, getNodeTypeForPath, isInitialized, onExpandNode]);
 
     const handleToggleExpand = (path: string, nodeType: string) => {
         console.log(`[SolutionTree] Toggle expand for path: ${path}, type: ${nodeType}`);

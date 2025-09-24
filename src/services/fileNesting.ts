@@ -54,7 +54,7 @@ export class FileNestingService {
         
         // Sort children within each parent
         for (const node of result) {
-            if (node.children && node.children.length > 0) {
+            if (node.children?.length) {
                 node.children.sort((a, b) => a.name.localeCompare(b.name));
             }
         }
@@ -100,7 +100,16 @@ export class FileNestingService {
             if (parent) return parent;
         }
         
-        // Pattern 4: Generated files (e.g., Reference.cs from Reference.svcmap)
+        // Pattern 4: Configuration file variants (e.g., appsettings.Development.json -> appsettings.json)
+        if (this.isConfigurationVariant(fileName)) {
+            const parentName = this.getConfigurationParent(fileName, allFiles);
+            if (parentName) {
+                const parent = allFiles.find(f => f.name === parentName);
+                if (parent) return parent;
+            }
+        }
+
+        // Pattern 5: Generated files (e.g., Reference.cs from Reference.svcmap)
         const withoutExt = path.basename(fileName, fileExt);
         for (const otherFile of allFiles) {
             const otherWithoutExt = path.basename(otherFile.name, path.extname(otherFile.name));
@@ -218,6 +227,44 @@ export class FileNestingService {
             }
         }
         
+        return null;
+    }
+
+    /**
+     * Checks if a file is a configuration variant (e.g., appsettings.Development.json)
+     */
+    private static isConfigurationVariant(fileName: string): boolean {
+        // Pattern: appsettings.{Environment}.json
+        if (/^appsettings\.[^.]+\.json$/i.test(fileName)) {
+            return true;
+        }
+
+        // Pattern: web.{Environment}.config
+        if (/^web\.[^.]+\.config$/i.test(fileName)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Gets the parent configuration file name
+     */
+    private static getConfigurationParent(fileName: string, allFiles: { name: string; path: string }[]): string | null {
+        // For appsettings.{Environment}.json -> appsettings.json
+        if (/^appsettings\.[^.]+\.json$/i.test(fileName)) {
+            const parentName = 'appsettings.json';
+            const parent = allFiles.find(f => f.name.toLowerCase() === parentName.toLowerCase());
+            return parent ? parentName : null;
+        }
+
+        // For web.{Environment}.config -> web.config
+        if (/^web\.[^.]+\.config$/i.test(fileName)) {
+            const parentName = 'web.config';
+            const parent = allFiles.find(f => f.name.toLowerCase() === parentName.toLowerCase());
+            return parent ? parentName : null;
+        }
+
         return null;
     }
 }
