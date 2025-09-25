@@ -6,9 +6,11 @@ This document tracks the missing functionality and improvements needed for the S
 
 ### Tree
 
-- [] Right now we have a single file watcher on the root, I think this needs to change.
-  We need a file watcher for each project (project folder) as these can be outside the current directory.
-  And a watcher to watch the .sln file and its "solution files"
+- [x] **File watcher architecture** - Fixed! Now uses lazy folder watchers created only when folders are expanded
+  - [x] Solution/project files watched globally with flat watchers (`**/*.sln`, `**/*.{csproj,vbproj,fsproj}`)
+  - [x] Individual project files watched per project
+  - [x] Folder watchers created lazily when folders are expanded, removed when collapsed
+- [x] **Dependencies node temporarily disabled** - Causing collapse bug, moved to Project Node Context Menu priority list
 
 ### Context Menu Fixes
 
@@ -48,9 +50,16 @@ This document tracks the missing functionality and improvements needed for the S
 - [ ] Add Solution Folder (sub-folder)
 - [ ] Remove (from solution, not filesystem)
 - [ ] Rename (already implemented)
+- [ ] Restore Nugets
+- [ ] Build commands (Clean, Build, Rebuild) like on project node.
 
 ### Project Node Context Menu
 
+- [ ] **Dependencies node functionality** (PRIORITY - currently disabled due to collapse bug)
+  - [ ] Restore Dependencies container node display
+  - [ ] Fix collapse bug when clicking dependencies node
+  - [ ] Implement dependencies expansion to show individual packages
+  - [ ] Add context menu for dependencies (Manage NuGet Packages, Add Reference, etc.)
 - [ ] Add Reference
 - [ ] Add Project Reference
 - [ ] Manage NuGet Packages
