@@ -98,6 +98,10 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         addExistingProjectAction,
         addSolutionFolderAction,
         separator,
+        buildAction,
+        rebuildAction,
+        cleanAction,
+        separator,
         renameAction,
         separator,
         revealInExplorerAction

@@ -294,26 +294,33 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleBuild(projectPath: string, action: 'build' | 'rebuild' | 'clean') {
+    private async _handleBuild(targetPath: string, action: 'build' | 'rebuild' | 'clean') {
         try {
-            const terminal = vscode.window.createTerminal(`${action} ${projectPath}`);
+            // Determine if this is a solution or project based on the file extension
+            const isSolution = targetPath.endsWith('.sln');
+            const isProject = targetPath.endsWith('.csproj') || targetPath.endsWith('.vbproj') || targetPath.endsWith('.fsproj');
+
+            // Create terminal with appropriate title
+            const targetType = isSolution ? 'Solution' : isProject ? 'Project' : 'Target';
+            const targetName = path.basename(targetPath);
+            const terminal = vscode.window.createTerminal(`${action} ${targetType}: ${targetName}`);
             terminal.show();
 
             let command: string;
             switch (action) {
                 case 'build':
-                    command = `dotnet build "${projectPath}"`;
+                    command = `dotnet build "${targetPath}"`;
                     break;
                 case 'rebuild':
-                    command = `dotnet clean "${projectPath}" && dotnet build "${projectPath}"`;
+                    command = `dotnet clean "${targetPath}" && dotnet build "${targetPath}"`;
                     break;
                 case 'clean':
-                    command = `dotnet clean "${projectPath}"`;
+                    command = `dotnet clean "${targetPath}"`;
                     break;
             }
 
             terminal.sendText(command);
-            console.log(`[SolutionWebviewProvider] Executed ${action} command: ${command}`);
+            console.log(`[SolutionWebviewProvider] Executed ${action} command for ${targetType}: ${command}`);
         } catch (error) {
             console.error(`[SolutionWebviewProvider] Error during ${action}:`, error);
             vscode.window.showErrorMessage(`Error during ${action}: ${error}`);
@@ -407,8 +414,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const projectPath = fileUri[0].fsPath;
                 console.log(`[SolutionWebviewProvider] Selected project: ${projectPath}`);
 
-                // Add the project to the solution file
-                await this._addProjectToSolution(solutionPath, projectPath);
+                // Add the project to the solution file using the Solution class
+                const solution = SolutionService.getActiveSolution();
+                if (!solution) {
+                    throw new Error('No active solution loaded');
+                }
+
+                await solution.addProject(projectPath);
 
                 vscode.window.showInformationMessage(`Added project ${path.basename(projectPath)} to solution`);
                 await this._sendCurrentData();
@@ -419,104 +431,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             console.error(`[SolutionWebviewProvider] Error adding existing project:`, error);
             vscode.window.showErrorMessage(`Error adding project to solution: ${error}`);
         }
-    }
-
-    private async _addProjectToSolution(solutionPath: string, projectPath: string): Promise<void> {
-        // This is a simplified implementation - in a real scenario, you'd need to:
-        // 1. Parse the solution file
-        // 2. Add the project entry with a new GUID
-        // 3. Add it to the project configuration section
-        // 4. Save the solution file
-
-        // For now, we'll use the dotnet CLI command to add the project
-        const relativePath = path.relative(path.dirname(solutionPath), projectPath);
-        const command = `dotnet sln "${solutionPath}" add "${relativePath}"`;
-
-        console.log(`[SolutionWebviewProvider] Executing: ${command}`);
-
-        const { exec } = require('child_process');
-        const solutionDir = path.dirname(solutionPath);
-
-        await new Promise<void>((resolve, reject) => {
-            exec(command, { cwd: solutionDir }, (error: Error | null, stdout: string, stderr: string) => {
-                if (error) {
-                    console.error(`[SolutionWebviewProvider] Error adding project to solution:`, error);
-                    console.error(`[SolutionWebviewProvider] Command: ${command}`);
-                    console.error(`[SolutionWebviewProvider] Working directory: ${solutionDir}`);
-                    console.error(`[SolutionWebviewProvider] Relative path: ${relativePath}`);
-                    reject(error);
-                } else {
-                    console.log(`[SolutionWebviewProvider] Successfully added project to solution:`, stdout);
-                    resolve();
-                }
-            });
-        });
-
-        await this._sendCurrentData();
-    }
-
-    private async _addSolutionFolderToSolution(solutionPath: string, folderName: string): Promise<void> {
-        // Solution folders are added directly to the .sln file
-        // Unlike projects, there's no dotnet CLI command for this, so we need to edit the file directly
-        const fs = require('fs');
-        const path = require('path');
-        const { v4: uuidv4 } = require('uuid');
-
-        try {
-            // Read the current solution file
-            const solutionContent = fs.readFileSync(solutionPath, 'utf8');
-            const lines = solutionContent.split('\n');
-
-            // Generate a new GUID for the solution folder
-            const folderGuid = `{${uuidv4().toUpperCase()}}`;
-            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
-
-            // Create the solution folder entry
-            const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
-            const folderEndEntry = 'EndProject';
-
-            // Find the right place to insert the solution folder (after other projects but before GlobalSection)
-            let insertIndex = -1;
-            let hasProjects = false;
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-
-                if (line.startsWith('Project(')) {
-                    hasProjects = true;
-                }
-
-                if (line === 'Global' || line.startsWith('Global')) {
-                    insertIndex = i;
-                    break;
-                }
-            }
-
-            // If no Global section found, append at the end
-            if (insertIndex === -1) {
-                insertIndex = lines.length;
-            }
-
-            // Insert the solution folder
-            const newLines = [
-                ...lines.slice(0, insertIndex),
-                folderEntry,
-                folderEndEntry,
-                ...lines.slice(insertIndex)
-            ];
-
-            // Write the updated solution file
-            const updatedContent = newLines.join('\n');
-            fs.writeFileSync(solutionPath, updatedContent, 'utf8');
-
-            console.log(`[SolutionWebviewProvider] Successfully added solution folder "${folderName}" to solution`);
-
-        } catch (error) {
-            console.error(`[SolutionWebviewProvider] Error adding solution folder to solution:`, error);
-            throw error;
-        }
-
-        await this._sendCurrentData();
     }
 
     private async _handleAddNewProject(solutionPath: string) {
@@ -604,9 +518,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
         });
 
-        // Add the project to the solution
+        // Add the project to the solution using the Solution class
+        const solution = SolutionService.getActiveSolution();
+        if (!solution) {
+            throw new Error('No active solution loaded');
+        }
+
         const projectFile = path.join(projectPath, `${projectName}.csproj`);
-        await this._addProjectToSolution(solutionPath, projectFile);
+        await solution.addProject(projectFile);
+        await this._sendCurrentData();
     }
 
     private async _handleAddSolutionFolder(solutionPath: string) {
@@ -636,10 +556,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             console.log(`[SolutionWebviewProvider] Creating solution folder: ${folderName}`);
 
-            // Add the solution folder to the solution file
-            await this._addSolutionFolderToSolution(solutionPath, folderName.trim());
+            // Add the solution folder to the solution file using the Solution class
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                throw new Error('No active solution loaded');
+            }
+
+            await solution.addSolutionFolder(folderName.trim());
 
             vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
+            await this._sendCurrentData();
 
         } catch (error) {
             console.error(`[SolutionWebviewProvider] Error creating solution folder:`, error);

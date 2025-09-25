@@ -340,6 +340,99 @@ export class Solution {
     }
 
     /**
+     * Adds a solution folder to the solution file
+     */
+    async addSolutionFolder(folderName: string): Promise<void> {
+        console.log(`[Solution] Adding solution folder: ${folderName}`);
+
+        const { v4: uuidv4 } = require('uuid');
+
+        try {
+            // Read the current solution file
+            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Generate a new GUID for the solution folder
+            const folderGuid = `{${uuidv4().toUpperCase()}}`;
+            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+
+            // Create the solution folder entry
+            const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
+            const folderEndEntry = 'EndProject';
+
+            // Find the right place to insert the solution folder (after other projects but before GlobalSection)
+            let insertIndex = -1;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                if (line === 'Global' || line.startsWith('Global')) {
+                    insertIndex = i;
+                    break;
+                }
+            }
+
+            // If no Global section found, append at the end
+            if (insertIndex === -1) {
+                insertIndex = lines.length;
+            }
+
+            // Insert the solution folder
+            const newLines = [
+                ...lines.slice(0, insertIndex),
+                folderEntry,
+                folderEndEntry,
+                ...lines.slice(insertIndex)
+            ];
+
+            // Write the updated solution file
+            const updatedContent = newLines.join('\n');
+            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+
+            console.log(`[Solution] Successfully added solution folder "${folderName}" to solution`);
+
+            // Re-parse the solution file to update internal state
+            await this.parseSolutionFile();
+
+        } catch (error) {
+            console.error(`[Solution] Error adding solution folder to solution:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Adds a project to the solution file
+     */
+    async addProject(projectPath: string): Promise<void> {
+        console.log(`[Solution] Adding project to solution: ${projectPath}`);
+
+        try {
+            // Use the dotnet CLI command to add the project
+            const relativePath = path.relative(path.dirname(this._solutionPath), projectPath);
+            const command = `dotnet sln "${this._solutionPath}" add "${relativePath}"`;
+
+            console.log(`[Solution] Executing: ${command}`);
+
+            const { exec } = require('child_process');
+            const { promisify } = require('util');
+            const execAsync = promisify(exec);
+            const solutionDir = path.dirname(this._solutionPath);
+
+            await execAsync(command, { cwd: solutionDir });
+
+            console.log(`[Solution] Successfully added project to solution: ${projectPath}`);
+
+            // Re-parse the solution file and re-initialize projects
+            await this.parseSolutionFile();
+            await this.initializeProjects();
+
+        } catch (error) {
+            console.error(`[Solution] Error adding project to solution:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * Forces a refresh of the solution (re-parse and re-initialize projects)
      */
     async refresh(): Promise<void> {
