@@ -31,3 +31,14 @@ Thumbs.db
 .vscode/launch.json
 .vscode/extensions.json
 !.vscode/tasks.json
+
+# .NET build artifacts (for test fixtures and sample projects)
+**/bin/
+**/obj/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+**/packages/
+**/TestResults/
+**/.vs/
