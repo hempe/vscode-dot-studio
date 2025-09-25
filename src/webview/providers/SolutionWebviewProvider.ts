@@ -211,6 +211,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await this._handleAddNewProject(projectPath);
                 break;
 
+            case 'addSolutionFolder':
+                console.log(`[SolutionWebviewProvider] Adding solution folder to solution: ${projectPath}`);
+                await this._handleAddSolutionFolder(projectPath);
+                break;
+
             case 'removeProject':
                 console.log(`[SolutionWebviewProvider] Removing project from solution: ${projectPath}`);
                 await this._handleRemoveProject(projectPath);
@@ -450,6 +455,70 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         await this._sendCurrentData();
     }
 
+    private async _addSolutionFolderToSolution(solutionPath: string, folderName: string): Promise<void> {
+        // Solution folders are added directly to the .sln file
+        // Unlike projects, there's no dotnet CLI command for this, so we need to edit the file directly
+        const fs = require('fs');
+        const path = require('path');
+        const { v4: uuidv4 } = require('uuid');
+
+        try {
+            // Read the current solution file
+            const solutionContent = fs.readFileSync(solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Generate a new GUID for the solution folder
+            const folderGuid = `{${uuidv4().toUpperCase()}}`;
+            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+
+            // Create the solution folder entry
+            const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
+            const folderEndEntry = 'EndProject';
+
+            // Find the right place to insert the solution folder (after other projects but before GlobalSection)
+            let insertIndex = -1;
+            let hasProjects = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                if (line.startsWith('Project(')) {
+                    hasProjects = true;
+                }
+
+                if (line === 'Global' || line.startsWith('Global')) {
+                    insertIndex = i;
+                    break;
+                }
+            }
+
+            // If no Global section found, append at the end
+            if (insertIndex === -1) {
+                insertIndex = lines.length;
+            }
+
+            // Insert the solution folder
+            const newLines = [
+                ...lines.slice(0, insertIndex),
+                folderEntry,
+                folderEndEntry,
+                ...lines.slice(insertIndex)
+            ];
+
+            // Write the updated solution file
+            const updatedContent = newLines.join('\n');
+            fs.writeFileSync(solutionPath, updatedContent, 'utf8');
+
+            console.log(`[SolutionWebviewProvider] Successfully added solution folder "${folderName}" to solution`);
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error adding solution folder to solution:`, error);
+            throw error;
+        }
+
+        await this._sendCurrentData();
+    }
+
     private async _handleAddNewProject(solutionPath: string) {
         try {
             console.log(`[SolutionWebviewProvider] Creating new project for solution: ${solutionPath}`);
@@ -538,6 +607,44 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Add the project to the solution
         const projectFile = path.join(projectPath, `${projectName}.csproj`);
         await this._addProjectToSolution(solutionPath, projectFile);
+    }
+
+    private async _handleAddSolutionFolder(solutionPath: string) {
+        try {
+            console.log(`[SolutionWebviewProvider] Creating solution folder for solution: ${solutionPath}`);
+
+            // Ask for folder name
+            const folderName = await vscode.window.showInputBox({
+                prompt: 'Enter solution folder name',
+                placeHolder: 'MyFolder',
+                title: 'New Solution Folder',
+                validateInput: (value) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Folder name cannot be empty';
+                    }
+                    if (!/^[a-zA-Z][a-zA-Z0-9._\s-]*$/.test(value.trim())) {
+                        return 'Folder name must start with a letter and contain only letters, numbers, dots, spaces, underscores, and hyphens';
+                    }
+                    return null;
+                }
+            });
+
+            if (!folderName) {
+                console.log(`[SolutionWebviewProvider] User cancelled solution folder creation`);
+                return;
+            }
+
+            console.log(`[SolutionWebviewProvider] Creating solution folder: ${folderName}`);
+
+            // Add the solution folder to the solution file
+            await this._addSolutionFolderToSolution(solutionPath, folderName.trim());
+
+            vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
+
+        } catch (error) {
+            console.error(`[SolutionWebviewProvider] Error creating solution folder:`, error);
+            vscode.window.showErrorMessage(`Error creating solution folder: ${error}`);
+        }
     }
 
     private async _handleRemoveProject(projectPath: string) {

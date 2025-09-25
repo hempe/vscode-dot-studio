@@ -42,16 +42,16 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] Add Existing Project (file dialog to select .csproj) [can we just use the file picker thingy?]
 - [x] Add New Project (project template selection) [QuickPick for now]
 - [ ] Add Solution Folder
+- [ ] Restore Nugets
+- [ ] Build commands (Clean, Build, Rebuild) like on project node.
 
 ### Solution Folder Context Menu
 
-- [ ] Add New Project
+- [ ] Add New Project (
 - [ ] Add Existing Project
 - [ ] Add Solution Folder (sub-folder)
 - [ ] Remove (from solution, not filesystem)
 - [ ] Rename (already implemented)
-- [ ] Restore Nugets
-- [ ] Build commands (Clean, Build, Rebuild) like on project node.
 
 ### Project Node Context Menu
 

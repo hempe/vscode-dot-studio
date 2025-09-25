@@ -81,6 +81,12 @@ export const addNewProjectAction: MenuAction = {
     kind: "action"
 };
 
+export const addSolutionFolderAction: MenuAction = {
+    name: "Add Solution Folder",
+    action: "addSolutionFolder",
+    kind: "action"
+};
+
 export const separator: MenuSeparator = {
     kind: 'separator'
 };
@@ -90,6 +96,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     solution: [
         addNewProjectAction,
         addExistingProjectAction,
+        addSolutionFolderAction,
         separator,
         renameAction,
         separator,
