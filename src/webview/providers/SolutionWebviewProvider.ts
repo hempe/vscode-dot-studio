@@ -47,6 +47,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _cacheTimestamp?: number;
     private readonly _cacheTimeout = 30000; // 30 seconds cache
 
+    // Protection against external state resets
+    private _lastUpdateTimestamp?: number;
+    private _rapidUpdateCount = 0;
+    private _protectedExpansionState?: string[];
+    private readonly _rapidUpdateThreshold = 3; // Max 3 updates in 2 seconds
+    private readonly _rapidUpdateWindow = 2000; // 2 seconds
+
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
@@ -747,6 +754,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            // First, set loading state and send updated tree
+            await this._setNodeLoadingState(nodePath, true);
+
             // Find the project that contains this path and collapse it in the project state
             const projectPath = this._findProjectPathForFolder(nodePath);
             if (projectPath) {
@@ -763,11 +773,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Update backend state: set expanded = false
             await this._updateNodeExpansionState(nodePath, false);
 
-            // Send complete updated tree
+            // Clear loading state and send complete updated tree
+            await this._setNodeLoadingState(nodePath, false);
             await this._sendCompleteTreeUpdate();
 
         } catch (error) {
             console.error('[SolutionWebviewProvider] Error collapsing node:', error);
+            // Clear loading state on error
+            await this._setNodeLoadingState(nodePath, false);
         }
     }
 
@@ -861,6 +874,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Sends the complete current tree state to the webview
      */
     private async _sendCompleteTreeUpdate(): Promise<void> {
+        console.log('[SolutionWebviewProvider] ===== SENDING COMPLETE TREE UPDATE =====');
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+
         if (!this._view) {
             return;
         }
@@ -882,6 +898,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const frameworks = await this._frameworkService.getAvailableFrameworks();
             const activeFramework = this._frameworkService.getActiveFramework();
 
+            console.log('[SolutionWebviewProvider] Sending updateSolution message with', freshSolutionData?.length || 0, 'projects');
             this._view.webview.postMessage({
                 command: 'updateSolution',
                 projects: freshSolutionData || [],
@@ -932,11 +949,49 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * Restores specific expansion states (used for protection against external resets)
+     */
+    private async _restoreSpecificExpansionStates(solutionData: ProjectNode[], expansionPaths: string[]): Promise<void> {
+        try {
+            console.log('[SolutionWebviewProvider] ===== RESTORING SPECIFIC EXPANSION STATES =====');
+            console.log('[SolutionWebviewProvider] Restoring paths:', expansionPaths);
+
+            // Get all valid paths from current tree
+            const validPaths = this._getAllValidPathsFromTree(solutionData);
+            const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
+
+            console.log('[SolutionWebviewProvider] Valid paths after cleanup:', cleanedExpandedNodes.length);
+
+            // Set expansion states and load children for restored nodes
+            for (const expandedPath of cleanedExpandedNodes) {
+                const nodeType = this._getNodeTypeForPath(expandedPath, solutionData);
+                if (nodeType) {
+                    console.log(`[SolutionWebviewProvider] Restoring expansion for: ${expandedPath} (${nodeType})`);
+
+                    // Set expanded = true in the tree
+                    this._updateNodeInTree(solutionData, expandedPath, { expanded: true });
+
+                    // Load children for the expanded node
+                    await this._loadChildrenForNode(expandedPath, nodeType, solutionData);
+                }
+            }
+
+            // Update cache with restored states
+            this._cachedSolutionData = solutionData;
+            this._cacheTimestamp = Date.now();
+
+        } catch (error) {
+            console.error('[SolutionWebviewProvider] Error restoring specific expansion states:', error);
+        }
+    }
+
+    /**
      * Restores expansion states from workspace storage on initial load
      */
     private async _restoreExpansionStates(solutionData: ProjectNode[]): Promise<void> {
         try {
-            console.log('[SolutionWebviewProvider] Restoring expansion states...');
+            console.log('[SolutionWebviewProvider] ===== RESTORING EXPANSION STATES =====');
+            console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
             // Get saved expansion state from workspace
             const savedExpandedNodes = this.getExpansionState();
@@ -1165,11 +1220,28 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _updateWebview() {
-        console.log('[SolutionWebviewProvider] Updating webview...');
+        console.log('[SolutionWebviewProvider] ===== UPDATING WEBVIEW =====');
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
         if (!this._view) {
             console.log('[SolutionWebviewProvider] No webview available, skipping update');
             return;
+        }
+
+        // Check for rapid updates that might be caused by external extensions
+        const now = Date.now();
+        if (this._lastUpdateTimestamp && (now - this._lastUpdateTimestamp) < this._rapidUpdateWindow) {
+            this._rapidUpdateCount++;
+            console.log(`[SolutionWebviewProvider] Rapid update detected (${this._rapidUpdateCount}/${this._rapidUpdateThreshold})`);
+        } else {
+            this._rapidUpdateCount = 1;
+        }
+        this._lastUpdateTimestamp = now;
+
+        // If we detect rapid updates, preserve the current expansion state
+        if (this._rapidUpdateCount >= this._rapidUpdateThreshold && this._cachedSolutionData) {
+            console.log('[SolutionWebviewProvider] RAPID UPDATES DETECTED - Preserving current expansion state');
+            this._protectedExpansionState = this.getExpandedNodePaths(this._cachedSolutionData);
         }
 
 
@@ -1196,8 +1268,18 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework
             });
 
-            // Restore expansion states if this is initial load (this modifies solutionData in place)
-            await this._restoreExpansionStates(solutionData);
+            // Check if we should use protected expansion state due to rapid updates
+            if (this._protectedExpansionState) {
+                console.log('[SolutionWebviewProvider] Using PROTECTED expansion state due to rapid updates');
+                await this._restoreSpecificExpansionStates(solutionData, this._protectedExpansionState);
+                // Clear the protected state after one use
+                this._protectedExpansionState = undefined;
+            } else {
+                // Restore expansion states if this is initial load (this modifies solutionData in place)
+                console.log('[SolutionWebviewProvider] About to restore expansion states...');
+                await this._restoreExpansionStates(solutionData);
+                console.log('[SolutionWebviewProvider] Finished restoring expansion states');
+            }
 
 
             console.log('[SolutionWebviewProvider] Sending solution data to webview');
@@ -1207,6 +1289,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework
             }
 
+            console.log('[SolutionWebviewProvider] Sending solutionData message with', data.projects?.length || 0, 'projects');
             this._view.webview.postMessage({
                 command: 'solutionData',
                 data
@@ -1734,6 +1817,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public refresh() {
+        console.log('[SolutionWebviewProvider] ===== REFRESH CALLED =====');
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+
         // Don't refresh if we're in the middle of a rename operation
         if (this._isRenaming) {
             console.log('[SolutionWebviewProvider] Skipping refresh during rename operation');
@@ -1759,7 +1845,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _sendCurrentData() {
-        console.log('[SolutionWebviewProvider] Sending current data to reconnected webview');
+        console.log('[SolutionWebviewProvider] ===== SENDING CURRENT DATA =====');
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
         if (!this._view) {
             console.log('[SolutionWebviewProvider] No webview available, skipping send');
@@ -1778,7 +1865,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework: this._frameworkService.getActiveFramework()
             };
 
-            console.log('[SolutionWebviewProvider] Sending solutionData to reconnected webview');
+            console.log('[SolutionWebviewProvider] Sending solutionData to reconnected webview with', data.projects?.length || 0, 'projects');
             this._view.webview.postMessage({
                 command: 'solutionData',
                 data: data
@@ -1817,7 +1904,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
+        console.log(`[SolutionWebviewProvider] ===== FILE CHANGE EVENT =====`);
         console.log(`[SolutionWebviewProvider] Queueing file ${changeType}: ${filePath}`);
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
 
         // Check if we already have a event for this file to avoid duplicates
@@ -1963,7 +2052,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _handleSolutionFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
+        console.log(`[SolutionWebviewProvider] ===== SOLUTION FILE CHANGE =====`);
         console.log(`[SolutionWebviewProvider] Handling solution file change: ${changeType} for ${filePath}`);
+        console.log('[SolutionWebviewProvider] Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
         if (changeType === 'deleted') {
             // Solution file was deleted - clear everything

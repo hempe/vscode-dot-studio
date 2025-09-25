@@ -11,6 +11,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const [focusedNodePath, setFocusedNodePath] = useState<string | undefined>();
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
     const [renamingNodePath, setRenamingNodePath] = useState<string | undefined>();
+    const [localLoadingNodes, setLocalLoadingNodes] = useState<Set<string>>(new Set());
 
 
     // Helper function to find node in tree by path
@@ -39,9 +40,17 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
         if (node.expanded) {
             console.log(`[SolutionTree] Requesting collapse: ${path}`);
+
+            // Immediately set local loading state for instant feedback
+            setLocalLoadingNodes(prev => new Set(prev).add(path));
+
             onCollapseNode?.(path);
         } else {
             console.log(`[SolutionTree] Requesting expand: ${path}`);
+
+            // Immediately set local loading state for instant feedback
+            setLocalLoadingNodes(prev => new Set(prev).add(path));
+
             onExpandNode?.(path, nodeType);
         }
     };
@@ -121,15 +130,15 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     };
 
     // Convert the projects data into tree structure - backend controls expansion state
-    const buildTreeNodes = (projects: any[]): ProjectNode[] => {
+    const buildTreeNodes = useCallback((projects: any[]): ProjectNode[] => {
         const result = projects.map(project => ({
             ...project, // Preserve all properties from original data including expanded state
+            isLoading: project.isLoading || localLoadingNodes.has(project.path), // Merge local loading state
             children: project.children ? buildTreeNodes(project.children) : undefined
         }));
 
-
         return result;
-    };
+    }, [localLoadingNodes]);
 
     // Flatten tree nodes for keyboard navigation
     const flattenNodes = useCallback((nodes: ProjectNode[], level: number = 0): Array<{node: ProjectNode, level: number}> => {
@@ -284,10 +293,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         };
     }, [focusedNodePath, flatNodes, handleToggleExpand, contextMenu]);
 
-    // Check if any node in the tree is loading
+    // Check if any node in the tree is loading (backend state or local frontend state)
     const hasLoadingNode = useCallback((nodes: ProjectNode[]): boolean => {
         for (const node of nodes) {
-            if (node.isLoading) {
+            if (node.isLoading || localLoadingNodes.has(node.path)) {
                 return true;
             }
             if (node.children && hasLoadingNode(node.children)) {
@@ -295,7 +304,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             }
         }
         return false;
-    }, []);
+    }, [localLoadingNodes]);
 
     // Delay showing the loading bar to avoid flashing for quick operations
     const [showLoadingBar, setShowLoadingBar] = useState(false);
@@ -320,6 +329,26 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             }
         };
     }, [isLoading]);
+
+    // Clear local loading states when nodes become expanded or backend loading states change
+    useEffect(() => {
+        setLocalLoadingNodes(prev => {
+            const newSet = new Set(prev);
+            let hasChanges = false;
+
+            // Remove nodes that are now expanded or have backend loading state
+            for (const path of prev) {
+                const node = findNodeByPath(path, treeNodes);
+                if (node && (node.expanded || node.isLoading === false)) {
+                    newSet.delete(path);
+                    hasChanges = true;
+                    console.log(`[SolutionTree] Clearing local loading state for: ${path}`);
+                }
+            }
+
+            return hasChanges ? newSet : prev;
+        });
+    }, [treeNodes, findNodeByPath]);
 
     console.log(`[SolutionTree] Rendering ${treeNodes.length} root nodes`);
 
@@ -354,7 +383,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 console.log(`[SolutionTree] Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
                 return (<TreeNode
                     key={`${node.path}-${index}`}
-                    node={node}
+                    node={{
+                        ...node,
+                        isLoading: node.isLoading || localLoadingNodes.has(node.path)
+                    }}
                     level={0}
                     onProjectAction={(action, path, data) => {
                         if (action === 'startRename') {
