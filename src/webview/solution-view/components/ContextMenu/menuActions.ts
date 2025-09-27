@@ -115,6 +115,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     ],
 
     solutionFolder: [
+        addSolutionFolderAction,
+        separator,
         renameAction,
         separator,
         revealInExplorerAction

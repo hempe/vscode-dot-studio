@@ -345,8 +345,8 @@ export class Solution {
     /**
      * Adds a solution folder to the solution file
      */
-    async addSolutionFolder(folderName: string): Promise<void> {
-        this.logger.info(`Adding solution folder: ${folderName}`);
+    async addSolutionFolder(folderName: string, parentFolderName?: string): Promise<void> {
+        this.logger.info(`Adding solution folder: ${folderName}${parentFolderName ? ` under ${parentFolderName}` : ''}`);
 
         try {
             // Read the current solution file
@@ -379,12 +379,24 @@ export class Solution {
             }
 
             // Insert the solution folder
-            const newLines = [
+            let newLines = [
                 ...lines.slice(0, insertIndex),
                 folderEntry,
                 folderEndEntry,
                 ...lines.slice(insertIndex)
             ];
+
+            // If this is a nested folder, we need to add/update the NestedProjects section
+            if (parentFolderName) {
+                // Find the parent folder's GUID
+                const parentFolderGuid = this.findSolutionFolderGuid(parentFolderName);
+                if (!parentFolderGuid) {
+                    throw new Error(`Parent solution folder "${parentFolderName}" not found`);
+                }
+
+                // Add or update NestedProjects section
+                newLines = this.addNestedProjectEntry(newLines, folderGuid, parentFolderGuid);
+            }
 
             // Write the updated solution file
             const updatedContent = newLines.join('\n');
@@ -398,6 +410,78 @@ export class Solution {
         } catch (error) {
             this.logger.error(`Error adding solution folder to solution:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Finds the GUID of a solution folder by its name
+     */
+    private findSolutionFolderGuid(folderName: string): string | null {
+        if (!this._solutionFile?.projects) {
+            return null;
+        }
+        const folder = this._solutionFile.projects.find(
+            p => p.name === folderName && SolutionFileParser.isSolutionFolder(p)
+        );
+        return folder ? folder.guid : null;
+    }
+
+    /**
+     * Adds a nested project entry to the NestedProjects section
+     */
+    private addNestedProjectEntry(lines: string[], childGuid: string, parentGuid: string): string[] {
+        const nestedEntry = `\t\t${childGuid} = ${parentGuid}`;
+
+        // Find existing NestedProjects section
+        let nestedProjectsStartIndex = -1;
+        let nestedProjectsEndIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === 'GlobalSection(NestedProjects) = preSolution') {
+                nestedProjectsStartIndex = i;
+            } else if (nestedProjectsStartIndex !== -1 && line === 'EndGlobalSection') {
+                nestedProjectsEndIndex = i;
+                break;
+            }
+        }
+
+        if (nestedProjectsStartIndex !== -1) {
+            // NestedProjects section exists, add our entry before EndGlobalSection
+            return [
+                ...lines.slice(0, nestedProjectsEndIndex),
+                nestedEntry,
+                ...lines.slice(nestedProjectsEndIndex)
+            ];
+        } else {
+            // No NestedProjects section exists, create it before EndGlobal
+            let endGlobalIndex = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim() === 'EndGlobal') {
+                    endGlobalIndex = i;
+                    break;
+                }
+            }
+
+            if (endGlobalIndex !== -1) {
+                return [
+                    ...lines.slice(0, endGlobalIndex),
+                    '\tGlobalSection(NestedProjects) = preSolution',
+                    nestedEntry,
+                    '\tEndGlobalSection',
+                    ...lines.slice(endGlobalIndex)
+                ];
+            } else {
+                // No EndGlobal found, append at the end
+                return [
+                    ...lines,
+                    'Global',
+                    '\tGlobalSection(NestedProjects) = preSolution',
+                    nestedEntry,
+                    '\tEndGlobalSection',
+                    'EndGlobal'
+                ];
+            }
         }
     }
 

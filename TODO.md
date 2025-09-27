@@ -42,16 +42,21 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] Add Existing Project (file dialog to select .csproj) [can we just use the file picker thingy?]
 - [x] Add New Project (project template selection) [QuickPick for now]
 - [x] Add Solution Folder
-- [ ] Restore Nugets
+- [x] Restore Nugets
 - [x] Build commands (Clean, Build, Rebuild) like on project node.
 
 ### Solution Folder Context Menu
 
-- [ ] Add New Project (
-- [ ] Add Existing Project
-- [ ] Add Solution Folder (sub-folder)
-- [ ] Remove (from solution, not filesystem)
-- [ ] Rename (already implemented)
+- [x] Add Solution Folder (sub-folder)
+- [ ] Remove
+- [ ] Add Item (not sure what the name is in visual studio)
+- [ ] Rename (doesn't work tries to rename a real folder I think)
+
+### Solution Folder Item Context Menu
+
+- [ ] Remove (from solution folder, don't delete the file, so remove the DELETE option)
+
+Note: Solution folders in Visual Studio are virtual organizational containers. They typically don't have "Add New Project" or "Add Existing Project" - those operations happen at the solution level. Solution folders can contain sub-folders and can have projects moved into them.
 
 ### Project Node Context Menu
 

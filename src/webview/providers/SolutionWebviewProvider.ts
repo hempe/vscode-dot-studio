@@ -454,13 +454,32 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleAddNewProject(solutionPath: string) {
+    private async _handleAddNewProject(targetPath: string) {
         try {
-            this.logger.info(`Creating new project for solution: ${solutionPath}`);
+            this.logger.info(`Creating new project for target: ${targetPath}`);
+
+            // Determine if this is a solution file or solution folder
+            const isSolutionFile = targetPath.endsWith('.sln');
+            let solutionPath: string;
+            let targetSolutionFolderName: string | undefined;
+
+            if (isSolutionFile) {
+                solutionPath = targetPath;
+                this.logger.info(`Adding project to solution root`);
+            } else {
+                // This is a solution folder - need to find the solution file
+                const solution = SolutionService.getActiveSolution();
+                if (!solution) {
+                    throw new Error('No active solution loaded');
+                }
+                solutionPath = solution.solutionPath;
+                targetSolutionFolderName = path.basename(targetPath);
+                this.logger.info(`Adding project to solution folder: ${targetSolutionFolderName}`);
+            }
 
             // Define common project templates
             const projectTemplates = [
-                { label: 'this.logger Application', detail: 'A command-line application', template: 'this.logger' },
+                { label: 'Console Application', detail: 'A command-line application', template: 'console' },
                 { label: 'Class Library', detail: 'A reusable library of classes', template: 'classlib' },
                 { label: 'ASP.NET Core Web Application', detail: 'A web application using ASP.NET Core', template: 'webapp' },
                 { label: 'ASP.NET Core Web API', detail: 'A RESTful web API using ASP.NET Core', template: 'webapi' },
@@ -509,7 +528,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this._setManualOperationFlag(5000); // 5 second timeout for project creation
             try {
                 // Create the project
-                await this._createNewProject(solutionPath, projectName.trim(), selectedTemplate.template);
+                await this._createNewProject(solutionPath, projectName.trim(), selectedTemplate.template, targetSolutionFolderName);
 
                 vscode.window.showInformationMessage(`Created project ${projectName} and added to solution`);
 
@@ -526,7 +545,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _createNewProject(solutionPath: string, projectName: string, template: string): Promise<void> {
+    private async _createNewProject(solutionPath: string, projectName: string, template: string, solutionFolderName?: string): Promise<void> {
         const solutionDir = path.dirname(solutionPath);
         const projectPath = path.join(solutionDir, projectName);
 
@@ -549,19 +568,54 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
         });
 
-        // Add the project to the solution using the Solution class
-        const solution = SolutionService.getActiveSolution();
-        if (!solution) {
-            throw new Error('No active solution loaded');
+        // Add the project to the solution
+        const projectFile = path.join(projectPath, `${projectName}.csproj`);
+        const relativePath = path.relative(solutionDir, projectFile);
+
+        // Build the dotnet sln add command
+        let addCommand = `dotnet sln "${solutionPath}" add "${relativePath}"`;
+        if (solutionFolderName) {
+            addCommand += ` --solution-folder "${solutionFolderName}"`;
         }
 
-        const projectFile = path.join(projectPath, `${projectName}.csproj`);
-        await solution.addProject(projectFile);
+        this.logger.info(`Adding project to solution: ${addCommand}`);
+
+        // Execute the add command
+        await new Promise<void>((resolve, reject) => {
+            exec(addCommand, { cwd: solutionDir }, (error: Error | null, stdout: string, stderr: string) => {
+                if (error) {
+                    this.logger.error(`Error adding project to solution:`, error);
+                    reject(error);
+                } else {
+                    this.logger.info(`Successfully added project to solution:`, stdout);
+                    resolve();
+                }
+            });
+        });
+
+        // Re-initialize the solution to pick up the changes
+        const solution = SolutionService.getActiveSolution();
+        if (solution) {
+            // Trigger a manual webview update to reflect the new project
+            this._updateWebview();
+        }
     }
 
-    private async _handleAddSolutionFolder(solutionPath: string) {
+    private async _handleAddSolutionFolder(targetPath: string) {
         try {
-            this.logger.info(`Creating solution folder for solution: ${solutionPath}`);
+            this.logger.info(`Creating solution folder for target: ${targetPath}`);
+
+            // Determine if this is a solution file or solution folder
+            const isSolutionFile = targetPath.endsWith('.sln');
+            let parentFolderName: string | undefined;
+
+            if (!isSolutionFile) {
+                // This is a solution folder - we're creating a nested folder
+                parentFolderName = path.basename(targetPath);
+                this.logger.info(`Creating nested folder under: ${parentFolderName}`);
+            } else {
+                this.logger.info(`Creating root-level solution folder`);
+            }
 
             // Ask for folder name
             const folderName = await vscode.window.showInputBox({
@@ -595,7 +649,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Set manual operation flag with timeout
             this._setManualOperationFlag(3000); // 3 second timeout for solution folder creation
             try {
-                await solution.addSolutionFolder(folderName.trim());
+                // Pass the parent folder name to create a nested folder
+                await solution.addSolutionFolder(folderName.trim(), parentFolderName);
 
                 vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
 
@@ -808,6 +863,30 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         // Create lazy folder watcher for this expanded folder
                         this.logger.info(`Creating lazy folder watcher for: ${nodePath}`);
                         project.createFolderWatcher(nodePath);
+                    }
+                }
+            } else if (nodeType === 'solutionFolder') {
+                // Expanding a solution folder - get its children from the solution tree
+                this.logger.info(`Expanding solution folder: ${nodePath}`);
+                const solutionData = await this._getSolutionData();
+                if (solutionData && solutionData.length > 0) {
+                    // Find the solution folder in the tree and get its children
+                    const findSolutionFolder = (nodes: any[], targetPath: string): any => {
+                        for (const node of nodes) {
+                            if (node.path === targetPath) {
+                                return node;
+                            }
+                            if (node.children) {
+                                const found = findSolutionFolder(node.children, targetPath);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    };
+
+                    const solutionFolder = findSolutionFolder(solutionData, nodePath);
+                    if (solutionFolder && solutionFolder.children) {
+                        children = solutionFolder.children;
                     }
                 }
             }
@@ -1587,6 +1666,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         return a.name.localeCompare(b.name);
                     });
                 }
+
+                // Set hasChildren based on whether the solution folder has any children
+                itemNode.hasChildren = (itemNode.children && itemNode.children.length > 0);
             }
 
             nodes.push(itemNode);
