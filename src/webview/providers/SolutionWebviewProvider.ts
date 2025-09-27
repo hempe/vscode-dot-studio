@@ -55,8 +55,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _protectedExpansionState?: string[];
     private readonly _rapidUpdateThreshold = 3; // Max 3 updates in 2 seconds
     private readonly _rapidUpdateWindow = 2000; // 2 seconds
-    private _isManualOperation = false; // Flag to indicate user-initiated operations
-    private _manualOperationTimeout?: NodeJS.Timeout; // Timeout to clear manual operation flag
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -431,25 +429,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const projectPath = fileUri[0].fsPath;
                 this.logger.info(`Selected project: ${projectPath}`);
 
-                // Set manual operation flag with timeout
-                this._setManualOperationFlag(5000); // 5 second timeout for project operations
-                try {
-                    // Add the project to the solution file using the Solution class
-                    const solution = SolutionService.getActiveSolution();
-                    if (!solution) {
-                        throw new Error('No active solution loaded');
-                    }
-
-                    await solution.addProject(projectPath);
-
-                    vscode.window.showInformationMessage(`Added project ${path.basename(projectPath)} to solution`);
-
-                    // Keep flag active for a bit longer to handle file watcher events
-                    this._setManualOperationFlag(2000);
-                } catch (error) {
-                    this._clearManualOperationFlag();
-                    throw error;
+                // Add the project to the solution file using the Solution class
+                const solution = SolutionService.getActiveSolution();
+                if (!solution) {
+                    throw new Error('No active solution loaded');
                 }
+
+                await solution.addProject(projectPath);
+                vscode.window.showInformationMessage(`Added project ${path.basename(projectPath)} to solution`);
             } else {
                 this.logger.info(`User cancelled project selection`);
             }
@@ -529,20 +516,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             this.logger.info(`Creating project: ${projectName} with template: ${selectedTemplate.template}`);
 
-            // Set manual operation flag with timeout
-            this._setManualOperationFlag(5000); // 5 second timeout for project creation
-            try {
-                // Create the project
-                await this._createNewProject(solutionPath, projectName.trim(), selectedTemplate.template, targetSolutionFolderName);
-
-                vscode.window.showInformationMessage(`Created project ${projectName} and added to solution`);
-
-                // Keep flag active for a bit longer to handle file watcher events
-                this._setManualOperationFlag(2000);
-            } catch (error) {
-                this._clearManualOperationFlag();
-                throw error;
-            }
+            // Create the project - file watcher will handle UI updates
+            await this._createNewProject(solutionPath, projectName.trim(), selectedTemplate.template, targetSolutionFolderName);
+            vscode.window.showInformationMessage(`Created project ${projectName} and added to solution`);
 
         } catch (error) {
             this.logger.error(`Error creating new project:`, error);
@@ -716,25 +692,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
-            // Set manual operation flag with timeout
-            this._setManualOperationFlag(3000); // 3 second timeout for project removal
-            try {
-                // Remove the project from solution using the Solution class
-                const solution = SolutionService.getActiveSolution();
-                if (!solution) {
-                    throw new Error('No active solution loaded');
-                }
-
-                await solution.removeProject(projectPath);
-
-                vscode.window.showInformationMessage(`Removed project from solution`);
-
-                // Keep flag active for a bit longer to handle file watcher events
-                this._setManualOperationFlag(2000);
-            } catch (error) {
-                this._clearManualOperationFlag();
-                throw error;
+            // Remove the project from solution using the Solution class
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                throw new Error('No active solution loaded');
             }
+
+            await solution.removeProject(projectPath);
+            vscode.window.showInformationMessage(`Removed project from solution`);
 
         } catch (error) {
             this.logger.error(`Error removing project:`, error);
@@ -852,12 +817,31 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     }
                 }
             } else if (nodeType === 'project') {
-                // Expanding a project - load its file tree using the new Project methods
+                // Expanding a project - check if we already have children with expansion state
                 const project = solution.getProject(nodePath);
                 if (project) {
-                    this.logger.info(`Using Project.getRootChildren() for: ${project.name}`);
-                    const rootChildren = await project.getRootChildren();
-                    children = this._convertProjectChildrenToProjectNodes(rootChildren);
+                    // Check if the cached node already has children (from previous expansion)
+                    let existingNode: ProjectNode | undefined;
+                    if (this._cachedSolutionData) {
+                        existingNode = this._findNodeInTree(this._cachedSolutionData, nodePath);
+                    }
+
+                    if (existingNode?.children && existingNode.children.length > 0) {
+                        // Reuse existing children to preserve expansion state
+                        this.logger.info(`Reusing existing children for project: ${project.name}`);
+                        children = existingNode.children;
+
+                        // Refresh any expanded folders to catch file system changes
+                        await this._refreshExpandedFolders(children, project);
+                    } else {
+                        // Load fresh children for first-time expansion
+                        this.logger.info(`Loading fresh children for project: ${project.name}`);
+                        const rootChildren = await project.getRootChildren();
+                        children = this._convertProjectChildrenToProjectNodes(rootChildren);
+
+                        // Restore expansion states for nested children within this project
+                        await this._restoreExpansionStates(children, { parentPath: nodePath, updateCache: false });
+                    }
 
                     // Create lazy folder watcher for the project root directory
                     const projectDir = require('path').dirname(nodePath);
@@ -941,9 +925,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
-            // First, set loading state and send updated tree
-            await this._setNodeLoadingState(nodePath, true);
-
             // Find the project that contains this path and collapse it in the project state
             const projectPath = this._findProjectPathForFolder(nodePath);
             if (projectPath) {
@@ -957,14 +938,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 }
             }
 
-            // Update backend state: set expanded = false
+            // Update backend state: set expanded = false (but preserve children for re-expansion)
             await this._updateNodeExpansionState(nodePath, false);
 
-            // Clear loading state and send complete updated tree
-            await this._setNodeLoadingState(nodePath, false);
         } catch (error) {
             this.logger.error('Error collapsing node:', error);
-            // Clear loading state on error
+        } finally {
             await this._setNodeLoadingState(nodePath, false);
         }
     }
@@ -1133,92 +1112,149 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         mergeStates(freshNodes);
     }
 
+
+
     /**
-     * Restores specific expansion states (used for protection against external resets)
+     * Unified method to restore expansion states with flexible options
      */
-    private async _restoreSpecificExpansionStates(solutionData: ProjectNode[], expansionPaths: string[]): Promise<void> {
+    private async _restoreExpansionStates(
+        treeData: ProjectNode[],
+        options: {
+            expansionPaths?: string[]; // Use specific paths instead of workspace storage
+            parentPath?: string;       // Filter to children of this parent only
+            updateCache?: boolean;     // Whether to update cache (default true)
+        } = {}
+    ): Promise<void> {
         try {
-            this.logger.info('===== RESTORING SPECIFIC EXPANSION STATES =====');
-            this.logger.info('Restoring paths:', expansionPaths);
-
-            // Get all valid paths from current tree
-            const validPaths = this._getAllValidPathsFromTree(solutionData);
-            const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
-
-            this.logger.info('Valid paths after cleanup:', cleanedExpandedNodes.length);
-
-            // Set expansion states and load children for restored nodes
-            for (const expandedPath of cleanedExpandedNodes) {
-                const nodeType = this._getNodeTypeForPath(expandedPath, solutionData);
-                if (nodeType) {
-                    this.logger.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
-
-                    // Set expanded = true in the tree
-                    this._updateNodeInTree(solutionData, expandedPath, { expanded: true });
-
-                    // Load children for the expanded node
-                    await this._loadChildrenForNode(expandedPath, nodeType, solutionData);
-                }
+            // Determine source of expansion paths
+            let expansionPaths: string[];
+            if (options.expansionPaths) {
+                expansionPaths = options.expansionPaths;
+                this.logger.info('===== RESTORING SPECIFIC EXPANSION STATES =====');
+                this.logger.info('Restoring provided paths:', expansionPaths);
+            } else {
+                expansionPaths = this.getExpansionState();
+                this.logger.info('===== RESTORING EXPANSION STATES =====');
+                this.logger.info('Found saved expansion state:', expansionPaths);
             }
 
-            // Update cache with restored states
-            this._cachedSolutionData = solutionData;
-            this._cacheTimestamp = Date.now();
-
-        } catch (error) {
-            this.logger.error('Error restoring specific expansion states:', error);
-        }
-    }
-
-    /**
-     * Restores expansion states from workspace storage on initial load
-     */
-    private async _restoreExpansionStates(solutionData: ProjectNode[]): Promise<void> {
-        try {
-            this.logger.info('===== RESTORING EXPANSION STATES =====');
-            this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
-
-            // Get saved expansion state from workspace
-            const savedExpandedNodes = this.getExpansionState();
-
-            if (!savedExpandedNodes || savedExpandedNodes.length === 0) {
-                this.logger.info('No saved expansion state found');
+            if (!expansionPaths || expansionPaths.length === 0) {
+                this.logger.info('No expansion paths to restore');
                 return;
             }
 
-            this.logger.info('Found saved expansion state:', savedExpandedNodes);
-
-            // Get all valid paths from current tree
-            const validPaths = this._getAllValidPathsFromTree(solutionData);
-            const cleanedExpandedNodes = savedExpandedNodes.filter(path => validPaths.has(path));
-
-            this.logger.info('Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
-
-            if (cleanedExpandedNodes.length !== savedExpandedNodes.length) {
-                this.logger.info('Removed stale paths:', savedExpandedNodes.length - cleanedExpandedNodes.length);
+            // Filter by parent path if specified
+            if (options.parentPath) {
+                expansionPaths = expansionPaths.filter(path =>
+                    path.startsWith(options.parentPath!) && path !== options.parentPath
+                );
+                this.logger.info(`Filtered to ${expansionPaths.length} nested paths under: ${options.parentPath}`);
             }
 
-            // Set expansion states and load children for restored nodes
+            // Get all valid paths from current tree and clean up stale ones
+            const validPaths = this._getAllValidPathsFromTree(treeData);
+            const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
+
+            this.logger.info('Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
+            if (cleanedExpandedNodes.length !== expansionPaths.length) {
+                this.logger.info('Removed stale paths:', expansionPaths.length - cleanedExpandedNodes.length);
+            }
+
+            // Restore expansion states and load children
             for (const expandedPath of cleanedExpandedNodes) {
-                const nodeType = this._getNodeTypeForPath(expandedPath, solutionData);
+                const nodeType = this._getNodeTypeForPath(expandedPath, treeData);
                 if (nodeType) {
                     this.logger.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
 
                     // Set expanded = true in the tree
-                    this._updateNodeInTree(solutionData, expandedPath, { expanded: true });
+                    this._updateNodeInTree(treeData, expandedPath, { expanded: true });
 
                     // Load children for the expanded node
-                    await this._loadChildrenForNode(expandedPath, nodeType, solutionData);
+                    await this._loadChildrenForNode(expandedPath, nodeType, treeData);
                 }
             }
 
-            // Update cache with restored states
-            this._cachedSolutionData = solutionData;
-            this._cacheTimestamp = Date.now();
+            // Update cache if requested (default true)
+            if (options.updateCache !== false) {
+                this._cachedSolutionData = treeData;
+                this._cacheTimestamp = Date.now();
+            }
 
         } catch (error) {
             this.logger.error('Error restoring expansion states:', error);
         }
+    }
+
+    /**
+     * Finds a specific node in the tree by path
+     */
+    private _findNodeInTree(nodes: ProjectNode[], targetPath: string): ProjectNode | undefined {
+        for (const node of nodes) {
+            if (node.path === targetPath) {
+                return node;
+            }
+            if (node.children) {
+                const found = this._findNodeInTree(node.children, targetPath);
+                if (found) return found;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Refreshes expanded folders to catch file system changes while preserving expansion state
+     */
+    private async _refreshExpandedFolders(children: ProjectNode[], project: any): Promise<void> {
+        for (const child of children) {
+            if (child.type === 'folder' && child.expanded && child.children) {
+                this.logger.info(`Refreshing expanded folder: ${child.path}`);
+                try {
+                    // Get fresh folder contents
+                    const folderChildren = await project.getFolderChildren(child.path);
+                    const freshChildren = this._convertProjectChildrenToProjectNodes(folderChildren);
+
+                    // Merge with existing children to preserve nested expansion states
+                    child.children = this._mergeChildrenArrays(child.children, freshChildren);
+
+                    // Recursively refresh nested expanded folders
+                    await this._refreshExpandedFolders(child.children, project);
+                } catch (error) {
+                    this.logger.warn(`Error refreshing folder ${child.path}:`, error);
+                }
+            }
+        }
+    }
+
+    /**
+     * Merges existing children with fresh children, preserving expansion states
+     */
+    private _mergeChildrenArrays(existingChildren: ProjectNode[], freshChildren: ProjectNode[]): ProjectNode[] {
+        const result: ProjectNode[] = [];
+        const existingMap = new Map<string, ProjectNode>();
+
+        // Build map of existing children by path
+        for (const child of existingChildren) {
+            existingMap.set(child.path, child);
+        }
+
+        // Merge fresh children with existing expansion states
+        for (const freshChild of freshChildren) {
+            const existing = existingMap.get(freshChild.path);
+            if (existing) {
+                // Keep expansion state and children from existing node
+                result.push({
+                    ...freshChild,
+                    expanded: existing.expanded,
+                    children: existing.children,
+                    isLoaded: existing.isLoaded
+                });
+            } else {
+                // New child, use fresh data
+                result.push(freshChild);
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -1239,6 +1275,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         traverse(nodes);
         return paths;
     }
+
 
     /**
      * Gets the node type for a given path from the tree
@@ -1414,22 +1451,19 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         // Check for rapid updates that might be caused by external extensions
-        // Skip protection if this is a manual operation
         const now = Date.now();
-        if (!this._isManualOperation) {
-            if (this._lastUpdateTimestamp && (now - this._lastUpdateTimestamp) < this._rapidUpdateWindow) {
-                this._rapidUpdateCount++;
-                this.logger.info(`Rapid update detected (${this._rapidUpdateCount}/${this._rapidUpdateThreshold})`);
-            } else {
-                this._rapidUpdateCount = 1;
-            }
-            this._lastUpdateTimestamp = now;
+        if (this._lastUpdateTimestamp && (now - this._lastUpdateTimestamp) < this._rapidUpdateWindow) {
+            this._rapidUpdateCount++;
+            this.logger.info(`Rapid update detected (${this._rapidUpdateCount}/${this._rapidUpdateThreshold})`);
+        } else {
+            this._rapidUpdateCount = 1;
+        }
+        this._lastUpdateTimestamp = now;
 
-            // If we detect rapid updates, preserve the current expansion state
-            if (this._rapidUpdateCount >= this._rapidUpdateThreshold && this._cachedSolutionData) {
-                this.logger.info('RAPID UPDATES DETECTED - Preserving current expansion state');
-                this._protectedExpansionState = this.getExpandedNodePaths(this._cachedSolutionData);
-            }
+        // If we detect rapid updates, preserve the current expansion state
+        if (this._rapidUpdateCount >= this._rapidUpdateThreshold && this._cachedSolutionData) {
+            this.logger.info('RAPID UPDATES DETECTED - Preserving current expansion state');
+            this._protectedExpansionState = this.getExpandedNodePaths(this._cachedSolutionData);
         } else {
             this.logger.debug('Manual operation detected - skipping rapid update protection');
         }
@@ -1527,7 +1561,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Check if we should use protected expansion state due to rapid updates
         if (this._protectedExpansionState) {
             this.logger.info('Using PROTECTED expansion state due to rapid updates');
-            await this._restoreSpecificExpansionStates(treeStructure, this._protectedExpansionState);
+            await this._restoreExpansionStates(treeStructure, { expansionPaths: this._protectedExpansionState });
             // Clear the protected state after one use
             this._protectedExpansionState = undefined;
         } else {
@@ -2024,11 +2058,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
 
-        // Don't refresh if we're in the middle of a manual operation
-        if (this._isManualOperation) {
-            this.logger.debug('Skipping refresh during manual operation');
-            return;
-        }
 
         // Use incremental update instead of full refresh
         this._updateWebview();
@@ -2040,44 +2069,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this._context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
-    /**
-     * Sets manual operation flag with automatic timeout
-     */
-    private _setManualOperationFlag(timeoutMs: number = 3000): void {
-        this._isManualOperation = true;
-
-        // Clear any existing timeout
-        if (this._manualOperationTimeout) {
-            clearTimeout(this._manualOperationTimeout);
-        }
-
-        // Set new timeout to clear the flag
-        this._manualOperationTimeout = setTimeout(() => {
-            this.logger.debug('Manual operation timeout reached, clearing flag');
-            this._isManualOperation = false;
-            this._manualOperationTimeout = undefined;
-        }, timeoutMs);
-
-        this.logger.debug(`Manual operation flag set with ${timeoutMs}ms timeout`);
-    }
-
-    /**
-     * Clears manual operation flag and timeout
-     */
-    private _clearManualOperationFlag(): void {
-        if (this._manualOperationTimeout) {
-            clearTimeout(this._manualOperationTimeout);
-            this._manualOperationTimeout = undefined;
-        }
-        this._isManualOperation = false;
-        this.logger.debug('Manual operation flag cleared');
-    }
 
     /**
      * Dispose method to clean up resources
      */
     dispose(): void {
-        this._clearManualOperationFlag();
+        // No cleanup needed currently
     }
 
     private getExpansionState(): string[] {
@@ -2101,11 +2098,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         try {
             this.logger.info('Rebuilding solution data for reconnection');
             const solutionData = await this._getSolutionData();
-
-            // Restore expansion states to preserve user's expanded nodes
-            this.logger.info('Restoring expansion states for reconnected webview');
-            await this._restoreExpansionStates(solutionData);
-
             const frameworks = await this._frameworkService.getAvailableFrameworks();
 
             const data: SolutionData = {
