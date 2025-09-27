@@ -36,14 +36,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize services
     const solutionService = new SolutionService();
-    // const solutionProvider = new SolutionProvider(workspaceRoot); // Legacy - not used anymore
 
     // Create and register webview providers
     const solutionWebviewProvider = new SolutionWebviewProvider(
         context.extensionUri,
         context,
-        solutionService,
-        undefined, // solutionProvider not used anymore
         frameworkDropdownService
     );
 
@@ -84,7 +81,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Export for testing
     return {
-        // solutionProvider, // Legacy - not used anymore
         solutionWebviewProvider,
         solutionService,
         frameworkDropdownService

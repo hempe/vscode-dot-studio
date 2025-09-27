@@ -18,7 +18,7 @@ jest.mock('vscode', () => ({
             stat: jest.fn()
         }
     },
-    WebviewViewProvider: class {},
+    WebviewViewProvider: class { },
     CancellationToken: {}
 }), { virtual: true });
 
@@ -34,7 +34,6 @@ jest.mock('../../services/fileNesting', () => ({
 describe('SolutionWebviewProvider', () => {
     let provider: SolutionWebviewProvider;
     let mockExtensionUri: any;
-    let mockSolutionService: jest.Mocked<SolutionService>;
     let mockFrameworkService: jest.Mocked<FrameworkDropdownService>;
 
     beforeEach(() => {
@@ -44,10 +43,6 @@ describe('SolutionWebviewProvider', () => {
                 get: jest.fn().mockReturnValue([]),
                 update: jest.fn().mockResolvedValue(undefined)
             }
-        } as any;
-        mockSolutionService = {
-            findSolutionFile: jest.fn(),
-            parseSolutionFile: jest.fn()
         } as any;
         mockFrameworkService = {
             getAvailableFrameworks: jest.fn(),
@@ -64,13 +59,9 @@ describe('SolutionWebviewProvider', () => {
             parseProjectFiles: jest.fn()
         } as any));
 
-        const mockSolutionProvider = {} as any;
-
         provider = new SolutionWebviewProvider(
             mockExtensionUri,
             mockContext,
-            mockSolutionService,
-            mockSolutionProvider,
             mockFrameworkService
         );
 

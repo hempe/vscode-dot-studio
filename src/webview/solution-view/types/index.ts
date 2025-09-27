@@ -3,7 +3,7 @@ import { Dependency } from "../../../parsers/projectFileParser";
 export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency';
 
 // Context menu actions only
-export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder';
+export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem';
 
 // All project actions (includes menu actions + internal actions)
 export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent';

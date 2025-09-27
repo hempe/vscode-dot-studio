@@ -581,6 +581,47 @@ export class Solution {
     }
 
     /**
+     * Adds a solution item (file) to a solution folder
+     */
+    async addSolutionItem(folderName: string, filePath: string): Promise<void> {
+        this.logger.info(`Adding solution item "${filePath}" to folder "${folderName}"`);
+
+        try {
+            // Find the solution folder to get its GUID
+            const folderGuid = this.findSolutionFolderGuid(folderName);
+            if (!folderGuid) {
+                throw new Error(`Solution folder "${folderName}" not found`);
+            }
+
+            // Read the current solution file
+            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Calculate relative path from solution directory
+            const solutionDir = path.dirname(this._solutionPath);
+            const relativePath = path.relative(solutionDir, filePath).replace(/\\/g, '/');
+
+            // Find the solution folder's Project block and add the file to it
+            const updatedLines = this.addSolutionItemToFolder(lines, folderName, folderGuid, relativePath);
+
+            // Write the updated solution file
+            const updatedContent = updatedLines.join('\n');
+            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+
+            this.logger.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderName}"`);
+
+            // Re-parse the solution file to update internal state
+            await this.parseSolutionFile();
+
+            // File watcher will handle the tree update
+
+        } catch (error) {
+            this.logger.error(`Error adding solution item:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * Removes a solution folder Project/EndProject block from the solution file lines
      */
     private removeSolutionFolderProject(lines: string[], folderName: string, folderGuid: string): string[] {
@@ -653,6 +694,71 @@ export class Solution {
         // Remove entries in reverse order to maintain indices
         for (let i = entriesToRemove.length - 1; i >= 0; i--) {
             newLines.splice(entriesToRemove[i], 1);
+        }
+
+        return newLines;
+    }
+
+    /**
+     * Adds a solution item to a solution folder's Project block
+     */
+    private addSolutionItemToFolder(lines: string[], folderName: string, folderGuid: string, relativePath: string): string[] {
+        const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+        let projectStartIndex = -1;
+        let projectEndIndex = -1;
+
+        // Find the Project/EndProject block for this solution folder
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Look for the Project line for this solution folder
+            if (line.includes(`Project("${solutionFolderTypeGuid}")`) &&
+                line.includes(`"${folderName}"`) &&
+                line.includes(folderGuid)) {
+                projectStartIndex = i;
+            }
+
+            // Look for the corresponding EndProject line
+            if (projectStartIndex !== -1 && line === 'EndProject') {
+                projectEndIndex = i;
+                break;
+            }
+        }
+
+        if (projectStartIndex === -1 || projectEndIndex === -1) {
+            throw new Error(`Could not find Project block for solution folder "${folderName}"`);
+        }
+
+        // Check if there are already ProjectSection(SolutionItems) in this folder
+        let solutionItemsStartIndex = -1;
+        let solutionItemsEndIndex = -1;
+
+        for (let i = projectStartIndex + 1; i < projectEndIndex; i++) {
+            const line = lines[i].trim();
+            if (line === 'ProjectSection(SolutionItems) = preProject') {
+                solutionItemsStartIndex = i;
+            } else if (solutionItemsStartIndex !== -1 && line === 'EndProjectSection') {
+                solutionItemsEndIndex = i;
+                break;
+            }
+        }
+
+        const newLines = [...lines];
+
+        if (solutionItemsStartIndex !== -1 && solutionItemsEndIndex !== -1) {
+            // ProjectSection exists, add the item to it
+            const itemLine = `\t\t${relativePath} = ${relativePath}`;
+            newLines.splice(solutionItemsEndIndex, 0, itemLine);
+        } else {
+            // No ProjectSection exists, create one with the item
+            const sectionLines = [
+                '\tProjectSection(SolutionItems) = preProject',
+                `\t\t${relativePath} = ${relativePath}`,
+                '\tEndProjectSection'
+            ];
+
+            // Insert before EndProject
+            newLines.splice(projectEndIndex, 0, ...sectionLines);
         }
 
         return newLines;

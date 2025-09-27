@@ -2,6 +2,21 @@
 
 This document tracks the missing functionality and improvements needed for the Solution Tree context menus and interactions to match Visual Studio behavior.
 
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Always check if some services already implement      !!!
+!!! things we want to add, as we removed the ui code,    !!!
+!!! but still have some of the servies from our first    !!!
+!!! attempt building this project.                       !!!
+!!! and make sure to properly structure the code         !!!
+!!! use the exsting small services as a reference        !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+```
+
 ## 🚨 Critical Issues (Priority 1)
 
 ### Tree
@@ -49,7 +64,7 @@ This document tracks the missing functionality and improvements needed for the S
 
 - [x] Add Solution Folder (sub-folder)
 - [x] Remove
-- [ ] Add Item (not sure what the name is in visual studio)
+- [x] Add Existing Item...
 - [x] Rename
 
 ### Solution Folder Item Context Menu
@@ -61,20 +76,19 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 ### Project Node Context Menu
 
 - [x] **Dependencies node functionality** (PRIORITY - re-enabled and working)
-  - [x] Restore Dependencies container node display
-  - [x] Fix collapse bug when clicking dependencies node
-  - [x] Implement dependencies expansion to show individual packages
+  - [ ] Restore Dependencies container node display (maybe already there but needs to be checked)
+  - [ ] Fix collapse bug when clicking dependencies node (maybe already there but needs to be checked)
+  - [ ] Implement dependencies expansion to show individual packages (maybe already there but needs to be checked)
   - [ ] Add context menu for dependencies (Manage NuGet Packages, Add Reference, etc.)
 - [ ] Add Reference
 - [ ] Add Project Reference
 - [ ] Manage NuGet Packages
 - [ ] Add Class/Item (with templates)
 - [ ] Add Folder
-- [ ] Set as Startup Project
+- [ ] Set as Startup project [startup project should be "bold" in the tree ]
 - [ ] Properties (Properties are a folder so I think this part can wait until we do the ui for it)
 - [ ] Remove from Solution (different from Delete)
 - [ ] Delete (filesystem deletion)
-- [ ] Set as Startup project [startup project should be "bold" in the tree ]
 
 ### File Context Menu
 

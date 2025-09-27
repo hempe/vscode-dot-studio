@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { SolutionService } from '../../services/solutionService';
-import { SolutionProvider } from '../../services/solutionProvider';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { SolutionProject } from '../../parsers/solutionFileParser';
 import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
 import { Solution } from '../../core/Solution';
 import { ProjectFileNode } from '../../core/Project';
 import { logger } from '../../core/logger';
+import { SolutionWebView } from './views/SolutionWebview';
 
 interface FileChangeEvent {
     filePath: string;
@@ -59,8 +59,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
-        private readonly _solutionService: SolutionService,
-        private readonly _solutionProvider: SolutionProvider | undefined, // Legacy - not used anymore
         private readonly _frameworkService: FrameworkDropdownService
     ) { }
 
@@ -78,7 +76,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             ]
         };
 
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.html = SolutionWebView.getHtmlForWebview(this._extensionUri, webviewView.webview);
 
         webviewView.webview.onDidReceiveMessage(
             message => this._handleMessage(message),
@@ -226,6 +224,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'removeSolutionFolder':
                 this.logger.info(`Removing solution folder from solution: ${projectPath}`);
                 await this._handleRemoveSolutionFolder(projectPath);
+                break;
+
+            case 'addSolutionItem':
+                this.logger.info(`Adding solution item to solution folder: ${projectPath}`);
+                await this._handleAddSolutionItem(projectPath);
                 break;
 
             case 'removeProject':
@@ -693,6 +696,50 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             this.logger.error(`Error removing solution folder:`, error);
             vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
+        }
+    }
+
+    private async _handleAddSolutionItem(solutionFolderPath: string) {
+        try {
+            this.logger.info(`Adding solution item to folder: ${solutionFolderPath}`);
+
+            const folderName = path.basename(solutionFolderPath);
+
+            // Show file dialog to select files to add
+            const options: vscode.OpenDialogOptions = {
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: true,
+                openLabel: 'Add to Solution Folder',
+                title: `Add Items to Solution Folder "${folderName}"`
+            };
+
+            const fileUris = await vscode.window.showOpenDialog(options);
+
+            if (fileUris && fileUris.length > 0) {
+                this.logger.info(`Selected ${fileUris.length} files to add to solution folder`);
+
+                // Get the active solution
+                const solution = SolutionService.getActiveSolution();
+                if (!solution) {
+                    throw new Error('No active solution loaded');
+                }
+
+                // Add each file to the solution folder
+                for (const fileUri of fileUris) {
+                    const filePath = fileUri.fsPath;
+                    await solution.addSolutionItem(folderName, filePath);
+                }
+
+                vscode.window.showInformationMessage(
+                    `Added ${fileUris.length} item(s) to solution folder "${folderName}"`
+                );
+            } else {
+                this.logger.info(`User cancelled file selection`);
+            }
+        } catch (error) {
+            this.logger.error(`Error adding solution item:`, error);
+            vscode.window.showErrorMessage(`Error adding solution item: ${error}`);
         }
     }
 
@@ -1468,9 +1515,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _updateWebview() {
-        this.logger.info('===== UPDATING WEBVIEW =====');
-        this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
-
         if (!this._view) {
             this.logger.info('No webview available, skipping update');
             return;
@@ -1493,7 +1537,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } else {
             this.logger.debug('Manual operation detected - skipping rapid update protection');
         }
-
 
         try {
             // Use VS Code progress indicator instead of loading message
@@ -1811,269 +1854,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
 
-
-    private _getHtmlForWebview(webview: vscode.Webview): string {
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._extensionUri, 'out', 'webview', 'solution-view', 'bundle.js'
-        ));
-
-        // Add Codicons CSS for proper VS Code icons
-        const codiconsCss = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._extensionUri, 'out', 'webview', 'codicons', 'codicon.css'
-        ));
-
-        const nonce = this._getNonce();
-
-        return `<!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'unsafe-eval';">
-                <title>Solution Explorer</title>
-                <link rel="stylesheet" type="text/css" href="${codiconsCss}">
-                <style>
-
-                    body {
-                        font-family: var(--vscode-font-family);
-                        font-size: var(--vscode-font-size);
-                        color: var(--vscode-foreground);
-                        background-color: var(--vscode-editor-background);
-                        margin: 0;
-                        padding: 8px;
-                    }
-
-                    .solution-explorer {
-                        display: flex;
-                        flex-direction: column;
-                        height: 100%;
-                    }
-
-                    .solution-tree {
-                        outline: none;
-                    }
-
-                    .solution-tree:focus,
-                    .solution-tree:focus-visible {
-                        outline: none;
-                        border: none;
-                    }
-
-                    .header {
-                        margin-bottom: 8px;
-                        padding-bottom: 8px;
-                        border-bottom: 1px solid var(--vscode-panel-border);
-                    }
-
-                    .framework-selector {
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    }
-
-                    .framework-selector label {
-                        font-size: 11px;
-                        color: var(--vscode-descriptionForeground);
-                    }
-
-                    .framework-selector select {
-                        background-color: var(--vscode-dropdown-background);
-                        border: 1px solid var(--vscode-dropdown-border);
-                        color: var(--vscode-dropdown-foreground);
-                        padding: 4px 8px;
-                        font-size: 11px;
-                    }
-
-                    .content {
-                        flex: 1;
-                        overflow-y: auto;
-                    }
-
-                    .tree-node {
-                        display: flex;
-                        align-items: center;
-                        padding: 2px 4px;
-                        cursor: pointer;
-                        user-select: none;
-                        white-space: nowrap;
-                    }
-
-                    .tree-node:hover {
-                        background-color: var(--vscode-list-hoverBackground);
-                    }
-
-                    .tree-node.selected {
-                        background-color: var(--vscode-list-inactiveSelectionBackground);
-                        color: var(--vscode-list-inactiveSelectionForeground);
-                    }
-
-                    .tree-node.focused {
-                        outline: 1px solid var(--vscode-focusBorder);
-                        outline-offset: -1px;
-                    }
-
-                    .tree-node.focused.selected {
-                        background-color: var(--vscode-list-activeSelectionBackground);
-                        color: var(--vscode-list-activeSelectionForeground);
-                    }
-
-                    .node-icon {
-                        margin-right: 6px;
-                        font-size: 16px;
-                        width: 16px;
-                        height: 16px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-
-                    .node-name {
-                        font-size: 12px;
-                    }
-
-                    .expand-icon {
-                        margin-right: 4px;
-                        font-size: 12px;
-                        width: 12px;
-                        height: 12px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                    }
-
-                    .expand-icon-placeholder {
-                        margin-right: 4px;
-                        width: 12px;
-                        height: 12px;
-                        display: inline-block;
-                    }
-
-                    .context-menu {
-                        background-color: var(--vscode-menu-background);
-                        border: 1px solid var(--vscode-menu-border);
-                        border-radius: 6px;
-                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                        padding: 4px 0;
-                        min-width: 220px;
-                        font-family: var(--vscode-font-family);
-                        font-size: 13px;
-                        line-height: 1.4;
-                        outline: none;
-                    }
-
-                    .context-menu:focus {
-                        outline: none;
-                    }
-
-                    .context-menu-content {
-                        display: flex;
-                        flex-direction: column;
-                    }
-
-                    .context-menu-item {
-                        display: flex;
-                        align-items: center;
-                        padding: 4px 32px;
-                        margin: 0 4px;
-                        cursor: pointer;
-                        color: var(--vscode-menu-foreground);
-                        transition: background-color 0.1s ease;
-                        position: relative;
-                        min-height: 18px;
-                        border-radius: 4px;
-                    }
-
-                    .context-menu-item:hover {
-                        background-color: var(--vscode-menu-selectionBackground);
-                        color: var(--vscode-menu-selectionForeground);
-                    }
-
-                    .context-menu-item:active {
-                        background-color: var(--vscode-menu-selectionBackground);
-                    }
-
-                    .context-menu-item.focused {
-                        background-color: var(--vscode-menu-selectionBackground);
-                        color: var(--vscode-menu-selectionForeground);
-                    }
-
-                    .context-menu-icon {
-                        margin-right: 12px;
-                        width: 16px;
-                        height: 16px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        opacity: 0.9;
-                    }
-
-                    .context-menu-label {
-                        flex: 1;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        font-weight: 400;
-                    }
-
-                    .context-menu-shortcut {
-                        margin-left: 24px;
-                        color: var(--vscode-menu-foreground);
-                        font-size: 12px;
-                        opacity: 1;
-                        font-weight: 400;
-                    }
-
-                    .context-menu-separator {
-                        height: 1px;
-                        background-color: var(--vscode-menu-separatorBackground);
-                        margin: 4px 0px;
-                    }
-
-                    .rename-input {
-                        background-color: var(--vscode-input-background);
-                        border: 1px solid var(--vscode-input-border);
-                        color: var(--vscode-input-foreground);
-                        font-family: var(--vscode-font-family);
-                        font-size: 12px;
-                        padding: 2px 4px;
-                        outline: none;
-                        border-radius: 2px;
-                    }
-
-                    .rename-input:focus {
-                        border-color: var(--vscode-focusBorder);
-                    }
-
-                    .loading {
-                        text-align: center;
-                        color: var(--vscode-descriptionForeground);
-                        padding: 20px;
-                    }
-
-                    .error {
-                        text-align: center;
-                        color: var(--vscode-errorForeground);
-                        padding: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div id="root"></div>
-                <script nonce="${nonce}" src="${scriptUri}"></script>
-            </body>
-            </html>`;
-    }
-
-    private _getNonce(): string {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 32; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
-    }
-
     public refresh() {
         this.logger.info('===== REFRESH CALLED =====');
         this.logger.debug('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
@@ -2272,24 +2052,20 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             path: filePath
         };
 
-        if (this._view) {
-            this._view.webview.postMessage({
-                command: 'fileAdded',
-                file: fileNode,
-                parentPath: projectPath
-            });
-        }
+        this._view?.webview.postMessage({
+            command: 'fileAdded',
+            file: fileNode,
+            parentPath: projectPath
+        });
     }
 
     private _handleFileRemoved(filePath: string) {
         this.logger.info(`Removing file from tree: ${filePath}`);
 
-        if (this._view) {
-            this._view.webview.postMessage({
-                command: 'fileRemoved',
-                filePath: filePath
-            });
-        }
+        this._view?.webview.postMessage({
+            command: 'fileRemoved',
+            filePath: filePath
+        });
     }
 
     private async _findProjectForFile(filePath: string): Promise<string | undefined> {
@@ -2326,13 +2102,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         if (changeType === 'deleted') {
             // Solution file was deleted - clear everything
             this.logger.info(`Solution file deleted, clearing tree`);
-            if (this._view) {
-                this._view.webview.postMessage({
-                    command: 'solutionDataUpdate',
-                    projects: [],
-                    frameworks: []
-                });
-            }
+            this._view?.webview.postMessage({
+                command: 'solutionDataUpdate',
+                projects: [],
+                frameworks: []
+            });
             return;
         }
 
@@ -2380,10 +2154,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _sendProjectRefreshUpdate(projectPath: string, projectName: string) {
         this.logger.info(`Sending project refresh update for: ${projectName}`);
 
-        if (!this._view) return;
-
         // Send targeted project update instead of full tree reload
-        this._view.webview.postMessage({
+        this._view?.webview.postMessage({
             command: 'projectRefresh',
             projectPath: projectPath,
             projectName: projectName
