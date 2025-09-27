@@ -16,10 +16,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const [localLoadingNodes, setLocalLoadingNodes] = useState<Set<string>>(new Set());
 
 
-    // Helper function to find node in tree by path
+    // Helper function to find node in tree by path or unique ID
     const findNodeByPath = useCallback((targetPath: string, nodes: ProjectNode[]): ProjectNode | null => {
         for (const node of nodes) {
-            if (node.path === targetPath) {
+            if (node.path === targetPath || node.uniqueId === targetPath) {
                 return node;
             }
             if (node.children) {

@@ -201,6 +201,23 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await this._handleDelete(projectPath, data?.type);
                 break;
 
+            case 'removeSolutionItem':
+                this.logger.info(`Removing solution item: ${projectPath}`);
+                const fileName = require('path').basename(projectPath);
+                const answer = await vscode.window.showWarningMessage(
+                    `Remove "${fileName}" from solution? (File will not be deleted from disk)`,
+                    { modal: true }, 'Remove from Solution'
+                );
+                if (answer === 'Remove from Solution') {
+                    const solution = SolutionService.getActiveSolution();
+                    if (solution) {
+                        await solution.removeSolutionItem(projectPath);
+                        this._clearCache();
+                        this._updateWebview();
+                    }
+                }
+                break;
+
             case 'revealInExplorer':
                 this.logger.info(`Revealing in explorer: ${projectPath}`);
                 await this._handleRevealInExplorer(projectPath);
@@ -218,27 +235,165 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'addSolutionFolder':
                 this.logger.info(`Adding solution folder to solution: ${projectPath}`);
-                await this._handleAddSolutionFolder(projectPath);
+                try {
+                    const folderName = await vscode.window.showInputBox({
+                        prompt: 'Enter solution folder name',
+                        placeHolder: 'MyFolder',
+                        title: 'New Solution Folder',
+                        validateInput: (value) => {
+                            if (!value || value.trim().length === 0) {
+                                return 'Folder name cannot be empty';
+                            }
+                            if (!/^[a-zA-Z][a-zA-Z0-9._\s-]*$/.test(value.trim())) {
+                                return 'Folder name must start with a letter and contain only letters, numbers, dots, spaces, underscores, and hyphens';
+                            }
+                            return null;
+                        }
+                    });
+                    if (folderName) {
+                        const solution = SolutionService.getActiveSolution();
+                        if (!solution) throw new Error('No active solution loaded');
+
+                        const isSolutionFile = projectPath.endsWith('.sln');
+                        const parentFolderName = isSolutionFile ? undefined : path.basename(projectPath);
+
+                        await solution.addSolutionFolder(folderName.trim(), parentFolderName);
+                        vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
+                    }
+                } catch (error) {
+                    this.logger.error(`Error creating solution folder:`, error);
+                    vscode.window.showErrorMessage(`Error creating solution folder: ${error}`);
+                }
                 break;
 
             case 'removeSolutionFolder':
                 this.logger.info(`Removing solution folder from solution: ${projectPath}`);
-                await this._handleRemoveSolutionFolder(projectPath);
+                try {
+                    const folderName = path.basename(projectPath);
+                    const result = await vscode.window.showWarningMessage(
+                        `Are you sure you want to remove the solution folder "${folderName}"?`,
+                        { modal: true },
+                        'Remove'
+                    );
+                    if (result === 'Remove') {
+                        const solution = SolutionService.getActiveSolution();
+                        if (!solution) throw new Error('No active solution loaded');
+
+                        await solution.removeSolutionFolder(folderName);
+                        vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
+                    }
+                } catch (error) {
+                    this.logger.error(`Error removing solution folder:`, error);
+                    vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
+                }
                 break;
 
             case 'addSolutionItem':
                 this.logger.info(`Adding solution item to solution folder: ${projectPath}`);
-                await this._handleAddSolutionItem(projectPath);
+                try {
+                    const folderName = path.basename(projectPath);
+                    const fileUris = await vscode.window.showOpenDialog({
+                        canSelectFiles: true,
+                        canSelectFolders: false,
+                        canSelectMany: true,
+                        openLabel: 'Add to Solution Folder',
+                        title: `Add Items to Solution Folder "${folderName}"`
+                    });
+
+                    if (fileUris && fileUris.length > 0) {
+                        const solution = SolutionService.getActiveSolution();
+                        if (!solution) throw new Error('No active solution loaded');
+
+                        for (const fileUri of fileUris) {
+                            await solution.addSolutionItem(folderName, fileUri.fsPath);
+                        }
+
+                        vscode.window.showInformationMessage(
+                            `Added ${fileUris.length} item(s) to solution folder "${folderName}"`
+                        );
+                    }
+                } catch (error) {
+                    this.logger.error(`Error adding solution item:`, error);
+                    vscode.window.showErrorMessage(`Error adding solution item: ${error}`);
+                }
                 break;
 
             case 'removeProject':
                 this.logger.info(`Removing project from solution: ${projectPath}`);
-                await this._handleRemoveProject(projectPath);
+                try {
+                    const answer = await vscode.window.showWarningMessage(
+                        `Remove project "${path.basename(projectPath)}" from solution?`,
+                        { modal: true },
+                        'Remove'
+                    );
+
+                    if (answer === 'Remove') {
+                        const solution = SolutionService.getActiveSolution();
+                        if (!solution) throw new Error('No active solution loaded');
+
+                        await solution.removeProject(projectPath);
+                        vscode.window.showInformationMessage(`Removed project from solution`);
+                    }
+                } catch (error) {
+                    this.logger.error(`Error removing project:`, error);
+                    vscode.window.showErrorMessage(`Error removing project: ${error}`);
+                }
                 break;
 
             case 'deleteProject':
                 this.logger.info(`Deleting project: ${projectPath}`);
-                await this._handleDeleteProject(projectPath);
+                try {
+                    const projectName = path.basename(projectPath);
+                    const projectDir = path.dirname(projectPath);
+
+                    const answer = await vscode.window.showWarningMessage(
+                        `Delete project "${projectName}" and all its files permanently?`,
+                        { modal: true },
+                        'Delete Permanently'
+                    );
+
+                    if (answer === 'Delete Permanently') {
+                        // First remove from solution
+                        const solution = SolutionService.getActiveSolution();
+                        if (solution) {
+                            await solution.removeProject(projectPath);
+                        }
+
+                        // Then delete the project directory
+                        const fs = require('fs').promises;
+                        await fs.rmdir(projectDir, { recursive: true });
+
+                        vscode.window.showInformationMessage(`Deleted project "${projectName}"`);
+                    }
+                } catch (error) {
+                    this.logger.error(`Error deleting project:`, error);
+                    vscode.window.showErrorMessage(`Error deleting project: ${error}`);
+                }
+                break;
+
+            case 'removeSolutionItem':
+                this.logger.info(`Removing solution item: ${projectPath}`);
+                try {
+                    const fileName = path.basename(projectPath);
+                    const answer = await vscode.window.showWarningMessage(
+                        `Remove "${fileName}" from solution? (File will not be deleted)`,
+                        { modal: true },
+                        'Remove from Solution'
+                    );
+
+                    if (answer === 'Remove from Solution') {
+                        const solution = SolutionService.getActiveSolution();
+                        if (!solution) throw new Error('No active solution loaded');
+
+                        // Find the solution folder this item belongs to and remove it
+                        // For now, we'll need to implement this in Solution class
+                        await solution.removeSolutionItem(projectPath);
+                        vscode.window.showInformationMessage(`Removed "${fileName}" from solution`);
+                    }
+                } catch (error) {
+                    this.logger.error(`Error removing solution item:`, error);
+                    vscode.window.showErrorMessage(`Error removing solution item: ${error}`);
+                }
                 break;
 
             default:
@@ -611,211 +766,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleAddSolutionFolder(targetPath: string) {
-        try {
-                this.logger.info(`Creating solution folder for target: ${targetPath}`);
 
-            // Determine if this is a solution file or solution folder
-            const isSolutionFile = targetPath.endsWith('.sln');
-            let parentFolderName: string | undefined;
-
-            if (!isSolutionFile) {
-                // This is a solution folder - we're creating a nested folder
-                parentFolderName = path.basename(targetPath);
-                this.logger.info(`Creating nested folder under: ${parentFolderName}`);
-            } else {
-                this.logger.info(`Creating root-level solution folder`);
-            }
-
-            // Ask for folder name
-            const folderName = await vscode.window.showInputBox({
-                prompt: 'Enter solution folder name',
-                placeHolder: 'MyFolder',
-                title: 'New Solution Folder',
-                validateInput: (value) => {
-                    if (!value || value.trim().length === 0) {
-                        return 'Folder name cannot be empty';
-                    }
-                    if (!/^[a-zA-Z][a-zA-Z0-9._\s-]*$/.test(value.trim())) {
-                        return 'Folder name must start with a letter and contain only letters, numbers, dots, spaces, underscores, and hyphens';
-                    }
-                    return null;
-                }
-            });
-
-            if (!folderName) {
-                this.logger.info(`User cancelled solution folder creation`);
-                return;
-            }
-
-            this.logger.info(`Creating solution folder: ${folderName}`);
-
-            // Add the solution folder to the solution file using the Solution class
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                throw new Error('No active solution loaded');
-            }
-
-            // Add the solution folder - file watcher will handle UI updates automatically
-            await solution.addSolutionFolder(folderName.trim(), parentFolderName);
-            vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
-
-        } catch (error) {
-            this.logger.error(`Error creating solution folder:`, error);
-            vscode.window.showErrorMessage(`Error creating solution folder: ${error}`);
-        }
-    }
-
-    private async _handleRemoveSolutionFolder(folderPath: string) {
-        try {
-            this.logger.info(`Removing solution folder: ${folderPath}`);
-
-            const folderName = path.basename(folderPath);
-
-            // Confirm deletion
-            const result = await vscode.window.showWarningMessage(
-                `Are you sure you want to remove the solution folder "${folderName}"?`,
-                { modal: true },
-                'Remove'
-            );
-
-            if (result !== 'Remove') {
-                this.logger.info(`User cancelled solution folder removal`);
-                return;
-            }
-
-            // Get the active solution
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                throw new Error('No active solution loaded');
-            }
-
-            // Remove the solution folder - file watcher will handle UI updates automatically
-            await solution.removeSolutionFolder(folderName);
-            vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
-
-        } catch (error) {
-            this.logger.error(`Error removing solution folder:`, error);
-            vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
-        }
-    }
-
-    private async _handleAddSolutionItem(solutionFolderPath: string) {
-        try {
-            this.logger.info(`Adding solution item to folder: ${solutionFolderPath}`);
-
-            const folderName = path.basename(solutionFolderPath);
-
-            // Show file dialog to select files to add
-            const options: vscode.OpenDialogOptions = {
-                canSelectFiles: true,
-                canSelectFolders: false,
-                canSelectMany: true,
-                openLabel: 'Add to Solution Folder',
-                title: `Add Items to Solution Folder "${folderName}"`
-            };
-
-            const fileUris = await vscode.window.showOpenDialog(options);
-
-            if (fileUris && fileUris.length > 0) {
-                this.logger.info(`Selected ${fileUris.length} files to add to solution folder`);
-
-                // Get the active solution
-                const solution = SolutionService.getActiveSolution();
-                if (!solution) {
-                    throw new Error('No active solution loaded');
-                }
-
-                // Add each file to the solution folder
-                for (const fileUri of fileUris) {
-                    const filePath = fileUri.fsPath;
-                    await solution.addSolutionItem(folderName, filePath);
-                }
-
-                vscode.window.showInformationMessage(
-                    `Added ${fileUris.length} item(s) to solution folder "${folderName}"`
-                );
-            } else {
-                this.logger.info(`User cancelled file selection`);
-            }
-        } catch (error) {
-            this.logger.error(`Error adding solution item:`, error);
-            vscode.window.showErrorMessage(`Error adding solution item: ${error}`);
-        }
-    }
-
-    private async _handleRemoveProject(projectPath: string) {
-        try {
-            this.logger.info(`Removing project from solution: ${projectPath}`);
-
-            // Use the current solution path
-            if (!this._currentSolutionPath) {
-                vscode.window.showErrorMessage('No solution file loaded');
-                return;
-            }
-
-            // Confirm with user
-            const answer = await vscode.window.showWarningMessage(
-                `Remove project "${path.basename(projectPath)}" from solution?`,
-                { modal: true },
-                'Remove'
-            );
-
-            if (answer !== 'Remove') {
-                this.logger.info(`User cancelled project removal`);
-                return;
-            }
-
-            // Remove the project from solution using the Solution class
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                throw new Error('No active solution loaded');
-            }
-
-            await solution.removeProject(projectPath);
-            vscode.window.showInformationMessage(`Removed project from solution`);
-
-        } catch (error) {
-            this.logger.error(`Error removing project:`, error);
-            vscode.window.showErrorMessage(`Error removing project: ${error}`);
-        }
-    }
-
-    private async _handleDeleteProject(projectPath: string) {
-        try {
-            this.logger.info(`Deleting project: ${projectPath}`);
-
-            const projectName = path.basename(projectPath);
-            const projectDir = path.dirname(projectPath);
-
-            // Confirm with user - this is destructive
-            const answer = await vscode.window.showWarningMessage(
-                `Delete project "${projectName}" and all its files permanently?`,
-                { modal: true },
-                'Delete Permanently'
-            );
-
-            if (answer !== 'Delete Permanently') {
-                this.logger.info(`User cancelled project deletion`);
-                return;
-            }
-
-            // First remove from solution
-            if (this._currentSolutionPath) {
-                await this._removeProjectFromSolution(this._currentSolutionPath, projectPath);
-            }
-
-            // Then delete the project directory
-            const fs = require('fs').promises;
-            await fs.rmdir(projectDir, { recursive: true });
-
-            vscode.window.showInformationMessage(`Deleted project "${projectName}"`);
-
-        } catch (error) {
-            this.logger.error(`Error deleting project:`, error);
-            vscode.window.showErrorMessage(`Error deleting project: ${error}`);
-        }
-    }
 
 
     private async _handleExpandNode(nodePath: string, nodeType: string): Promise<void> {
@@ -1613,6 +1564,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
             path: solutionPath,
+            uniqueId: 'solution',
             children: []
         };
 
@@ -1621,7 +1573,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this.logger.info(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
-        solutionNode.children = await this._buildLazyHierarchicalNodes(rootProjects, hierarchy, solution);
+        solutionNode.children = await this._buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, 'solution');
 
         // Sort solution-level items (projects and solution folders)
         solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
@@ -1661,7 +1613,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this.logger.info('Cache cleared');
     }
 
-    private async _buildLazyHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solution: Solution): Promise<ProjectNode[]> {
+    private async _buildLazyHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solution: Solution, parentUniqueId: string = ''): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
 
         for (const project of projects) {
@@ -1673,10 +1625,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const absolutePath = this._resolveAbsolutePath(project.path || '', solution.solutionPath);
             this.logger.info(`Path resolution: ${project.path} -> ${absolutePath}`);
 
+            // Generate unique ID that includes hierarchy
+            const uniqueId = parentUniqueId
+                ? `${parentUniqueId}/${project.guid || project.name}`
+                : project.guid || project.name;
+
             const itemNode: ProjectNode = {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
                 path: absolutePath,
+                uniqueId: uniqueId,
                 children: [],
                 // Add framework information if available
                 frameworks: project.targetFrameworks || [],
@@ -1713,7 +1671,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this.logger.info(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
-                    itemNode.children = await this._buildLazyHierarchicalNodes(childProjects, hierarchy, solution);
+                    itemNode.children = await this._buildLazyHierarchicalNodes(childProjects, hierarchy, solution, uniqueId);
                 }
 
                 // Add solution items (files directly in the solution folder)
@@ -1725,10 +1683,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 }
 
                 for (const itemPath of solutionItems) {
+                    const itemName = path.basename(itemPath);
                     itemNode.children.push({
-                        type: 'file',
-                        name: path.basename(itemPath),
-                        path: path.resolve(path.dirname(solution.solutionPath), itemPath)
+                        type: 'solutionItem',
+                        name: itemName,
+                        path: path.resolve(path.dirname(solution.solutionPath), itemPath),
+                        uniqueId: `${uniqueId}/${itemName}`
                     });
                 }
 

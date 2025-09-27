@@ -1,9 +1,9 @@
 import { Dependency } from "../../../parsers/projectFileParser";
 
-export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency';
+export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'solutionItem';
 
 // Context menu actions only
-export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem';
+export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem';
 
 // All project actions (includes menu actions + internal actions)
 export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent';
@@ -22,6 +22,7 @@ export interface ProjectNode {
     isLoaded?: boolean; // For lazy loading - indicates if children have been loaded
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
     isLoading?: boolean; // Show loading state while backend processes expand/collapse
+    uniqueId?: string; // Unique identifier for selection/focus (includes hierarchy)
 }
 
 export interface SolutionData {
@@ -40,9 +41,9 @@ export interface TreeNodeProps {
     onContextMenu: (x: number, y: number, node: ProjectNode) => void;
     onRenameConfirm: (newName: string, nodePath: string, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
-    selectedNodePath?: string;
-    focusedNodePath?: string;
-    renamingNodePath?: string;
+    selectedNodePath?: string; // Node unique ID or path for selection
+    focusedNodePath?: string; // Node unique ID or path for focus
+    renamingNodePath?: string; // Node unique ID or path for renaming
 }
 
 export interface SolutionTreeProps {

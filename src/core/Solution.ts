@@ -609,6 +609,38 @@ export class Solution {
         }
     }
 
+    async removeSolutionItem(filePath: string): Promise<void> {
+        this.logger.info(`Removing solution item from solution: ${filePath}`);
+
+        try {
+            // Read the current solution file
+            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Calculate relative path from solution directory
+            const solutionDir = path.dirname(this._solutionPath);
+            const relativePath = path.relative(solutionDir, filePath).replace(/\\/g, '/');
+
+            // Remove the file reference from the solution file
+            const updatedLines = this.removeSolutionItemFromFile(lines, relativePath);
+
+            // Write the updated solution file
+            const updatedContent = updatedLines.join('\n');
+            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+
+            this.logger.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
+
+            // Re-parse the solution file to update internal state
+            await this.parseSolutionFile();
+
+            // File watcher will handle the tree update
+
+        } catch (error) {
+            this.logger.error(`Error removing solution item:`, error);
+            throw error;
+        }
+    }
+
     /**
      * Removes a solution folder Project/EndProject block from the solution file lines
      */
@@ -747,6 +779,77 @@ export class Solution {
 
             // Insert before EndProject
             newLines.splice(projectEndIndex, 0, ...sectionLines);
+        }
+
+        return newLines;
+    }
+
+    private removeSolutionItemFromFile(lines: string[], relativePath: string): string[] {
+        const newLines = [...lines];
+        let removedItemIndex = -1;
+
+        // Find and remove the specific solution item line
+        for (let i = 0; i < newLines.length; i++) {
+            const line = newLines[i].trim();
+            // Look for the item line in format: "\t\trelativePath = relativePath"
+            if (line === `${relativePath} = ${relativePath}`) {
+                removedItemIndex = i;
+                newLines.splice(i, 1);
+                break;
+            }
+        }
+
+        if (removedItemIndex === -1) {
+            this.logger.warn(`Solution item "${relativePath}" not found in solution file`);
+            return newLines;
+        }
+
+        // Check if the ProjectSection(SolutionItems) is now empty and remove it if so
+        // Find the ProjectSection that contained this item
+        let sectionStartIndex = -1;
+        let sectionEndIndex = -1;
+
+        // Search backwards from where the item was to find the section start
+        for (let i = removedItemIndex - 1; i >= 0; i--) {
+            const line = newLines[i].trim();
+            if (line === 'ProjectSection(SolutionItems) = preProject') {
+                sectionStartIndex = i;
+                break;
+            } else if (line === 'EndProject' || line.startsWith('Project(')) {
+                // We've gone too far back
+                break;
+            }
+        }
+
+        // Search forwards from where the item was to find the section end
+        if (sectionStartIndex !== -1) {
+            for (let i = removedItemIndex; i < newLines.length; i++) {
+                const line = newLines[i].trim();
+                if (line === 'EndProjectSection') {
+                    sectionEndIndex = i;
+                    break;
+                } else if (line === 'EndProject' || line.startsWith('Project(')) {
+                    // We've gone too far forward
+                    break;
+                }
+            }
+        }
+
+        // If we found the section boundaries, check if it's empty and remove it
+        if (sectionStartIndex !== -1 && sectionEndIndex !== -1) {
+            let hasItems = false;
+            for (let i = sectionStartIndex + 1; i < sectionEndIndex; i++) {
+                const line = newLines[i].trim();
+                if (line.includes(' = ') && !line.startsWith('ProjectSection') && !line.startsWith('EndProjectSection')) {
+                    hasItems = true;
+                    break;
+                }
+            }
+
+            // If no items remain in the section, remove the entire section
+            if (!hasItems) {
+                newLines.splice(sectionStartIndex, sectionEndIndex - sectionStartIndex + 1);
+            }
         }
 
         return newLines;

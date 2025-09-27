@@ -20,7 +20,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
-    const isRenaming = renamingNodePath === node.path;
+    const nodeId = node.uniqueId || node.path; // Fallback to path if uniqueId not available
+    const isRenaming = renamingNodePath === nodeId;
 
 
     const handleClick = () => {
@@ -43,7 +44,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             logger.info(`Executing single click action for: ${node.name}`);
 
             // Click selects and focuses the item
-            onNodeClick(node.path);
+            onNodeClick(nodeId);
 
             // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
             if (node.children?.length || node.hasChildren) {
@@ -177,8 +178,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const paddingLeft = level * 16;
-    const isSelected = selectedNodePath === node.path;
-    const isFocused = focusedNodePath === node.path;
+    const isSelected = selectedNodePath === nodeId;
+    const isFocused = focusedNodePath === nodeId;
 
     return (
         <div>

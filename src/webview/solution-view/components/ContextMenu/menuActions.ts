@@ -45,6 +45,12 @@ export const removeFromSolutionAction: MenuAction = {
     kind: "action"
 };
 
+export const removeSolutionItemAction: MenuAction = {
+    name: "Remove from Solution",
+    action: "removeSolutionItem",
+    kind: "action"
+};
+
 export const deleteProjectAction: MenuAction = {
     name: "Delete",
     action: "deleteProject",
@@ -170,5 +176,14 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
 
     dependency: [
         // Individual dependency items have no menu items
+    ],
+
+    solutionItem: [
+        openAction,
+        separator,
+        renameAction,
+        removeSolutionItemAction,
+        separator,
+        revealInExplorerAction
     ]
 };
