@@ -250,6 +250,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Set flag to prevent file watcher from triggering refresh
             this._isRenaming = true;
 
+            if (nodeType === 'solutionFolder') {
+                // Solution folders are virtual - rename in the .sln file, not filesystem
+                await this._handleSolutionFolderRename(oldName, newName);
+                return;
+            }
+
             const path = require('path');
             const fs = require('fs').promises;
 
@@ -303,6 +309,26 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this._isRenaming = false;
                 this.logger.info('Rename operation completed, refreshes allowed again');
             }, 1000); // 1 second delay to allow file system events to settle
+        }
+    }
+
+    private async _handleSolutionFolderRename(oldName: string, newName: string) {
+        try {
+            this.logger.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
+
+            // Get the active solution
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                throw new Error('No active solution loaded');
+            }
+
+            // Rename the solution folder - file watcher will handle UI updates
+            await solution.renameSolutionFolder(oldName, newName);
+            vscode.window.showInformationMessage(`Renamed solution folder "${oldName}" to "${newName}"`);
+
+        } catch (error) {
+            this.logger.error(`Error renaming solution folder:`, error);
+            vscode.window.showErrorMessage(`Error renaming solution folder: ${error}`);
         }
     }
 

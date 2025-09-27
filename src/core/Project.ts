@@ -462,16 +462,14 @@ export class Project {
         const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string }[] = [];
 
         try {
-            // TODO: Add Dependencies container if there are dependencies
-            // TEMPORARILY DISABLED: Dependencies node causes collapse issues and functionality not implemented yet
-            // Will be re-enabled when we implement the full dependencies functionality in Project Node Context Menu
-            // if (this._dependencies && this._dependencies.length > 0) {
-            //     items.push({
-            //         type: 'dependencies',
-            //         name: 'Dependencies',
-            //         path: this._projectPath + '/dependencies', // Unique path for dependencies node
-            //     });
-            // }
+            // Add Dependencies container if there are dependencies
+            if (this._dependencies && this._dependencies.length > 0) {
+                items.push({
+                    type: 'dependencies',
+                    name: 'Dependencies',
+                    path: this._projectPath + '/dependencies', // Unique path for dependencies node
+                });
+            }
 
             // Get root level files and folders
             const projectDir = path.dirname(this._projectPath);

@@ -530,6 +530,57 @@ export class Solution {
     }
 
     /**
+     * Renames a solution folder in the solution file
+     */
+    async renameSolutionFolder(oldName: string, newName: string): Promise<void> {
+        this.logger.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
+
+        try {
+            // Find the solution folder to get its GUID
+            const folderGuid = this.findSolutionFolderGuid(oldName);
+            if (!folderGuid) {
+                throw new Error(`Solution folder "${oldName}" not found`);
+            }
+
+            // Read the current solution file
+            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Find and update the Project line for this solution folder
+            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+            const updatedLines = lines.map(line => {
+                const trimmedLine = line.trim();
+
+                // Check if this is the Project line for our solution folder
+                if (trimmedLine.includes(`Project("${solutionFolderTypeGuid}")`) &&
+                    trimmedLine.includes(`"${oldName}"`) &&
+                    trimmedLine.includes(folderGuid)) {
+                    // Replace the old name with the new name in the Project line
+                    // Format: Project("{guid}") = "OldName", "OldName", "{folder-guid}"
+                    return line.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`);
+                }
+
+                return line;
+            });
+
+            // Write the updated solution file
+            const updatedContent = updatedLines.join('\n');
+            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+
+            this.logger.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
+
+            // Re-parse the solution file to update internal state
+            await this.parseSolutionFile();
+
+            // File watcher will handle the tree update
+
+        } catch (error) {
+            this.logger.error(`Error renaming solution folder:`, error);
+            throw error;
+        }
+    }
+
+    /**
      * Removes a solution folder Project/EndProject block from the solution file lines
      */
     private removeSolutionFolderProject(lines: string[], folderName: string, folderGuid: string): string[] {

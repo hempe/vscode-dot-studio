@@ -10,7 +10,7 @@ This document tracks the missing functionality and improvements needed for the S
   - [x] Solution/project files watched globally with flat watchers (`**/*.sln`, `**/*.{csproj,vbproj,fsproj}`)
   - [x] Individual project files watched per project
   - [x] Folder watchers created lazily when folders are expanded, removed when collapsed
-- [x] **Dependencies node temporarily disabled** - Causing collapse bug, moved to Project Node Context Menu priority list
+- [x] **Dependencies node re-enabled** - Collapse bug was due to other issues, now fixed
 
 ### Context Menu Fixes
 
@@ -48,22 +48,22 @@ This document tracks the missing functionality and improvements needed for the S
 ### Solution Folder Context Menu
 
 - [x] Add Solution Folder (sub-folder)
-- [ ] Remove
+- [x] Remove
 - [ ] Add Item (not sure what the name is in visual studio)
-- [ ] Rename (doesn't work tries to rename a real folder I think)
+- [x] Rename
 
 ### Solution Folder Item Context Menu
 
-- [ ] Remove (from solution folder, don't delete the file, so remove the DELETE option)
+- [x] Remove (from solution folder, don't delete the file) - Current "Remove from Solution" implementation handles this correctly
 
 Note: Solution folders in Visual Studio are virtual organizational containers. They typically don't have "Add New Project" or "Add Existing Project" - those operations happen at the solution level. Solution folders can contain sub-folders and can have projects moved into them.
 
 ### Project Node Context Menu
 
-- [ ] **Dependencies node functionality** (PRIORITY - currently disabled due to collapse bug)
-  - [ ] Restore Dependencies container node display
-  - [ ] Fix collapse bug when clicking dependencies node
-  - [ ] Implement dependencies expansion to show individual packages
+- [x] **Dependencies node functionality** (PRIORITY - re-enabled and working)
+  - [x] Restore Dependencies container node display
+  - [x] Fix collapse bug when clicking dependencies node
+  - [x] Implement dependencies expansion to show individual packages
   - [ ] Add context menu for dependencies (Manage NuGet Packages, Add Reference, etc.)
 - [ ] Add Reference
 - [ ] Add Project Reference
