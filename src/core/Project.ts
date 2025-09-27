@@ -255,12 +255,16 @@ export class Project {
 
             // Add folders first (sorted)
             for (const folder of folders.sort((a, b) => a.name.localeCompare(b.name))) {
+                const folderFullPath = path.join(folderPath, folder.name);
+                const hasChildren = await this.checkFolderHasChildren(folderFullPath);
+
                 children.push({
                     name: folder.name,
-                    path: path.join(folderPath, folder.name),
+                    path: folderFullPath,
                     type: 'folder',
                     children: [], // Will be loaded on demand
-                    isLoaded: false
+                    isLoaded: false,
+                    hasChildren
                 });
             }
 
@@ -447,10 +451,33 @@ export class Project {
     }
 
     /**
+     * Quick check if a folder has any children without loading them
+     */
+    private async checkFolderHasChildren(folderPath: string): Promise<boolean> {
+        try {
+            const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
+
+            // Check if there are any files or non-skipped directories
+            for (const entry of entries) {
+                if (entry.isFile()) {
+                    return true; // Found a file
+                } else if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
+                    return true; // Found a non-skipped folder
+                }
+            }
+
+            return false; // No children found
+        } catch (error) {
+            this.logger.debug(`Error checking folder children for ${folderPath}:`, error);
+            return false; // Safe fallback - assume no children on error
+        }
+    }
+
+    /**
      * Gets the root-level children for this project (dependencies container + root files/folders)
      */
-    async getRootChildren(): Promise<{ type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string }[]> {
-        const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string }[] = [];
+    async getRootChildren(): Promise<{ type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean }[]> {
+        const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean }[] = [];
 
         try {
             // Add Dependencies container if there are dependencies
@@ -486,7 +513,8 @@ export class Project {
                     items.push({
                         type: child.type as 'folder' | 'file',
                         name: child.name,
-                        path: child.path
+                        path: child.path,
+                        hasChildren: child.hasChildren
                     });
                 }
             }
@@ -525,8 +553,8 @@ export class Project {
     /**
      * Gets children for a specific folder path within this project
      */
-    async getFolderChildren(folderPath: string): Promise<{ type: 'folder' | 'file', name: string, path: string }[]> {
-        const items: { type: 'folder' | 'file', name: string, path: string }[] = [];
+    async getFolderChildren(folderPath: string): Promise<{ type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean }[]> {
+        const items: { type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean }[] = [];
 
         try {
             const children = await this.expandFolder(folderPath);
@@ -535,7 +563,8 @@ export class Project {
                 items.push({
                     type: child.type as 'folder' | 'file',
                     name: child.name,
-                    path: child.path
+                    path: child.path,
+                    hasChildren: child.hasChildren
                 });
             }
 

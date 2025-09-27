@@ -50,6 +50,39 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] **Left arrow key on files** should collapse the tree node (currently doesn't work)
 - [x] **Context menu focus** - opening context menu should focus it for keyboard navigation (up/down arrows)
 
+## 🏗️ Critical Architectural Refactoring (Priority 1.5)
+
+### Immediate Refactoring Needs
+
+**Why Now**: Priority 2 features (Dependencies, NuGet, Add Reference, etc.) will require significant changes to tree building and action handling. We need clean, maintainable services before adding complexity.
+
+**Current Problem**: SolutionWebviewProvider is 1900+ lines handling too many responsibilities
+
+### Services to Extract Immediately
+
+- [ ] **SolutionTreeService** - Tree building and hierarchy management (~600 lines)
+  - [ ] `buildSolutionTree()` - Build complete tree from Solution data
+  - [ ] `mergeTreeStates()` - Merge fresh data with cached expansion states
+  - [ ] `updateNodeInTree()` - Update specific nodes in tree structure
+  - [ ] `findNodeByPath()` - Tree traversal utilities
+  - [ ] Tree caching and invalidation logic
+  - **Why urgent**: Dependencies node, NuGet packages, and project references will require tree modifications
+
+- [ ] **SolutionActionService** - Handle all project/solution operations (~500 lines)
+  - [ ] Project operations (add, remove, build, clean, rebuild, restore)
+  - [ ] Solution folder operations (add, remove, rename)
+  - [ ] File operations (delete, reveal, open)
+  - [ ] Solution item operations (add, remove)
+  - [ ] Build system integration
+  - **Why urgent**: Most Priority 2 features are new actions (Add Reference, Manage NuGet, Add Class, etc.)
+
+**Target**: Reduce SolutionWebviewProvider from 1900+ lines to ~800 lines (60% reduction)
+
+### Implementation Strategy
+1. Extract SolutionTreeService first (biggest impact, needed for Dependencies)
+2. Extract SolutionActionService second (needed for all new actions)
+3. Test thoroughly before proceeding to Priority 2 features
+
 ## 📋 Missing Context Menu Actions (Priority 2)
 
 ### Solution Node Context Menu
@@ -99,6 +132,7 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 - [ ] Add Class/Item
 - [ ] Add Folder
 - [ ] Copy/Cut/Paste
+
 
 ## 🔧 Functionality Gaps (Priority 3)
 

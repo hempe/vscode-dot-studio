@@ -75,9 +75,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             setClickTimeout(null);
         }
 
-        // Double click opens file
-        logger.info(`Opening file: ${node.path}`);
-        onProjectAction('openFile', node.path);
+        // Double click opens file only for file types
+        if (node.type === 'file' || node.type === 'solutionItem') {
+            logger.info(`Opening file: ${node.path}`);
+            onProjectAction('openFile', node.path);
+        } else {
+            logger.info(`Double click on ${node.type} - no action needed`);
+        }
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {

@@ -435,7 +435,18 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     onClose={handleCloseContextMenu}
                     onRename={handleRename}
                     onAction={(action, data) => {
-                        onProjectAction(action, contextMenu.node.path, data);
+                        // For solution folder actions, pass GUID and name for safer operations
+                        if (contextMenu.node.type === 'solutionFolder' &&
+                            (action === 'removeSolutionFolder' || action === 'addSolutionItem')) {
+                            const enhancedData = {
+                                ...data,
+                                guid: contextMenu.node.guid,
+                                name: contextMenu.node.name
+                            };
+                            onProjectAction(action, contextMenu.node.path, enhancedData);
+                        } else {
+                            onProjectAction(action, contextMenu.node.path, data);
+                        }
                     }}
                     nodeType={contextMenu.node.type}
                     nodeName={contextMenu.node.name}

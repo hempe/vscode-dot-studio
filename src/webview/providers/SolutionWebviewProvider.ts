@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { SolutionService } from '../../services/solutionService';
+import { SolutionTreeService } from '../../services/solutionTreeService';
+import { SolutionActionService } from '../../services/solutionActionService';
+import { SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { SolutionProject } from '../../parsers/solutionFileParser';
 import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
@@ -117,7 +120,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         projectPath: message.projectPath,
                         data: message.data
                     });
-                    await this._handleProjectAction(message.action, message.projectPath, message.data);
+                    await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
                 }
                 break;
 
@@ -132,272 +135,37 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'saveExpansionState':
                 if (message.expandedNodes) {
                     this.logger.info('Handling saveExpansionState request:', message.expandedNodes);
-                    this.saveExpansionState(message.expandedNodes);
+                    SolutionExpansionService.saveExpansionState(message.expandedNodes, this._context);
                 }
                 break;
 
             case 'expandNode':
                 if (message.nodePath && message.nodeType) {
                     this.logger.info('Handling expandNode request:', message.nodePath, message.nodeType);
-                    await this._handleExpandNode(message.nodePath, message.nodeType);
+                    await SolutionExpansionService.handleExpandNode(
+                        message.nodePath,
+                        message.nodeType,
+                        this._cachedSolutionData || null,
+                        () => this._updateWebview(),
+                        this._context
+                    );
                 }
                 break;
 
             case 'collapseNode':
                 if (message.nodePath) {
                     this.logger.info('Handling collapseNode request:', message.nodePath);
-                    await this._handleCollapseNode(message.nodePath);
+                    await SolutionExpansionService.handleCollapseNode(
+                        message.nodePath,
+                        this._cachedSolutionData || null,
+                        () => this._updateWebview(),
+                        this._context
+                    );
                 }
                 break;
 
             default:
                 this.logger.info('Unknown message command:', message.command);
-        }
-    }
-
-    private async _handleProjectAction(action: ProjectActionType, projectPath: string, data?: MessageData) {
-        this.logger.info(`Executing project action: ${action} on ${projectPath}`);
-
-        switch (action) {
-            case 'openFile':
-                this.logger.info(`Opening file: ${projectPath}`);
-                await this._handleOpenFile(projectPath);
-                break;
-
-            case 'contextMenu':
-                this.logger.info(`Context menu action for ${data?.type || 'unknown'} at ${projectPath}`);
-                // Handle context menu actions based on data.type
-                break;
-
-            case 'rename':
-                if (data?.newName && data?.oldName && data?.type) {
-                    this.logger.info(`Renaming ${data.oldName} to ${data.newName} at ${projectPath}`);
-                    await this._handleRename(projectPath, data.newName, data.oldName, data.type as NodeType);
-                }
-                break;
-
-            case 'build':
-                this.logger.info(`Building project: ${projectPath}`);
-                await this._handleBuild(projectPath, 'build');
-                break;
-
-            case 'rebuild':
-                this.logger.info(`Rebuilding project: ${projectPath}`);
-                await this._handleBuild(projectPath, 'rebuild');
-                break;
-
-            case 'clean':
-                this.logger.info(`Cleaning project: ${projectPath}`);
-                await this._handleBuild(projectPath, 'clean');
-                break;
-
-            case 'restoreNugets':
-                this.logger.info(`Restoring NuGet packages for: ${projectPath}`);
-                await this._handleBuild(projectPath, 'restore');
-                break;
-
-            case 'deleteFile':
-                this.logger.info(`Deleting file: ${projectPath}`);
-                await this._handleDelete(projectPath, data?.type);
-                break;
-
-            case 'removeSolutionItem':
-                this.logger.info(`Removing solution item: ${projectPath}`);
-                const fileName = require('path').basename(projectPath);
-                const answer = await vscode.window.showWarningMessage(
-                    `Remove "${fileName}" from solution? (File will not be deleted from disk)`,
-                    { modal: true }, 'Remove from Solution'
-                );
-                if (answer === 'Remove from Solution') {
-                    const solution = SolutionService.getActiveSolution();
-                    if (solution) {
-                        await solution.removeSolutionItem(projectPath);
-                        this._clearCache();
-                        this._updateWebview();
-                    }
-                }
-                break;
-
-            case 'revealInExplorer':
-                this.logger.info(`Revealing in explorer: ${projectPath}`);
-                await this._handleRevealInExplorer(projectPath);
-                break;
-
-            case 'addExistingProject':
-                this.logger.info(`Adding existing project to solution: ${projectPath}`);
-                await this._handleAddExistingProject(projectPath);
-                break;
-
-            case 'addNewProject':
-                this.logger.info(`Adding new project to solution: ${projectPath}`);
-                await this._handleAddNewProject(projectPath);
-                break;
-
-            case 'addSolutionFolder':
-                this.logger.info(`Adding solution folder to solution: ${projectPath}`);
-                try {
-                    const folderName = await vscode.window.showInputBox({
-                        prompt: 'Enter solution folder name',
-                        placeHolder: 'MyFolder',
-                        title: 'New Solution Folder',
-                        validateInput: (value) => {
-                            if (!value || value.trim().length === 0) {
-                                return 'Folder name cannot be empty';
-                            }
-                            if (!/^[a-zA-Z][a-zA-Z0-9._\s-]*$/.test(value.trim())) {
-                                return 'Folder name must start with a letter and contain only letters, numbers, dots, spaces, underscores, and hyphens';
-                            }
-                            return null;
-                        }
-                    });
-                    if (folderName) {
-                        const solution = SolutionService.getActiveSolution();
-                        if (!solution) throw new Error('No active solution loaded');
-
-                        const isSolutionFile = projectPath.endsWith('.sln');
-                        const parentFolderName = isSolutionFile ? undefined : path.basename(projectPath);
-
-                        await solution.addSolutionFolder(folderName.trim(), parentFolderName);
-                        vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
-                    }
-                } catch (error) {
-                    this.logger.error(`Error creating solution folder:`, error);
-                    vscode.window.showErrorMessage(`Error creating solution folder: ${error}`);
-                }
-                break;
-
-            case 'removeSolutionFolder':
-                this.logger.info(`Removing solution folder from solution: ${projectPath}`);
-                try {
-                    const folderName = path.basename(projectPath);
-                    const result = await vscode.window.showWarningMessage(
-                        `Are you sure you want to remove the solution folder "${folderName}"?`,
-                        { modal: true },
-                        'Remove'
-                    );
-                    if (result === 'Remove') {
-                        const solution = SolutionService.getActiveSolution();
-                        if (!solution) throw new Error('No active solution loaded');
-
-                        await solution.removeSolutionFolder(folderName);
-                        vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
-                    }
-                } catch (error) {
-                    this.logger.error(`Error removing solution folder:`, error);
-                    vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
-                }
-                break;
-
-            case 'addSolutionItem':
-                this.logger.info(`Adding solution item to solution folder: ${projectPath}`);
-                try {
-                    const folderName = path.basename(projectPath);
-                    const fileUris = await vscode.window.showOpenDialog({
-                        canSelectFiles: true,
-                        canSelectFolders: false,
-                        canSelectMany: true,
-                        openLabel: 'Add to Solution Folder',
-                        title: `Add Items to Solution Folder "${folderName}"`
-                    });
-
-                    if (fileUris && fileUris.length > 0) {
-                        const solution = SolutionService.getActiveSolution();
-                        if (!solution) throw new Error('No active solution loaded');
-
-                        for (const fileUri of fileUris) {
-                            await solution.addSolutionItem(folderName, fileUri.fsPath);
-                        }
-
-                        vscode.window.showInformationMessage(
-                            `Added ${fileUris.length} item(s) to solution folder "${folderName}"`
-                        );
-                    }
-                } catch (error) {
-                    this.logger.error(`Error adding solution item:`, error);
-                    vscode.window.showErrorMessage(`Error adding solution item: ${error}`);
-                }
-                break;
-
-            case 'removeProject':
-                this.logger.info(`Removing project from solution: ${projectPath}`);
-                try {
-                    const answer = await vscode.window.showWarningMessage(
-                        `Remove project "${path.basename(projectPath)}" from solution?`,
-                        { modal: true },
-                        'Remove'
-                    );
-
-                    if (answer === 'Remove') {
-                        const solution = SolutionService.getActiveSolution();
-                        if (!solution) throw new Error('No active solution loaded');
-
-                        await solution.removeProject(projectPath);
-                        vscode.window.showInformationMessage(`Removed project from solution`);
-                    }
-                } catch (error) {
-                    this.logger.error(`Error removing project:`, error);
-                    vscode.window.showErrorMessage(`Error removing project: ${error}`);
-                }
-                break;
-
-            case 'deleteProject':
-                this.logger.info(`Deleting project: ${projectPath}`);
-                try {
-                    const projectName = path.basename(projectPath);
-                    const projectDir = path.dirname(projectPath);
-
-                    const answer = await vscode.window.showWarningMessage(
-                        `Delete project "${projectName}" and all its files permanently?`,
-                        { modal: true },
-                        'Delete Permanently'
-                    );
-
-                    if (answer === 'Delete Permanently') {
-                        // First remove from solution
-                        const solution = SolutionService.getActiveSolution();
-                        if (solution) {
-                            await solution.removeProject(projectPath);
-                        }
-
-                        // Then delete the project directory
-                        const fs = require('fs').promises;
-                        await fs.rmdir(projectDir, { recursive: true });
-
-                        vscode.window.showInformationMessage(`Deleted project "${projectName}"`);
-                    }
-                } catch (error) {
-                    this.logger.error(`Error deleting project:`, error);
-                    vscode.window.showErrorMessage(`Error deleting project: ${error}`);
-                }
-                break;
-
-            case 'removeSolutionItem':
-                this.logger.info(`Removing solution item: ${projectPath}`);
-                try {
-                    const fileName = path.basename(projectPath);
-                    const answer = await vscode.window.showWarningMessage(
-                        `Remove "${fileName}" from solution? (File will not be deleted)`,
-                        { modal: true },
-                        'Remove from Solution'
-                    );
-
-                    if (answer === 'Remove from Solution') {
-                        const solution = SolutionService.getActiveSolution();
-                        if (!solution) throw new Error('No active solution loaded');
-
-                        // Find the solution folder this item belongs to and remove it
-                        // For now, we'll need to implement this in Solution class
-                        await solution.removeSolutionItem(projectPath);
-                        vscode.window.showInformationMessage(`Removed "${fileName}" from solution`);
-                    }
-                } catch (error) {
-                    this.logger.error(`Error removing solution item:`, error);
-                    vscode.window.showErrorMessage(`Error removing solution item: ${error}`);
-                }
-                break;
-
-            default:
-                this.logger.warn(`Unknown project action: ${action}`);
         }
     }
 
@@ -818,7 +586,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         // Load fresh children for first-time expansion
                         this.logger.info(`Loading fresh children for project: ${project.name}`);
                         const rootChildren = await project.getRootChildren();
-                        children = this._convertProjectChildrenToProjectNodes(rootChildren);
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(rootChildren);
 
                         // Restore expansion states for nested children within this project
                         await this._restoreExpansionStates(children, { parentPath: nodePath, updateCache: false });
@@ -838,19 +606,19 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 if (project) {
                     this.logger.info(`Using Project.getDependencies() for: ${projectPath}`);
                     const dependencies = project.getDependencies();
-                    children = this._convertProjectChildrenToProjectNodes(dependencies);
+                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
                 } else {
                     this.logger.warn(`Could not find project instance for dependencies: ${projectPath}`);
                 }
             } else if (nodeType === 'folder') {
                 // Expanding a folder within a project using the new Project methods
-                const projectPath = this._findProjectPathForFolder(nodePath);
+                const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
                 if (projectPath) {
                     const project = solution.getProject(projectPath);
                     if (project) {
                         this.logger.info(`Using Project.getFolderChildren() for: ${nodePath}`);
                         const folderChildren = await project.getFolderChildren(nodePath);
-                        children = this._convertProjectChildrenToProjectNodes(folderChildren);
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
 
                         // Create lazy folder watcher for this expanded folder
                         this.logger.info(`Creating lazy folder watcher for: ${nodePath}`);
@@ -907,7 +675,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
             // Find the project that contains this path and collapse it in the project state
-            const projectPath = this._findProjectPathForFolder(nodePath);
+            const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
             if (projectPath) {
                 const project = solution.getProject(projectPath);
                 if (project) {
@@ -929,20 +697,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private _findProjectPathForFolder(folderPath: string): string | undefined {
-        const solution = SolutionService.getActiveSolution();
-        if (!solution) return undefined;
-
-        // Check each project to see if this folder path is within it
-        for (const project of solution.getDotNetProjects()) {
-            const projectDir = path.dirname(project.projectPath);
-            if (folderPath.startsWith(projectDir)) {
-                return project.projectPath;
-            }
-        }
-
-        return undefined;
-    }
 
     /**
      * Sets the loading state for a specific node
@@ -950,7 +704,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _setNodeLoadingState(nodePath: string, isLoading: boolean): Promise<void> {
         // Update the loading state in our cached data if available
         if (this._cachedSolutionData) {
-            this._updateNodeInTree(this._cachedSolutionData, nodePath, { isLoading });
+            SolutionTreeService.updateNodeInTree(this._cachedSolutionData, nodePath, { isLoading });
         }
 
         // Send the current tree with updated loading state
@@ -969,7 +723,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 updates.hasChildren = children.length > 0;
                 updates.isLoaded = true;
             }
-            this._updateNodeInTree(this._cachedSolutionData, nodePath, updates);
+            SolutionTreeService.updateNodeInTree(this._cachedSolutionData, nodePath, updates);
         }
 
         // Update expansion state in persistent storage
@@ -980,19 +734,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Recursively updates a node in the tree
      */
-    private _updateNodeInTree(nodes: ProjectNode[], targetPath: string, updates: Partial<ProjectNode>): boolean {
-        for (const node of nodes) {
-            if (node.path === targetPath) {
-                // Update the node with the new properties
-                Object.assign(node, updates);
-                return true;
-            }
-            if (node.children && this._updateNodeInTree(node.children, targetPath, updates)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Gets all expanded node paths from the tree
@@ -1031,7 +772,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             if (this._cachedSolutionData && freshSolutionData) {
                 // Merge the expansion/loading states from cache with fresh data
-                this._mergeTreeStates(freshSolutionData, this._cachedSolutionData);
+                SolutionTreeService.mergeTreeStates(freshSolutionData, this._cachedSolutionData);
             }
 
             // Update cache with the merged data
@@ -1058,39 +799,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Merges expansion and loading states from cached tree into fresh tree
      */
-    private _mergeTreeStates(freshNodes: ProjectNode[], cachedNodes: ProjectNode[]): void {
-        const cachedMap = new Map<string, ProjectNode>();
-
-        // Build map of cached nodes by path
-        const buildCacheMap = (nodes: ProjectNode[]) => {
-            for (const node of nodes) {
-                cachedMap.set(node.path, node);
-                if (node.children) {
-                    buildCacheMap(node.children);
-                }
-            }
-        };
-        buildCacheMap(cachedNodes);
-
-        // Merge states into fresh nodes
-        const mergeStates = (nodes: ProjectNode[]) => {
-            for (const node of nodes) {
-                const cached = cachedMap.get(node.path);
-                if (cached) {
-                    node.expanded = cached.expanded;
-                    node.isLoading = cached.isLoading;
-                    // Only merge children if the cached node has them and is expanded
-                    if (cached.expanded && cached.children) {
-                        node.children = cached.children;
-                    }
-                }
-                if (node.children) {
-                    mergeStates(node.children);
-                }
-            }
-        };
-        mergeStates(freshNodes);
-    }
 
 
 
@@ -1130,7 +838,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
             // Get all valid paths from current tree and clean up stale ones
-            const validPaths = this._getAllValidPathsFromTree(treeData);
+            const validPaths = SolutionTreeService.getAllValidPathsFromTree(treeData);
             const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
 
             this.logger.info('Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
@@ -1140,12 +848,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Restore expansion states and load children
             for (const expandedPath of cleanedExpandedNodes) {
-                const nodeType = this._getNodeTypeForPath(expandedPath, treeData);
+                const nodeType = SolutionTreeService.getNodeTypeForPath(expandedPath, treeData);
                 if (nodeType) {
                     this.logger.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
 
                     // Set expanded = true in the tree
-                    this._updateNodeInTree(treeData, expandedPath, { expanded: true });
+                    SolutionTreeService.updateNodeInTree(treeData, expandedPath, { expanded: true });
 
                     // Load children for the expanded node
                     await this._loadChildrenForNode(expandedPath, nodeType, treeData);
@@ -1189,7 +897,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 try {
                     // Get fresh folder contents
                     const folderChildren = await project.getFolderChildren(child.path);
-                    const freshChildren = this._convertProjectChildrenToProjectNodes(folderChildren);
+                    const freshChildren = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
 
                     // Merge with existing children to preserve nested expansion states
                     child.children = this._mergeChildrenArrays(child.children, freshChildren);
@@ -1238,43 +946,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Gets all valid paths from the tree structure
      */
-    private _getAllValidPathsFromTree(nodes: ProjectNode[]): Set<string> {
-        const paths = new Set<string>();
-
-        const traverse = (nodeList: ProjectNode[]) => {
-            for (const node of nodeList) {
-                paths.add(node.path);
-                if (node.children) {
-                    traverse(node.children);
-                }
-            }
-        };
-
-        traverse(nodes);
-        return paths;
-    }
 
 
     /**
      * Gets the node type for a given path from the tree
      */
-    private _getNodeTypeForPath(targetPath: string, nodes: ProjectNode[]): string | null {
-        const findNode = (nodeList: ProjectNode[]): ProjectNode | null => {
-            for (const node of nodeList) {
-                if (node.path === targetPath) {
-                    return node;
-                }
-                if (node.children) {
-                    const found = findNode(node.children);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-
-        const node = findNode(nodes);
-        return node ? node.type : null;
-    }
 
     /**
      * Loads children for a specific node during restoration
@@ -1295,29 +971,29 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const project = solution.getProject(nodePath);
                 if (project) {
                     const rootChildren = await project.getRootChildren();
-                    children = this._convertProjectChildrenToProjectNodes(rootChildren);
+                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(rootChildren);
                 }
             } else if (nodeType === 'dependencies') {
                 const projectPath = nodePath.replace('/dependencies', '');
                 const project = solution.getProject(projectPath);
                 if (project) {
                     const dependencies = project.getDependencies();
-                    children = this._convertProjectChildrenToProjectNodes(dependencies);
+                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
                 }
             } else if (nodeType === 'folder') {
-                const projectPath = this._findProjectPathForFolder(nodePath);
+                const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
                 if (projectPath) {
                     const project = solution.getProject(projectPath);
                     if (project) {
                         const folderChildren = await project.getFolderChildren(nodePath);
-                        children = this._convertProjectChildrenToProjectNodes(folderChildren);
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
                     }
                 }
             }
 
             if (children.length > 0) {
                 // Update the node in the tree with its children
-                this._updateNodeInTree(treeData, nodePath, {
+                SolutionTreeService.updateNodeInTree(treeData, nodePath, {
                     children,
                     hasChildren: true,
                     isLoaded: true
@@ -1326,7 +1002,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Create folder watcher for restored expanded folders
                 if (nodeType === 'folder') {
                     const solution = SolutionService.getActiveSolution();
-                    const projectPath = this._findProjectPathForFolder(nodePath);
+                    const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
                     if (solution && projectPath) {
                         const project = solution.getProject(projectPath);
                         if (project) {
@@ -1366,40 +1042,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Converts Project class output format to ProjectNode format for the webview
      */
-    private _convertProjectChildrenToProjectNodes(children: any[]): ProjectNode[] {
-        return children.map(child => {
-            if (child.type === 'dependency') {
-                return {
-                    type: 'dependency' as NodeType,
-                    name: child.name,
-                    path: child.path,
-                    version: child.version,
-                    dependencyType: child.dependencyType
-                };
-            } else if (child.type === 'dependencies') {
-                return {
-                    type: 'dependencies' as NodeType,
-                    name: child.name,
-                    path: child.path,
-                    hasChildren: true, // Dependencies node has children
-                    isLoaded: false // Not loaded initially for lazy loading
-                };
-            } else {
-                // Handle both simple objects and ProjectFileNode objects
-                const hasChildren = child.hasChildren !== undefined ? child.hasChildren : (child.type === 'folder');
-                const isLoaded = child.isLoaded !== undefined ? child.isLoaded : false;
-
-                return {
-                    type: child.type as NodeType,
-                    name: child.name,
-                    path: child.path,
-                    hasChildren: hasChildren,
-                    isLoaded: isLoaded,
-                    children: child.children ? this._convertProjectChildrenToProjectNodes(child.children) : undefined
-                };
-            }
-        });
-    }
 
     /**
      * Helper method to remove project from solution using dotnet CLI
@@ -1549,52 +1191,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _convertToTreeStructureWithLazyLoading(solution: Solution): Promise<ProjectNode[]> {
-        const result: ProjectNode[] = [];
+        if (!solution.solutionFile) return [];
 
-        if (!solution.solutionFile) return result;
-
-        // Get project hierarchy
-        const hierarchy = solution.getProjectHierarchy();
-        const solutionPath = solution.solutionPath;
-
-        this.logger.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
-
-        // Add the solution as the root node
-        const solutionNode: ProjectNode = {
-            type: 'solution',
-            name: path.basename(solutionPath, '.sln'),
-            path: solutionPath,
-            uniqueId: 'solution',
-            children: []
-        };
-
-        // Get root level projects and solution folders from hierarchy
-        const rootProjects = hierarchy.get('ROOT') || [];
-        this.logger.info(`Found ${rootProjects.length} root-level items`);
-
-        // Build tree using lazy loading approach
-        solutionNode.children = await this._buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, 'solution');
-
-        // Sort solution-level items (projects and solution folders)
-        solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
-            // Visual Studio ordering at solution level: Solution Folders -> Projects
-            const getTypePriority = (item: ProjectNode) => {
-                if (item.type === 'solutionFolder') return 0;  // Solution folders first
-                return 1;  // Projects second
-            };
-
-            const priorityA = getTypePriority(a);
-            const priorityB = getTypePriority(b);
-
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-
-            // Within same type, sort alphabetically
-            return a.name.localeCompare(b.name);
-        });
-
-        result.push(solutionNode);
+        // Use the tree service to build the solution tree
+        const result = await SolutionTreeService.buildSolutionTree(solution);
 
         // Cache the result for faster subsequent calls
         this._cachedSolutionData = result;
@@ -1613,159 +1213,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this.logger.info('Cache cleared');
     }
 
-    private async _buildLazyHierarchicalNodes(projects: SolutionProject[], hierarchy: Map<string, SolutionProject[]>, solution: Solution, parentUniqueId: string = ''): Promise<ProjectNode[]> {
-        const nodes: ProjectNode[] = [];
-
-        for (const project of projects) {
-            // Determine the item type based on typeGuid
-            const itemType = this._getItemType(project.typeGuid);
-            this.logger.info(`Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
-
-            // Ensure path is absolute (for both projects and solution items)
-            const absolutePath = this._resolveAbsolutePath(project.path || '', solution.solutionPath);
-            this.logger.info(`Path resolution: ${project.path} -> ${absolutePath}`);
-
-            // Generate unique ID that includes hierarchy
-            const uniqueId = parentUniqueId
-                ? `${parentUniqueId}/${project.guid || project.name}`
-                : project.guid || project.name;
-
-            const itemNode: ProjectNode = {
-                type: itemType,
-                name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
-                path: absolutePath,
-                uniqueId: uniqueId,
-                children: [],
-                // Add framework information if available
-                frameworks: project.targetFrameworks || [],
-                // Store original typeGuid for debugging
-                typeGuid: project.typeGuid,
-                // Store GUID for hierarchy lookup
-                guid: project.guid,
-                // Mark as not loaded for lazy loading
-                isLoaded: false
-            };
-
-            // Check if project nodes actually have children (optimized check)
-            if (itemType === 'project') {
-                try {
-                    const projectInstance = solution.getProject(absolutePath);
-                    if (projectInstance && projectInstance.isInitialized) {
-                        itemNode.hasChildren = await projectInstance.hasAnyChildren();
-                        this.logger.info(`Project ${project.name} hasChildren: ${itemNode.hasChildren}`);
-                    } else {
-                        // If project not initialized yet, assume it has children
-                        itemNode.hasChildren = true;
-                        this.logger.info(`Project ${project.name} not initialized yet, assuming hasChildren: true`);
-                    }
-                } catch (error) {
-                    this.logger.warn(`Error checking children for project ${project.name}:`, error);
-                    // Fallback to assuming it has children
-                    itemNode.hasChildren = true;
-                }
-            }
-
-            // Handle solution folders - add their children recursively
-            else if (itemType === 'solutionFolder') {
-                const childProjects = hierarchy.get(project.guid) || [];
-                this.logger.info(`Solution folder ${project.name} has ${childProjects.length} children`);
-
-                if (childProjects.length > 0) {
-                    itemNode.children = await this._buildLazyHierarchicalNodes(childProjects, hierarchy, solution, uniqueId);
-                }
-
-                // Add solution items (files directly in the solution folder)
-                const solutionItems = solution.getSolutionItems(project);
-                this.logger.info(`Solution folder ${project.name} has ${solutionItems.length} solution items`);
-
-                if (!itemNode.children) {
-                    itemNode.children = [];
-                }
-
-                for (const itemPath of solutionItems) {
-                    const itemName = path.basename(itemPath);
-                    itemNode.children.push({
-                        type: 'solutionItem',
-                        name: itemName,
-                        path: path.resolve(path.dirname(solution.solutionPath), itemPath),
-                        uniqueId: `${uniqueId}/${itemName}`
-                    });
-                }
-
-                // Sort solution folder children
-                if (itemNode.children?.length) {
-                    itemNode.children.sort((a: ProjectNode, b: ProjectNode) => {
-                        const getTypePriority = (item: ProjectNode) => {
-                            if (item.type === 'solutionFolder') return 0;
-                            if (item.type === 'project') return 1;
-                            if (item.type === 'file') return 2;
-                            return 3;
-                        };
-
-                        const priorityA = getTypePriority(a);
-                        const priorityB = getTypePriority(b);
-
-                        if (priorityA !== priorityB) {
-                            return priorityA - priorityB;
-                        }
-
-                        return a.name.localeCompare(b.name);
-                    });
-                }
-
-                // Set hasChildren based on whether the solution folder has any children
-                itemNode.hasChildren = (itemNode.children && itemNode.children.length > 0);
-            }
-
-            nodes.push(itemNode);
-        }
-
-        return nodes;
-    }
 
 
 
-    private _getItemType(typeGuid: string): NodeType {
-        // Project type GUIDs from VS solution files
-        const PROJECT_TYPE_GUIDS = {
-            SOLUTION_FOLDER: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
-            CSHARP_PROJECT: '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}',
-            VB_PROJECT: '{F184B08F-C81C-45F6-A57F-5ABD9991F28F}',
-            FSHARP_PROJECT: '{F2A71F9B-5D33-465A-A702-920D77279786}',
-            CPP_PROJECT: '{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}',
-            WEB_PROJECT: '{E24C65DC-7377-472B-9ABA-BC803B73C61A}',
-            DATABASE_PROJECT: '{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}'
-        };
 
-        switch (typeGuid.toUpperCase()) {
-            case PROJECT_TYPE_GUIDS.SOLUTION_FOLDER:
-                return 'solutionFolder';
-            case PROJECT_TYPE_GUIDS.CSHARP_PROJECT:
-            case PROJECT_TYPE_GUIDS.VB_PROJECT:
-            case PROJECT_TYPE_GUIDS.FSHARP_PROJECT:
-            case PROJECT_TYPE_GUIDS.CPP_PROJECT:
-            case PROJECT_TYPE_GUIDS.WEB_PROJECT:
-            case PROJECT_TYPE_GUIDS.DATABASE_PROJECT:
-                return 'project';
-            default:
-                this.logger.warn(`Unknown project type GUID: ${typeGuid}, defaulting to 'project'`);
-                return 'project';
-        }
-    }
-
-    private _resolveAbsolutePath(itemPath: string, solutionPath: string): string {
-        if (!itemPath) {
-            return '';
-        }
-
-        if (path.isAbsolute(itemPath)) {
-            return itemPath;
-        }
-
-        // For solution folders, the path is usually just the folder name
-        // For projects, it's a relative path to the .csproj file
-        return path.resolve(path.dirname(solutionPath), itemPath);
-    }
 
 
     public refresh() {
