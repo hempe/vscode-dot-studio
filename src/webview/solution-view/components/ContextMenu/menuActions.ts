@@ -69,6 +69,12 @@ export const cleanAction: MenuAction = {
     kind: "action"
 };
 
+export const restoreNugetsAction: MenuAction = {
+    name: "Restore NuGet Packages",
+    action: "restoreNugets",
+    kind: "action"
+};
+
 export const addExistingProjectAction: MenuAction = {
     name: "Add Existing Project...",
     action: "addExistingProject",
@@ -101,6 +107,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         buildAction,
         rebuildAction,
         cleanAction,
+        restoreNugetsAction,
         separator,
         renameAction,
         separator,

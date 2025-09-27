@@ -195,6 +195,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await this._handleBuild(projectPath, 'clean');
                 break;
 
+            case 'restoreNugets':
+                this.logger.info(`Restoring NuGet packages for: ${projectPath}`);
+                await this._handleBuild(projectPath, 'restore');
+                break;
+
             case 'deleteFile':
                 this.logger.info(`Deleting file: ${projectPath}`);
                 await this._handleDelete(projectPath, data?.type);
@@ -298,7 +303,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleBuild(targetPath: string, action: 'build' | 'rebuild' | 'clean') {
+    private async _handleBuild(targetPath: string, action: 'build' | 'rebuild' | 'clean' | 'restore') {
         try {
             // Determine if this is a solution or project based on the file extension
             const isSolution = targetPath.endsWith('.sln');
@@ -320,6 +325,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'clean':
                     command = `dotnet clean "${targetPath}"`;
+                    break;
+                case 'restore':
+                    command = `dotnet restore "${targetPath}"`;
                     break;
             }
 
