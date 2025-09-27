@@ -5,7 +5,7 @@ import { SolutionProvider } from '../../services/solutionProvider';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { SolutionProject } from '../../parsers/solutionFileParser';
 import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
-import { Solution, SolutionChangeEvent } from '../../core/Solution';
+import { Solution } from '../../core/Solution';
 import { ProjectFileNode } from '../../core/Project';
 import { logger } from '../../core/logger';
 
@@ -57,7 +57,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private readonly _rapidUpdateWindow = 2000; // 2 seconds
     private _isManualOperation = false; // Flag to indicate user-initiated operations
     private _manualOperationTimeout?: NodeJS.Timeout; // Timeout to clear manual operation flag
-    private _solutionChangeListenerSetup = false; // Flag to track if listener has been set up
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -88,9 +87,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             undefined,
             []
         );
-
-        // Set up solution change listener
-        this._setupSolutionChangeListener();
 
         // Send initial data when webview is ready (only if not already initialized)
         if (!this._isInitialized) {
@@ -655,20 +651,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 throw new Error('No active solution loaded');
             }
 
-            // Set manual operation flag with timeout
-            this._setManualOperationFlag(3000); // 3 second timeout for solution folder creation
-            try {
-                // Pass the parent folder name to create a nested folder
-                await solution.addSolutionFolder(folderName.trim(), parentFolderName);
-
-                vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
-
-                // Keep flag active for a bit longer to handle file watcher events
-                this._setManualOperationFlag(2000);
-            } catch (error) {
-                this._clearManualOperationFlag();
-                throw error;
-            }
+            // Add the solution folder - file watcher will handle UI updates
+            await solution.addSolutionFolder(folderName.trim(), parentFolderName);
+            vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
 
         } catch (error) {
             this.logger.error(`Error creating solution folder:`, error);
@@ -700,19 +685,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 throw new Error('No active solution loaded');
             }
 
-            // Set manual operation flag with timeout
-            this._setManualOperationFlag(3000); // 3 second timeout for solution folder removal
-
-            try {
-                await solution.removeSolutionFolder(folderName);
-                vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
-
-                // Keep flag active for a bit longer to handle file watcher events
-                this._setManualOperationFlag(2000);
-            } catch (error) {
-                this._clearManualOperationFlag();
-                throw error;
-            }
+            // Remove the solution folder - file watcher will handle UI updates
+            await solution.removeSolutionFolder(folderName);
+            vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
         } catch (error) {
             this.logger.error(`Error removing solution folder:`, error);
             vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
@@ -948,7 +923,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Clear loading state and send complete updated tree
             await this._setNodeLoadingState(nodePath, false);
-            await this._sendCompleteTreeUpdate();
 
         } catch (error) {
             this.logger.error('Error expanding node:', error);
@@ -988,8 +962,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Clear loading state and send complete updated tree
             await this._setNodeLoadingState(nodePath, false);
-            await this._sendCompleteTreeUpdate();
-
         } catch (error) {
             this.logger.error('Error collapsing node:', error);
             // Clear loading state on error
@@ -1436,9 +1408,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this.logger.info('===== UPDATING WEBVIEW =====');
         this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
-        // Ensure solution change listener is set up (in case solution was loaded after initial setup)
-        this._ensureSolutionChangeListener();
-
         if (!this._view) {
             this.logger.info('No webview available, skipping update');
             return;
@@ -1467,43 +1436,49 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
 
         try {
-            // Show loading state immediately
-            this.logger.info('Sending loading message to webview');
-            this._view.webview.postMessage({
-                command: 'loading',
-                message: 'Loading solution...'
-            });
+            // Use VS Code progress indicator instead of loading message
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Window,
+                title: "Loading solution",
+                cancellable: false
+            }, async (progress) => {
+                // Load data asynchronously to prevent blocking
+                this.logger.info('Loading solution data and frameworks...');
+                progress.report({ increment: 30, message: "Reading solution file..." });
 
-            // Load data asynchronously to prevent blocking
-            this.logger.info('Loading solution data and frameworks...');
-            const [solutionData, frameworks] = await Promise.all([
-                this._getSolutionData(),
-                this._frameworkService.getAvailableFrameworks()
-            ]);
+                const [solutionData, frameworks] = await Promise.all([
+                    this._getSolutionData(),
+                    this._frameworkService.getAvailableFrameworks()
+                ]);
 
-            const activeFramework = this._frameworkService.getActiveFramework();
+                progress.report({ increment: 40, message: "Processing project data..." });
 
-            this.logger.info('Loaded data:', {
-                projectCount: solutionData.length,
-                frameworkCount: frameworks?.length || 0,
-                activeFramework
-            });
+                const activeFramework = this._frameworkService.getActiveFramework();
 
-            this.logger.info('Sending solution data to webview');
-            const data: SolutionData = {
-                projects: solutionData,
-                frameworks: frameworks || [],
-                activeFramework
-            }
+                this.logger.info('Loaded data:', {
+                    projectCount: solutionData.length,
+                    frameworkCount: frameworks?.length || 0,
+                    activeFramework
+                });
 
-            this.logger.info('Sending solutionData message with', data.projects?.length || 0, 'projects');
-            this._view.webview.postMessage({
-                command: 'solutionData',
-                data
+                progress.report({ increment: 30, message: "Updating tree view..." });
+
+                this.logger.info('Sending solution data to webview');
+                const data: SolutionData = {
+                    projects: solutionData,
+                    frameworks: frameworks || [],
+                    activeFramework
+                }
+
+                this.logger.info('Sending solutionData message with', data.projects?.length || 0, 'projects');
+                this._view?.webview.postMessage({
+                    command: 'solutionData',
+                    data
+                });
             });
         } catch (error) {
             this.logger.error('Error updating solution webview:', error);
-            this._view.webview.postMessage({
+            this._view?.webview.postMessage({
                 command: 'error',
                 message: 'Failed to load solution data'
             });
@@ -2397,67 +2372,4 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    /**
-     * Ensures solution change listener is set up if solution is available
-     */
-    private _ensureSolutionChangeListener() {
-        this.logger.info(`=== ENSURING SOLUTION CHANGE LISTENER (setup: ${this._solutionChangeListenerSetup}) ===`);
-        const solution = SolutionService.getActiveSolution();
-        this.logger.info(`Current solution instance: ${solution ? `Found (${solution.solutionPath})` : 'Not found'}`);
-
-        // Always re-setup to ensure we're listening to the correct solution instance
-        if (solution) {
-            this.logger.info('Force re-setting up solution change listener to ensure correct instance');
-            this._solutionChangeListenerSetup = false; // Reset flag to force setup
-            this._setupSolutionChangeListener();
-        } else {
-            this.logger.warn('No solution found for listener setup');
-        }
-    }
-
-    /**
-     * Sets up listener for solution change events to update the tree immediately
-     */
-    private _setupSolutionChangeListener() {
-        this.logger.info('=== SETTING UP SOLUTION CHANGE LISTENER ===');
-        const solution = SolutionService.getActiveSolution();
-        this.logger.info(`Active solution: ${solution ? 'Found' : 'Not found'}`);
-
-        if (solution) {
-            this.logger.info('Setting up solution change listener');
-
-            // Listen to solution change events
-            solution.onDidChange((event: SolutionChangeEvent) => {
-                this.logger.info(`=== SOLUTION CHANGE EVENT RECEIVED ===`);
-                this.logger.info(`Event type: ${event.type}`);
-                this.logger.info(`Event details:`, event);
-
-                if (event.type === 'solutionFolderAdded' || event.type === 'solutionFolderRemoved') {
-                    this.logger.info(`Solution folder ${event.type === 'solutionFolderAdded' ? 'added' : 'removed'}: ${event.solutionFolder?.name}`);
-                    this.logger.info('Clearing cache and updating webview...');
-
-                    // Clear cache and refresh tree while preserving expansion state
-                    this._clearCache();
-
-                    // Force a manual operation flag to bypass rapid update protection
-                    this._setManualOperationFlag(1000);
-
-                    this._updateWebview();
-
-                    this.logger.info('Tree update triggered');
-                } else if (event.type === 'solutionFileChanged') {
-                    this.logger.info('Solution file changed, refreshing tree');
-
-                    // Clear cache and refresh tree
-                    this._clearCache();
-                    this._updateWebview();
-                }
-            });
-
-            this.logger.info('Solution change listener setup completed');
-            this._solutionChangeListenerSetup = true;
-        } else {
-            this.logger.warn('No active solution found for change listener setup - will retry later');
-        }
-    }
 }
