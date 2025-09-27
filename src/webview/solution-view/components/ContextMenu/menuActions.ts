@@ -93,6 +93,12 @@ export const addSolutionFolderAction: MenuAction = {
     kind: "action"
 };
 
+export const removeSolutionFolderAction: MenuAction = {
+    name: "Remove",
+    action: "removeSolutionFolder",
+    kind: "action"
+};
+
 export const separator: MenuSeparator = {
     kind: 'separator'
 };
@@ -117,6 +123,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     solutionFolder: [
         addSolutionFolderAction,
         separator,
+        removeSolutionFolderAction,
         renameAction,
         separator,
         revealInExplorerAction

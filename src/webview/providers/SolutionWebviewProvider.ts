@@ -5,7 +5,7 @@ import { SolutionProvider } from '../../services/solutionProvider';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { SolutionProject } from '../../parsers/solutionFileParser';
 import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
-import { Solution } from '../../core/Solution';
+import { Solution, SolutionChangeEvent } from '../../core/Solution';
 import { ProjectFileNode } from '../../core/Project';
 import { logger } from '../../core/logger';
 
@@ -57,6 +57,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private readonly _rapidUpdateWindow = 2000; // 2 seconds
     private _isManualOperation = false; // Flag to indicate user-initiated operations
     private _manualOperationTimeout?: NodeJS.Timeout; // Timeout to clear manual operation flag
+    private _solutionChangeListenerSetup = false; // Flag to track if listener has been set up
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -87,6 +88,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             undefined,
             []
         );
+
+        // Set up solution change listener
+        this._setupSolutionChangeListener();
 
         // Send initial data when webview is ready (only if not already initialized)
         if (!this._isInitialized) {
@@ -223,6 +227,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'addSolutionFolder':
                 this.logger.info(`Adding solution folder to solution: ${projectPath}`);
                 await this._handleAddSolutionFolder(projectPath);
+                break;
+
+            case 'removeSolutionFolder':
+                this.logger.info(`Removing solution folder from solution: ${projectPath}`);
+                await this._handleRemoveSolutionFolder(projectPath);
                 break;
 
             case 'removeProject':
@@ -664,6 +673,49 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             this.logger.error(`Error creating solution folder:`, error);
             vscode.window.showErrorMessage(`Error creating solution folder: ${error}`);
+        }
+    }
+
+    private async _handleRemoveSolutionFolder(folderPath: string) {
+        try {
+            this.logger.info(`Removing solution folder: ${folderPath}`);
+
+            const folderName = path.basename(folderPath);
+
+            // Confirm deletion
+            const result = await vscode.window.showWarningMessage(
+                `Are you sure you want to remove the solution folder "${folderName}"?`,
+                { modal: true },
+                'Remove'
+            );
+
+            if (result !== 'Remove') {
+                this.logger.info(`User cancelled solution folder removal`);
+                return;
+            }
+
+            // Get the active solution
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                throw new Error('No active solution loaded');
+            }
+
+            // Set manual operation flag with timeout
+            this._setManualOperationFlag(3000); // 3 second timeout for solution folder removal
+
+            try {
+                await solution.removeSolutionFolder(folderName);
+                vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
+
+                // Keep flag active for a bit longer to handle file watcher events
+                this._setManualOperationFlag(2000);
+            } catch (error) {
+                this._clearManualOperationFlag();
+                throw error;
+            }
+        } catch (error) {
+            this.logger.error(`Error removing solution folder:`, error);
+            vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
         }
     }
 
@@ -1384,6 +1436,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this.logger.info('===== UPDATING WEBVIEW =====');
         this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
 
+        // Ensure solution change listener is set up (in case solution was loaded after initial setup)
+        this._ensureSolutionChangeListener();
+
         if (!this._view) {
             this.logger.info('No webview available, skipping update');
             return;
@@ -1433,20 +1488,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 frameworkCount: frameworks?.length || 0,
                 activeFramework
             });
-
-            // Check if we should use protected expansion state due to rapid updates
-            if (this._protectedExpansionState) {
-                this.logger.info('Using PROTECTED expansion state due to rapid updates');
-                await this._restoreSpecificExpansionStates(solutionData, this._protectedExpansionState);
-                // Clear the protected state after one use
-                this._protectedExpansionState = undefined;
-            } else {
-                // Restore expansion states if this is initial load (this modifies solutionData in place)
-                this.logger.info('About to restore expansion states...');
-                await this._restoreExpansionStates(solutionData);
-                this.logger.info('Finished restoring expansion states');
-            }
-
 
             this.logger.info('Sending solution data to webview');
             const data: SolutionData = {
@@ -1507,6 +1548,19 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Convert solution data to tree structure for the React component
         const treeStructure = await this._convertToTreeStructureWithLazyLoading(solution);
+
+        // Check if we should use protected expansion state due to rapid updates
+        if (this._protectedExpansionState) {
+            this.logger.info('Using PROTECTED expansion state due to rapid updates');
+            await this._restoreSpecificExpansionStates(treeStructure, this._protectedExpansionState);
+            // Clear the protected state after one use
+            this._protectedExpansionState = undefined;
+        } else {
+            // Restore expansion states if this is initial load (this modifies solutionData in place)
+            this.logger.info('About to restore expansion states...');
+            await this._restoreExpansionStates(treeStructure);
+            this.logger.info('Finished restoring expansion states');
+        }
 
         return treeStructure;
     }
@@ -2301,8 +2355,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this.logger.info('Got updated solution data:', newSolutionData);
 
             // Since the Solution class already handles change detection and notifications,
-            // we just need to refresh the UI
-            this.logger.info('Solution file changed, refreshing UI');
+            // we just need to clear cache and refresh the UI
+            this.logger.info('Solution file changed, clearing cache and refreshing UI');
+            this._clearCache();
             await this._updateWebview();
 
         } catch (error) {
@@ -2340,5 +2395,69 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             projectPath: projectPath,
             projectName: projectName
         });
+    }
+
+    /**
+     * Ensures solution change listener is set up if solution is available
+     */
+    private _ensureSolutionChangeListener() {
+        this.logger.info(`=== ENSURING SOLUTION CHANGE LISTENER (setup: ${this._solutionChangeListenerSetup}) ===`);
+        const solution = SolutionService.getActiveSolution();
+        this.logger.info(`Current solution instance: ${solution ? `Found (${solution.solutionPath})` : 'Not found'}`);
+
+        // Always re-setup to ensure we're listening to the correct solution instance
+        if (solution) {
+            this.logger.info('Force re-setting up solution change listener to ensure correct instance');
+            this._solutionChangeListenerSetup = false; // Reset flag to force setup
+            this._setupSolutionChangeListener();
+        } else {
+            this.logger.warn('No solution found for listener setup');
+        }
+    }
+
+    /**
+     * Sets up listener for solution change events to update the tree immediately
+     */
+    private _setupSolutionChangeListener() {
+        this.logger.info('=== SETTING UP SOLUTION CHANGE LISTENER ===');
+        const solution = SolutionService.getActiveSolution();
+        this.logger.info(`Active solution: ${solution ? 'Found' : 'Not found'}`);
+
+        if (solution) {
+            this.logger.info('Setting up solution change listener');
+
+            // Listen to solution change events
+            solution.onDidChange((event: SolutionChangeEvent) => {
+                this.logger.info(`=== SOLUTION CHANGE EVENT RECEIVED ===`);
+                this.logger.info(`Event type: ${event.type}`);
+                this.logger.info(`Event details:`, event);
+
+                if (event.type === 'solutionFolderAdded' || event.type === 'solutionFolderRemoved') {
+                    this.logger.info(`Solution folder ${event.type === 'solutionFolderAdded' ? 'added' : 'removed'}: ${event.solutionFolder?.name}`);
+                    this.logger.info('Clearing cache and updating webview...');
+
+                    // Clear cache and refresh tree while preserving expansion state
+                    this._clearCache();
+
+                    // Force a manual operation flag to bypass rapid update protection
+                    this._setManualOperationFlag(1000);
+
+                    this._updateWebview();
+
+                    this.logger.info('Tree update triggered');
+                } else if (event.type === 'solutionFileChanged') {
+                    this.logger.info('Solution file changed, refreshing tree');
+
+                    // Clear cache and refresh tree
+                    this._clearCache();
+                    this._updateWebview();
+                }
+            });
+
+            this.logger.info('Solution change listener setup completed');
+            this._solutionChangeListenerSetup = true;
+        } else {
+            this.logger.warn('No active solution found for change listener setup - will retry later');
+        }
     }
 }

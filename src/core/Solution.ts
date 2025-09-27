@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
 import { Project } from './Project';
 import { logger } from './logger';
@@ -354,7 +354,7 @@ export class Solution {
             const lines = solutionContent.split('\n');
 
             // Generate a new GUID for the solution folder
-            const folderGuid = `{${uuidv4().toUpperCase()}}`;
+            const folderGuid = `{${crypto.randomUUID().toUpperCase()}}`;
             const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
 
             // Create the solution folder entry
@@ -483,6 +483,128 @@ export class Solution {
                 ];
             }
         }
+    }
+
+    /**
+     * Removes a solution folder from the solution file
+     */
+    async removeSolutionFolder(folderName: string): Promise<void> {
+        this.logger.info(`Removing solution folder: ${folderName}`);
+
+        try {
+            // Find the solution folder to get its GUID and capture it before removal
+            const folderGuid = this.findSolutionFolderGuid(folderName);
+            if (!folderGuid) {
+                throw new Error(`Solution folder "${folderName}" not found`);
+            }
+
+            // Capture the folder info before removal for event firing
+            const folderToRemove = this._solutionFile?.projects.find(p =>
+                p.name === folderName && p.typeGuid === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}');
+
+            // Read the current solution file
+            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const lines = solutionContent.split('\n');
+
+            // Remove the solution folder Project/EndProject block
+            let newLines = this.removeSolutionFolderProject(lines, folderName, folderGuid);
+
+            // Remove all NestedProjects entries that reference this folder (as parent or child)
+            newLines = this.removeNestedProjectEntries(newLines, folderGuid);
+
+            // Write the updated solution file
+            const updatedContent = newLines.join('\n');
+            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+
+            this.logger.info(`Successfully removed solution folder "${folderName}" from solution`);
+
+            // Re-parse the solution file to update internal state
+            await this.parseSolutionFile();
+
+            // File watcher will handle the tree update
+
+        } catch (error) {
+            this.logger.error(`Error removing solution folder from solution:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Removes a solution folder Project/EndProject block from the solution file lines
+     */
+    private removeSolutionFolderProject(lines: string[], folderName: string, folderGuid: string): string[] {
+        const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+        let startIndex = -1;
+        let endIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Look for the Project line for this solution folder
+            if (line.includes(`Project("${solutionFolderTypeGuid}")`) &&
+                line.includes(`"${folderName}"`) &&
+                line.includes(folderGuid)) {
+                startIndex = i;
+            }
+
+            // Look for the corresponding EndProject line
+            if (startIndex !== -1 && line === 'EndProject') {
+                endIndex = i;
+                break;
+            }
+        }
+
+        if (startIndex !== -1 && endIndex !== -1) {
+            // Remove the Project/EndProject block
+            return [
+                ...lines.slice(0, startIndex),
+                ...lines.slice(endIndex + 1)
+            ];
+        }
+
+        return lines;
+    }
+
+    /**
+     * Removes all NestedProjects entries that reference the given folder GUID
+     */
+    private removeNestedProjectEntries(lines: string[], folderGuid: string): string[] {
+        // Find NestedProjects section
+        let nestedProjectsStartIndex = -1;
+        let nestedProjectsEndIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === 'GlobalSection(NestedProjects) = preSolution') {
+                nestedProjectsStartIndex = i;
+            } else if (nestedProjectsStartIndex !== -1 && line === 'EndGlobalSection') {
+                nestedProjectsEndIndex = i;
+                break;
+            }
+        }
+
+        if (nestedProjectsStartIndex === -1 || nestedProjectsEndIndex === -1) {
+            // No NestedProjects section found
+            return lines;
+        }
+
+        // Filter out entries that reference the folder GUID (as parent or child)
+        const newLines = [...lines];
+        const entriesToRemove: number[] = [];
+
+        for (let i = nestedProjectsStartIndex + 1; i < nestedProjectsEndIndex; i++) {
+            const line = lines[i];
+            if (line.includes(folderGuid)) {
+                entriesToRemove.push(i);
+            }
+        }
+
+        // Remove entries in reverse order to maintain indices
+        for (let i = entriesToRemove.length - 1; i >= 0; i--) {
+            newLines.splice(entriesToRemove[i], 1);
+        }
+
+        return newLines;
     }
 
     /**
