@@ -2,6 +2,7 @@ import { SolutionService } from './solutionService';
 import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { FrameworkOption } from '../types/framework';
 import { SolutionFile } from '../parsers/solutionFileParser';
+import { logger } from '../core/logger';
 
 /**
  * Pure framework selection service that handles .NET framework selection logic
@@ -12,6 +13,7 @@ import { SolutionFile } from '../parsers/solutionFileParser';
  * - Framework validation and selection logic
  */
 export class FrameworkDropdownService {
+    private readonly logger = logger('FrameworkDropdownService');
     private activeFramework?: string;
     private solutionPath?: string;
     private solutionFile?: SolutionFile;
@@ -115,7 +117,7 @@ export class FrameworkDropdownService {
             return options;
 
         } catch (error) {
-            console.error('Failed to get framework options:', error);
+            this.logger.error('Failed to get framework options:', error);
             return [];
         }
     }
@@ -167,7 +169,7 @@ export class FrameworkDropdownService {
         try {
             return await SolutionService.getAllFrameworks(this.solutionFile);
         } catch (error) {
-            console.error('Error getting available frameworks:', error);
+            this.logger.error('Error getting available frameworks:', error);
             return [];
         }
     }
@@ -222,7 +224,7 @@ export class FrameworkDropdownService {
 
             return sortedFrameworks[0];
         } catch (error) {
-            console.error('Error getting framework for debugging:', error);
+            this.logger.error('Error getting framework for debugging:', error);
             return undefined;
         }
     }

@@ -43,7 +43,7 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] Add New Project (project template selection) [QuickPick for now]
 - [x] Add Solution Folder
 - [ ] Restore Nugets
-- [ ] Build commands (Clean, Build, Rebuild) like on project node.
+- [x] Build commands (Clean, Build, Rebuild) like on project node.
 
 ### Solution Folder Context Menu
 

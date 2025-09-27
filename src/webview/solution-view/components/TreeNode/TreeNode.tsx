@@ -1,7 +1,9 @@
 import React from 'react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
+import {logger as loggerFn} from '../../utils/logger';
 
+const logger = loggerFn('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
     level,
@@ -22,11 +24,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
 
     const handleClick = () => {
-        console.log(`[TreeNode] Single click on ${node.type}: ${node.name} (path: ${node.path})`);
+        logger.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
         // Don't handle clicks if node is loading
         if (node.isLoading) {
-            console.log(`[TreeNode] Node ${node.name} is loading, ignoring click`);
+            logger.info(`Node ${node.name} is loading, ignoring click`);
             return;
         }
 
@@ -38,17 +40,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Set up debounced single click action
         const timeout = setTimeout(() => {
-            console.log(`[TreeNode] Executing single click action for: ${node.name}`);
+            logger.info(`Executing single click action for: ${node.name}`);
 
             // Click selects and focuses the item
             onNodeClick(node.path);
 
             // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
             if (node.children?.length || node.hasChildren) {
-                console.log(`[TreeNode] Toggling expansion for: ${node.name}`);
+                logger.info(`Toggling expansion for: ${node.name}`);
                 onToggleExpand(node.path, node.type);
             } else {
-                console.log(`[TreeNode] Node ${node.name} has no children, just focused`);
+                logger.info(`Node ${node.name} has no children, just focused`);
             }
 
             setClickTimeout(null);
@@ -58,11 +60,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleDoubleClick = () => {
-        console.log(`[TreeNode] Double click on ${node.type}: ${node.name} (path: ${node.path})`);
+        logger.info(`Double click on ${node.type}: ${node.name} (path: ${node.path})`);
 
         // Don't handle clicks if node is loading
         if (node.isLoading) {
-            console.log(`[TreeNode] Node ${node.name} is loading, ignoring double click`);
+            logger.info(`Node ${node.name} is loading, ignoring double click`);
             return;
         }
 
@@ -73,25 +75,25 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         }
 
         // Double click opens file
-        console.log(`[TreeNode] Opening file: ${node.path}`);
+        logger.info(`Opening file: ${node.path}`);
         onProjectAction('openFile', node.path);
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
-        console.log(`[TreeNode] RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
-        console.log(`[TreeNode] Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
+        logger.info(`RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
+        logger.info(`Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
         onContextMenu(e.clientX, e.clientY, node);
-        console.log(`[TreeNode] onContextMenu called successfully`);
+        logger.info(`onContextMenu called successfully`);
     };
 
     const handleRenameConfirmLocal = (newName: string) => {
-        console.log(`[TreeNode] Renaming ${node.name} to ${newName}`);
+        logger.info(`Renaming ${node.name} to ${newName}`);
         onRenameConfirm(newName, node.path, node.type, node.name);
     };
 
     const handleRenameCancelLocal = () => {
-        console.log(`[TreeNode] Cancelling rename for: ${node.name}`);
+        logger.info(`Cancelling rename for: ${node.name}`);
         onRenameCancel();
     };
 

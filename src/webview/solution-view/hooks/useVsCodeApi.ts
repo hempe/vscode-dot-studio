@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
 
+import { logger as loggerFn } from '../utils/logger';
+
 declare global {
     interface Window {
         acquireVsCodeApi(): any;
@@ -132,14 +134,14 @@ const removeFileFromTree = (solutionData: SolutionData, filePath: string): Solut
     };
 };
 
-
+const logger = loggerFn('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
-        console.log('[useVsCodeApi] Hook initialized, requesting solution data');
+        logger.info('Hook initialized, requesting solution data');
 
         // Request initial solution data
         vscode.postMessage({ command: 'getSolutionData' });
@@ -147,12 +149,12 @@ export const useVsCodeApi = () => {
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            console.log('[useVsCodeApi] Received message from extension:', message);
+            logger.info('Received message from extension:', message);
 
 
             switch (message.command) {
                 case 'loading':
-                    console.log('[useVsCodeApi] Setting refreshing state');
+                    logger.info('Setting refreshing state');
                     // If we already have data, show refreshing indicator instead of full loading
                     if (solutionData) {
                         setRefreshing(true);
@@ -161,68 +163,68 @@ export const useVsCodeApi = () => {
                     }
                     break;
                 case 'solutionData':
-                    console.log('[useVsCodeApi] Received solution data:', message.data);
+                    logger.info('Received solution data:', message.data);
                     setSolutionData(message.data);
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionDataUpdate':
-                    console.log('[useVsCodeApi] Received solution data update (preserving tree state):', message.data);
+                    logger.info('Received solution data update (preserving tree state):', message.data);
                     // For updates triggered by file changes, we preserve tree state
                     // by updating data but not resetting component state
                     setSolutionData(message.data);
                     setRefreshing(false);
                     break;
                 case 'frameworkChanged':
-                    console.log('[useVsCodeApi] Framework changed to:', message.framework);
+                    logger.info('Framework changed to:', message.framework);
                     setSolutionData(prev => prev ? { ...prev, activeFramework: message.framework } : null);
                     break;
                 case 'error':
-                    console.log('[useVsCodeApi] Received error:', message.message);
+                    logger.info('Received error:', message.message);
                     setLoading(false);
                     break;
                 case 'nodeRenamed':
-                    console.log('[useVsCodeApi] Node renamed:', message);
+                    logger.info('Node renamed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return updateNodeInTree(prev, message.oldPath, message.newPath, message.newName);
                     });
                     break;
                 case 'projectAdded':
-                    console.log('[useVsCodeApi] Project added:', message);
+                    logger.info('Project added:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return addProjectToTree(prev, message.project);
                     });
                     break;
                 case 'projectRemoved':
-                    console.log('[useVsCodeApi] Project removed:', message);
+                    logger.info('Project removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return removeProjectFromTree(prev, message.projectPath);
                     });
                     break;
                 case 'fileChanged':
-                    console.log('[useVsCodeApi] File changed:', message);
+                    logger.info('File changed:', message);
                     // For now just log - could be used to show file modification indicators
                     // or trigger specific updates based on file type
                     break;
                 case 'fileAdded':
-                    console.log('[useVsCodeApi] File added:', message);
+                    logger.info('File added:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return addFileToTree(prev, message.file, message.parentPath);
                     });
                     break;
                 case 'fileRemoved':
-                    console.log('[useVsCodeApi] File removed:', message);
+                    logger.info('File removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return removeFileFromTree(prev, message.filePath);
                     });
                     break;
                 case 'updateSolution':
-                    console.log('[useVsCodeApi] Received complete solution update:', message);
+                    logger.info('Received complete solution update:', message);
                     setSolutionData({
                         projects: message.projects || [],
                         frameworks: message.frameworks || [],
@@ -232,35 +234,35 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 default:
-                    console.log('[useVsCodeApi] Unknown message command:', message.command);
+                    logger.info('Unknown message command:', message.command);
             }
         };
 
         window.addEventListener('message', handleMessage);
         return () => {
-            console.log('[useVsCodeApi] Cleaning up message listener');
+            logger.info('Cleaning up message listener');
             window.removeEventListener('message', handleMessage);
         };
     }, []);
 
     const handleFrameworkChange = (framework: string) => {
-        console.log('[useVsCodeApi] Framework change requested:', framework);
+        logger.info('Framework change requested:', framework);
         vscode.postMessage({ command: 'setFramework', framework });
     };
 
     const handleProjectAction = (action: ProjectActionType, projectPath: string, data?: any) => {
-        console.log('[useVsCodeApi] Project action requested:', { action, projectPath, data });
+        logger.info('Project action requested:', { action, projectPath, data });
         vscode.postMessage({ command: 'projectAction', action, projectPath, data });
     };
 
 
     const expandNode = (nodePath: string, nodeType: string) => {
-        console.log('[useVsCodeApi] Expanding node:', nodePath, nodeType);
+        logger.info('Expanding node:', nodePath, nodeType);
         vscode.postMessage({ command: 'expandNode', nodePath, nodeType });
     };
 
     const collapseNode = (nodePath: string) => {
-        console.log('[useVsCodeApi] Collapsing node:', nodePath);
+        logger.info('Collapsing node:', nodePath);
         vscode.postMessage({ command: 'collapseNode', nodePath });
     };
 

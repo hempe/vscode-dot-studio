@@ -5,6 +5,7 @@ import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileP
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
+import { logger } from './logger';
 
 export interface ProjectFileNode {
     name: string;
@@ -28,6 +29,7 @@ export interface ProjectDependency {
 }
 
 export class Project {
+    private readonly logger = logger('Project');
     private _disposables: vscode.Disposable[] = [];
     private _fileWatcher?: vscode.FileSystemWatcher;
     private _projectStructure?: ProjectFileStructure;
@@ -88,9 +90,9 @@ export class Project {
             await this.initializeFileTree();
 
             this._isInitialized = true;
-            console.log(`[Project] Initialized project: ${this.name}`);
+            this.logger.info(`Initialized project: ${this.name}`);
         } catch (error) {
-            console.error(`[Project] Failed to initialize project ${this.name}:`, error);
+            this.logger.error(`Failed to initialize project ${this.name}:`, error);
             throw error;
         }
     }
@@ -120,7 +122,7 @@ export class Project {
             return;
         }
 
-        console.log(`[Project] File created: ${fileName}`);
+        this.logger.debug(`File created: ${fileName}`);
 
         if (fileName === path.basename(this._projectPath)) {
             // Project file itself changed
@@ -142,7 +144,7 @@ export class Project {
         }
 
         if (fileName === path.basename(this._projectPath)) {
-            console.log(`[Project] Project file changed: ${fileName}`);
+            this.logger.info(`Project file changed: ${fileName}`);
             await this.parseProjectFile();
             this._changeEmitter.fire({ type: 'projectFileChanged' });
         }
@@ -157,11 +159,11 @@ export class Project {
             return;
         }
 
-        console.log(`[Project] File deleted: ${path.basename(filePath)}`);
+        this.logger.debug(`File deleted: ${path.basename(filePath)}`);
 
         if (filePath === this._projectPath) {
             // Project file itself was deleted
-            console.log(`[Project] Project file deleted: ${this.name}`);
+            this.logger.info(`Project file deleted: ${this.name}`);
             this.dispose();
         } else {
             // Other file deleted - update file tree
@@ -175,7 +177,7 @@ export class Project {
         const relativePath = path.relative(path.dirname(this._projectPath), filePath);
 
         if (this.isPathInLoadedArea(relativePath)) {
-            console.log(`[Project] File ${changeType} in loaded area: ${relativePath}`);
+            this.logger.debug(`File ${changeType} in loaded area: ${relativePath}`);
             this._changeEmitter.fire({
                 type: 'filesChanged',
                 files: [filePath]
@@ -217,9 +219,9 @@ export class Project {
             this._dependencies = this._projectStructure.dependencies || [];
             this._frameworks = this._solutionProject.targetFrameworks || [];
 
-            console.log(`[Project] Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);
+            this.logger.debug(`Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);
         } catch (error) {
-            console.error(`[Project] Error parsing project file ${this.name}:`, error);
+            this.logger.error(`Error parsing project file ${this.name}:`, error);
             this._dependencies = [];
             this._frameworks = [];
         }
@@ -237,7 +239,7 @@ export class Project {
             isLoaded: false
         };
 
-        console.log(`[Project] Initialized file tree for project: ${this.name}`);
+        this.logger.debug(`Initialized file tree for project: ${this.name}`);
     }
 
     /**
@@ -301,10 +303,10 @@ export class Project {
 
             children.push(...convertNestedFiles(nestedFiles));
 
-            console.log(`[Project] Loaded ${children.length} children for folder: ${folderPath} (with nesting)`);
+            this.logger.debug(`Loaded ${children.length} children for folder: ${folderPath} (with nesting)`);
             return children;
         } catch (error) {
-            console.error(`[Project] Error loading folder children for ${folderPath}:`, error);
+            this.logger.error(`Error loading folder children for ${folderPath}:`, error);
             return [];
         }
     }
@@ -313,7 +315,7 @@ export class Project {
      * Expands a folder node and loads its children if not already loaded
      */
     async expandFolder(folderPath: string): Promise<ProjectFileNode[]> {
-        console.log(`[Project] Expanding folder: ${folderPath}`);
+        this.logger.debug(`Expanding folder: ${folderPath}`);
 
         // Mark as expanded
         this._collapsedState.set(folderPath, false);
@@ -321,7 +323,7 @@ export class Project {
         // Find the node in the tree
         const node = this.findNodeByPath(folderPath);
         if (!node) {
-            console.warn(`[Project] Could not find node for path: ${folderPath}`);
+            this.logger.warn(`Could not find node for path: ${folderPath}`);
             return [];
         }
 
@@ -338,7 +340,7 @@ export class Project {
      * Collapses a folder node
      */
     collapseFolder(folderPath: string): void {
-        console.log(`[Project] Collapsing folder: ${folderPath}`);
+        this.logger.debug(`Collapsing folder: ${folderPath}`);
         this._collapsedState.set(folderPath, true);
     }
 
@@ -435,8 +437,8 @@ export class Project {
                     } else if (entry.isFile()) {
                         // Skip project files
                         if (!(entry.name.endsWith('.csproj') ||
-                              entry.name.endsWith('.vbproj') ||
-                              entry.name.endsWith('.fsproj'))) {
+                            entry.name.endsWith('.vbproj') ||
+                            entry.name.endsWith('.fsproj'))) {
                             return true; // Found a non-project file
                         }
                     }
@@ -444,11 +446,11 @@ export class Project {
 
                 return false; // No children found
             } catch (error) {
-                console.error(`[Project] Error checking children for ${this.name}:`, error);
+                this.logger.error(`Error checking children for ${this.name}:`, error);
                 return true; // Assume it has children on error
             }
         } catch (error) {
-            console.error(`[Project] Error in hasAnyChildren for ${this.name}:`, error);
+            this.logger.error(`Error in hasAnyChildren for ${this.name}:`, error);
             return true; // Safe fallback
         }
     }
@@ -488,7 +490,7 @@ export class Project {
                         child.name.endsWith('.vbproj') ||
                         child.name.endsWith('.fsproj')
                     )) {
-                        console.log(`[Project] Filtering out project file: ${child.name}`);
+                        this.logger.info(`Filtering out project file: ${child.name}`);
                         continue;
                     }
 
@@ -500,11 +502,11 @@ export class Project {
                 }
             }
 
-            console.log(`[Project] getRootChildren for ${this.name}: ${items.length} items`);
+            this.logger.info(`getRootChildren for ${this.name}: ${items.length} items`);
             return items;
 
         } catch (error) {
-            console.error(`[Project] Error getting root children for ${this.name}:`, error);
+            this.logger.error(`Error getting root children for ${this.name}:`, error);
             return [];
         }
     }
@@ -527,7 +529,7 @@ export class Project {
             }
         }
 
-        console.log(`[Project] getDependencies for ${this.name}: ${items.length} dependencies`);
+        this.logger.info(`getDependencies for ${this.name}: ${items.length} dependencies`);
         return items;
     }
 
@@ -548,11 +550,11 @@ export class Project {
                 });
             }
 
-            console.log(`[Project] getFolderChildren for ${folderPath}: ${items.length} items`);
+            this.logger.info(`getFolderChildren for ${folderPath}: ${items.length} items`);
             return items;
 
         } catch (error) {
-            console.error(`[Project] Error getting folder children for ${folderPath}:`, error);
+            this.logger.error(`Error getting folder children for ${folderPath}:`, error);
             return [];
         }
     }
@@ -561,7 +563,7 @@ export class Project {
      * Forces a refresh of the project (re-parse project file and refresh loaded tree areas)
      */
     async refresh(): Promise<void> {
-        console.log(`[Project] Forcing refresh of project: ${this.name}`);
+        this.logger.info(`Forcing refresh of project: ${this.name}`);
 
         await this.parseProjectFile();
 
@@ -586,11 +588,11 @@ export class Project {
      */
     public createFolderWatcher(folderPath: string): void {
         if (this._folderWatchers.has(folderPath)) {
-            console.log(`[Project] Folder watcher already exists for: ${folderPath}`);
+            this.logger.info(`Folder watcher already exists for: ${folderPath}`);
             return;
         }
 
-        console.log(`[Project] Creating lazy folder watcher for: ${folderPath}`);
+        this.logger.info(`Creating lazy folder watcher for: ${folderPath}`);
 
         try {
             // Watch the specific folder for file/directory changes
@@ -600,17 +602,17 @@ export class Project {
 
             // Set up event handlers
             watcher.onDidCreate((uri) => {
-                console.log(`[Project] File created in watched folder: ${uri.fsPath}`);
+                this.logger.info(`File created in watched folder: ${uri.fsPath}`);
                 this.handleFileCreated(uri);
             }, this, this._disposables);
 
             watcher.onDidChange((uri) => {
-                console.log(`[Project] File changed in watched folder: ${uri.fsPath}`);
+                this.logger.info(`File changed in watched folder: ${uri.fsPath}`);
                 this.handleFileChanged(uri);
             }, this, this._disposables);
 
             watcher.onDidDelete((uri) => {
-                console.log(`[Project] File deleted in watched folder: ${uri.fsPath}`);
+                this.logger.debug(`File deleted in watched folder: ${uri.fsPath}`);
                 this.handleFileDeleted(uri);
             }, this, this._disposables);
 
@@ -618,9 +620,9 @@ export class Project {
             this._folderWatchers.set(folderPath, watcher);
             this._disposables.push(watcher);
 
-            console.log(`[Project] Folder watcher created for: ${folderPath}`);
+            this.logger.info(`Folder watcher created for: ${folderPath}`);
         } catch (error) {
-            console.error(`[Project] Failed to create folder watcher for ${folderPath}:`, error);
+            this.logger.error(`Failed to create folder watcher for ${folderPath}:`, error);
         }
     }
 
@@ -630,11 +632,11 @@ export class Project {
     public removeFolderWatcher(folderPath: string): void {
         const watcher = this._folderWatchers.get(folderPath);
         if (!watcher) {
-            console.log(`[Project] No folder watcher to remove for: ${folderPath}`);
+            this.logger.info(`No folder watcher to remove for: ${folderPath}`);
             return;
         }
 
-        console.log(`[Project] Removing folder watcher for: ${folderPath}`);
+        this.logger.info(`Removing folder watcher for: ${folderPath}`);
 
         // Dispose the watcher
         watcher.dispose();
@@ -646,17 +648,17 @@ export class Project {
             this._disposables.splice(index, 1);
         }
 
-        console.log(`[Project] Folder watcher removed for: ${folderPath}`);
+        this.logger.info(`Folder watcher removed for: ${folderPath}`);
     }
 
     /**
      * Disposes all folder watchers
      */
     private _disposeAllFolderWatchers(): void {
-        console.log(`[Project] Disposing ${this._folderWatchers.size} folder watchers`);
+        this.logger.info(`Disposing ${this._folderWatchers.size} folder watchers`);
 
         for (const [folderPath, watcher] of this._folderWatchers) {
-            console.log(`[Project] Disposing folder watcher: ${folderPath}`);
+            this.logger.info(`Disposing folder watcher: ${folderPath}`);
             watcher.dispose();
         }
 
@@ -671,7 +673,7 @@ export class Project {
     }
 
     dispose(): void {
-        console.log(`[Project] Disposing project: ${this.name}`);
+        this.logger.info(`Disposing project: ${this.name}`);
 
         // Dispose event emitter
         this._changeEmitter.dispose();

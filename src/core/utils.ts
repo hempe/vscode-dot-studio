@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { logger } from './logger';
 
 export class PathUtils {
     /**
@@ -128,13 +129,14 @@ export class TerminalUtils {
 }
 
 export class ErrorUtils {
+    private static readonly logger = logger('ErrorUtils');
     /**
      * Shows error message with optional error details
      */
     static showError(message: string, error?: Error | unknown): void {
         const errorMsg = error ? `${message}: ${error}` : message;
         vscode.window.showErrorMessage(errorMsg);
-        console.error(errorMsg, error);
+        this.logger.error(errorMsg, error);
     }
 
     /**
@@ -142,7 +144,7 @@ export class ErrorUtils {
      */
     static showWarning(message: string): void {
         vscode.window.showWarningMessage(message);
-        console.warn(message);
+        this.logger.warn(message);
     }
 
     /**
@@ -150,11 +152,13 @@ export class ErrorUtils {
      */
     static showInfo(message: string): void {
         vscode.window.showInformationMessage(message);
-        console.info(message);
+        this.logger.info(message);
     }
 }
 
 export class FileSystemUtils {
+    private static readonly logger = logger('FileSystemUtils');
+
     /**
      * Gets files in directory with optional filtering
      */
@@ -169,7 +173,7 @@ export class FileSystemUtils {
                     return filterExtensions.some(ext => name.endsWith(ext));
                 });
         } catch (error) {
-            console.error(`Error reading directory ${dirPath}:`, error);
+            this.logger.error(`Error reading directory ${dirPath}:`, error);
             return [];
         }
     }
@@ -185,7 +189,7 @@ export class FileSystemUtils {
                 .map(entry => entry.name)
                 .filter(name => !skipDirs?.includes(name));
         } catch (error) {
-            console.error(`Error reading directories in ${dirPath}:`, error);
+            this.logger.error(`Error reading directories in ${dirPath}:`, error);
             return [];
         }
     }
@@ -218,7 +222,7 @@ export class FileSystemUtils {
                     }
                 }
             } catch (error) {
-                console.error(`Error searching directory ${dirPath}:`, error);
+                this.logger.error(`Error searching directory ${dirPath}:`, error);
             }
         };
 

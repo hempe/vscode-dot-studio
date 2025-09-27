@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { logger } from '../core/logger';
 
 export interface SolutionDiscoveryResult {
     type: 'none' | 'single' | 'multiple';
@@ -10,6 +11,7 @@ export interface SolutionDiscoveryResult {
 }
 
 export class SolutionDiscovery {
+    private static readonly logger = logger('SolutionDiscovery');
     /**
      * Discovers solution files in the workspace root
      * Returns discovery result with type and available solutions
@@ -35,7 +37,7 @@ export class SolutionDiscovery {
                 };
             }
         } catch (error) {
-            console.error('Error discovering solution files:', error);
+            SolutionDiscovery.logger.error('Error discovering solution files:', error);
             return { type: 'none' };
         }
     }

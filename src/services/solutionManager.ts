@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Solution } from '../core/Solution';
 import { Project } from '../core/Project';
+import { logger } from '../core/logger';
 
 const execAsync = promisify(exec);
 
@@ -14,6 +15,7 @@ export interface ProjectInfo {
 }
 
 export class SolutionManager {
+    private readonly logger = logger('PackageUpdateService');
     constructor(private workspaceRoot: string) { }
 
     /**
@@ -32,7 +34,7 @@ export class SolutionManager {
             }
 
             if (!solution.isInitialized) {
-                console.warn('[SolutionManager] Solution initialization timed out, falling back to CLI');
+                this.logger.warn('Solution initialization timed out, falling back to CLI');
                 solution.dispose();
                 return this.listProjectsWithCli(solutionPath);
             }
@@ -52,7 +54,7 @@ export class SolutionManager {
             solution.dispose();
             return projects;
         } catch (error) {
-            console.error('Error listing projects from solution:', error);
+            this.logger.error('Error listing projects from solution:', error);
             // Fallback to CLI approach
             return this.listProjectsWithCli(solutionPath);
         }
@@ -94,7 +96,7 @@ export class SolutionManager {
 
             return projects;
         } catch (error) {
-            console.error('Error listing projects with CLI:', error);
+            this.logger.error('Error listing projects with CLI:', error);
             return [];
         }
     }
@@ -106,7 +108,7 @@ export class SolutionManager {
             });
             return true;
         } catch (error) {
-            console.error('Error adding project to solution:', error);
+            this.logger.error('Error adding project to solution:', error);
             vscode.window.showErrorMessage(`Failed to add project: ${error}`);
             return false;
         }
@@ -119,7 +121,7 @@ export class SolutionManager {
             });
             return true;
         } catch (error) {
-            console.error('Error removing project from solution:', error);
+            this.logger.error('Error removing project from solution:', error);
             vscode.window.showErrorMessage(`Failed to remove project: ${error}`);
             return false;
         }
@@ -133,7 +135,7 @@ export class SolutionManager {
             });
             return true;
         } catch (error) {
-            console.error('Error creating solution:', error);
+            this.logger.error('Error creating solution:', error);
             vscode.window.showErrorMessage(`Failed to create solution: ${error}`);
             return false;
         }

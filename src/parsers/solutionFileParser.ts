@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as xml2js from 'xml2js';
 import { isSystemPath } from '../core/constants';
+import { logger } from '../core/logger';
 
 export interface SolutionFile {
     formatVersion: string;
@@ -40,6 +41,8 @@ export interface NestedProject {
 }
 
 export class SolutionFileParser {
+    private static readonly logger = logger('FileSystemUtils');
+
     private static readonly PROJECT_TYPE_GUIDS = {
         SOLUTION_FOLDER: '{2150E333-8FDC-42A3-9474-1A3956D46DE8}',
         CSHARP_PROJECT: '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}',
@@ -154,7 +157,7 @@ export class SolutionFileParser {
 
                 // Remove erroneous leading slash
                 if (projectPath.startsWith('/') && !projectPath.startsWith('//')) {
-                    console.log(`Framework enhancement - removing erroneous leading slash from: ${projectPath}`);
+                    this.logger.info(`Framework enhancement - removing erroneous leading slash from: ${projectPath}`);
                     projectPath = projectPath.substring(1);
                 }
 
@@ -163,7 +166,7 @@ export class SolutionFileParser {
 
                 // Check for system paths before resolving
                 if (isSystemPath(projectPath)) {
-                    console.error(`BLOCKED: Framework enhancement - project path is system path: ${projectPath}`);
+                    this.logger.error(`BLOCKED: Framework enhancement - project path is system path: ${projectPath}`);
                     continue;
                 }
 
@@ -171,7 +174,7 @@ export class SolutionFileParser {
 
                 // Double-check resolved path
                 if (isSystemPath(fullProjectPath)) {
-                    console.error(`BLOCKED: Framework enhancement - resolved path is system path: ${fullProjectPath}`);
+                    this.logger.error(`BLOCKED: Framework enhancement - resolved path is system path: ${fullProjectPath}`);
                     continue;
                 }
 
@@ -217,8 +220,8 @@ export class SolutionFileParser {
         const [, typeGuid, name, projectPathRaw, guid] = projectMatch;
 
         // CRITICAL: Normalize and validate project path
-        console.log(`Parsing project: ${name} with raw path: "${projectPathRaw}"`);
-        console.log(`Raw path length: ${projectPathRaw.length}, first char code: ${projectPathRaw.charCodeAt(0)}`);
+        this.logger.info(`Parsing project: ${name} with raw path: "${projectPathRaw}"`);
+        this.logger.info(`Raw path length: ${projectPathRaw.length}, first char code: ${projectPathRaw.charCodeAt(0)}`);
 
         // Fix common path issues from solution files
         let projectPath = projectPathRaw;
@@ -226,27 +229,27 @@ export class SolutionFileParser {
         // Solution files should contain relative paths, not absolute paths
         // If we see a leading slash, it might be an error in parsing or file format
         if (projectPath.startsWith('/') && !projectPath.startsWith('//')) {
-            console.warn(`WARNING: Project path starts with '/': "${projectPath}"`);
-            console.warn(`This suggests an issue with solution file parsing or format`);
+            this.logger.warn(`WARNING: Project path starts with '/': "${projectPath}"`);
+            this.logger.warn(`This suggests an issue with solution file parsing or format`);
 
             // Only remove if it looks like an erroneous absolute path that should be relative
             if (!projectPath.startsWith('/home/') && !projectPath.startsWith('/usr/') && !projectPath.startsWith('/opt/')) {
-                console.log(`Removing likely erroneous leading slash from: ${projectPath}`);
+                this.logger.info(`Removing likely erroneous leading slash from: ${projectPath}`);
                 projectPath = projectPath.substring(1);
             } else {
-                console.error(`UNEXPECTED: Project path appears to be a real absolute path: ${projectPath}`);
-                console.error(`Solution files should not contain absolute paths!`);
+                this.logger.error(`UNEXPECTED: Project path appears to be a real absolute path: ${projectPath}`);
+                this.logger.error(`Solution files should not contain absolute paths!`);
             }
         }
 
         // Normalize path separators to current platform
         projectPath = projectPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
 
-        console.log(`Normalized project path: ${projectPath}`);
+        this.logger.info(`Normalized project path: ${projectPath}`);
 
         // Check for obviously bad paths AFTER normalization
         if (isSystemPath(projectPath)) {
-            console.error(`BLOCKED: Normalized project path is a system path: ${projectPath}`);
+            this.logger.error(`BLOCKED: Normalized project path is a system path: ${projectPath}`);
             throw new Error(`Invalid project path: ${projectPath} (system path)`);
         }
 
@@ -257,7 +260,7 @@ export class SolutionFileParser {
             const normalizedProjectPath = path.normalize(projectPath);
 
             if (!normalizedProjectPath.startsWith(normalizedSolutionDir)) {
-                console.error(`BLOCKED: Absolute project path outside solution directory: ${projectPath}`);
+                this.logger.error(`BLOCKED: Absolute project path outside solution directory: ${projectPath}`);
                 throw new Error(`Invalid project path: ${projectPath} (absolute path outside solution)`);
             }
         }
@@ -267,16 +270,16 @@ export class SolutionFileParser {
         try {
             fullProjectPath = path.resolve(solutionDir, projectPath);
         } catch (error) {
-            console.error(`BLOCKED: Failed to resolve project path: ${projectPath}`, error);
+            this.logger.error(`BLOCKED: Failed to resolve project path: ${projectPath}`, error);
             throw new Error(`Cannot resolve project path: ${projectPath}`);
         }
 
         if (isSystemPath(fullProjectPath)) {
-            console.error(`BLOCKED: Resolved project path is a system path: ${fullProjectPath}`);
+            this.logger.error(`BLOCKED: Resolved project path is a system path: ${fullProjectPath}`);
             throw new Error(`Invalid resolved project path: ${fullProjectPath} (system path)`);
         }
 
-        console.log(`Project ${name} resolved to: ${fullProjectPath}`);
+        this.logger.info(`Project ${name} resolved to: ${fullProjectPath}`);
 
         const project: SolutionProject = {
             typeGuid,

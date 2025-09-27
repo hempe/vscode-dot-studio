@@ -1,15 +1,18 @@
 import { PackageDiscoveryService } from './packageDiscoveryService';
 import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery';
 import { PackageConflict, ConsolidationSummary } from '../types/packageConsolidation';
+import { logger } from '../core/logger';
 
 export class PackageConsolidationService {
+    private static readonly logger = logger('PackageConsolidationService');
+
     /**
      * Analyze solution for package version conflicts
      */
     static async analyzePackageConflicts(solutionPath: string): Promise<PackageConflict[]> {
         try {
             const projectPackageInfo = await PackageDiscoveryService.getProjectPackageInfo(solutionPath);
-            
+
             if (projectPackageInfo.length === 0) {
                 return [];
             }
@@ -33,7 +36,7 @@ export class PackageConsolidationService {
                 return a.packageId.localeCompare(b.packageId);
             });
         } catch (error) {
-            console.error('Error analyzing package conflicts:', error);
+            this.logger.error('Error analyzing package conflicts:', error);
             throw new Error(`Failed to analyze package conflicts: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -45,7 +48,7 @@ export class PackageConsolidationService {
         try {
             const conflicts = await this.analyzePackageConflicts(solutionPath);
             const projectPackageInfo = await PackageDiscoveryService.getProjectPackageInfo(solutionPath);
-            
+
             // Get unique package IDs across all projects
             const allPackageIds = new Set<string>();
             projectPackageInfo.forEach(project => {
@@ -64,7 +67,7 @@ export class PackageConsolidationService {
                 conflictSeverity: severityCount
             };
         } catch (error) {
-            console.error('Error getting consolidation summary:', error);
+            this.logger.error('Error getting consolidation summary:', error);
             return {
                 totalPackages: 0,
                 conflictedPackages: 0,
@@ -98,7 +101,7 @@ export class PackageConsolidationService {
     private static analyzePackageVersions(packageId: string, packageInstances: InstalledPackage[]): PackageConflict | null {
         // Group by version
         const versionGroups: Record<string, InstalledPackage[]> = {};
-        
+
         for (const pkg of packageInstances) {
             if (!versionGroups[pkg.version]) {
                 versionGroups[pkg.version] = [];
@@ -148,12 +151,12 @@ export class PackageConsolidationService {
             for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
                 const aPart = aParts[i] || 0;
                 const bPart = bParts[i] || 0;
-                
+
                 if (aPart !== bPart) {
                     return bPart - aPart; // Descending order (latest first)
                 }
             }
-            
+
             return 0;
         });
 
@@ -204,7 +207,7 @@ export class PackageConsolidationService {
             'Microsoft.AspNetCore.',
             'Microsoft.EntityFrameworkCore'
         ];
-        
+
         const isCorePackage = corePackages.some(prefix => packageId.startsWith(prefix));
         if (isCorePackage && versions.length > 2) {
             return 'medium';
@@ -258,7 +261,7 @@ export class PackageConsolidationService {
         }
 
         let estimatedImpact = `${projectsToUpdate.length} projects will be updated to use ${targetVersion}.`;
-        
+
         if (conflict.conflictSeverity === 'high') {
             estimatedImpact += ' Major version changes may require code updates.';
         } else if (conflict.conflictSeverity === 'medium') {
@@ -282,7 +285,7 @@ export class PackageConsolidationService {
             const conflicts = await this.analyzePackageConflicts(solutionPath);
             return conflicts.some(conflict => conflict.packageId === packageId);
         } catch (error) {
-            console.error(`Error checking conflicts for ${packageId}:`, error);
+            this.logger.error(`Error checking conflicts for ${packageId}:`, error);
             return false;
         }
     }

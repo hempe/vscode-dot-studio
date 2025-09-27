@@ -1,6 +1,9 @@
+import { logger } from '../core/logger';
 import { WebviewMessage, WebviewConfig, MessageHandler } from '../types/webview';
 
 export class WebviewService {
+    private static readonly logger = logger('WebviewService');
+
     private static messageHandlers: Map<string, MessageHandler[]> = new Map();
     private static messageQueue: Map<string, WebviewMessage[]> = new Map();
 
@@ -32,7 +35,7 @@ export class WebviewService {
             try {
                 await handler(message);
             } catch (error) {
-                console.error(`Error handling message ${message.type}:`, error);
+                this.logger.error(`Error handling message ${message.type}:`, error);
             }
         }
     }

@@ -68,35 +68,3 @@ export function isSystemPath(fullPath: string): boolean {
         normalizedPath.startsWith(sysDir + '/') || normalizedPath === sysDir
     );
 }
-
-/**
- * Validate that a path is within expected boundaries (workspace)
- */
-export function isValidWorkspacePath(fullPath: string, workspaceRoot?: string): boolean {
-    if (!workspaceRoot) return false;
-
-    const normalizedPath = fullPath.replace(/\\/g, '/');
-    const normalizedWorkspace = workspaceRoot.replace(/\\/g, '/');
-
-    // Path must start with workspace root
-    return normalizedPath.startsWith(normalizedWorkspace);
-}
-
-/**
- * Normalize project paths from solution files to fix common cross-platform issues
- */
-export function normalizeProjectPath(projectPath: string): string {
-    let normalized = projectPath;
-
-    // Remove erroneous leading slash that makes paths absolute on Unix systems
-    if (normalized.startsWith('/') && !normalized.startsWith('//')) {
-        console.log(`Removing erroneous leading slash from: ${normalized}`);
-        normalized = normalized.substring(1);
-    }
-
-    // Normalize path separators to current platform
-    const path = require('path');
-    normalized = normalized.replace(/\\/g, path.sep).replace(/\//g, path.sep);
-
-    return normalized;
-}

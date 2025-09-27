@@ -3,8 +3,10 @@ import { NuGetSearchOptions } from '../types/nuget';
 import { PackageDiscoveryService } from './packageDiscoveryService';
 import { InstalledPackage } from '../types/packageDiscovery';
 import { PackageUpdate, UpdateCheckOptions } from '../types/packageUpdate';
+import { logger } from '../core/logger';
 
 export class PackageUpdateService {
+    private static readonly logger = logger('PackageUpdateService');
     private static readonly DEFAULT_BATCH_SIZE = 5;
     private static readonly VERSION_REGEX = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+([a-zA-Z0-9.-]+))?$/;
 
@@ -14,7 +16,7 @@ export class PackageUpdateService {
     static async checkForUpdates(solutionPath: string, options: UpdateCheckOptions): Promise<PackageUpdate[]> {
         try {
             const installedPackages = await PackageDiscoveryService.discoverInstalledPackages(solutionPath);
-            
+
             if (installedPackages.length === 0) {
                 return [];
             }
@@ -26,12 +28,12 @@ export class PackageUpdateService {
             // Process packages in batches to avoid overwhelming the API
             const batchSize = options.batchSize || this.DEFAULT_BATCH_SIZE;
             const packageIds = Object.keys(packageGroups);
-            
+
             for (let i = 0; i < packageIds.length; i += batchSize) {
                 const batch = packageIds.slice(i, i + batchSize);
                 const batchUpdates = await this.checkBatchForUpdates(batch, packageGroups, options);
                 updates.push(...batchUpdates);
-                
+
                 // Small delay between batches to be respectful to the API
                 if (i + batchSize < packageIds.length) {
                     await this.delay(100);
@@ -40,7 +42,7 @@ export class PackageUpdateService {
 
             return updates.sort((a, b) => a.id.localeCompare(b.id));
         } catch (error) {
-            console.error('Error checking for package updates:', error);
+            this.logger.error('Error checking for package updates:', error);
             throw new Error(`Failed to check for updates: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -64,7 +66,7 @@ export class PackageUpdateService {
             }
 
             const latestVersion = packageInfo.version;
-            
+
             // Compare versions
             if (this.isNewerVersion(latestVersion, currentVersion)) {
                 return latestVersion;
@@ -72,7 +74,7 @@ export class PackageUpdateService {
 
             return null;
         } catch (error) {
-            console.error(`Error checking update for package ${packageId}:`, error);
+            this.logger.error(`Error checking update for package ${packageId}:`, error);
             return null;
         }
     }
@@ -82,7 +84,7 @@ export class PackageUpdateService {
      */
     private static groupPackagesById(packages: InstalledPackage[]): Record<string, InstalledPackage[]> {
         const groups: Record<string, InstalledPackage[]> = {};
-        
+
         for (const pkg of packages) {
             if (!groups[pkg.id]) {
                 groups[pkg.id] = [];
@@ -97,8 +99,8 @@ export class PackageUpdateService {
      * Check a batch of packages for updates
      */
     private static async checkBatchForUpdates(
-        packageIds: string[], 
-        packageGroups: Record<string, InstalledPackage[]>, 
+        packageIds: string[],
+        packageGroups: Record<string, InstalledPackage[]>,
         options: UpdateCheckOptions
     ): Promise<PackageUpdate[]> {
         const updates: PackageUpdate[] = [];
@@ -107,14 +109,14 @@ export class PackageUpdateService {
             try {
                 const packages = packageGroups[packageId];
                 const latestVersion = await this.checkPackageForUpdate(packageId, packages[0].version, options.includePrerelease);
-                
+
                 if (latestVersion) {
                     // Get all unique versions currently installed
                     const currentVersions = [...new Set(packages.map(p => p.version))];
                     const projects = packages.map(p => p.projectName);
-                    
+
                     // Check if any installed version needs updating
-                    const needsUpdate = currentVersions.some(version => 
+                    const needsUpdate = currentVersions.some(version =>
                         this.isNewerVersion(latestVersion, version)
                     );
 
@@ -129,7 +131,7 @@ export class PackageUpdateService {
                     }
                 }
             } catch (error) {
-                console.error(`Error checking updates for ${packageId}:`, error);
+                this.logger.error(`Error checking updates for ${packageId}:`, error);
                 // Continue with other packages
             }
         }
@@ -142,13 +144,13 @@ export class PackageUpdateService {
      */
     private static getMostCommonVersion(packages: InstalledPackage[]): string {
         const versionCounts: Record<string, number> = {};
-        
+
         for (const pkg of packages) {
             versionCounts[pkg.version] = (versionCounts[pkg.version] || 0) + 1;
         }
 
         return Object.entries(versionCounts)
-            .sort(([,a], [,b]) => b - a)[0][0];
+            .sort(([, a], [, b]) => b - a)[0][0];
     }
 
     /**
@@ -184,7 +186,7 @@ export class PackageUpdateService {
 
             return false;
         } catch (error) {
-            console.error(`Error comparing versions ${version1} and ${version2}:`, error);
+            this.logger.error(`Error comparing versions ${version1} and ${version2}:`, error);
             return false;
         }
     }
@@ -194,7 +196,7 @@ export class PackageUpdateService {
      */
     private static parseVersion(version: string): { numbers: number[], prerelease?: string } | null {
         const match = version.match(this.VERSION_REGEX);
-        
+
         if (!match) {
             return null;
         }
@@ -245,7 +247,7 @@ export class PackageUpdateService {
             } else {
                 const currentParts = this.parseVersion(update.currentVersion);
                 const latestParts = this.parseVersion(update.latestVersion);
-                
+
                 if (currentParts && latestParts) {
                     if (latestParts.numbers[0] > currentParts.numbers[0]) {
                         majorUpdates++;

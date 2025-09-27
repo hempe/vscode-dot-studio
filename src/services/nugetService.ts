@@ -1,9 +1,11 @@
 import * as https from 'https';
 import { NuGetPackage, NuGetSearchOptions } from '../types/nuget';
+import { logger } from '../core/logger';
 
 export class NuGetService {
     private static readonly SEARCH_API_URL = 'https://azuresearch-usnc.nuget.org/query';
     private static readonly REQUEST_TIMEOUT = 10000;
+    private static readonly logger = logger('NuGetService');
 
     /**
      * Search for NuGet packages using the official NuGet.org API
@@ -24,10 +26,10 @@ export class NuGetService {
 
             const fullUrl = `${this.SEARCH_API_URL}?${params}`;
             const data = await this.makeHttpRequest(fullUrl);
-            
+
             return data.data || [];
         } catch (error) {
-            console.error('Error searching NuGet packages:', error);
+            this.logger.error('Error searching NuGet packages:', error);
             throw new Error(`Failed to search packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -39,18 +41,18 @@ export class NuGetService {
         return new Promise((resolve, reject) => {
             const req = https.get(url, (res: any) => {
                 let data = '';
-                
+
                 res.on('data', (chunk: any) => {
                     data += chunk;
                 });
-                
+
                 res.on('end', () => {
                     try {
                         if (res.statusCode !== 200) {
                             reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
                             return;
                         }
-                        
+
                         const jsonData = JSON.parse(data);
                         resolve(jsonData);
                     } catch (parseError) {
@@ -58,11 +60,11 @@ export class NuGetService {
                     }
                 });
             });
-            
+
             req.on('error', (error: any) => {
                 reject(new Error(`Network error: ${error.message}`));
             });
-            
+
             req.setTimeout(this.REQUEST_TIMEOUT, () => {
                 req.abort();
                 reject(new Error('Request timeout'));
@@ -84,7 +86,7 @@ export class NuGetService {
      */
     static validateVersion(version: string): boolean {
         if (!version) return false;
-        
+
         // Simplified semver validation - major.minor.patch format with optional prerelease/build
         const versionRegex = /^\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/;
         return versionRegex.test(version) && !version.includes('....'); // Prevent excessive dots

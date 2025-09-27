@@ -1,16 +1,18 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { NuGetService } from '../../services/nugetService';
+import { logger } from '../../core/logger';
 
 export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotnet-nuget-webview';
+    private readonly logger = logger('NuGetWebviewProvider');
 
     private _view?: vscode.WebviewView;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _nugetService: NuGetService
-    ) {}
+    ) { }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -80,7 +82,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 }
             });
         } catch (error) {
-            console.error('Error updating NuGet webview:', error);
+            this.logger.error('Error updating NuGet webview:', error);
             this._view.webview.postMessage({
                 command: 'error',
                 message: 'Failed to load NuGet data'
@@ -105,7 +107,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 packages: searchResults || []
             });
         } catch (error) {
-            console.error('Error searching packages:', error);
+            this.logger.error('Error searching packages:', error);
             this._view.webview.postMessage({
                 command: 'searchResults',
                 packages: []
@@ -133,7 +135,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // Refresh the installed packages
             await this._updateWebview();
         } catch (error) {
-            console.error('Error installing package:', error);
+            this.logger.error('Error installing package:', error);
             vscode.window.showErrorMessage(`Failed to install package: ${error}`);
         }
     }
@@ -158,7 +160,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // Refresh the installed packages
             await this._updateWebview();
         } catch (error) {
-            console.error('Error uninstalling package:', error);
+            this.logger.error('Error uninstalling package:', error);
             vscode.window.showErrorMessage(`Failed to uninstall package: ${error}`);
         }
     }
@@ -178,7 +180,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // TODO: Implement getting installed packages
             return [];
         } catch (error) {
-            console.error('Error getting installed packages:', error);
+            this.logger.error('Error getting installed packages:', error);
             return [];
         }
     }

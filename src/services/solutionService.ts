@@ -4,12 +4,14 @@ import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/so
 import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
+import { logger } from '../core/logger';
 
 /**
  * Centralized service for solution file operations
  * Now uses the Solution class for better architecture
  */
 export class SolutionService {
+    private static readonly logger = logger('SolutionService');
     private static activeSolution?: Solution;
 
     /**
@@ -21,7 +23,7 @@ export class SolutionService {
             const solutionFile = await SolutionFileParser.parse(solutionContent, path.dirname(solutionPath));
             return solutionFile;
         } catch (error) {
-            console.error('Error parsing solution file:', error);
+            SolutionService.logger.error('Error parsing solution file:', error);
             throw new Error(`Failed to parse solution file: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -153,11 +155,11 @@ export class SolutionService {
             }
 
             this.activeSolution = solution;
-            console.log(`[SolutionService] Initialized solution: ${path.basename(solutionPath)}`);
+            SolutionService.logger.info(`Initialized solution: ${path.basename(solutionPath)}`);
 
             return solution;
         } catch (error) {
-            console.error('[SolutionService] Error discovering and initializing solution:', error);
+            SolutionService.logger.error('Error discovering and initializing solution:', error);
             return null;
         }
     }
@@ -185,7 +187,7 @@ export class SolutionService {
                     return null;
             }
         } catch (error) {
-            console.error('Error finding solution files:', error);
+            SolutionService.logger.error('Error finding solution files:', error);
             return null;
         }
     }

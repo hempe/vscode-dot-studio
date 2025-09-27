@@ -4,9 +4,11 @@ import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
 import { isExcluded } from './core/constants';
+import { logger as loggerFn } from './core/logger';
 
+const logger = loggerFn('Extensions');
 export function activate(context: vscode.ExtensionContext) {
-    console.log('.NET Extension is now active!');
+    logger.info('.NET Extension is now active!');
 
     const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
         ? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
@@ -18,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const filePath = uri.fsPath;
         const fileName = filePath.split('/').pop() || '';
-        console.log(`File ${changeType}: ${fileName}`);
+        logger.info(`File ${changeType}: ${fileName}`);
 
         // Let the solution provider handle the specific file change
         solutionWebviewProvider.handleFileChange(filePath, changeType);
@@ -56,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Set up callback to handle active framework changes
     frameworkDropdownService.setFrameworkChangeCallback((framework) => {
         // Store the active framework for debugging - don't filter the tree view
-        console.log(`Active framework changed to: ${framework || 'Auto'}`);
+        logger.info(`Active framework changed to: ${framework || 'Auto'}`);
         // The framework will be used when F5/debugging is triggered
     });
 
@@ -78,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(solutionWatcher);
     context.subscriptions.push(projectWatcher);
 
-    console.log('.NET Extension activation complete!');
+    logger.info('.NET Extension activation complete!');
 
     // Export for testing
     return {
@@ -90,7 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    console.log('.NET Extension is being deactivated');
+    logger.info('.NET Extension is being deactivated');
 
     // Dispose the solution service to clean up active solution
     SolutionService.dispose();

@@ -2,8 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as xml2js from 'xml2js';
 import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery';
+import { logger } from '../core/logger';
 
 export class PackageDiscoveryService {
+    private static readonly logger = logger('NuGetService');
+
     private static readonly parser = new xml2js.Parser({
         explicitArray: false,
         mergeAttrs: true,
@@ -25,7 +28,7 @@ export class PackageDiscoveryService {
 
             return this.deduplicatePackages(allPackages);
         } catch (error) {
-            console.error('Error discovering installed packages:', error);
+            this.logger.error('Error discovering installed packages:', error);
             throw new Error(`Failed to discover installed packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -47,7 +50,7 @@ export class PackageDiscoveryService {
 
             return projectInfos;
         } catch (error) {
-            console.error('Error getting project package info:', error);
+            this.logger.error('Error getting project package info:', error);
             throw new Error(`Failed to get project package information: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -66,13 +69,13 @@ export class PackageDiscoveryService {
 
         while ((match = projectRegex.exec(solutionContent)) !== null) {
             const relativePath = match[1];
-            
+
             // Only include actual project files (not solution folders)
             if (relativePath.endsWith('.csproj') || relativePath.endsWith('.vbproj') || relativePath.endsWith('.fsproj')) {
                 // Normalize path separators for cross-platform compatibility
                 const normalizedPath = relativePath.replace(/\\/g, path.sep);
                 const fullPath = path.resolve(solutionDir, normalizedPath);
-                
+
                 // Verify the project file exists
                 if (fs.existsSync(fullPath)) {
                     projectPaths.push(fullPath);
@@ -88,13 +91,13 @@ export class PackageDiscoveryService {
      */
     private static async getPackagesFromProject(projectPath: string): Promise<ProjectPackageInfo> {
         const projectName = path.basename(projectPath, path.extname(projectPath));
-        
+
         try {
             const projectContent = await fs.promises.readFile(projectPath, 'utf8');
-            
+
             // Ensure we have valid XML content
             if (!projectContent || !projectContent.trim()) {
-                console.warn(`Empty project file: ${projectPath}`);
+                this.logger.warn(`Empty project file: ${projectPath}`);
                 return {
                     projectPath,
                     projectName,
@@ -104,13 +107,13 @@ export class PackageDiscoveryService {
 
             const projectData = await this.parser.parseStringPromise(projectContent);
             const packages: InstalledPackage[] = [];
-            
+
             // Extract target framework
             const targetFramework = this.extractTargetFramework(projectData);
 
             // Find PackageReference elements
             const packageReferences = this.extractPackageReferences(projectData);
-            
+
             for (const packageRef of packageReferences) {
                 if (packageRef.Include && packageRef.Version) {
                     packages.push({
@@ -132,7 +135,7 @@ export class PackageDiscoveryService {
                 packages
             };
         } catch (error) {
-            console.error(`Error parsing project file ${projectPath}:`, error);
+            this.logger.error(`Error parsing project file ${projectPath}:`, error);
             return {
                 projectPath,
                 projectName,
@@ -147,7 +150,7 @@ export class PackageDiscoveryService {
     private static extractTargetFramework(projectData: any): string | undefined {
         try {
             const propertyGroups = this.ensureArray(projectData.Project?.PropertyGroup);
-            
+
             for (const group of propertyGroups) {
                 if (group.TargetFramework) {
                     return group.TargetFramework;
@@ -158,9 +161,9 @@ export class PackageDiscoveryService {
                 }
             }
         } catch (error) {
-            console.error('Error extracting target framework:', error);
+            this.logger.error('Error extracting target framework:', error);
         }
-        
+
         return undefined;
     }
 
@@ -169,10 +172,10 @@ export class PackageDiscoveryService {
      */
     private static extractPackageReferences(projectData: any): any[] {
         const packageRefs: any[] = [];
-        
+
         try {
             const itemGroups = this.ensureArray(projectData.Project?.ItemGroup);
-            
+
             for (const group of itemGroups) {
                 if (group.PackageReference) {
                     const packages = this.ensureArray(group.PackageReference);
@@ -180,9 +183,9 @@ export class PackageDiscoveryService {
                 }
             }
         } catch (error) {
-            console.error('Error extracting package references:', error);
+            this.logger.error('Error extracting package references:', error);
         }
-        
+
         return packageRefs;
     }
 
@@ -220,7 +223,7 @@ export class PackageDiscoveryService {
             const allPackages = await this.discoverInstalledPackages(solutionPath);
             return allPackages.filter(pkg => pkg.id === packageId);
         } catch (error) {
-            console.error(`Error getting package usage for ${packageId}:`, error);
+            this.logger.error(`Error getting package usage for ${packageId}:`, error);
             return [];
         }
     }
@@ -233,7 +236,7 @@ export class PackageDiscoveryService {
             const usage = await this.getPackageUsage(solutionPath, packageId);
             return usage.length > 0;
         } catch (error) {
-            console.error(`Error checking if package ${packageId} is installed:`, error);
+            this.logger.error(`Error checking if package ${packageId} is installed:`, error);
             return false;
         }
     }
