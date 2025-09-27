@@ -613,7 +613,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _handleAddSolutionFolder(targetPath: string) {
         try {
-            this.logger.info(`Creating solution folder for target: ${targetPath}`);
+                this.logger.info(`Creating solution folder for target: ${targetPath}`);
 
             // Determine if this is a solution file or solution folder
             const isSolutionFile = targetPath.endsWith('.sln');
@@ -656,7 +656,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 throw new Error('No active solution loaded');
             }
 
-            // Add the solution folder - file watcher will handle UI updates
+            // Add the solution folder - file watcher will handle UI updates automatically
             await solution.addSolutionFolder(folderName.trim(), parentFolderName);
             vscode.window.showInformationMessage(`Created solution folder "${folderName}"`);
 
@@ -690,9 +690,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 throw new Error('No active solution loaded');
             }
 
-            // Remove the solution folder - file watcher will handle UI updates
+            // Remove the solution folder - file watcher will handle UI updates automatically
             await solution.removeSolutionFolder(folderName);
             vscode.window.showInformationMessage(`Removed solution folder "${folderName}"`);
+
         } catch (error) {
             this.logger.error(`Error removing solution folder:`, error);
             vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
@@ -816,50 +817,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _sendProjectAddedUpdate(solutionPath: string, projectName: string) {
-        try {
-            // Get fresh solution data to find the new project
-            const solution = SolutionService.getActiveSolution();
-            if (!solution || !solution.solutionFile) {
-                this.logger.warn('No active solution for project added update');
-                this._updateWebview(); // Fallback to full reload
-                return;
-            }
-
-            const treeStructure = await this._convertToTreeStructureWithLazyLoading(solution);
-
-            // Find the newly added project in the tree structure
-            const findProject = (nodes: ProjectNode[]): ProjectNode | null => {
-                for (const node of nodes) {
-                    if (node.type === 'project' && node.name === projectName) {
-                        return node;
-                    }
-                    if (node.children) {
-                        const found = findProject(node.children);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            };
-
-            const newProject = findProject(treeStructure);
-            if (newProject && this._view) {
-                this.logger.info(`Sending projectAdded update for: ${projectName}`);
-                this._view.webview.postMessage({
-                    command: 'projectAdded',
-                    project: newProject
-                });
-            } else {
-                this.logger.warn(`Could not find new project ${projectName} in tree structure`);
-                // Fallback to full reload if we can't find the project
-                this._updateWebview();
-            }
-        } catch (error) {
-            this.logger.error(`Error sending project added update:`, error);
-            // Fallback to full reload on error
-            this._updateWebview();
-        }
-    }
 
     private async _handleExpandNode(nodePath: string, nodeType: string): Promise<void> {
         this.logger.info(`Expanding ${nodeType} node: ${nodePath}`);
@@ -1111,8 +1068,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Sends the complete current tree state to the webview
      */
     private async _sendCompleteTreeUpdate(): Promise<void> {
-        this.logger.info('===== SENDING COMPLETE TREE UPDATE =====');
-        this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+        this.logger.debug('Sending complete tree update');
 
         if (!this._view) {
             return;
@@ -1203,12 +1159,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             let expansionPaths: string[];
             if (options.expansionPaths) {
                 expansionPaths = options.expansionPaths;
-                this.logger.info('===== RESTORING SPECIFIC EXPANSION STATES =====');
-                this.logger.info('Restoring provided paths:', expansionPaths);
+                this.logger.debug('Restoring specific expansion states:', expansionPaths.length, 'paths');
             } else {
                 expansionPaths = this.getExpansionState();
-                this.logger.info('===== RESTORING EXPANSION STATES =====');
-                this.logger.info('Found saved expansion state:', expansionPaths);
+                this.logger.debug('Restoring expansion states:', expansionPaths.length, 'paths');
             }
 
             if (!expansionPaths || expansionPaths.length === 0) {
@@ -1855,8 +1809,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
 
     public refresh() {
-        this.logger.info('===== REFRESH CALLED =====');
-        this.logger.debug('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+        this.logger.debug('Refresh called');
 
         // Don't refresh if we're in the middle of a rename operation
         if (this._isRenaming) {
@@ -1893,8 +1846,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _sendCurrentData() {
-        this.logger.info('===== SENDING CURRENT DATA =====');
-        this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+        this.logger.debug('Sending current data to webview');
 
         if (!this._view) {
             this.logger.info('No webview available, skipping send');
@@ -1926,34 +1878,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public async handleProjectAdded(projectPath: string) {
-        this.logger.info(`Handling project added via file watcher: ${projectPath}`);
-
-
-        if (!this._currentSolutionPath) {
-            this.logger.info('No current solution path, doing full refresh');
-            this._updateWebview();
-            return;
-        }
-
-        const projectName = path.basename(projectPath, path.extname(projectPath));
-        await this._sendProjectAddedUpdate(this._currentSolutionPath, projectName);
+        this.logger.debug(`Project added via file watcher: ${projectPath}`);
+        this._updateWebview(); // Simple full refresh
     }
 
     public handleProjectRemoved(projectPath: string) {
-        this.logger.info(`Handling project removed via file watcher: ${projectPath}`);
-
-        if (this._view) {
-            this._view.webview.postMessage({
-                command: 'projectRemoved',
-                projectPath: projectPath
-            });
-        }
+        this.logger.debug(`Project removed via file watcher: ${projectPath}`);
+        this._updateWebview(); // Simple full refresh
     }
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
-        this.logger.info(`===== FILE CHANGE EVENT =====`);
-        this.logger.info(`Queueing file ${changeType}: ${filePath}`);
-        this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+        this.logger.debug(`Queueing file ${changeType}: ${filePath}`);
 
 
         // Check if we already have a event for this file to avoid duplicates
@@ -2006,160 +1941,34 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Handle different types of file changes
         if (fileName.endsWith('.sln')) {
-            // Solution file changed - do incremental update instead of full refresh
-            this.logger.info(`Solution file ${changeType}, doing incremental update`);
-            await this._handleSolutionFileChange(filePath, changeType);
+            this.logger.debug(`Solution file ${changeType}: ${filePath}`);
+            if (changeType === 'deleted') {
+                // Solution file was deleted - clear everything
+                this._view?.webview.postMessage({
+                    command: 'solutionDataUpdate',
+                    projects: [],
+                    frameworks: []
+                });
+            } else {
+                this._clearCache(); // Clear cached data so fresh data is loaded
+                this._updateWebview(); // Simple full refresh
+            }
         } else if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) {
             // Project file changes
             if (changeType === 'created') {
-                this.logger.info(`Project file created: ${filePath}`);
+                this.logger.debug(`Project file created: ${filePath}`);
                 await this.handleProjectAdded(filePath);
             } else if (changeType === 'deleted') {
-                this.logger.info(`Project file deleted: ${filePath}`);
+                this.logger.debug(`Project file deleted: ${filePath}`);
                 this.handleProjectRemoved(filePath);
             } else {
-                // Project file content changed - do incremental update
-                this.logger.info(`Project file content changed: ${fileName}`);
-                await this._handleProjectFileChange(filePath);
+                this.logger.debug(`Project file content changed: ${fileName}`);
+                this._updateWebview(); // Simple full refresh
             }
         } else {
-            // All other files - add/remove from tree incrementally
-            if (changeType === 'created') {
-                await this._handleFileAdded(filePath);
-            } else if (changeType === 'deleted') {
-                await this._handleFileRemoved(filePath);
-            } else {
-                // File content changed - could show modification indicator in the future
-                this.logger.info(`File content changed: ${fileName}`);
-            }
+            // All other files - use simple full refresh
+            this.logger.debug(`File ${changeType}: ${fileName}`);
+            this._updateWebview(); // Simple full refresh
         }
     }
-
-    private async _handleFileAdded(filePath: string) {
-        this.logger.info(`Adding file to tree: ${filePath}`);
-
-        // Find which project this file belongs to
-        const projectPath = await this._findProjectForFile(filePath);
-        if (!projectPath) {
-            this.logger.info(`Could not find project for file: ${filePath}`);
-            return;
-        }
-
-        // Create file node data
-        const fileNode = {
-            type: 'file',
-            name: path.basename(filePath),
-            path: filePath
-        };
-
-        this._view?.webview.postMessage({
-            command: 'fileAdded',
-            file: fileNode,
-            parentPath: projectPath
-        });
-    }
-
-    private _handleFileRemoved(filePath: string) {
-        this.logger.info(`Removing file from tree: ${filePath}`);
-
-        this._view?.webview.postMessage({
-            command: 'fileRemoved',
-            filePath: filePath
-        });
-    }
-
-    private async _findProjectForFile(filePath: string): Promise<string | undefined> {
-        // Find the closest .csproj file by walking up the directory tree
-        let currentDir = path.dirname(filePath);
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-        while (currentDir && currentDir !== workspaceRoot && currentDir !== path.dirname(currentDir)) {
-            try {
-                const files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(currentDir));
-                const projectFile = files.find(([name, type]) =>
-                    type === vscode.FileType.File &&
-                    (name.endsWith('.csproj') || name.endsWith('.vbproj') || name.endsWith('.fsproj'))
-                );
-
-                if (projectFile) {
-                    return path.join(currentDir, projectFile[0]);
-                }
-            } catch (error) {
-                this.logger.warn(`Error reading directory ${currentDir}:`, error);
-            }
-
-            currentDir = path.dirname(currentDir);
-        }
-
-        return undefined;
-    }
-
-    private async _handleSolutionFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
-        this.logger.info(`===== SOLUTION FILE CHANGE =====`);
-        this.logger.info(`Handling solution file change: ${changeType} for ${filePath}`);
-        this.logger.info('Stack trace:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
-
-        if (changeType === 'deleted') {
-            // Solution file was deleted - clear everything
-            this.logger.info(`Solution file deleted, clearing tree`);
-            this._view?.webview.postMessage({
-                command: 'solutionDataUpdate',
-                projects: [],
-                frameworks: []
-            });
-            return;
-        }
-
-        try {
-            // Get the current solution data (should be automatically updated by Solution class file watcher)
-            const solution = SolutionService.getActiveSolution();
-            if (!solution || !solution.solutionFile) {
-                this.logger.warn('No active solution after file change');
-                return;
-            }
-
-            const newSolutionData = solution.solutionFile;
-            this.logger.info('Got updated solution data:', newSolutionData);
-
-            // Since the Solution class already handles change detection and notifications,
-            // we just need to clear cache and refresh the UI
-            this.logger.info('Solution file changed, clearing cache and refreshing UI');
-            this._clearCache();
-            await this._updateWebview();
-
-        } catch (error) {
-            this.logger.error('Error handling solution file change:', error);
-            // Fallback to current cached state - don't reload
-            this.logger.info('Keeping current state due to parse error');
-        }
-    }
-
-
-
-    private async _handleProjectFileChange(projectPath: string) {
-        this.logger.info(`Handling project file change: ${projectPath}`);
-
-        try {
-            // The Project class will handle this change automatically through its file watcher
-            // We just need to refresh the affected project in the UI
-            const projectName = path.basename(projectPath, path.extname(projectPath));
-            await this._sendProjectRefreshUpdate(projectPath, projectName);
-
-        } catch (error) {
-            this.logger.error(`Error handling project file change:`, error);
-        }
-    }
-
-
-    private async _sendProjectRefreshUpdate(projectPath: string, projectName: string) {
-        this.logger.info(`Sending project refresh update for: ${projectName}`);
-
-        // Send targeted project update instead of full tree reload
-        this._view?.webview.postMessage({
-            command: 'projectRefresh',
-            projectPath: projectPath,
-            projectName: projectName
-        });
-    }
-
 }

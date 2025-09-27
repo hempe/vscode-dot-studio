@@ -6,12 +6,6 @@ import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/so
 import { Project } from './Project';
 import { logger } from './logger';
 
-export interface SolutionChangeEvent {
-    type: 'projectAdded' | 'projectRemoved' | 'solutionFolderAdded' | 'solutionFolderRemoved' | 'solutionFileChanged';
-    project?: SolutionProject;
-    solutionFolder?: SolutionProject;
-}
-
 export interface SolutionFileTreeNode {
     name: string;
     type: 'solutionFolder' | 'file';
@@ -27,10 +21,10 @@ export interface SolutionFileItem {
 export class Solution {
     private readonly logger = logger('Solution');
     private _disposables: vscode.Disposable[] = [];
+    private _changeEmitter = new vscode.EventEmitter<void>();
     private _fileWatcher?: vscode.FileSystemWatcher;
     private _solutionFile?: SolutionFile;
     private _projects: Map<string, Project> = new Map();
-    private _changeEmitter = new vscode.EventEmitter<SolutionChangeEvent>();
     private _fileTree: Record<string, SolutionFileTreeNode> = {}; // Solution files tree structure
     private _isInitialized = false;
 
@@ -96,11 +90,9 @@ export class Solution {
             const oldSolutionFile = this._solutionFile;
             await this.parseSolutionFile();
 
-            if (oldSolutionFile && this._solutionFile) {
-                await this.detectAndNotifyChanges(oldSolutionFile, this._solutionFile);
-            }
+            // Notify UI that solution has changed
+            this._changeEmitter.fire();
 
-            this._changeEmitter.fire({ type: 'solutionFileChanged' });
         } catch (error) {
             this.logger.error('Error handling solution file change:', error);
         }
@@ -171,9 +163,9 @@ export class Solution {
                     const project = new Project(absolutePath, solutionProject);
 
                     // Subscribe to project changes
-                    project.onDidChange((changeEvent) => {
-                        // Forward project changes as needed
-                        this.logger.debug(`Project ${project.name} changed:`, changeEvent);
+                    project.onDidChange(() => {
+                        this.logger.debug(`Project ${project.name} changed, forwarding to solution`);
+                        this._changeEmitter.fire(); // Forward to solution listeners
                     });
 
                     this._projects.set(absolutePath, project);
@@ -225,13 +217,11 @@ export class Solution {
                         const newProject = new Project(absolutePath, project);
                         this._projects.set(absolutePath, newProject);
 
-                        this._changeEmitter.fire({ type: 'projectAdded', project });
                     } catch (error) {
                         this.logger.error(`Failed to initialize new project ${project.name}:`, error);
                     }
                 } else if (SolutionFileParser.isSolutionFolder(project)) {
                     this.logger.info(`Solution folder added: ${project.name}`);
-                    this._changeEmitter.fire({ type: 'solutionFolderAdded', solutionFolder: project });
                 }
             }
         }
@@ -250,10 +240,8 @@ export class Solution {
                         this._projects.delete(absolutePath);
                     }
 
-                    this._changeEmitter.fire({ type: 'projectRemoved', project });
                 } else if (SolutionFileParser.isSolutionFolder(project)) {
                     this.logger.info(`Solution folder removed: ${project.name}`);
-                    this._changeEmitter.fire({ type: 'solutionFolderRemoved', solutionFolder: project });
                 }
             }
         }

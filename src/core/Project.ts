@@ -16,12 +16,6 @@ export interface ProjectFileNode {
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
 }
 
-export interface ProjectChangeEvent {
-    type: 'filesChanged' | 'dependenciesChanged' | 'projectFileChanged';
-    files?: string[];
-    dependencies?: ProjectDependency[];
-}
-
 export interface ProjectDependency {
     name: string;
     version?: string;
@@ -36,7 +30,7 @@ export class Project {
     private _fileTree?: ProjectFileNode;
     private _dependencies: ProjectDependency[] = [];
     private _frameworks: string[] = [];
-    private _changeEmitter = new vscode.EventEmitter<ProjectChangeEvent>();
+    private _changeEmitter = new vscode.EventEmitter<void>();
     private _isInitialized = false;
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
     private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
@@ -127,7 +121,7 @@ export class Project {
         if (fileName === path.basename(this._projectPath)) {
             // Project file itself changed
             await this.parseProjectFile();
-            this._changeEmitter.fire({ type: 'projectFileChanged' });
+            this._changeEmitter.fire(); // Simple event - just notify change
         } else {
             // Other file created - update file tree if it's in a loaded area
             await this.handleFileSystemChange(filePath, 'created');
@@ -146,7 +140,7 @@ export class Project {
         if (fileName === path.basename(this._projectPath)) {
             this.logger.info(`Project file changed: ${fileName}`);
             await this.parseProjectFile();
-            this._changeEmitter.fire({ type: 'projectFileChanged' });
+            this._changeEmitter.fire(); // Simple event - just notify change
         }
         // For other file changes, we don't need to do anything unless we want to show modification indicators
     }
@@ -178,10 +172,7 @@ export class Project {
 
         if (this.isPathInLoadedArea(relativePath)) {
             this.logger.debug(`File ${changeType} in loaded area: ${relativePath}`);
-            this._changeEmitter.fire({
-                type: 'filesChanged',
-                files: [filePath]
-            });
+            this._changeEmitter.fire(); // Simple event - just notify change
         }
     }
 
@@ -578,7 +569,7 @@ export class Project {
             }
         }
 
-        this._changeEmitter.fire({ type: 'filesChanged' });
+        this._changeEmitter.fire(); // Simple event - just notify change
     }
 
     /**
