@@ -1,9 +1,9 @@
 import { Dependency } from "../../../parsers/projectFileParser";
 
-export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'solutionItem';
+export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'dependencyCategory' | 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies' | 'solutionItem';
 
 // Context menu actions only
-export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem';
+export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem' | 'manageNuGetPackages' | 'addProjectReference' | 'addAssemblyReference' | 'addFrameworkReference' | 'restoreDependencies' | 'removeDependency';
 
 // All project actions (includes menu actions + internal actions)
 export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent';
@@ -11,7 +11,7 @@ export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' |
 export interface ProjectNode {
     type: NodeType;
     name: string;
-    path: string;
+    path: string; // Keep for display and legacy compatibility - but use expansionId for operations
     children?: ProjectNode[];
     expanded?: boolean;
     isSolutionFolder?: boolean; // Flag to help distinguish virtual vs filesystem folders
@@ -22,7 +22,7 @@ export interface ProjectNode {
     isLoaded?: boolean; // For lazy loading - indicates if children have been loaded
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
     isLoading?: boolean; // Show loading state while backend processes expand/collapse
-    uniqueId?: string; // Unique identifier for selection/focus (includes hierarchy)
+    nodeId: string; // Unique node identifier for all operations
 }
 
 export interface SolutionData {
@@ -35,22 +35,22 @@ export interface TreeNodeProps {
     node: ProjectNode;
     level: number;
     onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
-    onToggleExpand: (path: string, nodeType: string) => void;
-    onNodeClick: (path: string) => void;
-    onNodeFocus: (path: string) => void;
+    onToggleExpand: (nodeId: string, nodeType: string) => void;
+    onNodeClick: (nodeId: string) => void;
+    onNodeFocus: (nodeId: string) => void;
     onContextMenu: (x: number, y: number, node: ProjectNode) => void;
-    onRenameConfirm: (newName: string, nodePath: string, nodeType: NodeType, oldName: string) => void;
+    onRenameConfirm: (newName: string, filePath: string, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
-    selectedNodePath?: string; // Node unique ID or path for selection
-    focusedNodePath?: string; // Node unique ID or path for focus
-    renamingNodePath?: string; // Node unique ID or path for renaming
+    selectedNodeId?: string; // Node ID for selection
+    focusedNodeId?: string; // Node ID for focus
+    renamingNodeId?: string; // Node ID for renaming
 }
 
 export interface SolutionTreeProps {
     projects: any[];
     onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
-    onExpandNode?: (nodePath: string, nodeType: string) => void;
-    onCollapseNode?: (nodePath: string) => void;
+    onExpandNode?: (nodeId: string, nodeType: string) => void;
+    onCollapseNode?: (nodeId: string) => void;
 }
 
 export interface FrameworkSelectorProps {

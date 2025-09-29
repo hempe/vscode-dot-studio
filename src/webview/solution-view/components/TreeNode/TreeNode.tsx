@@ -14,14 +14,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onContextMenu,
     onRenameConfirm,
     onRenameCancel,
-    selectedNodePath,
-    focusedNodePath,
-    renamingNodePath
+    selectedNodeId,
+    focusedNodeId,
+    renamingNodeId
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
-    const nodeId = node.uniqueId || node.path; // Fallback to path if uniqueId not available
-    const isRenaming = renamingNodePath === nodeId;
+    const nodeIdentifier = node.nodeId;
+    const isRenaming = renamingNodeId === nodeIdentifier;
 
 
     const handleClick = () => {
@@ -44,12 +44,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             logger.info(`Executing single click action for: ${node.name}`);
 
             // Click selects and focuses the item
-            onNodeClick(nodeId);
+            onNodeClick(nodeIdentifier);
 
             // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
             if (node.children?.length || node.hasChildren) {
                 logger.info(`Toggling expansion for: ${node.name}`);
-                onToggleExpand(node.path, node.type);
+                onToggleExpand(nodeIdentifier, node.type);
             } else {
                 logger.info(`Node ${node.name} has no children, just focused`);
             }
@@ -75,8 +75,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             setClickTimeout(null);
         }
 
-        // Double click opens file only for file types
-        if (node.type === 'file' || node.type === 'solutionItem') {
+        // Double click opens file for file types and project files
+        if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project') {
             logger.info(`Opening file: ${node.path}`);
             onProjectAction('openFile', node.path);
         } else {
@@ -176,14 +176,25 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 // Default file icon
                 return 'codicon-file';
 
+            case 'dependencies': return 'codicon-references';
+            case 'dependencyCategory':
+                // Use different icons for different dependency categories (legacy)
+                if (node.name === 'Packages') return 'codicon-package';
+                if (node.name === 'Projects') return 'codicon-symbol-class';
+                if (node.name === 'Assemblies') return 'codicon-library';
+                if (node.name === 'Frameworks') return 'codicon-symbol-namespace';
+                return 'codicon-folder';
+            case 'packageDependencies': return 'codicon-package';
+            case 'projectDependencies': return 'codicon-symbol-class';
+            case 'assemblyDependencies': return 'codicon-library';
             case 'dependency': return 'codicon-package';
             default: return 'codicon-question';
         }
     };
 
     const paddingLeft = level * 16;
-    const isSelected = selectedNodePath === nodeId;
-    const isFocused = focusedNodePath === nodeId;
+    const isSelected = selectedNodeId === nodeIdentifier;
+    const isFocused = focusedNodeId === nodeIdentifier;
 
     return (
         <div>
@@ -214,7 +225,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 <div className="tree-children">
                     {node.children.map((child, index) => (
                         <TreeNode
-                            key={`${child.path}-${index}`}
+                            key={`${child.nodeId}-${index}`}
                             node={child}
                             level={level + 1}
                             onProjectAction={onProjectAction}
@@ -224,9 +235,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onContextMenu={onContextMenu}
                             onRenameConfirm={onRenameConfirm}
                             onRenameCancel={onRenameCancel}
-                            selectedNodePath={selectedNodePath}
-                            focusedNodePath={focusedNodePath}
-                            renamingNodePath={renamingNodePath}
+                            selectedNodeId={selectedNodeId}
+                            focusedNodeId={focusedNodeId}
+                            renamingNodeId={renamingNodeId}
                         />
                     ))}
                 </div>

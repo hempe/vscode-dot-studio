@@ -111,6 +111,42 @@ export const addSolutionItemAction: MenuAction = {
     kind: "action"
 };
 
+export const manageNuGetPackagesAction: MenuAction = {
+    name: "Manage NuGet Packages...",
+    action: "manageNuGetPackages",
+    kind: "action"
+};
+
+export const addProjectReferenceAction: MenuAction = {
+    name: "Add Project Reference...",
+    action: "addProjectReference",
+    kind: "action"
+};
+
+export const addAssemblyReferenceAction: MenuAction = {
+    name: "Add Assembly Reference...",
+    action: "addAssemblyReference",
+    kind: "action"
+};
+
+export const addFrameworkReferenceAction: MenuAction = {
+    name: "Add Framework Reference...",
+    action: "addFrameworkReference",
+    kind: "action"
+};
+
+export const restoreDependenciesAction: MenuAction = {
+    name: "Restore Dependencies",
+    action: "restoreDependencies",
+    kind: "action"
+};
+
+export const removeDependencyAction: MenuAction = {
+    name: "Remove",
+    action: "removeDependency",
+    kind: "action"
+};
+
 export const separator: MenuSeparator = {
     kind: 'separator'
 };
@@ -143,6 +179,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     ],
 
     project: [
+        openAction,
+        separator,
         renameAction,
         removeFromSolutionAction,
         deleteProjectAction,
@@ -171,11 +209,33 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     ],
 
     dependencies: [
-        // Dependencies node has no menu items
+        manageNuGetPackagesAction,
+        separator,
+        addProjectReferenceAction,
+        addAssemblyReferenceAction,
+        addFrameworkReferenceAction,
+        separator,
+        restoreDependenciesAction
     ],
 
     dependency: [
-        // Individual dependency items have no menu items
+        removeDependencyAction
+    ],
+
+    dependencyCategory: [
+        // Keep for backward compatibility - should not be used anymore
+    ],
+
+    packageDependencies: [
+        manageNuGetPackagesAction
+    ],
+
+    projectDependencies: [
+        addProjectReferenceAction
+    ],
+
+    assemblyDependencies: [
+        addAssemblyReferenceAction
     ],
 
     solutionItem: [

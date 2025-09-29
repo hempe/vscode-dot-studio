@@ -256,14 +256,14 @@ export const useVsCodeApi = () => {
     };
 
 
-    const expandNode = (nodePath: string, nodeType: string) => {
-        logger.info('Expanding node:', nodePath, nodeType);
-        vscode.postMessage({ command: 'expandNode', nodePath, nodeType });
+    const expandNode = (nodeId: string, nodeType: string) => {
+        logger.info('Expanding node:', nodeId, nodeType);
+        vscode.postMessage({ command: 'expandNode', nodeId, nodeType });
     };
 
-    const collapseNode = (nodePath: string) => {
-        logger.info('Collapsing node:', nodePath);
-        vscode.postMessage({ command: 'collapseNode', nodePath });
+    const collapseNode = (nodeId: string) => {
+        logger.info('Collapsing node:', nodeId);
+        vscode.postMessage({ command: 'collapseNode', nodeId });
     };
 
     return {

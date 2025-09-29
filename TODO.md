@@ -1,5 +1,7 @@
 # Solution Tree Context Menu & Functionality TODO
 
+**NEXT PRIORITY**: Package and Project dependency category nodes still collapse when removing dependencies - need to investigate why the expansion state restoration isn't working for these specific node types.
+
 This document tracks the missing functionality and improvements needed for the Solution Tree context menus and interactions to match Visual Studio behavior.
 
 ```
@@ -120,11 +122,11 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 
 ### Project Node Context Menu
 
-- [x] **Dependencies node functionality** (PRIORITY - re-enabled and working)
-  - [ ] Restore Dependencies container node display (maybe already there but needs to be checked)
-  - [ ] Fix collapse bug when clicking dependencies node (maybe already there but needs to be checked)
-  - [ ] Implement dependencies expansion to show individual packages (maybe already there but needs to be checked)
-  - [ ] Add context menu for dependencies (Manage NuGet Packages, Add Reference, etc.)
+- [x] **Dependencies node functionality** (PRIORITY - COMPLETED!)
+  - [x] Restore Dependencies container node display ✅
+  - [x] Fix collapse bug when clicking dependencies node ✅
+  - [x] Implement dependencies expansion to show individual packages ✅
+  - [x] Add context menu for dependencies (Manage NuGet Packages, Add Reference, Restore Dependencies) ✅
 - [ ] Add Reference
 - [ ] Add Project Reference
 - [ ] Manage NuGet Packages

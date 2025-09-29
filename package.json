@@ -21,6 +21,12 @@
           "name": "Solution Explorer",
           "type": "webview",
           "when": "workspaceHasDotnetFiles"
+        },
+        {
+          "id": "dotnet-nuget-webview",
+          "name": "NuGet Package Manager",
+          "type": "webview",
+          "when": "workspaceHasDotnetFiles"
         }
       ]
     },

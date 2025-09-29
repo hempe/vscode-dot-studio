@@ -5,6 +5,7 @@ import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileP
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
+import { SolutionExpansionIdService } from '../services/solutionExpansionIdService';
 import { logger } from './logger';
 
 export interface ProjectFileNode {
@@ -316,7 +317,7 @@ export class Project {
         this._collapsedState.set(folderPath, false);
 
         // Find the node in the tree
-        const node = this.findNodeByPath(folderPath);
+        const node = this.findNodeById(folderPath);
         if (!node) {
             this.logger.warn(`Could not find node for path: ${folderPath}`);
             return [];
@@ -363,7 +364,7 @@ export class Project {
     /**
      * Finds a node in the file tree by its path
      */
-    private findNodeByPath(targetPath: string): ProjectFileNode | undefined {
+    private findNodeById(targetPath: string): ProjectFileNode | undefined {
         if (!this._fileTree) return undefined;
 
         const findInNode = (node: ProjectFileNode): ProjectFileNode | undefined => {
@@ -476,8 +477,8 @@ export class Project {
     /**
      * Gets the root-level children for this project (dependencies container + root files/folders)
      */
-    async getRootChildren(): Promise<{ type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean }[]> {
-        const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean }[] = [];
+    async getRootChildren(): Promise<{ type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean, nodeId?: string }[]> {
+        const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean, nodeId?: string }[] = [];
 
         try {
             // Add Dependencies container if there are dependencies
@@ -485,7 +486,9 @@ export class Project {
                 items.push({
                     type: 'dependencies',
                     name: 'Dependencies',
-                    path: this._projectPath + '/dependencies', // Unique path for dependencies node
+                    path: this._projectPath + '/dependencies', // Keep legacy path for compatibility
+                    nodeId: SolutionExpansionIdService.generateDependenciesId(this._projectPath),
+                    hasChildren: true
                 });
             }
 
@@ -529,24 +532,107 @@ export class Project {
     }
 
     /**
-     * Gets dependencies for this project (used when Dependencies node is expanded)
+     * Gets dependency categories for this project (used when Dependencies node is expanded)
      */
-    getDependencies(): { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string }[] {
-        const items: { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string }[] = [];
+    getDependencies(): { type: 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] {
+        this.logger.info(`getDependencies called for ${this.name}, found ${this._dependencies?.length || 0} dependencies`);
 
-        if (this._dependencies) {
-            for (const dep of this._dependencies) {
-                items.push({
-                    type: 'dependency',
-                    name: dep.version ? `${dep.name} (${dep.version})` : dep.name,
-                    path: this._projectPath, // Dependencies use project path as reference
-                    version: dep.version,
-                    dependencyType: dep.type
-                });
+        // Group dependencies by type
+        const packageRefs = this._dependencies?.filter(dep => dep.type === 'PackageReference') || [];
+        const projectRefs = this._dependencies?.filter(dep => dep.type === 'ProjectReference') || [];
+        const assemblyRefs = this._dependencies?.filter(dep => dep.type === 'Reference') || [];
+
+        this.logger.info(`Dependency breakdown: Packages=${packageRefs.length}, Projects=${projectRefs.length}, Assemblies=${assemblyRefs.length}`);
+
+        // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
+        const items: { type: 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] = [
+            {
+                type: 'packageDependencies',
+                name: 'Packages',
+                path: this._projectPath + '/dependencies/packages', // Keep legacy path for compatibility
+                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
+                hasChildren: packageRefs.length > 0
+            },
+            {
+                type: 'projectDependencies',
+                name: 'Projects',
+                path: this._projectPath + '/dependencies/projects', // Keep legacy path for compatibility
+                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
+                hasChildren: projectRefs.length > 0
+            },
+            {
+                type: 'assemblyDependencies',
+                name: 'Assemblies',
+                path: this._projectPath + '/dependencies/assemblies', // Keep legacy path for compatibility
+                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
+                hasChildren: assemblyRefs.length > 0
             }
+        ];
+
+        this.logger.info(`getDependencies for ${this.name}: Always returning 3 dependency categories (Packages, Projects, Assemblies)`);
+        return items;
+    }
+
+    /**
+     * Gets dependencies for a specific category (used when dependency category node is expanded)
+     */
+    getDependenciesByCategory(categoryPathOrId: string): { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string, nodeId?: string }[] {
+        const items: { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string, nodeId?: string }[] = [];
+
+        if (!this._dependencies) {
+            return items;
         }
 
-        this.logger.info(`getDependencies for ${this.name}: ${items.length} dependencies`);
+        let dependencies: ProjectDependency[] = [];
+        let categoryName: string = '';
+
+        // Determine which category - handle both legacy paths and new expansion IDs
+        if (categoryPathOrId.endsWith('/packages') || categoryPathOrId.includes(':packages')) {
+            // Packages: NuGet package references
+            dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
+            categoryName = 'packages';
+        } else if (categoryPathOrId.endsWith('/projects') || categoryPathOrId.includes(':projects')) {
+            // Projects: project-to-project references
+            dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
+            categoryName = 'projects';
+        } else if (categoryPathOrId.endsWith('/assemblies') || categoryPathOrId.includes(':assemblies')) {
+            // Assemblies: binary/assembly references
+            dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
+            categoryName = 'assemblies';
+        } else if (categoryPathOrId.endsWith('/frameworks') || categoryPathOrId.includes(':frameworks')) {
+            // Frameworks: framework references
+            dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
+            categoryName = 'frameworks';
+        }
+
+        // Convert to tree nodes
+        for (const dep of dependencies) {
+            // Create unique legacy path that includes version to handle same package with different versions
+            const uniquePath = dep.version
+                ? `${this._projectPath}/dependencies/${categoryName}/${dep.name}@${dep.version}`
+                : `${this._projectPath}/dependencies/${categoryName}/${dep.name}`;
+
+            // Generate expansion ID
+            const nodeId = SolutionExpansionIdService.generateDependencyId(
+                this._projectPath,
+                categoryName,
+                dep.name,
+                dep.version
+            );
+
+            items.push({
+                type: 'dependency',
+                name: dep.version ? `${dep.name} (${dep.version})` : dep.name,
+                path: uniquePath, // Keep legacy path for compatibility
+                nodeId: nodeId,
+                version: dep.version,
+                dependencyType: dep.type
+            });
+
+            this.logger.debug(`Created dependency node: ${dep.name} with path: ${uniquePath}, nodeId: ${nodeId}`);
+        }
+
+        this.logger.info(`getDependenciesByCategory for ${categoryPathOrId}: ${items.length} dependencies`);
         return items;
     }
 
@@ -591,7 +677,7 @@ export class Project {
             .map(([path, _]) => path);
 
         for (const folderPath of expandedFolders) {
-            const node = this.findNodeByPath(folderPath);
+            const node = this.findNodeById(folderPath);
             if (node) {
                 node.children = await this.loadFolderChildren(folderPath);
                 node.isLoaded = true;

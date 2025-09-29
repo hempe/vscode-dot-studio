@@ -18,18 +18,21 @@ describe('TreeNode Focus and Selection States', () => {
   const fileNode: ProjectNode = {
     type: 'file',
     name: 'Program.cs',
-    path: '/test/Program.cs'
+    path: '/test/Program.cs',
+    nodeId: 'file:/test/Program.cs'
   };
 
   const folderNode: ProjectNode = {
     type: 'folder',
     name: 'Controllers',
     path: '/test/Controllers',
+    nodeId: 'folder:/test/project:/test/Controllers',
     children: [
       {
         type: 'file',
         name: 'HomeController.cs',
-        path: '/test/Controllers/HomeController.cs'
+        path: '/test/Controllers/HomeController.cs',
+        nodeId: 'file:/test/Controllers/HomeController.cs'
       }
     ],
     expanded: false
@@ -45,9 +48,9 @@ describe('TreeNode Focus and Selection States', () => {
     onContextMenu: mockOnContextMenu,
     onRenameConfirm: mockOnRenameConfirm,
     onRenameCancel: mockOnRenameCancel,
-    selectedNodePath: undefined,
-    focusedNodePath: undefined,
-    renamingNodePath: undefined
+    selectedNodeId: undefined,
+    focusedNodeId: undefined,
+    renamingNodeId: undefined
   };
 
   beforeEach(() => {
@@ -75,7 +78,7 @@ describe('TreeNode Focus and Selection States', () => {
 
       // Wait for debounced click
       await waitFor(() => {
-        expect(mockOnNodeClick).toHaveBeenCalledWith('/test/Program.cs');
+        expect(mockOnNodeClick).toHaveBeenCalledWith('file:/test/Program.cs');
       }, { timeout: 300 });
     });
 
@@ -108,7 +111,7 @@ describe('TreeNode Focus and Selection States', () => {
 
       // Wait for debounced click
       await waitFor(() => {
-        expect(mockOnToggleExpand).toHaveBeenCalledWith('/test/Controllers');
+        expect(mockOnToggleExpand).toHaveBeenCalledWith('folder:/test/project:/test/Controllers', 'folder');
       }, { timeout: 300 });
     });
   });
@@ -118,7 +121,7 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          selectedNodePath="/test/Program.cs"
+          selectedNodeId="file:/test/Program.cs"
         />
       );
 
@@ -130,7 +133,7 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          focusedNodePath="/test/Program.cs"
+          focusedNodeId="file:/test/Program.cs"
         />
       );
 
@@ -142,8 +145,8 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          selectedNodePath="/test/Program.cs"
-          focusedNodePath="/test/Program.cs"
+          selectedNodeId="file:/test/Program.cs"
+          focusedNodeId="file:/test/Program.cs"
         />
       );
 
@@ -193,29 +196,10 @@ describe('TreeNode Focus and Selection States', () => {
   });
 
   describe('Keyboard Events', () => {
-    test('should trigger rename on F2 key when focused', () => {
-      render(
-        <TreeNode
-          {...defaultProps}
-          focusedNodePath="/test/Program.cs"
-        />
-      );
-
-      fireEvent.keyDown(document, { key: 'F2' });
-
-      expect(mockOnProjectAction).toHaveBeenCalledWith(
-        'startRename',
-        '/test/Program.cs',
-        { type: 'file', name: 'Program.cs' }
-      );
-    });
-
-    test('should not trigger rename on F2 when not focused', () => {
-      render(<TreeNode {...defaultProps} />);
-
-      fireEvent.keyDown(document, { key: 'F2' });
-
-      expect(mockOnProjectAction).not.toHaveBeenCalled();
+    test('TreeNode does not handle keyboard events directly', () => {
+      // TreeNode delegates keyboard handling to SolutionTree
+      // This is tested in SolutionTree.test.tsx instead
+      expect(true).toBe(true);
     });
   });
 

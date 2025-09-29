@@ -4,6 +4,7 @@ import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
 import { ProjectFileNode } from '../core/Project';
 import { ProjectNode } from '../webview/solution-view/types';
+import { SolutionExpansionIdService } from './solutionExpansionIdService';
 import { logger } from '../core/logger';
 
 /**
@@ -48,7 +49,7 @@ export class SolutionTreeService {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
             path: solutionPath,
-            uniqueId: 'solution',
+            nodeId: SolutionExpansionIdService.generateSolutionId(solutionPath),
             children: []
         };
 
@@ -57,7 +58,7 @@ export class SolutionTreeService {
         this.logger.info(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
-        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, 'solution');
+        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId);
 
         // Sort solution-level items (projects and solution folders)
         solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
@@ -88,7 +89,7 @@ export class SolutionTreeService {
         projects: SolutionProject[],
         hierarchy: Map<string, SolutionProject[]>,
         solution: Solution,
-        parentUniqueId: string = ''
+        parentExpansionId: string = ''
     ): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
 
@@ -101,16 +102,25 @@ export class SolutionTreeService {
             const absolutePath = this.resolveAbsolutePath(project.path || '', solution.solutionPath);
             this.logger.info(`Path resolution: ${project.path} -> ${absolutePath}`);
 
-            // Generate unique ID that includes hierarchy
-            const uniqueId = parentUniqueId
-                ? `${parentUniqueId}/${project.guid || project.name}`
-                : project.guid || project.name;
+            // Generate expansion ID based on node type
+            let nodeId: string;
+            if (itemType === 'project') {
+                nodeId = SolutionExpansionIdService.generateProjectId(absolutePath);
+            } else if (itemType === 'solutionFolder') {
+                nodeId = SolutionExpansionIdService.generateSolutionFolderId(
+                    project.guid || project.name,
+                    solution.solutionPath
+                );
+            } else {
+                // Fallback for other types
+                nodeId = `${itemType}:${absolutePath}`;
+            }
 
             const itemNode: ProjectNode = {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
                 path: absolutePath,
-                uniqueId: uniqueId,
+                nodeId: nodeId,
                 children: [],
                 // Add framework information if available
                 frameworks: project.targetFrameworks || [],
@@ -140,6 +150,8 @@ export class SolutionTreeService {
                     // For projects, assume they have children if there's an error
                     itemNode.hasChildren = true;
                 }
+
+                // Project always has Dependencies node - this will be provided by the Project class when expanded
             }
             // Handle solution folders - add their children recursively like the original
             else if (itemType === 'solutionFolder') {
@@ -147,7 +159,7 @@ export class SolutionTreeService {
                 this.logger.info(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
-                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, uniqueId);
+                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId);
                 }
 
                 // Add solution items (files directly in the solution folder)
@@ -160,11 +172,15 @@ export class SolutionTreeService {
 
                 for (const itemPath of solutionItems) {
                     const itemName = path.basename(itemPath);
+                    const absoluteItemPath = path.resolve(path.dirname(solution.solutionPath), itemPath);
                     itemNode.children.push({
                         type: 'solutionItem',
                         name: itemName,
-                        path: path.resolve(path.dirname(solution.solutionPath), itemPath),
-                        uniqueId: `${uniqueId}/${itemName}`
+                        path: absoluteItemPath,
+                        nodeId: SolutionExpansionIdService.generateSolutionItemId(
+                            absoluteItemPath,
+                            project.guid || project.name
+                        )
                     });
                 }
 
@@ -216,15 +232,15 @@ export class SolutionTreeService {
     }
 
     /**
-     * Updates a specific node in the tree structure
+     * Updates a specific node in the tree structure using expansion ID
      */
-    static updateNodeInTree(nodes: ProjectNode[], targetPath: string, updates: Partial<ProjectNode>): boolean {
+    static updateNodeInTree(nodes: ProjectNode[], nodeId: string, updates: Partial<ProjectNode>): boolean {
         for (const node of nodes) {
-            if (node.path === targetPath || node.uniqueId === targetPath) {
+            if (node.nodeId === nodeId) {
                 Object.assign(node, updates);
                 return true;
             }
-            if (node.children && this.updateNodeInTree(node.children, targetPath, updates)) {
+            if (node.children && this.updateNodeInTree(node.children, nodeId, updates)) {
                 return true;
             }
         }
@@ -232,15 +248,15 @@ export class SolutionTreeService {
     }
 
     /**
-     * Finds a node in the tree by path or unique ID
+     * Finds a node in the tree by expansion ID
      */
-    static findNodeByPath(targetPath: string, nodes: ProjectNode[]): ProjectNode | null {
+    static findNodeById(nodeId: string, nodes: ProjectNode[]): ProjectNode | null {
         for (const node of nodes) {
-            if (node.path === targetPath || node.uniqueId === targetPath) {
+            if (node.nodeId === nodeId) {
                 return node;
             }
             if (node.children) {
-                const found = this.findNodeByPath(targetPath, node.children);
+                const found = this.findNodeById(nodeId, node.children);
                 if (found) return found;
             }
         }
@@ -248,17 +264,14 @@ export class SolutionTreeService {
     }
 
     /**
-     * Gets all valid paths from the tree structure
+     * Gets all valid expansion IDs from the tree structure
      */
-    static getAllValidPathsFromTree(nodes: ProjectNode[]): Set<string> {
-        const paths = new Set<string>();
+    static getAllValidIdsFromTree(nodes: ProjectNode[]): Set<string> {
+        const nodeIds = new Set<string>();
 
         const traverse = (nodeList: ProjectNode[]) => {
             for (const node of nodeList) {
-                paths.add(node.path);
-                if (node.uniqueId) {
-                    paths.add(node.uniqueId);
-                }
+                nodeIds.add(node.nodeId);
                 if (node.children) {
                     traverse(node.children);
                 }
@@ -266,14 +279,14 @@ export class SolutionTreeService {
         };
 
         traverse(nodes);
-        return paths;
+        return nodeIds;
     }
 
     /**
-     * Gets the node type for a given path from the tree
+     * Gets the node type for a given expansion ID from the tree
      */
-    static getNodeTypeForPath(targetPath: string, nodes: ProjectNode[]): string | null {
-        const node = this.findNodeByPath(targetPath, nodes);
+    static getNodeTypeById(nodeId: string, nodes: ProjectNode[]): string | null {
+        const node = this.findNodeById(nodeId, nodes);
         return node ? node.type : null;
     }
 
@@ -290,6 +303,14 @@ export class SolutionTreeService {
                 nodeType = 'folder';
             } else if (child.type === 'dependencies') {
                 nodeType = 'dependencies';
+            } else if (child.type === 'dependencyCategory') {
+                nodeType = 'dependencyCategory';
+            } else if (child.type === 'packageDependencies') {
+                nodeType = 'packageDependencies';
+            } else if (child.type === 'projectDependencies') {
+                nodeType = 'projectDependencies';
+            } else if (child.type === 'assemblyDependencies') {
+                nodeType = 'assemblyDependencies';
             } else if (child.type === 'dependency') {
                 nodeType = 'dependency';
             } else {
@@ -300,7 +321,7 @@ export class SolutionTreeService {
                 type: nodeType,
                 name: child.name,
                 path: child.path,
-                uniqueId: child.path, // Use path as unique ID for project children
+                nodeId: child.nodeId || child.path, // Use expansion ID if provided, fallback to path
                 hasChildren: child.hasChildren,
                 expanded: child.expanded,
                 children: child.children ? this.convertProjectChildrenToProjectNodes(child.children) : undefined
@@ -365,10 +386,8 @@ export class SolutionTreeService {
 
     private static buildNodeMap(nodes: ProjectNode[], map: Map<string, ProjectNode>): void {
         for (const node of nodes) {
-            map.set(node.path, node);
-            if (node.uniqueId) {
-                map.set(node.uniqueId, node);
-            }
+            // Store node by its expansion ID (primary identifier)
+            map.set(node.nodeId, node);
             if (node.children) {
                 this.buildNodeMap(node.children, map);
             }
@@ -377,17 +396,47 @@ export class SolutionTreeService {
 
     private static mergeNodeStates(freshNodes: ProjectNode[], cachedMap: Map<string, ProjectNode>): void {
         for (const freshNode of freshNodes) {
-            const cached = cachedMap.get(freshNode.path) || cachedMap.get(freshNode.uniqueId || '');
+            // Check if this is a dependency node type
+            const isDependencyNode = freshNode.type === 'dependencies' ||
+                                     freshNode.type === 'dependencyCategory' ||
+                                     freshNode.type === 'packageDependencies' ||
+                                     freshNode.type === 'projectDependencies' ||
+                                     freshNode.type === 'assemblyDependencies';
+
+            // Find cached state using expansion ID
+            const cached = cachedMap.get(freshNode.nodeId);
             if (cached) {
+                this.logger.info(`Merging state for ${freshNode.type} node: ${freshNode.name}, nodeId: ${freshNode.nodeId}, expanded: ${cached.expanded}`);
+
                 // Preserve expansion and loading states
                 freshNode.expanded = cached.expanded;
                 freshNode.isLoading = cached.isLoading;
                 freshNode.isLoaded = cached.isLoaded;
 
                 // If node was expanded and had children, merge the children too
-                if (freshNode.expanded && freshNode.children && cached.children) {
+                // BUT skip this for dependency nodes - they should always force refresh
+                if (freshNode.expanded && freshNode.children && cached.children && !isDependencyNode) {
+                    this.logger.debug(`Recursively merging children for expanded node: ${freshNode.path}`);
                     this.mergeNodeStates(freshNode.children, cachedMap);
                 }
+
+                // Special handling for dependency nodes - always force refresh when expanded
+                if (isDependencyNode && cached.expanded) {
+                    this.logger.info(`${freshNode.type} node ${freshNode.path} was expanded, forcing refresh to reflect dependency changes`);
+                    // Mark the node as expanded but not loaded, so it will be re-expanded with fresh data
+                    freshNode.expanded = true;
+                    freshNode.isLoaded = false;
+                    freshNode.hasChildren = true;
+                    // Clear any children that might have been loaded in fresh data to force reload
+                    freshNode.children = undefined;
+                }
+            } else if (isDependencyNode) {
+                this.logger.debug(`No cached state found for ${freshNode.type} node: ${freshNode.path}`);
+            }
+
+            // Always recursively process children even if no cached state found
+            if (freshNode.children) {
+                this.mergeNodeStates(freshNode.children, cachedMap);
             }
         }
     }

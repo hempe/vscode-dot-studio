@@ -85,6 +85,28 @@ export class SolutionActionService {
                 this.logger.info(`Collapse parent action for: ${projectPath}`);
                 break;
 
+            case 'manageNuGetPackages':
+                await this._handleManageNuGetPackages(projectPath);
+                break;
+
+            case 'addProjectReference':
+                await this._handleAddProjectReference(projectPath);
+                break;
+            case 'addAssemblyReference':
+                await this._handleAddAssemblyReference(projectPath);
+                break;
+            case 'addFrameworkReference':
+                await this._handleAddFrameworkReference(projectPath);
+                break;
+
+            case 'restoreDependencies':
+                await this._handleRestoreDependencies(projectPath);
+                break;
+
+            case 'removeDependency':
+                await this._handleRemoveDependency(projectPath, data);
+                break;
+
             case 'addSolutionFolder':
                 await this._handleAddSolutionFolder(projectPath, data);
                 break;
@@ -447,6 +469,342 @@ export class SolutionActionService {
         } catch (error) {
             this.logger.error(`Error in GUID-based solution folder removal:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Handles managing NuGet packages for a project
+     */
+    private static async _handleManageNuGetPackages(dependenciesPath: string): Promise<void> {
+        try {
+            // Extract project path from dependencies path (remove '/dependencies' suffix)
+            const projectPath = dependenciesPath.replace('/dependencies', '');
+            this.logger.info(`Managing NuGet packages for project: ${projectPath}`);
+
+            // Show the NuGet webview in the sidebar
+            await vscode.commands.executeCommand('dotnet-nuget-webview.focus');
+            this.logger.info(`Opened NuGet webview for: ${projectPath}`);
+        } catch (error) {
+            this.logger.error('Error opening NuGet webview:', error);
+            vscode.window.showErrorMessage(`Error opening NuGet webview: ${error}`);
+        }
+    }
+
+    /**
+     * Handles adding a reference to a project
+     */
+    private static async _handleAddProjectReference(dependenciesPath: string): Promise<void> {
+        try {
+            // Extract project path from dependencies path
+            const projectPath = dependenciesPath.replace('/dependencies', '');
+            this.logger.info(`Adding project reference for project: ${projectPath}`);
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+            const terminal = vscode.window.createTerminal(`Add Project Reference: ${projectName}`);
+            terminal.show();
+
+            terminal.sendText('# Add Project Reference:');
+            terminal.sendText('# dotnet add reference <path-to-project.csproj>');
+            terminal.sendText(`# Current project: ${projectPath}`);
+
+            this.logger.info(`Opened project reference management for: ${projectPath}`);
+        } catch (error) {
+            this.logger.error('Error adding project reference:', error);
+            vscode.window.showErrorMessage(`Error adding project reference: ${error}`);
+        }
+    }
+
+    private static async _handleAddAssemblyReference(dependenciesPath: string): Promise<void> {
+        try {
+            // Extract project path from dependencies path
+            const projectPath = dependenciesPath.replace('/dependencies', '');
+            this.logger.info(`Adding assembly reference for project: ${projectPath}`);
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+            const terminal = vscode.window.createTerminal(`Add Assembly Reference: ${projectName}`);
+            terminal.show();
+
+            terminal.sendText('# Add Assembly Reference:');
+            terminal.sendText('# dotnet add reference <path-to-assembly.dll>');
+            terminal.sendText(`# Current project: ${projectPath}`);
+
+            this.logger.info(`Opened assembly reference management for: ${projectPath}`);
+        } catch (error) {
+            this.logger.error('Error adding assembly reference:', error);
+            vscode.window.showErrorMessage(`Error adding assembly reference: ${error}`);
+        }
+    }
+
+    private static async _handleAddFrameworkReference(dependenciesPath: string): Promise<void> {
+        try {
+            // Extract project path from dependencies path
+            const projectPath = dependenciesPath.replace('/dependencies', '');
+            this.logger.info(`Adding framework reference for project: ${projectPath}`);
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+            const terminal = vscode.window.createTerminal(`Add Framework Reference: ${projectName}`);
+            terminal.show();
+
+            terminal.sendText('# Add Framework Reference:');
+            terminal.sendText('# dotnet add package <FrameworkPackage>');
+            terminal.sendText('# Example: dotnet add package Microsoft.AspNetCore.App');
+            terminal.sendText(`# Current project: ${projectPath}`);
+
+            this.logger.info(`Opened framework reference management for: ${projectPath}`);
+        } catch (error) {
+            this.logger.error('Error adding framework reference:', error);
+            vscode.window.showErrorMessage(`Error adding framework reference: ${error}`);
+        }
+    }
+
+    /**
+     * Handles restoring dependencies for a project
+     */
+    private static async _handleRestoreDependencies(dependenciesPath: string): Promise<void> {
+        try {
+            // Extract project path from dependencies path
+            const projectPath = dependenciesPath.replace('/dependencies', '');
+            this.logger.info(`Restoring dependencies for project: ${projectPath}`);
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+            const terminal = vscode.window.createTerminal(`Restore: ${projectName}`);
+            terminal.show();
+
+            const command = `dotnet restore "${projectPath}"`;
+            terminal.sendText(command);
+
+            this.logger.info(`Executed restore command: ${command}`);
+            vscode.window.showInformationMessage(`Restoring dependencies for ${projectName}...`);
+        } catch (error) {
+            this.logger.error('Error restoring dependencies:', error);
+            vscode.window.showErrorMessage(`Error restoring dependencies: ${error}`);
+        }
+    }
+
+    /**
+     * Handles removing a dependency from a project
+     */
+    private static async _handleRemoveDependency(dependencyPath: string, data?: MessageData): Promise<void> {
+        try {
+            this.logger.info(`Removing dependency: ${dependencyPath}`);
+
+            // Parse the dependency path to extract information
+            // Path format: /path/to/project.csproj/dependencies/packages/PackageName@Version
+            // or: /path/to/project.csproj/dependencies/projects/ProjectName
+            const pathParts = dependencyPath.split('/dependencies/');
+            if (pathParts.length !== 2) {
+                throw new Error('Invalid dependency path format');
+            }
+
+            const projectPath = pathParts[0];
+            const dependencyInfo = pathParts[1]; // e.g., "packages/PackageName@Version"
+
+            const [category, dependencyNameWithVersion] = dependencyInfo.split('/');
+            if (!category || !dependencyNameWithVersion) {
+                throw new Error('Could not parse dependency category and name');
+            }
+
+            // Extract dependency name (remove version for packages)
+            const dependencyName = dependencyNameWithVersion.includes('@')
+                ? dependencyNameWithVersion.split('@')[0]
+                : dependencyNameWithVersion;
+
+            this.logger.info(`Parsed dependency - Project: ${projectPath}, Category: ${category}, Name: ${dependencyName}`);
+
+            // Confirm removal with user
+            const result = await vscode.window.showWarningMessage(
+                `Are you sure you want to remove ${dependencyName} from the project?`,
+                { modal: true },
+                'Remove'
+            );
+
+            if (result !== 'Remove') {
+                return;
+            }
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+
+            // Remove the dependency by editing the .csproj file directly
+            const success = await this._removeDependencyFromCsproj(projectPath, category, dependencyName);
+
+            if (success) {
+                this.logger.info(`Successfully removed ${dependencyName} from ${projectName}`);
+                vscode.window.showInformationMessage(`Removed ${dependencyName} from ${projectName}`);
+            } else {
+                vscode.window.showErrorMessage(`Failed to remove ${dependencyName} from ${projectName}`);
+            }
+
+        } catch (error) {
+            this.logger.error('Error removing dependency:', error);
+            vscode.window.showErrorMessage(`Error removing dependency: ${error}`);
+        }
+    }
+
+    /**
+     * Removes a dependency from a .csproj file by directly editing the XML
+     */
+    private static async _removeDependencyFromCsproj(projectPath: string, category: string, dependencyName: string): Promise<boolean> {
+        try {
+            const fs = require('fs').promises;
+            const { parseStringPromise } = require('xml2js');
+            const xml2js = require('xml2js');
+
+            // Read the project file
+            const projectContent = await fs.readFile(projectPath, 'utf8');
+
+            // Check if the original file has an XML declaration
+            const hasXmlDeclaration = projectContent.trimStart().startsWith('<?xml');
+            this.logger.info(`Original file has XML declaration: ${hasXmlDeclaration}`);
+
+            const parsedXml = await parseStringPromise(projectContent);
+
+            if (!parsedXml.Project) {
+                this.logger.error('Invalid project file format - no Project element');
+                return false;
+            }
+
+            const project = parsedXml.Project;
+            let removed = false;
+
+            // Determine the XML element to look for based on category
+            let elementName = '';
+            switch (category) {
+                case 'packages':
+                    elementName = 'PackageReference';
+                    break;
+                case 'projects':
+                    elementName = 'ProjectReference';
+                    break;
+                case 'assemblies':
+                    elementName = 'Reference';
+                    break;
+                case 'frameworks':
+                    elementName = 'FrameworkReference';
+                    break;
+                default:
+                    this.logger.error(`Unknown dependency category: ${category}`);
+                    return false;
+            }
+
+            // Find and remove the dependency from ItemGroup elements
+            if (project.ItemGroup) {
+                for (let i = 0; i < project.ItemGroup.length; i++) {
+                    const itemGroup = project.ItemGroup[i];
+
+                    if (itemGroup[elementName]) {
+                        const dependencies = itemGroup[elementName];
+
+                        // Debug: Log all dependencies of this type
+                        this.logger.info(`Found ${dependencies.length} ${elementName} items in project:`);
+                        dependencies.forEach((dep: any, index: number) => {
+                            const include = dep.$ && dep.$.Include;
+                            this.logger.info(`  [${index}] Include: "${include}"`);
+                        });
+
+                        // Filter out the dependency to remove
+                        const filtered = dependencies.filter((dep: any) => {
+                            const include = dep.$ && dep.$.Include;
+
+                            if (category === 'packages') {
+                                // For packages, match by package name exactly
+                                return include !== dependencyName;
+                            } else if (category === 'projects') {
+                                // For project references, try multiple matching strategies
+                                if (!include) return true; // Keep if no Include attribute
+
+                                this.logger.debug(`Checking project reference: "${include}" against "${dependencyName}"`);
+
+                                // Extract project name from various possible formats
+                                const projectFileName = require('path').basename(include); // e.g., "Shinobi.WebSockets.csproj"
+                                const projectNameFromFile = require('path').basename(include, '.csproj'); // e.g., "Shinobi.WebSockets"
+                                const projectNameFromPath = include.split('/').pop()?.replace('.csproj', '') || ''; // Handle forward slashes
+
+                                // Check if any of these match the dependency name
+                                const matches = include === dependencyName ||
+                                              projectFileName === dependencyName ||
+                                              projectNameFromFile === dependencyName ||
+                                              projectNameFromPath === dependencyName ||
+                                              include.includes(dependencyName + '.csproj') ||
+                                              include.endsWith('/' + dependencyName + '.csproj') ||
+                                              include.endsWith('\\' + dependencyName + '.csproj');
+
+                                this.logger.debug(`Project reference match check: ${matches ? 'MATCH' : 'NO MATCH'}`);
+                                this.logger.debug(`  - include: "${include}"`);
+                                this.logger.debug(`  - projectFileName: "${projectFileName}"`);
+                                this.logger.debug(`  - projectNameFromFile: "${projectNameFromFile}"`);
+                                this.logger.debug(`  - projectNameFromPath: "${projectNameFromPath}"`);
+
+                                return !matches; // Return false (remove) if it matches
+                            } else {
+                                // For assemblies and frameworks, match by name
+                                return include !== dependencyName;
+                            }
+                        });
+
+                        if (filtered.length < dependencies.length) {
+                            removed = true;
+                            this.logger.info(`Removed ${elementName} '${dependencyName}' from project`);
+
+                            if (filtered.length === 0) {
+                                // Remove the entire element array if empty
+                                delete itemGroup[elementName];
+
+                                // Remove the entire ItemGroup if it's now empty
+                                const remainingKeys = Object.keys(itemGroup).filter(key => key !== '$');
+                                if (remainingKeys.length === 0) {
+                                    project.ItemGroup.splice(i, 1);
+                                    i--; // Adjust index after removal
+                                }
+                            } else {
+                                // Update with filtered dependencies
+                                itemGroup[elementName] = filtered;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!removed) {
+                this.logger.warn(`Dependency '${dependencyName}' not found in project file`);
+                return false;
+            }
+
+            // Build the XML back to string
+            const builderOptions: any = {
+                renderOpts: { pretty: true, indent: '  ' }
+            };
+
+            // Only include XML declaration if the original file had one
+            if (hasXmlDeclaration) {
+                builderOptions.xmldec = { version: '1.0', encoding: 'utf-8' };
+                this.logger.info('Including XML declaration in output');
+            } else {
+                // Explicitly disable XML declaration - use headless option for xml2js
+                builderOptions.headless = true;
+                this.logger.info('Excluding XML declaration from output (using headless mode)');
+            }
+
+            this.logger.debug('Builder options:', JSON.stringify(builderOptions));
+            const builder = new xml2js.Builder(builderOptions);
+            let xmlString = builder.buildObject(parsedXml);
+
+            // Additional safety check - remove XML declaration if it shouldn't be there
+            if (!hasXmlDeclaration && xmlString.startsWith('<?xml')) {
+                xmlString = xmlString.replace(/^<\?xml[^>]*>\s*/, '');
+                this.logger.info('Removed XML declaration from output as safety measure');
+            }
+
+            this.logger.debug('Final XML starts with:', xmlString.substring(0, 100));
+
+            // Write the modified content back to the file
+            await fs.writeFile(projectPath, xmlString, 'utf8');
+
+            this.logger.info(`Successfully updated project file: ${projectPath}`);
+            return true;
+
+        } catch (error) {
+            this.logger.error('Error editing .csproj file:', error);
+            return false;
         }
     }
 }

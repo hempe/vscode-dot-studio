@@ -32,7 +32,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     const [focusedItemIndex, setFocusedItemIndex] = React.useState(0);
 
     // Get the menu configuration for this node type
-    logger.info(`Looking up contextMenus[${nodeType}]`);
+    logger.info(`Looking up contextMenus[${nodeType}] for nodeName: ${nodeName}`);
     const menuItems = contextMenus[nodeType] || [];
     logger.info(`Found ${menuItems.length} menu items:`, menuItems);
     const actionItems: MenuItem[] = menuItems.filter(item => item.kind === 'action') as MenuAction[];

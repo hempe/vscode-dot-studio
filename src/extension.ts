@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
+import { NuGetWebviewProvider } from './webview/providers/NuGetWebviewProvider';
+import { NuGetService } from './services/nugetService';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
 
@@ -36,6 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize services
     const solutionService = new SolutionService();
+    const nugetService = new NuGetService();
 
     // Create and register webview providers
     const solutionWebviewProvider = new SolutionWebviewProvider(
@@ -44,11 +47,20 @@ export function activate(context: vscode.ExtensionContext) {
         frameworkDropdownService
     );
 
+    const nugetWebviewProvider = new NuGetWebviewProvider(
+        context.extensionUri,
+        nugetService
+    );
+
     // Register webview providers
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             SolutionWebviewProvider.viewType,
             solutionWebviewProvider
+        ),
+        vscode.window.registerWebviewViewProvider(
+            NuGetWebviewProvider.viewType,
+            nugetWebviewProvider
         )
     );
 

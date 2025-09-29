@@ -4,6 +4,7 @@ import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
+import { SolutionExpansionIdService } from '../../services/solutionExpansionIdService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
 import { Solution } from '../../core/Solution';
@@ -24,7 +25,7 @@ interface WebviewMessage {
     projectPath?: string;
     data?: MessageData;
     expandedNodes?: string[];
-    nodePath?: string;
+    nodeId?: string;
     nodeType?: string;
 }
 
@@ -139,10 +140,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'expandNode':
-                if (message.nodePath && message.nodeType) {
-                    this.logger.info('Handling expandNode request:', message.nodePath, message.nodeType);
+                if (message.nodeId && message.nodeType) {
+                    this.logger.info('Handling expandNode request:', message.nodeId, message.nodeType);
                     await SolutionExpansionService.handleExpandNode(
-                        message.nodePath,
+                        message.nodeId,
                         message.nodeType,
                         this._cachedSolutionData || null,
                         () => this._updateWebview(),
@@ -152,10 +153,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'collapseNode':
-                if (message.nodePath) {
-                    this.logger.info('Handling collapseNode request:', message.nodePath);
+                if (message.nodeId) {
+                    this.logger.info('Handling collapseNode request:', message.nodeId);
                     await SolutionExpansionService.handleCollapseNode(
-                        message.nodePath,
+                        message.nodeId,
                         this._cachedSolutionData || null,
                         () => this._updateWebview(),
                         this._context
@@ -306,6 +307,18 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             if (this._cachedSolutionData && freshSolutionData) {
                 // Merge the expansion/loading states from cache with fresh data
                 SolutionTreeService.mergeTreeStates(freshSolutionData, this._cachedSolutionData);
+
+                // After merging states, restore expansion states to actually load children for expanded nodes
+                this.logger.debug('Applying expansion states after merging from cache');
+                await SolutionExpansionService.restoreExpansionStates(freshSolutionData, this._context);
+
+                // Re-expand dependency nodes that were marked for re-expansion
+                // Note: This uses fresh solution data which should have updated dependencies
+                await this._reExpandMarkedDependencyNodes(freshSolutionData);
+            } else if (freshSolutionData) {
+                // No cached data (cache was cleared), restore from workspace storage
+                this.logger.debug('No cached data available, restoring expansion state from workspace storage');
+                await SolutionExpansionService.restoreExpansionStates(freshSolutionData, this._context);
             }
 
             // Update cache with the merged data
@@ -371,7 +384,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
             // Get all valid paths from current tree and clean up stale ones
-            const validPaths = SolutionTreeService.getAllValidPathsFromTree(treeData);
+            const validPaths = SolutionTreeService.getAllValidIdsFromTree(treeData);
             const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
 
             this.logger.info('Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
@@ -381,7 +394,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Restore expansion states and load children
             for (const expandedPath of cleanedExpandedNodes) {
-                const nodeType = SolutionTreeService.getNodeTypeForPath(expandedPath, treeData);
+                const nodeType = SolutionTreeService.getNodeTypeById(expandedPath, treeData);
                 if (nodeType) {
                     this.logger.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
 
@@ -488,7 +501,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Loads children for a specific node during restoration
      */
-    private async _loadChildrenForNode(nodePath: string, nodeType: string, treeData: ProjectNode[]): Promise<void> {
+    private async _loadChildrenForNode(nodeId: string, nodeType: string, treeData: ProjectNode[]): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -501,32 +514,43 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Solution children are already loaded in the initial tree
                 return;
             } else if (nodeType === 'project') {
-                const project = solution.getProject(nodePath);
-                if (project) {
-                    const rootChildren = await project.getRootChildren();
-                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(rootChildren);
-                }
-            } else if (nodeType === 'dependencies') {
-                const projectPath = nodePath.replace('/dependencies', '');
-                const project = solution.getProject(projectPath);
-                if (project) {
-                    const dependencies = project.getDependencies();
-                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
-                }
-            } else if (nodeType === 'folder') {
-                const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
+                // Extract actual project path from nodeId
+                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (projectPath) {
                     const project = solution.getProject(projectPath);
                     if (project) {
-                        const folderChildren = await project.getFolderChildren(nodePath);
-                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
+                        const rootChildren = await project.getRootChildren();
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(rootChildren);
+                    }
+                }
+            } else if (nodeType === 'dependencies') {
+                // Extract project path from dependencies nodeId
+                const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
+                if (projectPath) {
+                    const project = solution.getProject(projectPath);
+                    if (project) {
+                        const dependencies = project.getDependencies();
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
+                    }
+                }
+            } else if (nodeType === 'folder') {
+                // Extract actual folder path from nodeId
+                const folderPath = SolutionExpansionIdService.nodeIdToPath(nodeId);
+                if (folderPath) {
+                    const projectPath = SolutionTreeService.findProjectPathForFolder(folderPath);
+                    if (projectPath) {
+                        const project = solution.getProject(projectPath);
+                        if (project) {
+                            const folderChildren = await project.getFolderChildren(folderPath);
+                            children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
+                        }
                     }
                 }
             }
 
             if (children.length > 0) {
                 // Update the node in the tree with its children
-                SolutionTreeService.updateNodeInTree(treeData, nodePath, {
+                SolutionTreeService.updateNodeInTree(treeData, nodeId, {
                     children,
                     hasChildren: true,
                     isLoaded: true
@@ -535,20 +559,24 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Create folder watcher for restored expanded folders
                 if (nodeType === 'folder') {
                     const solution = SolutionService.getActiveSolution();
-                    const projectPath = SolutionTreeService.findProjectPathForFolder(nodePath);
-                    if (solution && projectPath) {
-                        const project = solution.getProject(projectPath);
-                        if (project) {
-                            this.logger.info(`Creating folder watcher for restored folder: ${nodePath}`);
-                            project.createFolderWatcher(nodePath);
+                    const folderPath = SolutionExpansionIdService.nodeIdToPath(nodeId);
+                    if (solution && folderPath) {
+                        const projectPath = SolutionTreeService.findProjectPathForFolder(folderPath);
+                        if (projectPath) {
+                            const project = solution.getProject(projectPath);
+                            if (project) {
+                                this.logger.info(`Creating folder watcher for restored folder: ${folderPath}`);
+                                project.createFolderWatcher(folderPath);
+                            }
                         }
                     }
                 } else if (nodeType === 'project') {
                     const solution = SolutionService.getActiveSolution();
-                    if (solution) {
-                        const project = solution.getProject(nodePath);
+                    const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                    if (solution && projectPath) {
+                        const project = solution.getProject(projectPath);
                         if (project) {
-                            const projectDir = require('path').dirname(nodePath);
+                            const projectDir = require('path').dirname(projectPath);
                             this.logger.info(`Creating folder watcher for restored project: ${projectDir}`);
                             project.createFolderWatcher(projectDir);
                         }
@@ -557,7 +585,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
         } catch (error) {
-            this.logger.error(`Error loading children for ${nodePath}:`, error);
+            this.logger.error(`Error loading children for ${nodeId}:`, error);
         }
     }
 
@@ -566,6 +594,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             type: fileNode.type === 'folder' ? 'folder' : 'file',
             name: fileNode.name,
             path: fileNode.path,
+            nodeId: fileNode.path, // Use path as expansion ID for file nodes
             children: fileNode.children ? this._convertProjectFileNodesToProjectNodes(fileNode.children) : undefined,
             isLoaded: fileNode.isLoaded,
             hasChildren: fileNode.type === 'folder' && !fileNode.isLoaded
@@ -907,12 +936,71 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this.handleProjectRemoved(filePath);
             } else {
                 this.logger.debug(`Project file content changed: ${fileName}`);
-                this._updateWebview(); // Simple full refresh
+                // Don't clear cache here - let _sendCompleteTreeUpdate() handle it while preserving expansion state
+                this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else {
             // All other files - use simple full refresh
             this.logger.debug(`File ${changeType}: ${fileName}`);
             this._updateWebview(); // Simple full refresh
         }
+    }
+
+    /**
+     * Re-expands dependency nodes that were marked for re-expansion during merge
+     */
+    private async _reExpandMarkedDependencyNodes(treeData: ProjectNode[]): Promise<void> {
+        const solution = SolutionService.getActiveSolution();
+        if (!solution) {
+            return;
+        }
+
+        const processNodes = async (nodes: ProjectNode[]): Promise<void> => {
+            for (const node of nodes) {
+                // Check if this is a dependency node marked for re-expansion
+                if ((node.type === 'dependencies' || node.type === 'dependencyCategory') &&
+                    node.expanded && !node.isLoaded && !node.children) {
+
+                    this.logger.info(`Re-expanding ${node.type} node: ${node.path}`);
+
+                    try {
+                        let children: ProjectNode[] = [];
+
+                        if (node.type === 'dependencies') {
+                            // Get dependency categories
+                            const projectPath = node.path.replace('/dependencies', '');
+                            const project = solution.getProject(projectPath);
+                            if (project) {
+                                const dependencies = project.getDependencies();
+                                children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
+                            }
+                        } else if (node.type === 'dependencyCategory') {
+                            // Get individual dependencies for this category
+                            const projectPath = node.path.replace(/\/dependencies\/.*$/, '');
+                            const project = solution.getProject(projectPath);
+                            if (project) {
+                                const categoryDependencies = project.getDependenciesByCategory(node.path);
+                                children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
+                            }
+                        }
+
+                        if (children.length > 0) {
+                            node.children = children;
+                            node.isLoaded = true;
+                            this.logger.info(`Successfully re-expanded ${node.type} node: ${node.path} with ${children.length} children`);
+                        }
+                    } catch (error) {
+                        this.logger.error(`Error re-expanding ${node.type} node ${node.path}:`, error);
+                    }
+                }
+
+                // Recursively process children
+                if (node.children) {
+                    await processNodes(node.children);
+                }
+            }
+        };
+
+        await processNodes(treeData);
     }
 }
