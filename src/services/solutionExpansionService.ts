@@ -253,11 +253,11 @@ export class SolutionExpansionService {
                     // Prefer nodeId over path for better collision-free identification
                     const nodeId = node.nodeId || node.path;
                     expandedIds.push(nodeId);
+
                     this.logger.info(`Saving expanded state for ${node.type}: ${node.name} (${nodeId})`);
                 } else if (level === 0 && node.type === 'solution') {
                     // Always log solution node state for debugging
                     this.logger.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
-                }
                 if (node.children) {
                     traverse(node.children, level + 1);
                 }
@@ -265,7 +265,7 @@ export class SolutionExpansionService {
         };
 
         traverse(nodes);
-        this.logger.info(`Saved ${expandedIds.length} expanded nodes total`);
+
         return expandedIds;
     }
 
@@ -274,12 +274,6 @@ export class SolutionExpansionService {
      */
     static saveExpansionState(expandedNodes: string[], context: vscode.ExtensionContext): void {
         this.logger.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
-        this.logger.debug('Expansion paths:', expandedNodes);
-        // Log dependency-related paths specifically for debugging
-        const dependencyPaths = expandedNodes.filter(path => path.includes('/dependencies'));
-        if (dependencyPaths.length > 0) {
-            this.logger.info('Dependency expansion paths being saved:', dependencyPaths);
-        }
         context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
@@ -289,11 +283,7 @@ export class SolutionExpansionService {
     static getExpansionState(context: vscode.ExtensionContext): string[] {
         const state = context.workspaceState.get<string[]>('solutionTreeExpanded', []);
         this.logger.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
-        // Log dependency-related paths specifically for debugging
-        const dependencyPaths = state.filter(path => path.includes('/dependencies'));
-        if (dependencyPaths.length > 0) {
-            this.logger.info('Dependency expansion paths being restored:', dependencyPaths);
-        }
+
         return state;
     }
 
@@ -306,12 +296,13 @@ export class SolutionExpansionService {
         parentPath?: string,
         options: { updateCache?: boolean } = {}
     ): Promise<void> {
+
         try {
             // Get saved expansion paths from workspace state
             const expansionPaths = this.getExpansionState(context);
 
             if (!expansionPaths || expansionPaths.length === 0) {
-                this.logger.debug('No expansion state to restore');
+                this.logger.info('No expansion state to restore');
                 return;
             }
 
@@ -323,11 +314,12 @@ export class SolutionExpansionService {
                 );
             }
 
-            // Get all valid paths from current tree and clean up stale ones
-            const validPaths = SolutionTreeService.getAllValidIdsFromTree(treeData);
-            cleanedExpandedNodes = cleanedExpandedNodes.filter(path =>
-                validPaths.has(path)
-            );
+            // CONSERVATIVE APPROACH: Preserve ALL expansion state
+            // Only remove expansion state on explicit user collapse, never on reload
+            // Dependencies and other lazy-loaded nodes should maintain their expansion state
+
+            // No filtering - preserve all expansion state
+            // Nodes that don't exist yet (like Dependencies) will be handled when they're created
 
             this.logger.info(`Restoring expansion states for ${cleanedExpandedNodes.length} nodes:`);
             cleanedExpandedNodes.forEach(id => this.logger.info(`  - ${id}`));
@@ -347,6 +339,7 @@ export class SolutionExpansionService {
 
                     // Load children for the expanded node
                     await this._loadChildrenForNode(expandedId, nodeType, treeData);
+
                     this.logger.info(`Successfully restored and loaded children for: ${expandedId}`);
                 } else {
                     this.logger.warn(`Could not determine node type for ID: ${expandedId} - node not found in fresh tree`);

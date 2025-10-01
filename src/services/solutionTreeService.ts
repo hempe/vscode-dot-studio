@@ -396,9 +396,8 @@ export class SolutionTreeService {
 
     private static mergeNodeStates(freshNodes: ProjectNode[], cachedMap: Map<string, ProjectNode>): void {
         for (const freshNode of freshNodes) {
-            // Check if this is a dependency node type
-            const isDependencyNode = freshNode.type === 'dependencies' ||
-                                     freshNode.type === 'dependencyCategory' ||
+            // Check if this is a dependency category node type (exclude 'dependencies' container)
+            const isDependencyNode = freshNode.type === 'dependencyCategory' ||
                                      freshNode.type === 'packageDependencies' ||
                                      freshNode.type === 'projectDependencies' ||
                                      freshNode.type === 'assemblyDependencies';
@@ -420,15 +419,14 @@ export class SolutionTreeService {
                     this.mergeNodeStates(freshNode.children, cachedMap);
                 }
 
-                // Special handling for dependency nodes - always force refresh when expanded
+                // For dependency nodes, preserve expansion state but allow children to be updated naturally
+                // The cache clearing already ensures fresh dependency data is loaded
                 if (isDependencyNode && cached.expanded) {
-                    this.logger.info(`${freshNode.type} node ${freshNode.path} was expanded, forcing refresh to reflect dependency changes`);
-                    // Mark the node as expanded but not loaded, so it will be re-expanded with fresh data
+                    this.logger.info(`${freshNode.type} node ${freshNode.path} was expanded, preserving expansion state with fresh data`);
+                    // Keep the node expanded and preserve any fresh children data
                     freshNode.expanded = true;
-                    freshNode.isLoaded = false;
-                    freshNode.hasChildren = true;
-                    // Clear any children that might have been loaded in fresh data to force reload
-                    freshNode.children = undefined;
+                    freshNode.isLoaded = true; // Mark as loaded since we have fresh data
+                    // Don't clear children - let the fresh dependency data be preserved
                 }
             } else if (isDependencyNode) {
                 this.logger.debug(`No cached state found for ${freshNode.type} node: ${freshNode.path}`);

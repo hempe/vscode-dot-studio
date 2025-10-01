@@ -309,7 +309,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 SolutionTreeService.mergeTreeStates(freshSolutionData, this._cachedSolutionData);
 
                 // After merging states, restore expansion states to actually load children for expanded nodes
-                this.logger.debug('Applying expansion states after merging from cache');
                 await SolutionExpansionService.restoreExpansionStates(freshSolutionData, this._context);
 
                 // Re-expand dependency nodes that were marked for re-expansion
@@ -317,7 +316,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await this._reExpandMarkedDependencyNodes(freshSolutionData);
             } else if (freshSolutionData) {
                 // No cached data (cache was cleared), restore from workspace storage
-                this.logger.debug('No cached data available, restoring expansion state from workspace storage');
                 await SolutionExpansionService.restoreExpansionStates(freshSolutionData, this._context);
             }
 
@@ -329,12 +327,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const frameworks = await this._frameworkService.getAvailableFrameworks();
             const activeFramework = this._frameworkService.getActiveFramework();
 
-            this.logger.info('Sending updateSolution message with', freshSolutionData?.length || 0, 'projects');
+            this.logger.info('Sending solutionDataUpdate message with', freshSolutionData?.length || 0, 'projects');
             this._view.webview.postMessage({
-                command: 'updateSolution',
-                projects: freshSolutionData || [],
-                frameworks: frameworks,
-                activeFramework: activeFramework
+                command: 'solutionDataUpdate',
+                data: {
+                    projects: freshSolutionData || [],
+                    frameworks: frameworks,
+                    activeFramework: activeFramework
+                }
             });
 
         } catch (error) {
@@ -383,14 +383,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this.logger.info(`Filtered to ${expansionPaths.length} nested paths under: ${options.parentPath}`);
             }
 
-            // Get all valid paths from current tree and clean up stale ones
-            const validPaths = SolutionTreeService.getAllValidIdsFromTree(treeData);
-            const cleanedExpandedNodes = expansionPaths.filter(path => validPaths.has(path));
-
-            this.logger.info('Valid expansion paths after cleanup:', cleanedExpandedNodes.length);
-            if (cleanedExpandedNodes.length !== expansionPaths.length) {
-                this.logger.info('Removed stale paths:', expansionPaths.length - cleanedExpandedNodes.length);
-            }
+            // CONSERVATIVE APPROACH: Preserve ALL expansion state
+            // Only remove expansion state on explicit user collapse, never on reload
+            // Dependencies nodes are virtual and lazy-loaded, so they won't exist in initial tree
+            const cleanedExpandedNodes = expansionPaths;
 
             // Restore expansion states and load children
             for (const expandedPath of cleanedExpandedNodes) {
@@ -403,6 +399,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     // Load children for the expanded node
                     await this._loadChildrenForNode(expandedPath, nodeType, treeData);
+                } else {
+                    // Node doesn't exist in current tree (like Dependencies nodes - they're lazy-loaded)
+                    // This is expected for virtual nodes, preserve their expansion state
+                    this.logger.debug(`Node not found in current tree: ${expandedPath} - expansion state preserved for future restoration`);
                 }
             }
 
@@ -936,7 +936,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this.handleProjectRemoved(filePath);
             } else {
                 this.logger.debug(`Project file content changed: ${fileName}`);
-                // Don't clear cache here - let _sendCompleteTreeUpdate() handle it while preserving expansion state
+                // Clear cache to ensure fresh dependency data is loaded from disk
+                this._clearCache();
                 this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else {
