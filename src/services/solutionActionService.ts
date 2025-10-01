@@ -89,6 +89,10 @@ export class SolutionActionService {
                 await this._handleManageNuGetPackages(projectPath);
                 break;
 
+            case 'manageNuGetPackagesForSolution':
+                await this._handleManageNuGetPackagesForSolution(projectPath);
+                break;
+
             case 'addProjectReference':
                 await this._handleAddProjectReference(projectPath);
                 break;
@@ -481,12 +485,25 @@ export class SolutionActionService {
             const projectPath = dependenciesPath.replace('/dependencies', '');
             this.logger.info(`Managing NuGet packages for project: ${projectPath}`);
 
-            // Open NuGet Package Manager in the main editor area
+            // Open NuGet Package Manager in the main editor area for this specific project
             await vscode.commands.executeCommand('dotnet.openNuGetManager', projectPath);
             this.logger.info(`Opened NuGet Package Manager for: ${projectPath}`);
         } catch (error) {
             this.logger.error('Error opening NuGet webview:', error);
             vscode.window.showErrorMessage(`Error opening NuGet webview: ${error}`);
+        }
+    }
+
+    private static async _handleManageNuGetPackagesForSolution(solutionPath: string): Promise<void> {
+        try {
+            this.logger.info(`Managing NuGet packages for solution: ${solutionPath}`);
+
+            // Open NuGet Package Manager in the main editor area for the entire solution
+            await vscode.commands.executeCommand('dotnet.openNuGetManagerForSolution', solutionPath);
+            this.logger.info(`Opened NuGet Package Manager for solution: ${solutionPath}`);
+        } catch (error) {
+            this.logger.error('Error opening solution NuGet manager:', error);
+            vscode.window.showErrorMessage(`Error opening solution NuGet manager: ${error}`);
         }
     }
 

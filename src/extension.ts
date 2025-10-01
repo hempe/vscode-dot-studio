@@ -73,6 +73,9 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('dotnet.openNuGetManager', (projectPath?: string) => {
             NuGetCustomEditorProvider.openNuGetManager(context, projectPath);
+        }),
+        vscode.commands.registerCommand('dotnet.openNuGetManagerForSolution', (solutionPath?: string) => {
+            NuGetCustomEditorProvider.openNuGetManagerForSolution(context, solutionPath);
         })
     );
 

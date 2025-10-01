@@ -117,6 +117,12 @@ export const manageNuGetPackagesAction: MenuAction = {
     kind: "action"
 };
 
+export const manageNuGetPackagesForSolutionAction: MenuAction = {
+    name: "Manage NuGet Packages for Solution...",
+    action: "manageNuGetPackagesForSolution",
+    kind: "action"
+};
+
 export const addProjectReferenceAction: MenuAction = {
     name: "Add Project Reference...",
     action: "addProjectReference",
@@ -157,6 +163,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         addNewProjectAction,
         addExistingProjectAction,
         addSolutionFolderAction,
+        separator,
+        manageNuGetPackagesForSolutionAction,
         separator,
         buildAction,
         rebuildAction,

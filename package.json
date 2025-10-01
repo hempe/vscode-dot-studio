@@ -49,6 +49,11 @@
         "command": "dotnet.openNuGetManager",
         "title": "Open NuGet Package Manager",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet.openNuGetManagerForSolution",
+        "title": "Open NuGet Package Manager for Solution",
+        "category": ".NET"
       }
     ]
   },
