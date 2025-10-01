@@ -21,12 +21,6 @@
           "name": "Solution Explorer",
           "type": "webview",
           "when": "workspaceHasDotnetFiles"
-        },
-        {
-          "id": "dotnet-nuget-webview",
-          "name": "NuGet Package Manager",
-          "type": "webview",
-          "when": "workspaceHasDotnetFiles"
         }
       ]
     },
@@ -38,7 +32,25 @@
           "icon": "$(folder-library)"
         }
       ]
-    }
+    },
+    "customEditors": [
+      {
+        "viewType": "dotnet.nugetPackageManager",
+        "displayName": "NuGet Package Manager",
+        "selector": [
+          {
+            "filenamePattern": "*.nuget"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "dotnet.openNuGetManager",
+        "title": "Open NuGet Package Manager",
+        "category": ".NET"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
-import { NuGetWebviewProvider } from './webview/providers/NuGetWebviewProvider';
+import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { NuGetService } from './services/nugetService';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
@@ -47,7 +47,8 @@ export function activate(context: vscode.ExtensionContext) {
         frameworkDropdownService
     );
 
-    const nugetWebviewProvider = new NuGetWebviewProvider(
+    // Create NuGet custom editor provider
+    const nugetCustomEditorProvider = new NuGetCustomEditorProvider(
         context.extensionUri,
         nugetService
     );
@@ -57,11 +58,22 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(
             SolutionWebviewProvider.viewType,
             solutionWebviewProvider
-        ),
-        vscode.window.registerWebviewViewProvider(
-            NuGetWebviewProvider.viewType,
-            nugetWebviewProvider
         )
+    );
+
+    // Register custom editor provider
+    context.subscriptions.push(
+        vscode.window.registerCustomEditorProvider(
+            NuGetCustomEditorProvider.viewType,
+            nugetCustomEditorProvider
+        )
+    );
+
+    // Register commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotnet.openNuGetManager', (projectPath?: string) => {
+            NuGetCustomEditorProvider.openNuGetManager(context, projectPath);
+        })
     );
 
     // Set up callback to handle active framework changes

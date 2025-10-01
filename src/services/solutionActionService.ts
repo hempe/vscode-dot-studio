@@ -481,9 +481,9 @@ export class SolutionActionService {
             const projectPath = dependenciesPath.replace('/dependencies', '');
             this.logger.info(`Managing NuGet packages for project: ${projectPath}`);
 
-            // Show the NuGet webview in the sidebar
-            await vscode.commands.executeCommand('dotnet-nuget-webview.focus');
-            this.logger.info(`Opened NuGet webview for: ${projectPath}`);
+            // Open NuGet Package Manager in the main editor area
+            await vscode.commands.executeCommand('dotnet.openNuGetManager', projectPath);
+            this.logger.info(`Opened NuGet Package Manager for: ${projectPath}`);
         } catch (error) {
             this.logger.error('Error opening NuGet webview:', error);
             vscode.window.showErrorMessage(`Error opening NuGet webview: ${error}`);
