@@ -94,8 +94,8 @@ export class SolutionExpansionService {
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
                 }
             } else if (nodeType === 'packageDependencies' ||
-                       nodeType === 'projectDependencies' ||
-                       nodeType === 'assemblyDependencies') {
+                nodeType === 'projectDependencies' ||
+                nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - extract project path from expansion ID
                 const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
@@ -258,8 +258,9 @@ export class SolutionExpansionService {
                 } else if (level === 0 && node.type === 'solution') {
                     // Always log solution node state for debugging
                     this.logger.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
-                if (node.children) {
-                    traverse(node.children, level + 1);
+                    if (node.children) {
+                        traverse(node.children, level + 1);
+                    }
                 }
             }
         };
@@ -446,8 +447,8 @@ export class SolutionExpansionService {
                     this.logger.warn(`Could not find project for dependencies: ${projectPath}`);
                 }
             } else if (nodeType === 'packageDependencies' ||
-                       nodeType === 'projectDependencies' ||
-                       nodeType === 'assemblyDependencies') {
+                nodeType === 'projectDependencies' ||
+                nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - get dependencies for that specific category
                 const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
