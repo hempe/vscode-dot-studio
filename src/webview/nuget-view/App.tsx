@@ -29,6 +29,7 @@ interface NuGetViewData {
     installedPackages: NuGetPackage[];
     searchResults: NuGetPackage[];
     updatesAvailable: NuGetPackage[];
+    consolidatePackages?: NuGetPackage[]; // For future consolidation functionality
     projectPath?: string;
 }
 
@@ -36,7 +37,8 @@ export const App: React.FC = () => {
     const [data, setData] = useState<NuGetViewData>({
         installedPackages: [],
         searchResults: [],
-        updatesAvailable: []
+        updatesAvailable: [],
+        consolidatePackages: []
     });
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
@@ -126,6 +128,18 @@ export const App: React.FC = () => {
         );
     };
 
+    // Helper function to format version display
+    const formatVersionDisplay = (currentVersion: string | undefined, latestVersion: string | undefined) => {
+        const current = currentVersion || 'Unknown';
+        const latest = latestVersion || 'Unknown';
+
+        // Handle version ranges like "[2.0.3, )" by extracting the actual version
+        const cleanCurrent = current.replace(/[\[\(\),\s]/g, '').split(',')[0] || current;
+        const cleanLatest = latest.replace(/[\[\(\),\s]/g, '').split(',')[0] || latest;
+
+        return `v${cleanCurrent} → v${cleanLatest}`;
+    };
+
     useEffect(() => {
         vscode.postMessage({ type: 'getNuGetData' });
 
@@ -167,6 +181,18 @@ export const App: React.FC = () => {
                     break;
                 case 'updatesAvailable':
                     nugetLogger.info('NuGet React: Setting updatesAvailable to:', message.packages);
+                    nugetLogger.debug('NuGet React: Raw updatesAvailable packages:', message.packages);
+                    // Log a few sample packages to debug version issues
+                    if (Array.isArray(message.packages) && message.packages.length > 0) {
+                        message.packages.slice(0, 3).forEach((pkg: any, idx: number) => {
+                            nugetLogger.debug(`Sample update package ${idx}:`, {
+                                id: pkg.id,
+                                version: pkg.version,
+                                latestVersion: pkg.latestVersion,
+                                projectName: pkg.projectName
+                            });
+                        });
+                    }
                     setData(prev => ({ ...prev, updatesAvailable: ensureArray(message.packages) }));
                     break;
             }
@@ -242,46 +268,331 @@ export const App: React.FC = () => {
     ];
 
     const browseView = (
-        <div style={{ padding: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <TextField
-                    placeholder="Search for packages..."
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    style={{ flex: 1 }}
-                />
-                <Button
-                    onClick={handleSearch}
-                    disabled={loading}
-                    appearance="primary"
-                >
-                    <Icon name="search" />
-                    {loading ? 'Searching...' : 'Search'}
-                </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+            {/* Search Input */}
+            <div style={{
+                padding: '12px',
+                borderBottom: '1px solid var(--vscode-panel-border)',
+                background: 'var(--vscode-editor-background)'
+            }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <TextField
+                        placeholder="Search for packages..."
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        style={{ flex: 1 }}
+                    />
+                    <Button
+                        onClick={handleSearch}
+                        disabled={loading}
+                        appearance="primary"
+                    >
+                        <Icon name="search" />
+                        {loading ? 'Searching...' : 'Search'}
+                    </Button>
+                </div>
             </div>
 
-            <Table>
-                {ensureArray(data.searchResults).map(pkg => (
-                    <TableRow key={`${pkg.id}-${pkg.version}`}>
-                        <TableCell>
-                            <div>
-                                <strong>{pkg.id}</strong>
-                                <div style={{ fontSize: '12px', color: 'var(--vscode-descriptionForeground)' }}>
-                                    {pkg.description}
+            {/* Two-Panel Layout */}
+            <div style={{
+                display: 'flex',
+                flex: 1,
+                border: '1px solid var(--vscode-panel-border)',
+                borderTop: 'none'
+            }}>
+                {/* Left Panel - Package List */}
+                <div style={{
+                    width: '40%',
+                    borderRight: '1px solid var(--vscode-panel-border)',
+                    overflow: 'auto'
+                }}>
+                    <div style={{
+                        padding: '8px 12px',
+                        background: 'var(--vscode-panel-background)',
+                        borderBottom: '1px solid var(--vscode-panel-border)',
+                        fontSize: '12px',
+                        fontWeight: 600
+                    }}>
+                        Browse ({getUniquePackages(ensureArray(data.searchResults)).length})
+                    </div>
+
+                    {getUniquePackages(ensureArray(data.searchResults)).map((pkg, index) => (
+                        <div
+                            key={`${pkg.id}-${pkg.version}`}
+                            style={{
+                                padding: '12px',
+                                borderBottom: '1px solid var(--vscode-panel-border)',
+                                cursor: 'pointer',
+                                background: selectedPackage?.id === pkg.id
+                                    ? 'var(--vscode-list-activeSelectionBackground)'
+                                    : 'transparent'
+                            }}
+                            onClick={() => setSelectedPackage(pkg)}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                {/* Package Icon */}
+                                <div style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    background: 'var(--vscode-button-background)',
+                                    borderRadius: '2px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-button-foreground)',
+                                    flexShrink: 0
+                                }}>
+                                    📦
                                 </div>
-                                <div style={{ fontSize: '11px', color: 'var(--vscode-descriptionForeground)' }}>
-                                    v{pkg.version} by {pkg.authors}
+
+                                {/* Package Details */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '4px'
+                                    }}>
+                                        <div style={{
+                                            fontWeight: 600,
+                                            fontSize: '13px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            flex: 1
+                                        }}>
+                                            {pkg.id}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-descriptionForeground)',
+                                            marginLeft: '8px',
+                                            flexShrink: 0
+                                        }}>
+                                            v{pkg.version}
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        fontSize: '11px',
+                                        color: 'var(--vscode-descriptionForeground)',
+                                        lineHeight: '1.3',
+                                        overflow: 'hidden',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical'
+                                    }}>
+                                        {pkg.description || 'No description available'}
+                                    </div>
                                 </div>
                             </div>
-                        </TableCell>
-                        <TableCell>
-                            <Button onClick={() => handleInstallPackage(pkg)} appearance="primary">
-                                Install
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                ))}
-            </Table>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Right Panel - Package Details */}
+                <div style={{
+                    flex: 1,
+                    padding: '16px',
+                    overflow: 'auto'
+                }}>
+                    {selectedPackage ? (
+                        <div>
+                            {/* Package Header */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <h2 style={{
+                                    margin: '0 0 8px 0',
+                                    fontSize: '18px',
+                                    fontWeight: 600
+                                }}>
+                                    {selectedPackage.id}
+                                </h2>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    marginBottom: '8px'
+                                }}>
+                                    by {selectedPackage.authors || 'Unknown'}
+                                </div>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {selectedPackage.description || 'No description available'}
+                                </div>
+                            </div>
+
+                            {/* Project Selection */}
+                            <div style={{
+                                background: 'var(--vscode-panel-background)',
+                                border: '1px solid var(--vscode-panel-border)',
+                                borderRadius: '4px',
+                                padding: '16px',
+                                marginBottom: '16px'
+                            }}>
+                                {/* Get all available projects - for Browse we need to show all projects from the solution */}
+                                {(() => {
+                                    // For Browse tab, we should show all projects from installed packages as potential targets
+                                    const allProjects = new Set<string>();
+                                    ensureArray(data.installedPackages).forEach(pkg => {
+                                        if (pkg.projects) {
+                                            pkg.projects.forEach((p: { name: string; version: string }) => allProjects.add(p.name));
+                                        }
+                                    });
+
+                                    const projectList = Array.from(allProjects).map(projectName => {
+                                        // Check if this project already has the selected package installed
+                                        const existingInstall = ensureArray(data.installedPackages)
+                                            .find(pkg => pkg.id === selectedPackage.id && pkg.projects?.some((p: { name: string; version: string }) => p.name === projectName));
+
+                                        return {
+                                            name: projectName,
+                                            version: existingInstall?.projects?.find((p: { name: string; version: string }) => p.name === projectName)?.version || null
+                                        };
+                                    });
+
+                                    return projectList.map((project, idx) => (
+                                        <div key={idx} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 0',
+                                            borderBottom: idx < projectList.length - 1
+                                                ? '1px solid var(--vscode-panel-border)'
+                                                : 'none'
+                                        }}>
+                                            <Checkbox
+                                                checked={selectedProjects.has(project.name)}
+                                                onChange={() => {
+                                                    const newSelected = new Set(selectedProjects);
+                                                    if (newSelected.has(project.name)) {
+                                                        newSelected.delete(project.name);
+                                                    } else {
+                                                        newSelected.add(project.name);
+                                                    }
+                                                    setSelectedProjects(newSelected);
+                                                }}
+                                            />
+                                            <div style={{
+                                                marginLeft: '8px',
+                                                flex: 1,
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center'
+                                            }}>
+                                                <div style={{ fontSize: '13px' }}>
+                                                    {project.name}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: 'var(--vscode-descriptionForeground)',
+                                                    marginLeft: '8px',
+                                                    flexShrink: 0
+                                                }}>
+                                                    {project.version ? `v${project.version}` : 'Not installed'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+
+                            {/* Install Action */}
+                            <div style={{
+                                background: 'var(--vscode-panel-background)',
+                                border: '1px solid var(--vscode-panel-border)',
+                                borderRadius: '4px',
+                                padding: '16px',
+                                marginBottom: '16px'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '12px'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        flex: 1
+                                    }}>
+                                        <div style={{
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            Version:
+                                        </div>
+                                        <TextField
+                                            value={selectedVersion || selectedPackage.version}
+                                            onChange={setSelectedVersion}
+                                            placeholder="Select version"
+                                            style={{ flex: 1, maxWidth: '200px' }}
+                                        />
+                                    </div>
+                                    <Button
+                                        appearance="primary"
+                                        disabled={selectedProjects.size === 0}
+                                        onClick={() => {
+                                            nugetLogger.info('Install action from Browse:', {
+                                                package: selectedPackage.id,
+                                                version: selectedVersion || selectedPackage.version,
+                                                projects: Array.from(selectedProjects)
+                                            });
+                                            handleInstallPackage(selectedPackage);
+                                        }}
+                                    >
+                                        Install
+                                    </Button>
+                                </div>
+
+                                {selectedProjects.size === 0 && (
+                                    <div style={{
+                                        fontSize: '11px',
+                                        color: 'var(--vscode-descriptionForeground)',
+                                        marginTop: '12px',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        Select one or more projects to install to
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Additional Package Info */}
+                            <div style={{
+                                fontSize: '12px',
+                                color: 'var(--vscode-descriptionForeground)'
+                            }}>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <strong>Latest Version:</strong> {selectedPackage.version}
+                                </div>
+                                {selectedPackage.authors && (
+                                    <div style={{ marginBottom: '4px' }}>
+                                        <strong>Authors:</strong> {selectedPackage.authors}
+                                    </div>
+                                )}
+                                {selectedPackage.downloadCount && (
+                                    <div style={{ marginBottom: '4px' }}>
+                                        <strong>Downloads:</strong> {selectedPackage.downloadCount.toLocaleString()}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            color: 'var(--vscode-descriptionForeground)',
+                            fontSize: '14px'
+                        }}>
+                            {getUniquePackages(ensureArray(data.searchResults)).length === 0 ? 'Search for packages to browse' : 'Select a package to view details'}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 
@@ -619,48 +930,505 @@ export const App: React.FC = () => {
     );
 
     const updatesView = (
-        <div style={{ padding: '16px' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-                <Button onClick={handleBulkUpdate} appearance="primary" disabled={!ensureArray(data.updatesAvailable).some(pkg => pkg.selected)}>
-                    Update Selected
-                </Button>
-                <Button onClick={handleUpdateAll}>
-                    Update All
-                </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+            {/* Filter/Search Input */}
+            <div style={{
+                padding: '12px',
+                borderBottom: '1px solid var(--vscode-panel-border)',
+                background: 'var(--vscode-editor-background)'
+            }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <TextField
+                        placeholder="Search packages..."
+                        value={filterTerm}
+                        onChange={setFilterTerm}
+                        style={{ flex: 1 }}
+                    />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button
+                        onClick={() => {
+                            const filteredPackages = filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm);
+                            // Toggle selection: if all filtered packages are selected, deselect all; otherwise select all
+                            const allFilteredSelected = filteredPackages.every(pkg => pkg.selected);
+                            filteredPackages.forEach(pkg => {
+                                if (allFilteredSelected && pkg.selected) {
+                                    togglePackageSelection(pkg.id);
+                                } else if (!allFilteredSelected && !pkg.selected) {
+                                    togglePackageSelection(pkg.id);
+                                }
+                            });
+                        }}
+                        disabled={filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm).length === 0}
+                    >
+                        {(() => {
+                            const filteredPackages = filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm);
+                            const allFilteredSelected = filteredPackages.every(pkg => pkg.selected);
+                            return allFilteredSelected ? 'Deselect All' : 'Select All';
+                        })()}
+                    </Button>
+                    <Button onClick={handleBulkUpdate} appearance="primary" disabled={!ensureArray(data.updatesAvailable).some(pkg => pkg.selected)}>
+                        Update Selected
+                    </Button>
+                    <Button onClick={handleUpdateAll}>
+                        Update All
+                    </Button>
+                </div>
             </div>
 
-            <Table>
-                {ensureArray(data.updatesAvailable).map(pkg => (
-                    <TableRow key={`${pkg.id}-${pkg.version}`}>
-                        <TableCell>
-                            <Checkbox
-                                checked={pkg.selected || false}
-                                onChange={() => togglePackageSelection(pkg.id)}
-                            />
-                        </TableCell>
-                        <TableCell>
-                            <div>
-                                <strong>{pkg.id}</strong>
-                                <div style={{ fontSize: '11px', color: 'var(--vscode-descriptionForeground)' }}>
-                                    {pkg.version} → {pkg.latestVersion}
+            {/* Two-Panel Layout */}
+            <div style={{
+                display: 'flex',
+                flex: 1,
+                border: '1px solid var(--vscode-panel-border)',
+                borderTop: 'none'
+            }}>
+                {/* Left Panel - Package List */}
+                <div style={{
+                    width: '40%',
+                    borderRight: '1px solid var(--vscode-panel-border)',
+                    overflow: 'auto'
+                }}>
+                    <div style={{
+                        padding: '8px 12px',
+                        background: 'var(--vscode-panel-background)',
+                        borderBottom: '1px solid var(--vscode-panel-border)',
+                        fontSize: '12px',
+                        fontWeight: 600
+                    }}>
+                        Updates ({filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm).length})
+                    </div>
+
+                    {filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm).map((pkg, index) => (
+                        <div
+                            key={`${pkg.id}-${pkg.version}`}
+                            style={{
+                                padding: '12px',
+                                borderBottom: '1px solid var(--vscode-panel-border)',
+                                cursor: 'pointer',
+                                background: selectedPackage?.id === pkg.id
+                                    ? 'var(--vscode-list-activeSelectionBackground)'
+                                    : 'transparent'
+                            }}
+                            onClick={() => setSelectedPackage(pkg)}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                {/* Selection Checkbox */}
+                                <Checkbox
+                                    checked={pkg.selected || false}
+                                    onChange={(checked) => {
+                                        togglePackageSelection(pkg.id);
+                                    }}
+                                    style={{ marginTop: '2px' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+
+                                {/* Package Icon */}
+                                <div style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    background: 'var(--vscode-button-background)',
+                                    borderRadius: '2px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-button-foreground)',
+                                    flexShrink: 0
+                                }}>
+                                    📦
+                                </div>
+
+                                {/* Package Details */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '4px'
+                                    }}>
+                                        <div style={{
+                                            fontWeight: 600,
+                                            fontSize: '13px',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            flex: 1
+                                        }}>
+                                            {pkg.id}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-descriptionForeground)',
+                                            marginLeft: '8px',
+                                            flexShrink: 0
+                                        }}>
+                                            {formatVersionDisplay(pkg.version, pkg.latestVersion)}
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        fontSize: '11px',
+                                        color: 'var(--vscode-descriptionForeground)',
+                                        lineHeight: '1.3',
+                                        overflow: 'hidden',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical'
+                                    }}>
+                                        {pkg.description || 'No description available'}
+                                    </div>
                                 </div>
                             </div>
-                        </TableCell>
-                        <TableCell>
-                            <Button onClick={() => handleUpdatePackage(pkg)} appearance="primary">
-                                Update
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                ))}
-            </Table>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Right Panel - Package Details */}
+                <div style={{
+                    flex: 1,
+                    padding: '16px',
+                    overflow: 'auto'
+                }}>
+                    {selectedPackage ? (
+                        <div>
+                            {/* Package Header */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <h2 style={{
+                                    margin: '0 0 8px 0',
+                                    fontSize: '18px',
+                                    fontWeight: 600
+                                }}>
+                                    {selectedPackage.id}
+                                </h2>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    marginBottom: '8px'
+                                }}>
+                                    by {selectedPackage.authors || 'Unknown'}
+                                </div>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {selectedPackage.description || 'No description available'}
+                                </div>
+                            </div>
+
+                            {/* Project Selection - for Updates, show projects that have this package */}
+                            {selectedPackage.projects && selectedPackage.projects.length > 0 && (
+                                <div style={{
+                                    background: 'var(--vscode-panel-background)',
+                                    border: '1px solid var(--vscode-panel-border)',
+                                    borderRadius: '4px',
+                                    padding: '16px',
+                                    marginBottom: '16px'
+                                }}>
+                                    {selectedPackage.projects.map((project, idx) => (
+                                        <div key={idx} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 0',
+                                            borderBottom: idx < selectedPackage.projects!.length - 1
+                                                ? '1px solid var(--vscode-panel-border)'
+                                                : 'none'
+                                        }}>
+                                            <Checkbox
+                                                checked={selectedProjects.has(project.name)}
+                                                onChange={() => {
+                                                    const newSelected = new Set(selectedProjects);
+                                                    if (newSelected.has(project.name)) {
+                                                        newSelected.delete(project.name);
+                                                    } else {
+                                                        newSelected.add(project.name);
+                                                    }
+                                                    setSelectedProjects(newSelected);
+                                                }}
+                                            />
+                                            <div style={{
+                                                marginLeft: '8px',
+                                                flex: 1,
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center'
+                                            }}>
+                                                <div style={{ fontSize: '13px' }}>
+                                                    {project.name}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: 'var(--vscode-descriptionForeground)',
+                                                    marginLeft: '8px',
+                                                    flexShrink: 0
+                                                }}>
+                                                    {formatVersionDisplay(project.version, selectedPackage.latestVersion)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Update Action */}
+                            <div style={{
+                                background: 'var(--vscode-panel-background)',
+                                border: '1px solid var(--vscode-panel-border)',
+                                borderRadius: '4px',
+                                padding: '16px',
+                                marginBottom: '16px'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '12px'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        flex: 1
+                                    }}>
+                                        <div style={{
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            Update to:
+                                        </div>
+                                        <TextField
+                                            value={selectedVersion || selectedPackage.latestVersion}
+                                            onChange={setSelectedVersion}
+                                            placeholder="Select version"
+                                            style={{ flex: 1, maxWidth: '200px' }}
+                                        />
+                                    </div>
+                                    <Button
+                                        appearance="primary"
+                                        disabled={selectedProjects.size === 0}
+                                        onClick={() => {
+                                            nugetLogger.info('Update action:', {
+                                                package: selectedPackage.id,
+                                                version: selectedVersion || selectedPackage.latestVersion,
+                                                projects: Array.from(selectedProjects)
+                                            });
+                                            handleUpdatePackage(selectedPackage);
+                                        }}
+                                    >
+                                        Update
+                                    </Button>
+                                </div>
+
+                                {selectedProjects.size === 0 && (
+                                    <div style={{
+                                        fontSize: '11px',
+                                        color: 'var(--vscode-descriptionForeground)',
+                                        marginTop: '12px',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        Select one or more projects to update
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Additional Package Info */}
+                            <div style={{
+                                fontSize: '12px',
+                                color: 'var(--vscode-descriptionForeground)'
+                            }}>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <strong>Current Version:</strong> {selectedPackage.version}
+                                </div>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <strong>Latest Version:</strong> {selectedPackage.latestVersion}
+                                </div>
+                                {selectedPackage.authors && (
+                                    <div style={{ marginBottom: '4px' }}>
+                                        <strong>Authors:</strong> {selectedPackage.authors}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            color: 'var(--vscode-descriptionForeground)',
+                            fontSize: '14px'
+                        }}>
+                            Select a package to view update details
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 
     const consolidateView = (
-        <div style={{ padding: '16px' }}>
-            <div style={{ color: 'var(--vscode-descriptionForeground)' }}>
-                Consolidate functionality coming soon...
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+            {/* Filter Input */}
+            <div style={{
+                padding: '12px',
+                borderBottom: '1px solid var(--vscode-panel-border)',
+                background: 'var(--vscode-editor-background)'
+            }}>
+                <TextField
+                    placeholder="Search packages to consolidate..."
+                    value={filterTerm}
+                    onChange={setFilterTerm}
+                    style={{ width: '100%' }}
+                />
+            </div>
+
+            {/* Two-Panel Layout */}
+            <div style={{
+                display: 'flex',
+                flex: 1,
+                border: '1px solid var(--vscode-panel-border)',
+                borderTop: 'none'
+            }}>
+                {/* Left Panel - Package List */}
+                <div style={{
+                    width: '40%',
+                    borderRight: '1px solid var(--vscode-panel-border)',
+                    overflow: 'auto'
+                }}>
+                    <div style={{
+                        padding: '8px 12px',
+                        background: 'var(--vscode-panel-background)',
+                        borderBottom: '1px solid var(--vscode-panel-border)',
+                        fontSize: '12px',
+                        fontWeight: 600
+                    }}>
+                        Consolidate ({filterPackages(getUniquePackages(ensureArray(data.consolidatePackages)), filterTerm).length})
+                    </div>
+
+                    {filterPackages(getUniquePackages(ensureArray(data.consolidatePackages)), filterTerm).length === 0 ? (
+                        <div style={{
+                            padding: '20px',
+                            textAlign: 'center',
+                            color: 'var(--vscode-descriptionForeground)',
+                            fontSize: '12px'
+                        }}>
+                            No packages need consolidation
+                        </div>
+                    ) : (
+                        filterPackages(getUniquePackages(ensureArray(data.consolidatePackages)), filterTerm).map((pkg, index) => (
+                            <div
+                                key={`${pkg.id}-${pkg.version}`}
+                                style={{
+                                    padding: '12px',
+                                    borderBottom: '1px solid var(--vscode-panel-border)',
+                                    cursor: 'pointer',
+                                    background: selectedPackage?.id === pkg.id
+                                        ? 'var(--vscode-list-activeSelectionBackground)'
+                                        : 'transparent'
+                                }}
+                                onClick={() => setSelectedPackage(pkg)}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                    {/* Package Icon */}
+                                    <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        background: 'var(--vscode-button-background)',
+                                        borderRadius: '2px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '12px',
+                                        color: 'var(--vscode-button-foreground)',
+                                        flexShrink: 0
+                                    }}>
+                                        📦
+                                    </div>
+
+                                    {/* Package Details */}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            marginBottom: '4px'
+                                        }}>
+                                            <div style={{
+                                                fontWeight: 600,
+                                                fontSize: '13px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                flex: 1
+                                            }}>
+                                                {pkg.id}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: 'var(--vscode-descriptionForeground)',
+                                                marginLeft: '8px',
+                                                flexShrink: 0
+                                            }}>
+                                                Multiple versions
+                                            </div>
+                                        </div>
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-descriptionForeground)',
+                                            lineHeight: '1.3',
+                                            overflow: 'hidden',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical'
+                                        }}>
+                                            {pkg.description || 'No description available'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Right Panel - Package Details */}
+                <div style={{
+                    flex: 1,
+                    padding: '16px',
+                    overflow: 'auto'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        color: 'var(--vscode-descriptionForeground)',
+                        fontSize: '14px',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    }}>
+                        <div style={{ fontSize: '16px', fontWeight: 600 }}>
+                            Consolidate Packages
+                        </div>
+                        <div style={{ textAlign: 'center', lineHeight: '1.4' }}>
+                            The Consolidate tab helps you manage packages that are installed
+                            in multiple projects with different versions. When packages need
+                            consolidation, they will appear here for easy version alignment
+                            across your solution.
+                        </div>
+                        <div style={{
+                            background: 'var(--vscode-panel-background)',
+                            border: '1px solid var(--vscode-panel-border)',
+                            borderRadius: '4px',
+                            padding: '16px',
+                            fontSize: '12px',
+                            color: 'var(--vscode-descriptionForeground)'
+                        }}>
+                            <strong>Coming soon:</strong> Advanced consolidation features including
+                            version conflict detection and resolution recommendations.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
