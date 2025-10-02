@@ -15,7 +15,7 @@ describe('Dependency Expansion State Investigation', () => {
         console.log('5. File watcher triggers → project file change handling');
         console.log('6. 🐛 PROBLEM: Dependencies and Projects nodes collapse');
         console.log('');
-        console.log('🔄 WHAT SHOULD HAPPEN (but doesn\\'t):');
+        console.log('🔄 WHAT SHOULD HAPPEN (but doesn\'t):');
         console.log('- Dependencies node stays expanded');
         console.log('- Projects sub-node stays expanded');
         console.log('- Only the "Shinobi.WebSockets" reference disappears');
@@ -76,11 +76,11 @@ describe('Dependency Expansion State Investigation', () => {
         console.log('STEP 2: Trace tree merge logic');
         console.log('- Check if SolutionTreeService.mergeTreeStates() preserves dependency expansion');
         console.log('- Look for force refresh logic that might be clearing dependency children');
-        console.log('- Verify the isDependencyNode logic doesn\\'t affect container nodes');
+        console.log('- Verify the isDependencyNode logic doesn\'t affect container nodes');
         console.log('');
         console.log('STEP 3: Frontend state management');
         console.log('- Check if solutionDataUpdate actually preserves React component state');
-        console.log('- Verify TreeNode components don\\'t reset when parent data changes');
+        console.log('- Verify TreeNode components don\'t reset when parent data changes');
         console.log('- Look for key prop issues that might cause component recreation');
         console.log('');
         console.log('STEP 4: Timing analysis');

@@ -37,7 +37,7 @@ describe('SolutionDiscovery', () => {
 
     describe('discoverSolutions', () => {
         it('should return none when no solution files exist', async () => {
-            mockFs.promises.readdir.mockResolvedValue(['file1.txt', 'file2.js', 'README.md'] as any);
+            (mockFs.promises.readdir as jest.Mock).mockResolvedValue(['file1.txt', 'file2.js', 'README.md'] as any);
 
             const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
 
@@ -46,7 +46,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should return single when one solution file exists', async () => {
-            mockFs.promises.readdir.mockResolvedValue(['MySolution.sln', 'file1.txt', 'README.md'] as any);
+            (mockFs.promises.readdir as jest.Mock).mockResolvedValue(['MySolution.sln', 'file1.txt', 'README.md'] as any);
 
             const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
 
@@ -57,7 +57,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should return multiple when several solution files exist', async () => {
-            mockFs.promises.readdir.mockResolvedValue([
+            (mockFs.promises.readdir as jest.Mock).mockResolvedValue([
                 'Solution1.sln',
                 'Solution2.sln',
                 'file1.txt',
@@ -77,7 +77,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should handle readdir errors gracefully', async () => {
-            mockFs.promises.readdir.mockRejectedValue(new Error('Permission denied'));
+            (mockFs.promises.readdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
 
             const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
 
@@ -85,7 +85,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should filter only .sln files correctly', async () => {
-            mockFs.promises.readdir.mockResolvedValue([
+            (mockFs.promises.readdir as jest.Mock).mockResolvedValue([
                 'MySolution.sln',
                 'NotASolution.slnx', // Different extension
                 'project.csproj',
@@ -131,7 +131,7 @@ describe('SolutionDiscovery', () => {
                 }
             ];
 
-            mockVscode.window.showQuickPick.mockResolvedValue(expectedItems[1]);
+            (mockVscode.window.showQuickPick as jest.Mock).mockResolvedValue(expectedItems[1]);
 
             const result = await SolutionDiscovery.selectSolution(availableSolutions);
 
@@ -147,7 +147,7 @@ describe('SolutionDiscovery', () => {
 
         it('should return null when user cancels selection', async () => {
             const availableSolutions = ['/workspace/Solution1.sln'];
-            mockVscode.window.showQuickPick.mockResolvedValue(undefined);
+            (mockVscode.window.showQuickPick as jest.Mock).mockResolvedValue(undefined);
 
             const result = await SolutionDiscovery.selectSolution(availableSolutions);
 
@@ -155,7 +155,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should handle empty solutions array', async () => {
-            mockVscode.window.showQuickPick.mockResolvedValue(undefined);
+            (mockVscode.window.showQuickPick as jest.Mock).mockResolvedValue(undefined);
 
             const result = await SolutionDiscovery.selectSolution([]);
 
@@ -169,9 +169,9 @@ describe('SolutionDiscovery', () => {
 
     describe('promptCreateSolution', () => {
         it('should create solution when user confirms and provides valid name', async () => {
-            mockVscode.window.showInformationMessage.mockResolvedValue('Create Solution');
-            mockVscode.window.showInputBox.mockResolvedValue('MyNewSolution');
-            mockFs.promises.writeFile.mockResolvedValue(undefined);
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
+            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue('MyNewSolution');
+            (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
             const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
 
@@ -190,7 +190,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should return null when user chooses to skip', async () => {
-            mockVscode.window.showInformationMessage.mockResolvedValue('Skip');
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Skip');
 
             const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
 
@@ -199,7 +199,7 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should return null when user cancels information dialog', async () => {
-            mockVscode.window.showInformationMessage.mockResolvedValue(undefined);
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue(undefined);
 
             const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
 
@@ -208,8 +208,8 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should return null when user cancels input dialog', async () => {
-            mockVscode.window.showInformationMessage.mockResolvedValue('Create Solution');
-            mockVscode.window.showInputBox.mockResolvedValue(undefined);
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
+            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue(undefined);
 
             const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
 
@@ -217,9 +217,9 @@ describe('SolutionDiscovery', () => {
         });
 
         it('should handle file creation errors gracefully', async () => {
-            mockVscode.window.showInformationMessage.mockResolvedValue('Create Solution');
-            mockVscode.window.showInputBox.mockResolvedValue('ValidName');
-            mockFs.promises.writeFile.mockRejectedValue(new Error('Permission denied'));
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
+            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue('ValidName');
+            (mockFs.promises.writeFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
 
             const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
 
@@ -233,8 +233,8 @@ describe('SolutionDiscovery', () => {
             let validateInput: (value: string) => string | null;
 
             beforeEach(async () => {
-                mockVscode.window.showInformationMessage.mockResolvedValue('Create Solution');
-                mockVscode.window.showInputBox.mockImplementation((options) => {
+                (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
+                (mockVscode.window.showInputBox as jest.Mock).mockImplementation((options) => {
                     validateInput = options.validateInput!;
                     return Promise.resolve('ValidName');
                 });

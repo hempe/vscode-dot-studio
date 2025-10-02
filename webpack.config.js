@@ -35,7 +35,8 @@ module.exports = [
         name: 'webview',
         target: 'web',
         entry: {
-            'solution-view': './src/webview/solution-view/index.tsx'
+            'solution-view': './src/webview/solution-view/index.tsx',
+            'nuget-view': './src/webview/nuget-view/index.tsx'
         },
         output: {
             path: path.resolve(__dirname, 'out/webview'),
@@ -67,6 +68,11 @@ module.exports = [
                 template: './src/webview/solution-view/template.html',
                 filename: 'solution-view/index.html',
                 chunks: ['solution-view']
+            }),
+            new HtmlWebpackPlugin({
+                template: './src/webview/nuget-view/template.html',
+                filename: 'nuget-view/index.html',
+                chunks: ['nuget-view']
             }),
             new CopyWebpackPlugin({
                 patterns: [

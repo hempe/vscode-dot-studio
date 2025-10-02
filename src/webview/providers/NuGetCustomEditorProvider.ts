@@ -90,6 +90,18 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleConsolidatePackage(message, webview, context);
                     break;
 
+                case 'bulkUpdatePackages':
+                    await this._handleBulkUpdatePackages(message, webview, context);
+                    break;
+
+                case 'updateAllPackages':
+                    await this._handleUpdateAllPackages(message, webview, context);
+                    break;
+
+                case 'debug':
+                    this.logger.info('Debug from webview:', message.message);
+                    break;
+
                 default:
                     this.logger.warn('Unknown message command:', message.command);
             }
@@ -193,19 +205,19 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 // Return solution-wide NuGet data
                 const solutionData = await NuGetManagerService.getSolutionNuGetData(context.target);
                 return {
+                    ...solutionData,
                     context: 'solution',
                     target: context.target,
-                    solutionPath: context.target,
-                    ...solutionData
+                    solutionPath: context.target
                 };
             } else {
                 // Return project-specific NuGet data
                 const projectData = await NuGetManagerService.getProjectNuGetData(context.target);
                 return {
+                    ...projectData,
                     context: 'project',
                     target: context.target,
-                    projectPath: context.target,
-                    ...projectData
+                    projectPath: context.target
                 };
             }
         } catch (error) {
@@ -220,13 +232,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
     private async _handleSearchPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
-            const searchFunction = context.type === 'solution'
-                ? NuGetManagerService.searchPackagesForSolution
-                : NuGetManagerService.searchPackagesForProject;
-
             const results = context.type === 'solution'
-                ? await searchFunction(message.query, { includePrerelease: message.includePrerelease })
-                : await searchFunction(context.target, message.query, { includePrerelease: message.includePrerelease });
+                ? await NuGetManagerService.searchPackagesForSolution(message.query, { includePrerelease: message.includePrerelease })
+                : await NuGetManagerService.searchPackagesForProject(context.target, message.query, { includePrerelease: message.includePrerelease });
 
             webview.postMessage({
                 command: 'searchResults',
@@ -259,7 +267,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             const data = await this._getNuGetData(context);
             webview.postMessage({
                 command: 'updatesPackages',
-                data: data.outdatedPackages || []
+                data: (data as any).outdatedPackages || []
             });
         } catch (error) {
             this.logger.error('Error getting updates packages:', error);
@@ -272,7 +280,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 const data = await this._getNuGetData(context);
                 webview.postMessage({
                     command: 'consolidatePackages',
-                    data: data.consolidationInfo || []
+                    data: (data as any).consolidationInfo || []
                 });
             } else {
                 webview.postMessage({
@@ -351,6 +359,158 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         } catch (error) {
             this.logger.error('Error consolidating package:', error);
             vscode.window.showErrorMessage(`Error consolidating package: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private async _handleBulkUpdatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+        try {
+            const { packages } = message;
+
+            if (!packages || !Array.isArray(packages) || packages.length === 0) {
+                vscode.window.showWarningMessage('No packages selected for update');
+                return;
+            }
+
+            this.logger.info(`Bulk updating ${packages.length} packages`);
+
+            // Show progress notification
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Updating ${packages.length} packages...`,
+                cancellable: false
+            }, async (progress) => {
+                const results = [];
+                let completed = 0;
+
+                for (const pkg of packages) {
+                    progress.report({
+                        increment: (100 / packages.length),
+                        message: `Updating ${pkg.id}...`
+                    });
+
+                    try {
+                        let result;
+                        if (context.type === 'project') {
+                            result = await NuGetManagerService.updatePackageInProject(
+                                context.target,
+                                pkg.id,
+                                pkg.latestVersion
+                            );
+                        } else {
+                            // For solution context, update in the specific project
+                            result = await NuGetManagerService.updatePackageInProject(
+                                pkg.projectPath,
+                                pkg.id,
+                                pkg.latestVersion
+                            );
+                        }
+                        results.push(result);
+                        completed++;
+                    } catch (error) {
+                        this.logger.error(`Error updating ${pkg.id}:`, error);
+                        results.push({
+                            success: false,
+                            message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                            packageId: pkg.id
+                        });
+                    }
+                }
+
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    vscode.window.showInformationMessage(`Successfully updated ${successful} packages`);
+                } else if (successful === 0) {
+                    vscode.window.showErrorMessage(`Failed to update all ${failed} packages`);
+                } else {
+                    vscode.window.showWarningMessage(`Updated ${successful} packages, ${failed} failed`);
+                }
+            });
+
+            // Refresh the updates tab
+            await this._handleGetUpdatesPackages(webview, context);
+
+        } catch (error) {
+            this.logger.error('Error performing bulk package updates:', error);
+            vscode.window.showErrorMessage(`Error updating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private async _handleUpdateAllPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+        try {
+            this.logger.info('Updating all packages');
+
+            // Get all outdated packages first
+            const data = await this._getNuGetData(context);
+            const outdatedPackages = (data as any).outdatedPackages || [];
+
+            if (outdatedPackages.length === 0) {
+                vscode.window.showInformationMessage('No packages need updating');
+                return;
+            }
+
+            // Show progress notification
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Updating all ${outdatedPackages.length} packages...`,
+                cancellable: false
+            }, async (progress) => {
+                const results = [];
+                let completed = 0;
+
+                for (const pkg of outdatedPackages) {
+                    progress.report({
+                        increment: (100 / outdatedPackages.length),
+                        message: `Updating ${pkg.id}...`
+                    });
+
+                    try {
+                        let result;
+                        if (context.type === 'project') {
+                            result = await NuGetManagerService.updatePackageInProject(
+                                context.target,
+                                pkg.id,
+                                pkg.latestVersion
+                            );
+                        } else {
+                            // For solution context, update in the specific project
+                            result = await NuGetManagerService.updatePackageInProject(
+                                pkg.projectPath,
+                                pkg.id,
+                                pkg.latestVersion
+                            );
+                        }
+                        results.push(result);
+                        completed++;
+                    } catch (error) {
+                        this.logger.error(`Error updating ${pkg.id}:`, error);
+                        results.push({
+                            success: false,
+                            message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                            packageId: pkg.id
+                        });
+                    }
+                }
+
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    vscode.window.showInformationMessage(`Successfully updated all ${successful} packages`);
+                } else if (successful === 0) {
+                    vscode.window.showErrorMessage(`Failed to update all ${failed} packages`);
+                } else {
+                    vscode.window.showWarningMessage(`Updated ${successful} packages, ${failed} failed`);
+                }
+            });
+
+            // Refresh the updates tab
+            await this._handleGetUpdatesPackages(webview, context);
+
+        } catch (error) {
+            this.logger.error('Error updating all packages:', error);
+            vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
