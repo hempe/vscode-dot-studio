@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Panels, TextField, Button, Table, TableRow, TableCell, Checkbox, Icon } from 'vscrui';
 import { VSCodeAPI, WebviewApi } from '../shared/vscode-api';
+import { logger } from '../shared/logger';
+
+const nugetLogger = logger('NuGetReact');
 
 declare global {
     interface Window {
@@ -40,6 +43,8 @@ export const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState('installed');
     const [selectedPackage, setSelectedPackage] = useState<NuGetPackage | null>(null);
     const [filterTerm, setFilterTerm] = useState('');
+    const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+    const [selectedVersion, setSelectedVersion] = useState('');
 
     // Helper function to ensure we always have a proper array
     const ensureArray = (value: any): any[] => {
@@ -49,7 +54,7 @@ export const App: React.FC = () => {
 
         // Log unexpected non-array values (excluding null/undefined which are expected)
         if (value !== null && value !== undefined) {
-            console.error('ensureArray: Expected array but received:', {
+            nugetLogger.error('ensureArray: Expected array but received:', {
                 type: typeof value,
                 value: value,
                 constructor: value?.constructor?.name
@@ -66,14 +71,26 @@ export const App: React.FC = () => {
         packages.forEach(pkg => {
             const existing = packageMap.get(pkg.id);
             if (existing) {
-                // Add project info to existing package
+                // Add project info to existing package (avoid duplicates)
                 if (!existing.projects) {
                     existing.projects = [];
                 }
-                existing.projects.push({
-                    name: pkg.projectName || 'Unknown Project',
-                    version: pkg.version
-                });
+
+                // Check if this project is already in the list
+                const projectName = pkg.projectName || 'Unknown Project';
+                const existingProject = existing.projects.find(p => p.name === projectName);
+
+                if (!existingProject) {
+                    // Only add if project not already in list
+                    existing.projects.push({
+                        name: projectName,
+                        version: pkg.version
+                    });
+                } else if (pkg.version > existingProject.version) {
+                    // Update to higher version if found
+                    existingProject.version = pkg.version;
+                }
+
                 // Use the latest version as the display version
                 if (pkg.version > existing.version) {
                     existing.version = pkg.version;
@@ -114,11 +131,13 @@ export const App: React.FC = () => {
 
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            console.log('NuGet React: Received message:', message);
+            nugetLogger.info('NuGet React: Received message:', message);
 
             switch (message.command) {
                 case 'nugetData':
-                    console.log('NuGet React: Setting data to:', message.data);
+                    nugetLogger.info('NuGet React: Setting data to:', message.data);
+                    nugetLogger.debug('NuGet React: Raw installed packages:', message.data?.installedPackages);
+
                     // Map backend data structure to frontend structure
                     const safeData = {
                         installedPackages: ensureArray(message.data?.installedPackages),
@@ -127,21 +146,27 @@ export const App: React.FC = () => {
                         updatesAvailable: ensureArray(message.data?.outdatedPackages),
                         projectPath: message.data?.projectPath
                     };
+
+                    nugetLogger.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
+
                     setData(safeData);
 
                     // Auto-select first installed package when data loads
                     const uniquePackages = getUniquePackages(safeData.installedPackages);
+                    nugetLogger.debug('NuGet React: Unique packages after deduplication:', uniquePackages);
+
                     if (uniquePackages.length > 0 && !selectedPackage) {
+                        nugetLogger.info('NuGet React: Auto-selecting package:', uniquePackages[0]);
                         setSelectedPackage(uniquePackages[0]);
                     }
                     break;
                 case 'searchResults':
-                    console.log('NuGet React: Setting searchResults to:', message.packages);
+                    nugetLogger.info('NuGet React: Setting searchResults to:', message.packages);
                     setData(prev => ({ ...prev, searchResults: ensureArray(message.packages) }));
                     setLoading(false);
                     break;
                 case 'updatesAvailable':
-                    console.log('NuGet React: Setting updatesAvailable to:', message.packages);
+                    nugetLogger.info('NuGet React: Setting updatesAvailable to:', message.packages);
                     setData(prev => ({ ...prev, updatesAvailable: ensureArray(message.packages) }));
                     break;
             }
@@ -163,6 +188,12 @@ export const App: React.FC = () => {
             }
         }
     }, [filterTerm, data.installedPackages, selectedPackage]);
+
+    // Reset selected projects and version when package changes
+    useEffect(() => {
+        setSelectedProjects(new Set());
+        setSelectedVersion('');
+    }, [selectedPackage?.id]);
 
     const handleSearch = () => {
         if (searchTerm.trim()) {
@@ -376,7 +407,7 @@ export const App: React.FC = () => {
                 {selectedPackage ? (
                     <div>
                         {/* Package Header */}
-                        <div style={{ marginBottom: '16px' }}>
+                        <div style={{ marginBottom: '20px' }}>
                             <h2 style={{
                                 margin: '0 0 8px 0',
                                 fontSize: '18px',
@@ -400,88 +431,160 @@ export const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Project Information */}
-                        {selectedPackage.projects && selectedPackage.projects.length > 1 ? (
+                        {/* Project Selection */}
+                        {selectedPackage.projects && selectedPackage.projects.length > 0 && (
                             <div style={{
                                 background: 'var(--vscode-panel-background)',
                                 border: '1px solid var(--vscode-panel-border)',
                                 borderRadius: '4px',
-                                padding: '12px',
+                                padding: '16px',
                                 marginBottom: '16px'
                             }}>
-                                <div style={{
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    marginBottom: '8px'
-                                }}>
-                                    Installed in {selectedPackage.projects.length} projects
-                                </div>
                                 {selectedPackage.projects.map((project, idx) => (
                                     <div key={idx} style={{
                                         display: 'flex',
-                                        justifyContent: 'space-between',
                                         alignItems: 'center',
-                                        padding: '4px 0',
+                                        padding: '8px 0',
                                         borderBottom: idx < selectedPackage.projects!.length - 1
                                             ? '1px solid var(--vscode-panel-border)'
                                             : 'none'
                                     }}>
-                                        <span style={{ fontSize: '12px' }}>{project.name}</span>
-                                        <span style={{
-                                            fontSize: '11px',
-                                            color: 'var(--vscode-descriptionForeground)'
+                                        <Checkbox
+                                            checked={selectedProjects.has(project.name)}
+                                            onChange={() => {
+                                                const newSelected = new Set(selectedProjects);
+                                                if (newSelected.has(project.name)) {
+                                                    newSelected.delete(project.name);
+                                                } else {
+                                                    newSelected.add(project.name);
+                                                }
+                                                setSelectedProjects(newSelected);
+                                            }}
+                                        />
+                                        <div style={{
+                                            marginLeft: '8px',
+                                            flex: 1,
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
                                         }}>
-                                            v{project.version}
-                                        </span>
+                                            <div style={{ fontSize: '13px' }}>
+                                                {project.name}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: 'var(--vscode-descriptionForeground)',
+                                                marginLeft: '8px',
+                                                flexShrink: 0
+                                            }}>
+                                                v{project.version}
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <div style={{
-                                background: 'var(--vscode-panel-background)',
-                                border: '1px solid var(--vscode-panel-border)',
-                                borderRadius: '4px',
-                                padding: '12px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    marginBottom: '8px'
-                                }}>
-                                    Version
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <TextField
-                                        value={selectedPackage.version}
-                                        readonly
-                                        style={{ flex: 1 }}
-                                    />
-                                    <Button onClick={() => handleUninstallPackage(selectedPackage)}>
-                                        Uninstall
-                                    </Button>
-                                </div>
-                            </div>
                         )}
 
-                        {/* Action Buttons for Multi-Project Packages */}
-                        {selectedPackage.projects && selectedPackage.projects.length > 1 && (
+                        {/* Version Selection and Actions */}
+                        <div style={{
+                            background: 'var(--vscode-panel-background)',
+                            border: '1px solid var(--vscode-panel-border)',
+                            borderRadius: '4px',
+                            padding: '16px',
+                            marginBottom: '16px'
+                        }}>
+                            {/* Installed Section */}
                             <div style={{
                                 display: 'flex',
-                                gap: '8px',
-                                marginBottom: '16px'
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '16px',
+                                paddingBottom: '12px',
+                                borderBottom: '1px solid var(--vscode-panel-border)'
                             }}>
+                                <div style={{
+                                    fontSize: '14px',
+                                    fontWeight: 600
+                                }}>
+                                    Installed: {(() => {
+                                        const selectedProjectsList = Array.from(selectedProjects);
+                                        if (selectedProjectsList.length === 0) return 'Select projects';
+
+                                        const installedVersions = selectedProjectsList
+                                            .map(projectName => selectedPackage.projects?.find(p => p.name === projectName)?.version)
+                                            .filter(Boolean);
+
+                                        if (installedVersions.length === 0) return 'Not installed';
+                                        if (new Set(installedVersions).size === 1) return `v${installedVersions[0]}`;
+                                        return 'Multiple versions';
+                                    })()}
+                                </div>
                                 <Button
-                                    appearance="primary"
-                                    onClick={() => handleUninstallPackage(selectedPackage)}
+                                    disabled={selectedProjects.size === 0 || !selectedPackage.projects?.some(p => selectedProjects.has(p.name))}
+                                    onClick={() => {
+                                        nugetLogger.info('Uninstall action:', {
+                                            package: selectedPackage.id,
+                                            projects: Array.from(selectedProjects)
+                                        });
+                                    }}
                                 >
-                                    Uninstall from all projects
-                                </Button>
-                                <Button>
-                                    Manage versions
+                                    Uninstall
                                 </Button>
                             </div>
-                        )}
+
+                            {/* Version Section */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: '12px'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    flex: 1
+                                }}>
+                                    <div style={{
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        Version:
+                                    </div>
+                                    <TextField
+                                        value={selectedVersion || selectedPackage.version}
+                                        onChange={setSelectedVersion}
+                                        placeholder="Select version"
+                                        style={{ flex: 1, maxWidth: '200px' }}
+                                    />
+                                </div>
+                                <Button
+                                    appearance="primary"
+                                    disabled={selectedProjects.size === 0}
+                                    onClick={() => {
+                                        nugetLogger.info('Install/Update action:', {
+                                            package: selectedPackage.id,
+                                            version: selectedVersion || selectedPackage.version,
+                                            projects: Array.from(selectedProjects)
+                                        });
+                                    }}
+                                >
+                                    {selectedPackage.projects?.some(p => selectedProjects.has(p.name)) ? 'Update' : 'Install'}
+                                </Button>
+                            </div>
+
+                            {selectedProjects.size === 0 && (
+                                <div style={{
+                                    fontSize: '11px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    marginTop: '12px',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Select one or more projects to perform actions
+                                </div>
+                            )}
+                        </div>
 
                         {/* Additional Package Info */}
                         <div style={{
