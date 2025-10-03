@@ -4,6 +4,7 @@ import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 import {logger as loggerFn} from '../utils/logger';
+import { LoadingBar } from '../../shared/LoadingBar';
 
 const logger = loggerFn('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode }) => {
@@ -360,27 +361,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             className="solution-tree"
             tabIndex={0}
         >
-            {/* Fixed loading progress bar - VS Code style */}
-            {showLoadingBar && (
-                <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '2px',
-                    backgroundColor: 'var(--vscode-progressBar-background)',
-                    zIndex: 1000,
-                    overflow: 'hidden'
-                }}>
-                    <div style={{
-                        height: '100%',
-                        backgroundColor: 'var(--vscode-progressBar-foreground)',
-                        animation: 'loading-progress 1.5s ease-in-out infinite',
-                        width: '30%',
-                        transform: 'translateX(-100%)'
-                    }}></div>
-                </div>
-            )}
+            <LoadingBar visible={showLoadingBar} />
             {treeNodes.map((node, index) => {
                 logger.info(`Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
                 return (<TreeNode
