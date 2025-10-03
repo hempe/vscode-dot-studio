@@ -190,8 +190,9 @@ export const App: React.FC = () => {
                     setInitializing(false);
                     break;
                 case 'searchResults':
-                    nugetLogger.info('NuGet React: Setting searchResults to:', message.packages);
-                    setData(prev => ({ ...prev, searchResults: ensureArray(message.packages) }));
+                    const searchResults = message.packages || message.data;
+                    nugetLogger.info('NuGet React: Setting searchResults to:', searchResults);
+                    setData(prev => ({ ...prev, searchResults: ensureArray(searchResults) }));
                     setLoading(false);
                     break;
                 case 'updatesAvailable':
