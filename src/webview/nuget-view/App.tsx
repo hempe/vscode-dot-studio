@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Panels, TextField, Button, Table, TableRow, TableCell, Checkbox, Icon } from 'vscrui';
 import { VSCodeAPI, WebviewApi } from '../shared/vscode-api';
 import { logger } from '../shared/logger';
+import { LoadingBar, LoadingMessage } from '../shared/LoadingBar';
 
 const nugetLogger = logger('NuGetReact');
 
@@ -11,7 +12,16 @@ declare global {
     }
 }
 
-const vscode = new VSCodeAPI();
+const vscode = (function() {
+    try {
+        // Try to get the real VS Code API when running in a webview
+        return window.acquireVsCodeApi();
+    } catch {
+        // Fallback to mock API for development/testing
+        nugetLogger.info('Using fallback VSCodeAPI for development');
+        return new VSCodeAPI();
+    }
+})();
 
 interface NuGetPackage {
     id: string;
@@ -42,6 +52,8 @@ export const App: React.FC = () => {
     });
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    const [initializing, setInitializing] = useState(true);
+    const [includePrerelease, setIncludePrerelease] = useState(false);
     const [activeTab, setActiveTab] = useState('installed');
     const [selectedPackage, setSelectedPackage] = useState<NuGetPackage | null>(null);
     const [filterTerm, setFilterTerm] = useState('');
@@ -173,6 +185,9 @@ export const App: React.FC = () => {
                         nugetLogger.info('NuGet React: Auto-selecting package:', uniquePackages[0]);
                         setSelectedPackage(uniquePackages[0]);
                     }
+
+                    // Mark initialization as complete
+                    setInitializing(false);
                     break;
                 case 'searchResults':
                     nugetLogger.info('NuGet React: Setting searchResults to:', message.packages);
@@ -223,8 +238,16 @@ export const App: React.FC = () => {
 
     const handleSearch = () => {
         if (searchTerm.trim()) {
+            nugetLogger.info('Frontend: Starting search for:', searchTerm, 'includePrerelease:', includePrerelease);
             setLoading(true);
-            vscode.postMessage({ type: 'searchPackages', payload: { query: searchTerm } });
+            vscode.postMessage({
+                type: 'searchPackages',
+                payload: {
+                    query: searchTerm,
+                    includePrerelease: includePrerelease
+                }
+            });
+            nugetLogger.info('Frontend: Search message sent to backend');
         }
     };
 
@@ -275,7 +298,7 @@ export const App: React.FC = () => {
                 borderBottom: '1px solid var(--vscode-panel-border)',
                 background: 'var(--vscode-editor-background)'
             }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <TextField
                         placeholder="Search for packages..."
                         value={searchTerm}
@@ -290,6 +313,19 @@ export const App: React.FC = () => {
                         <Icon name="search" />
                         {loading ? 'Searching...' : 'Search'}
                     </Button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Checkbox
+                        checked={includePrerelease}
+                        onChange={setIncludePrerelease}
+                    />
+                    <label style={{
+                        fontSize: '13px',
+                        color: 'var(--vscode-foreground)',
+                        cursor: 'pointer'
+                    }} onClick={() => setIncludePrerelease(!includePrerelease)}>
+                        Include prerelease
+                    </label>
                 </div>
             </div>
 
@@ -316,19 +352,28 @@ export const App: React.FC = () => {
                         Browse ({getUniquePackages(ensureArray(data.searchResults)).length})
                     </div>
 
-                    {getUniquePackages(ensureArray(data.searchResults)).map((pkg, index) => (
-                        <div
-                            key={`${pkg.id}-${pkg.version}`}
-                            style={{
-                                padding: '12px',
-                                borderBottom: '1px solid var(--vscode-panel-border)',
-                                cursor: 'pointer',
-                                background: selectedPackage?.id === pkg.id
-                                    ? 'var(--vscode-list-activeSelectionBackground)'
-                                    : 'transparent'
-                            }}
-                            onClick={() => setSelectedPackage(pkg)}
-                        >
+                    {data.searchResults.length === 0 ? (
+                        <LoadingMessage
+                            loading={loading}
+                            message="Searching for packages..."
+                            emptyMessage="Search for packages to browse"
+                            searchTerm={searchTerm.trim()}
+                            hasResults={false}
+                        />
+                    ) : (
+                        getUniquePackages(ensureArray(data.searchResults)).map((pkg, index) => (
+                            <div
+                                key={`${pkg.id}-${pkg.version}`}
+                                style={{
+                                    padding: '12px',
+                                    borderBottom: '1px solid var(--vscode-panel-border)',
+                                    cursor: 'pointer',
+                                    background: selectedPackage?.id === pkg.id
+                                        ? 'var(--vscode-list-activeSelectionBackground)'
+                                        : 'transparent'
+                                }}
+                                onClick={() => setSelectedPackage(pkg)}
+                            >
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                 {/* Package Icon */}
                                 <div style={{
@@ -387,7 +432,7 @@ export const App: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    )))}
                 </div>
 
                 {/* Right Panel - Package Details */}
@@ -1387,8 +1432,7 @@ export const App: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        ))
-                    )}
+                    )))}
                 </div>
 
                 {/* Right Panel - Package Details */}
@@ -1440,8 +1484,11 @@ export const App: React.FC = () => {
         { id: 'consolidate', content: consolidateView }
     ];
 
+    const shouldShowLoadingBar = loading || initializing;
+
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <LoadingBar visible={shouldShowLoadingBar} />
             <Panels
                 tabs={tabs}
                 views={views}

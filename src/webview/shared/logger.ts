@@ -8,6 +8,7 @@ export interface Logger {
     info(message: string, ...args: any[]): void;
     warn(message: string, ...args: any[]): void;
     error(message: string, ...args: any[]): void;
+    shotgun(message: string, ...args: any[]): void;
 }
 
 class WebviewConsoleLogger implements Logger {
@@ -48,6 +49,10 @@ class WebviewConsoleLogger implements Logger {
 
     error(message: string, ...args: any[]): void {
         console.error(this.formatMessage("error", message), ...args);
+    }
+
+    shotgun(message: string, ...args: any[]): void {
+        console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
     }
 }
 
