@@ -23,6 +23,16 @@ export class NuGetWebview {
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' 'unsafe-eval'; font-src ${webview.cspSource};">
     <title>NuGet Package Manager</title>
     <link href="${codiconsCss}" rel="stylesheet">
+    <style>
+        @keyframes loading-progress {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(calc(100vw + 100%));
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>

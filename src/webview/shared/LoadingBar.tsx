@@ -20,19 +20,28 @@ export const LoadingBar: React.FC<LoadingBarProps> = ({ visible, className }) =>
                 top: 0,
                 left: 0,
                 right: 0,
-                height: '2px', // VS Code style thin bar
-                backgroundColor: 'var(--vscode-progressBar-background)',
-                zIndex: 1000,
-                overflow: 'hidden'
+                height: 0,
+                overflow: 'visible'
             }}
         >
             <div style={{
-                height: '100%',
-                backgroundColor: 'var(--vscode-progressBar-foreground)',
-                animation: 'loading-progress 1.5s ease-in-out infinite',
-                width: '30%',
-                transform: 'translateX(-100%)'
-            }}></div>
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '1px',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    height: '1px',
+                    backgroundColor: 'var(--vscode-progressBar-background)',
+                    width: '120px',
+                    animation: 'loading-progress 2.5s linear infinite',
+                    transform: 'translateX(-100%)'
+                }}></div>
+            </div>
         </div>
     );
 };
