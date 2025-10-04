@@ -2,28 +2,28 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { ProjectFileNode } from '../core/Project';
 import { ProjectNode } from '../webview/solution-view/types';
 import { SolutionExpansionIdService } from './solutionExpansionIdService';
 import { logger } from '../core/logger';
+
+const log = logger('SolutionTreeService');
 
 /**
  * Service responsible for building and managing solution tree structures
  * Extracted from SolutionWebviewProvider to improve maintainability
  */
 export class SolutionTreeService {
-    private static readonly logger = logger('SolutionTreeService');
 
     /**
      * Builds a complete solution tree from Solution data
      */
     static async buildSolutionTree(solution: Solution): Promise<ProjectNode[]> {
         const solutionPath = solution.solutionPath;
-        this.logger.info(`Building solution tree for: ${solutionPath}`);
+        log.info(`Building solution tree for: ${solutionPath}`);
 
         const solutionFile = solution.solutionFile;
         if (!solutionFile) {
-            this.logger.error('No solution file available');
+            log.error('No solution file available');
             return [];
         }
 
@@ -42,7 +42,7 @@ export class SolutionTreeService {
             hierarchy.get(key)!.push(project);
         }
 
-        this.logger.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
+        log.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
 
         // Add the solution as the root node
         const solutionNode: ProjectNode = {
@@ -55,7 +55,7 @@ export class SolutionTreeService {
 
         // Get root level projects and solution folders from hierarchy
         const rootProjects = hierarchy.get('ROOT') || [];
-        this.logger.info(`Found ${rootProjects.length} root-level items`);
+        log.info(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
         solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId);
@@ -96,11 +96,11 @@ export class SolutionTreeService {
         for (const project of projects) {
             // Determine the item type based on typeGuid
             const itemType = this.getItemType(project.typeGuid);
-            this.logger.info(`Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
+            log.info(`Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
 
             // Ensure path is absolute (for both projects and solution items)
             const absolutePath = this.resolveAbsolutePath(project.path || '', solution.solutionPath);
-            this.logger.info(`Path resolution: ${project.path} -> ${absolutePath}`);
+            log.info(`Path resolution: ${project.path} -> ${absolutePath}`);
 
             // Generate expansion ID based on node type
             let nodeId: string;
@@ -139,14 +139,14 @@ export class SolutionTreeService {
                     if (projectInstance) {
                         const hasFiles = await projectInstance.hasAnyChildren();
                         itemNode.hasChildren = hasFiles;
-                        this.logger.info(`Project ${project.name} has children: ${hasFiles}`);
+                        log.info(`Project ${project.name} has children: ${hasFiles}`);
                     } else {
-                        this.logger.warn(`Could not find project instance for: ${absolutePath}`);
+                        log.warn(`Could not find project instance for: ${absolutePath}`);
                         // For projects, assume they have children if we can't check
                         itemNode.hasChildren = true;
                     }
                 } catch (error) {
-                    this.logger.warn(`Could not check children for project ${project.name}: ${error}`);
+                    log.warn(`Could not check children for project ${project.name}: ${error}`);
                     // For projects, assume they have children if there's an error
                     itemNode.hasChildren = true;
                 }
@@ -156,7 +156,7 @@ export class SolutionTreeService {
             // Handle solution folders - add their children recursively like the original
             else if (itemType === 'solutionFolder') {
                 const childProjects = hierarchy.get(project.guid) || [];
-                this.logger.info(`Solution folder ${project.name} has ${childProjects.length} children`);
+                log.info(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
                     itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId);
@@ -164,7 +164,7 @@ export class SolutionTreeService {
 
                 // Add solution items (files directly in the solution folder)
                 const solutionItems = solution.getSolutionItems(project);
-                this.logger.info(`Solution folder ${project.name} has ${solutionItems.length} solution items`);
+                log.info(`Solution folder ${project.name} has ${solutionItems.length} solution items`);
 
                 if (!itemNode.children) {
                     itemNode.children = [];
@@ -398,14 +398,14 @@ export class SolutionTreeService {
         for (const freshNode of freshNodes) {
             // Check if this is a dependency category node type (exclude 'dependencies' container)
             const isDependencyNode = freshNode.type === 'dependencyCategory' ||
-                                     freshNode.type === 'packageDependencies' ||
-                                     freshNode.type === 'projectDependencies' ||
-                                     freshNode.type === 'assemblyDependencies';
+                freshNode.type === 'packageDependencies' ||
+                freshNode.type === 'projectDependencies' ||
+                freshNode.type === 'assemblyDependencies';
 
             // Find cached state using expansion ID
             const cached = cachedMap.get(freshNode.nodeId);
             if (cached) {
-                this.logger.info(`Merging state for ${freshNode.type} node: ${freshNode.name}, nodeId: ${freshNode.nodeId}, expanded: ${cached.expanded}`);
+                log.info(`Merging state for ${freshNode.type} node: ${freshNode.name}, nodeId: ${freshNode.nodeId}, expanded: ${cached.expanded}`);
 
                 // Preserve expansion and loading states
                 freshNode.expanded = cached.expanded;
@@ -415,21 +415,21 @@ export class SolutionTreeService {
                 // If node was expanded and had children, merge the children too
                 // BUT skip this for dependency nodes - they should always force refresh
                 if (freshNode.expanded && freshNode.children && cached.children && !isDependencyNode) {
-                    this.logger.debug(`Recursively merging children for expanded node: ${freshNode.path}`);
+                    log.debug(`Recursively merging children for expanded node: ${freshNode.path}`);
                     this.mergeNodeStates(freshNode.children, cachedMap);
                 }
 
                 // For dependency nodes, preserve expansion state but allow children to be updated naturally
                 // The cache clearing already ensures fresh dependency data is loaded
                 if (isDependencyNode && cached.expanded) {
-                    this.logger.info(`${freshNode.type} node ${freshNode.path} was expanded, preserving expansion state with fresh data`);
+                    log.info(`${freshNode.type} node ${freshNode.path} was expanded, preserving expansion state with fresh data`);
                     // Keep the node expanded and preserve any fresh children data
                     freshNode.expanded = true;
                     freshNode.isLoaded = true; // Mark as loaded since we have fresh data
                     // Don't clear children - let the fresh dependency data be preserved
                 }
             } else if (isDependencyNode) {
-                this.logger.debug(`No cached state found for ${freshNode.type} node: ${freshNode.path}`);
+                log.debug(`No cached state found for ${freshNode.type} node: ${freshNode.path}`);
             }
 
             // Always recursively process children even if no cached state found

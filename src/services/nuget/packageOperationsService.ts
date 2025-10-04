@@ -5,13 +5,13 @@ import { logger } from '../../core/logger';
 import { PackageInstallOptions, PackageOperationResult } from './types';
 
 const execAsync = promisify(exec);
+const log = logger('PackageOperationsService');
 
 /**
  * Service for NuGet package operations (install, uninstall, restore) using dotnet CLI
  * Handles the core package management operations
  */
 export class PackageOperationsService {
-    private static readonly logger = logger('PackageOperationsService');
 
     /**
      * Install a NuGet package in a project
@@ -37,7 +37,7 @@ export class PackageOperationsService {
             }
 
             const command = `dotnet ${args.join(' ')}`;
-            this.logger.info(`Installing package: ${command}`);
+            log.info(`Installing package: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 120000, // 2 minutes for package installation
@@ -48,7 +48,7 @@ export class PackageOperationsService {
             const success = !stderr.includes('error') && !stdout.includes('error');
 
             if (success) {
-                this.logger.info(`Successfully installed ${options.packageId} in ${path.basename(options.projectPath)}`);
+                log.info(`Successfully installed ${options.packageId} in ${path.basename(options.projectPath)}`);
                 return {
                     success: true,
                     message: `Successfully installed ${options.packageId}${options.version ? ` version ${options.version}` : ''}`,
@@ -58,7 +58,7 @@ export class PackageOperationsService {
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
-                this.logger.error(`Failed to install ${options.packageId}:`, errorMessage);
+                log.error(`Failed to install ${options.packageId}:`, errorMessage);
                 return {
                     success: false,
                     message: `Failed to install ${options.packageId}: ${errorMessage}`,
@@ -69,7 +69,7 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error(`Error installing package ${options.packageId}:`, error);
+            log.error(`Error installing package ${options.packageId}:`, error);
             return {
                 success: false,
                 message: `Error installing ${options.packageId}: ${errorMessage}`,
@@ -85,7 +85,7 @@ export class PackageOperationsService {
     static async uninstallPackage(projectPath: string, packageId: string): Promise<PackageOperationResult> {
         try {
             const command = `dotnet remove "${projectPath}" package ${packageId}`;
-            this.logger.info(`Uninstalling package: ${command}`);
+            log.info(`Uninstalling package: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 60000,
@@ -96,7 +96,7 @@ export class PackageOperationsService {
             const success = !stderr.includes('error') && !stdout.includes('error');
 
             if (success) {
-                this.logger.info(`Successfully uninstalled ${packageId} from ${path.basename(projectPath)}`);
+                log.info(`Successfully uninstalled ${packageId} from ${path.basename(projectPath)}`);
                 return {
                     success: true,
                     message: `Successfully uninstalled ${packageId}`,
@@ -105,7 +105,7 @@ export class PackageOperationsService {
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
-                this.logger.error(`Failed to uninstall ${packageId}:`, errorMessage);
+                log.error(`Failed to uninstall ${packageId}:`, errorMessage);
                 return {
                     success: false,
                     message: `Failed to uninstall ${packageId}: ${errorMessage}`,
@@ -116,7 +116,7 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error(`Error uninstalling package ${packageId}:`, error);
+            log.error(`Error uninstalling package ${packageId}:`, error);
             return {
                 success: false,
                 message: `Error uninstalling ${packageId}: ${errorMessage}`,
@@ -132,7 +132,7 @@ export class PackageOperationsService {
     static async restorePackages(targetPath: string): Promise<PackageOperationResult> {
         try {
             const command = `dotnet restore "${targetPath}"`;
-            this.logger.info(`Restoring packages: ${command}`);
+            log.info(`Restoring packages: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 180000, // 3 minutes for restore operation
@@ -141,11 +141,11 @@ export class PackageOperationsService {
 
             // Check if the command was successful
             const success = stdout.includes('Restore succeeded') ||
-                          (!stderr.includes('error') && !stdout.includes('error'));
+                (!stderr.includes('error') && !stdout.includes('error'));
 
             if (success) {
                 const targetName = path.basename(targetPath);
-                this.logger.info(`Successfully restored packages for ${targetName}`);
+                log.info(`Successfully restored packages for ${targetName}`);
                 return {
                     success: true,
                     message: `Successfully restored packages for ${targetName}`,
@@ -153,7 +153,7 @@ export class PackageOperationsService {
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
-                this.logger.error(`Failed to restore packages:`, errorMessage);
+                log.error(`Failed to restore packages:`, errorMessage);
                 return {
                     success: false,
                     message: `Failed to restore packages: ${errorMessage}`,
@@ -163,7 +163,7 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error(`Error restoring packages:`, error);
+            log.error(`Error restoring packages:`, error);
             return {
                 success: false,
                 message: `Error restoring packages: ${errorMessage}`,
@@ -193,7 +193,7 @@ export class PackageOperationsService {
             }
 
             const command = `dotnet ${args.join(' ')}`;
-            this.logger.info(`Adding package reference: ${command}`);
+            log.info(`Adding package reference: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 90000,
@@ -222,7 +222,7 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error(`Error adding package reference:`, error);
+            log.error(`Error adding package reference:`, error);
             return {
                 success: false,
                 message: `Error adding package reference: ${errorMessage}`,
@@ -238,7 +238,7 @@ export class PackageOperationsService {
     static async clearCache(): Promise<PackageOperationResult> {
         try {
             const command = 'dotnet nuget locals all --clear';
-            this.logger.info(`Clearing package cache: ${command}`);
+            log.info(`Clearing package cache: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 60000,
@@ -246,17 +246,17 @@ export class PackageOperationsService {
             });
 
             const success = stdout.includes('Clearing') ||
-                          (!stderr.includes('error') && !stdout.includes('error'));
+                (!stderr.includes('error') && !stdout.includes('error'));
 
             if (success) {
-                this.logger.info('Successfully cleared package cache');
+                log.info('Successfully cleared package cache');
                 return {
                     success: true,
                     message: 'Successfully cleared package cache'
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
-                this.logger.error('Failed to clear package cache:', errorMessage);
+                log.error('Failed to clear package cache:', errorMessage);
                 return {
                     success: false,
                     message: `Failed to clear package cache: ${errorMessage}`
@@ -265,7 +265,7 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error('Error clearing package cache:', error);
+            log.error('Error clearing package cache:', error);
             return {
                 success: false,
                 message: `Error clearing package cache: ${errorMessage}`
@@ -284,7 +284,7 @@ export class PackageOperationsService {
             return stdout.includes(packageId);
 
         } catch (error) {
-            this.logger.error(`Error verifying package installation:`, error);
+            log.error(`Error verifying package installation:`, error);
             return false;
         }
     }
@@ -342,7 +342,7 @@ export class PackageOperationsService {
             return { installed: false };
 
         } catch (error) {
-            this.logger.error(`Error getting package status:`, error);
+            log.error(`Error getting package status:`, error);
             return { installed: false };
         }
     }

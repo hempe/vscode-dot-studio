@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import Markdown from "markdown-to-jsx";
 import { ensureArray, formatAuthors, LocalNuGetPackage } from "../shared";
 import { Checkbox } from "vscrui";
+import { logger } from "../../shared/logger";
+
+const log = logger('ProjectList');
 
 interface ProjectListProps {
     selectedPackage: LocalNuGetPackage;
@@ -18,6 +21,7 @@ export default function ProjectList({
     selectedProjects,
     setSelectedProjects
 }: ProjectListProps) {
+
 
     return (
         <div style={{

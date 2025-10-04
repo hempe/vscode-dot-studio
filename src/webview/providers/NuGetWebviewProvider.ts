@@ -5,9 +5,10 @@ import { IconCacheService } from '../../services/nuget/iconCacheService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 
+const log = logger('NuGetWebviewProvider');
+
 export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotnet-nuget-webview';
-    private readonly logger = logger('NuGetWebviewProvider');
 
     private _view?: vscode.WebviewView;
 
@@ -101,7 +102,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 }
             });
         } catch (error) {
-            this.logger.error('Error updating NuGet webview:', error);
+            log.error('Error updating NuGet webview:', error);
             this._view.webview.postMessage({
                 command: 'error',
                 message: 'Failed to load NuGet data'
@@ -126,7 +127,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 packages: searchResults || []
             });
         } catch (error) {
-            this.logger.error('Error searching packages:', error);
+            log.error('Error searching packages:', error);
             this._view.webview.postMessage({
                 command: 'searchResults',
                 packages: []
@@ -154,7 +155,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // Refresh the installed packages
             await this._updateWebview();
         } catch (error) {
-            this.logger.error('Error installing package:', error);
+            log.error('Error installing package:', error);
             vscode.window.showErrorMessage(`Failed to install package: ${error}`);
         }
     }
@@ -179,7 +180,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // Refresh the installed packages
             await this._updateWebview();
         } catch (error) {
-            this.logger.error('Error uninstalling package:', error);
+            log.error('Error uninstalling package:', error);
             vscode.window.showErrorMessage(`Failed to uninstall package: ${error}`);
         }
     }
@@ -199,7 +200,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             // TODO: Implement getting installed packages
             return [];
         } catch (error) {
-            this.logger.error('Error getting installed packages:', error);
+            log.error('Error getting installed packages:', error);
             return [];
         }
     }
@@ -229,9 +230,9 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
     private async _initializeIconCache(): Promise<void> {
         try {
             await IconCacheService.initialize(this._extensionContext);
-            this.logger.info('Icon cache service initialized');
+            log.info('Icon cache service initialized');
         } catch (error) {
-            this.logger.error('Failed to initialize icon cache service:', error);
+            log.error('Failed to initialize icon cache service:', error);
         }
     }
 
@@ -253,7 +254,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 iconUri: iconUri || null
             });
         } catch (error) {
-            this.logger.error(`Error getting icon for ${packageId}@${version}:`, error);
+            log.error(`Error getting icon for ${packageId}@${version}:`, error);
 
             this._view.webview.postMessage({
                 command: 'packageIcon',

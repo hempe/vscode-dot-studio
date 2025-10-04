@@ -1,12 +1,13 @@
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
 
+const log = logger('NuGetV3Service');
+
 /**
  * Service for interacting with NuGet V3 API feeds
  * Handles modern NuGet feeds including nuget.org and Azure DevOps Artifacts
  */
 export class NuGetV3Service {
-    private static readonly logger = logger('NuGetV3Service');
 
     /**
      * Search packages using NuGet V3 API
@@ -17,29 +18,37 @@ export class NuGetV3Service {
         accessToken?: string
     ): Promise<NuGetPackage[]> {
         try {
-            this.logger.info(`Searching NuGet V3 feed: ${sourceUrl}`);
+            log.info(`Searching NuGet V3 feed: ${sourceUrl}`);
 
             // Get service index to find search endpoint
             const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
             const searchServiceUrl = this.findSearchService(serviceIndex);
 
             if (!searchServiceUrl) {
-                this.logger.warn('No search service found in V3 service index');
+                log.warn('No search service found in V3 service index');
                 return [];
             }
 
             // Build search URL with parameters
             const searchUrl = this.buildSearchUrl(searchServiceUrl, options);
-            this.logger.info(`V3 API search URL: ${searchUrl}`);
+            log.info(`V3 API search URL: ${searchUrl}`);
 
             // Make authenticated request
             const response = await this.makeRequest(searchUrl, accessToken);
             const searchResults = JSON.parse(response);
 
-            return this.parseSearchResults(searchResults);
+            const packages = this.parseSearchResults(searchResults);
+
+            // If prereleases are requested, enhance each package with latest prerelease version
+            if (options.includePrerelease && packages.length > 0) {
+                log.info(`Enhancing ${packages.length} packages with latest prereleases`);
+                await this.enhanceWithLatestPrereleases(packages, serviceIndex, accessToken);
+            }
+
+            return packages;
 
         } catch (error) {
-            this.logger.error('NuGet V3 search failed:', error);
+            log.error('NuGet V3 search failed:', error);
             throw error;
         }
     }
@@ -57,7 +66,7 @@ export class NuGetV3Service {
             const registrationUrl = this.findRegistrationService(serviceIndex);
 
             if (!registrationUrl) {
-                this.logger.warn('No registration service found in V3 service index');
+                log.warn('No registration service found in V3 service index');
                 return null;
             }
 
@@ -69,13 +78,13 @@ export class NuGetV3Service {
             return this.parsePackageDetails(packageData);
 
         } catch (error) {
-            this.logger.error(`Error getting V3 package details for ${packageId}:`, error);
+            log.error(`Error getting V3 package details for ${packageId}:`, error);
             return null;
         }
     }
 
     /**
-     * Get all versions for a package
+     * Get all versions for a package using flat container API
      */
     static async getPackageVersions(
         sourceUrl: string,
@@ -83,21 +92,22 @@ export class NuGetV3Service {
         accessToken?: string
     ): Promise<string[]> {
         try {
-            const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
-            const registrationUrl = this.findRegistrationService(serviceIndex);
+            // Use flat container API which is more reliable for version lists
+            // Format: https://api.nuget.org/v3-flatcontainer/{id-lower}/index.json
+            const flatContainerUrl = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/index.json`;
+            log.info(`Fetching package versions from flat container: ${flatContainerUrl}`);
 
-            if (!registrationUrl) {
-                return [];
-            }
+            const response = await this.makeRequest(flatContainerUrl, accessToken);
+            const versionData = JSON.parse(response);
 
-            const packageUrl = `${registrationUrl}${packageId.toLowerCase()}/index.json`;
-            const response = await this.makeRequest(packageUrl, accessToken);
-            const packageData = JSON.parse(response);
+            // Flat container returns {versions: ["1.0.0", "1.0.1", ...]}
+            const versions = versionData.versions || [];
+            log.info(`Got ${versions.length} versions from flat container, latest 5: ${versions.slice(-5).join(', ')}`);
 
-            return this.extractVersions(packageData);
+            return versions;
 
         } catch (error) {
-            this.logger.error(`Error getting V3 versions for ${packageId}:`, error);
+            log.error(`Error getting V3 versions for ${packageId}:`, error);
             return [];
         }
     }
@@ -123,7 +133,7 @@ export class NuGetV3Service {
 
             return searchResource?.['@id'] || null;
         } catch (error) {
-            this.logger.error('Error finding search service:', error);
+            log.error('Error finding search service:', error);
             return null;
         }
     }
@@ -140,7 +150,7 @@ export class NuGetV3Service {
 
             return registrationResource?.['@id'] || null;
         } catch (error) {
-            this.logger.error('Error finding registration service:', error);
+            log.error('Error finding registration service:', error);
             return null;
         }
     }
@@ -219,13 +229,17 @@ export class NuGetV3Service {
             const data = searchResults.data || [];
 
             for (const item of data) {
-                // Get the latest version info
+                // Get all available versions
                 const versions = item.versions || [];
-                const latestVersion = versions.length > 0 ? versions[versions.length - 1] : {};
+                const allVersions = versions.map((v: any) => v.version).filter(Boolean);
+
+                // Use the top-level version as it represents the latest according to search API
+                // The search API should return the appropriate latest version based on prerelease parameter
+                const displayVersion = item.version || '';
 
                 packages.push({
                     id: item.id || '',
-                    version: latestVersion.version || item.version || '',
+                    version: displayVersion,
                     description: item.description || '',
                     authors: item.authors || [],
                     projectUrl: item.projectUrl,
@@ -233,16 +247,119 @@ export class NuGetV3Service {
                     iconUrl: item.iconUrl,
                     tags: item.tags || [],
                     totalDownloads: item.totalDownloads || 0,
-                    allVersions: versions.map((v: any) => v.version).filter(Boolean)
+                    allVersions: allVersions
                 });
             }
 
             return packages;
 
         } catch (error) {
-            this.logger.error('Error parsing V3 search results:', error);
+            log.error('Error parsing V3 search results:', error);
             return [];
         }
+    }
+
+    /**
+     * Enhance packages with latest prerelease versions from registration API
+     */
+    private static async enhanceWithLatestPrereleases(
+        packages: NuGetPackage[],
+        serviceIndex: any,
+        accessToken?: string
+    ): Promise<void> {
+        try {
+            const registrationUrl = this.findRegistrationService(serviceIndex);
+            if (!registrationUrl) {
+                log.warn('No registration service found for prerelease enhancement');
+                return;
+            }
+            log.info(`Using registration service: ${registrationUrl}`);
+
+            // Process packages in batches to avoid overwhelming the API
+            for (const pkg of packages.slice(0, 5)) { // Limit to first 5 packages for performance
+                try {
+                    log.info(`Getting versions for ${pkg.id} (current: ${pkg.version})`);
+                    const versions = await this.getPackageVersions(
+                        `https://api.nuget.org/v3/index.json`, // Use source URL
+                        pkg.id,
+                        accessToken
+                    );
+
+                    log.info(`Got ${versions.length} versions for ${pkg.id}: ${versions.slice(-5).join(', ')}`);
+
+                    if (versions.length > 0) {
+                        // Find the actual latest version (including prereleases)
+                        const latestVersion = this.findLatestVersion(versions, true);
+                        log.info(`Latest version for ${pkg.id}: ${latestVersion} (current: ${pkg.version})`);
+
+                        if (latestVersion && latestVersion !== pkg.version) {
+                            log.info(`Enhanced ${pkg.id}: ${pkg.version} -> ${latestVersion}`);
+                            pkg.version = latestVersion;
+                        }
+                        // Update all versions list
+                        pkg.allVersions = versions;
+                    }
+                } catch (error) {
+                    log.warn(`Failed to enhance ${pkg.id} with latest prerelease:`, error);
+                }
+            }
+        } catch (error) {
+            log.error('Error enhancing packages with prereleases:', error);
+        }
+    }
+
+    /**
+     * Find the latest version from a list, optionally including prereleases
+     */
+    private static findLatestVersion(versions: string[], includePrereleases: boolean): string | null {
+        if (versions.length === 0) return null;
+
+        // Filter out prereleases if not wanted
+        let candidateVersions = versions;
+        if (!includePrereleases) {
+            candidateVersions = versions.filter(v => !v.includes('-'));
+        }
+
+        if (candidateVersions.length === 0) return null;
+
+        // Sort versions using semantic versioning rules
+        return candidateVersions.sort((a, b) => {
+            return this.compareVersions(b, a); // Descending order
+        })[0];
+    }
+
+    /**
+     * Compare two semantic versions (returns > 0 if a > b, < 0 if a < b, 0 if equal)
+     */
+    private static compareVersions(a: string, b: string): number {
+        const parseVersion = (version: string) => {
+            // Handle versions like "10.0.0-rc.1.25451.107"
+            const [main, prerelease] = version.split('-', 2);
+            const mainParts = main.split('.').map(Number);
+            return { mainParts, prerelease: prerelease || null };
+        };
+
+        const aVer = parseVersion(a);
+        const bVer = parseVersion(b);
+
+        // Compare main version parts first
+        const maxLength = Math.max(aVer.mainParts.length, bVer.mainParts.length);
+        for (let i = 0; i < maxLength; i++) {
+            const aPart = aVer.mainParts[i] || 0;
+            const bPart = bVer.mainParts[i] || 0;
+            if (aPart !== bPart) return aPart - bPart;
+        }
+
+        // Main versions are equal, now compare prerelease status
+        // For major version differences (like 10.x vs 9.x), prerelease doesn't matter
+        // But this should already be handled above
+
+        if (aVer.prerelease === null && bVer.prerelease === null) return 0;
+        if (aVer.prerelease === null) return 1; // Release version > prerelease version
+        if (bVer.prerelease === null) return -1; // Prerelease version < release version
+
+        // Both are prereleases, compare prerelease identifiers
+        return aVer.prerelease.localeCompare(bVer.prerelease);
     }
 
     /**
@@ -272,7 +389,7 @@ export class NuGetV3Service {
             };
 
         } catch (error) {
-            this.logger.error('Error parsing package details:', error);
+            log.error('Error parsing package details:', error);
             return null;
         }
     }
@@ -285,6 +402,8 @@ export class NuGetV3Service {
             const versions: string[] = [];
             const items = packageData.items || [];
 
+            log.info(`Extracting versions from ${items.length} registration items`);
+
             for (const item of items) {
                 const catalogEntry = item.catalogEntry;
                 if (catalogEntry?.version) {
@@ -292,10 +411,11 @@ export class NuGetV3Service {
                 }
             }
 
+            log.info(`Extracted ${versions.length} versions, latest 5: ${versions.slice(-5).join(', ')}`);
             return versions.sort();
 
         } catch (error) {
-            this.logger.error('Error extracting versions:', error);
+            log.error('Error extracting versions:', error);
             return [];
         }
     }

@@ -4,6 +4,8 @@ import { FrameworkOption } from '../types/framework';
 import { SolutionFile } from '../parsers/solutionFileParser';
 import { logger } from '../core/logger';
 
+const log = logger('FrameworkDropdownService');
+
 /**
  * Pure framework selection service that handles .NET framework selection logic
  * without VS Code UI dependencies. Provides core functionality for:
@@ -13,7 +15,6 @@ import { logger } from '../core/logger';
  * - Framework validation and selection logic
  */
 export class FrameworkDropdownService {
-    private readonly logger = logger('FrameworkDropdownService');
     private activeFramework?: string;
     private solutionPath?: string;
     private solutionFile?: SolutionFile;
@@ -117,7 +118,7 @@ export class FrameworkDropdownService {
             return options;
 
         } catch (error) {
-            this.logger.error('Failed to get framework options:', error);
+            log.error('Failed to get framework options:', error);
             return [];
         }
     }
@@ -169,7 +170,7 @@ export class FrameworkDropdownService {
         try {
             return await SolutionService.getAllFrameworks(this.solutionFile);
         } catch (error) {
-            this.logger.error('Error getting available frameworks:', error);
+            log.error('Error getting available frameworks:', error);
             return [];
         }
     }
@@ -224,7 +225,7 @@ export class FrameworkDropdownService {
 
             return sortedFrameworks[0];
         } catch (error) {
-            this.logger.error('Error getting framework for debugging:', error);
+            log.error('Error getting framework for debugging:', error);
             return undefined;
         }
     }

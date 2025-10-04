@@ -1,7 +1,6 @@
 import { NuGetPackage } from "../../services/nuget/types";
 import { logger } from "../shared/logger";
-const nugetLogger = logger('NuGetReact');
-
+const log = logger('NuGetReact');
 
 // Using shared NuGetPackage interface from types
 export interface LocalNuGetPackage extends NuGetPackage {
@@ -26,7 +25,7 @@ export function ensureArray<T>(value: T | T[] | null | undefined): T[] {
 
     // Log unexpected non-array values (excluding null/undefined which are expected)
     if (value !== null && value !== undefined) {
-        nugetLogger.error('ensureArray: Expected array but received:', {
+        log.error('ensureArray: Expected array but received:', {
             type: typeof value,
             value: value,
             constructor: value?.constructor?.name

@@ -3,11 +3,12 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../core/logger';
 
+const log = logger('SolutionUserFile');
+
 /**
  * Handles reading and writing .sln.user files for Visual Studio compatibility
  */
 export class SolutionUserFile {
-    private readonly logger = logger('SolutionUserFile');
 
     private userFilePath: string;
 
@@ -28,7 +29,7 @@ export class SolutionUserFile {
             const match = content.match(/StartupProject\s*=\s*\{([^}]+)\}/);
             return match ? `{${match[1]}}` : null;
         } catch (error) {
-            this.logger.error('Error reading .sln.user file:', error);
+            log.error('Error reading .sln.user file:', error);
             return null;
         }
     }
@@ -46,7 +47,7 @@ export class SolutionUserFile {
             const match = content.match(/FrameworkFilter\s*=\s*([^\r\n]+)/);
             return match ? match[1].trim() : null;
         } catch (error) {
-            this.logger.error('Error reading framework filter from .sln.user file:', error);
+            log.error('Error reading framework filter from .sln.user file:', error);
             return null;
         }
     }
@@ -64,7 +65,7 @@ export class SolutionUserFile {
             const match = content.match(/ActiveFramework\s*=\s*([^\r\n]+)/);
             return match ? match[1].trim() : null;
         } catch (error) {
-            this.logger.error('Error reading active framework from .sln.user file:', error);
+            log.error('Error reading active framework from .sln.user file:', error);
             return null;
         }
     }
@@ -120,7 +121,7 @@ EndGlobal
 
             await fs.promises.writeFile(this.userFilePath, content, 'utf8');
         } catch (error) {
-            this.logger.error('Error writing active framework to .sln.user file:', error);
+            log.error('Error writing active framework to .sln.user file:', error);
             throw error;
         }
     }
@@ -156,7 +157,7 @@ EndGlobal
 
             await fs.promises.writeFile(this.userFilePath, content, 'utf8');
         } catch (error) {
-            this.logger.error('Error writing .sln.user file:', error);
+            log.error('Error writing .sln.user file:', error);
             throw new Error(`Failed to set startup project: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -235,7 +236,7 @@ EndGlobalSection` + after;
 
             await fs.promises.writeFile(this.userFilePath, content, 'utf8');
         } catch (error) {
-            this.logger.error('Error clearing startup project:', error);
+            log.error('Error clearing startup project:', error);
             throw new Error(`Failed to clear startup project: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }

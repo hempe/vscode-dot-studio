@@ -18,8 +18,9 @@ export interface SolutionFileItem {
     relativePath: string;
 }
 
+const log = logger('Solution');
+
 export class Solution {
-    private readonly logger = logger('Solution');
     private _disposables: vscode.Disposable[] = [];
     private _changeEmitter = new vscode.EventEmitter<void>();
     private _fileWatcher?: vscode.FileSystemWatcher;
@@ -66,9 +67,9 @@ export class Solution {
             await this.initializeProjects();
 
             this._isInitialized = true;
-            this.logger.info(`Initialized solution: ${path.basename(this._solutionPath)}`);
+            log.info(`Initialized solution: ${path.basename(this._solutionPath)}`);
         } catch (error) {
-            this.logger.error('Failed to initialize solution:', error);
+            log.error('Failed to initialize solution:', error);
             throw error;
         }
     }
@@ -84,7 +85,7 @@ export class Solution {
     }
 
     private async handleSolutionFileChanged(): Promise<void> {
-        this.logger.info('Solution file changed, reparsing...');
+        log.info('Solution file changed, reparsing...');
 
         try {
             const oldSolutionFile = this._solutionFile;
@@ -94,12 +95,12 @@ export class Solution {
             this._changeEmitter.fire();
 
         } catch (error) {
-            this.logger.error('Error handling solution file change:', error);
+            log.error('Error handling solution file change:', error);
         }
     }
 
     private handleSolutionFileDeleted(): void {
-        this.logger.info('Solution file deleted');
+        log.info('Solution file deleted');
         this.dispose();
     }
 
@@ -111,9 +112,9 @@ export class Solution {
             // Build file tree for solution folders and solution items
             this.buildSolutionFileTree();
 
-            this.logger.debug(`Parsed solution with ${this._solutionFile.projects.length} projects`);
+            log.debug(`Parsed solution with ${this._solutionFile.projects.length} projects`);
         } catch (error) {
-            this.logger.error('Error parsing solution file:', error);
+            log.error('Error parsing solution file:', error);
             throw error;
         }
     }
@@ -164,7 +165,7 @@ export class Solution {
 
                     // Subscribe to project changes
                     project.onDidChange(() => {
-                        this.logger.debug(`Project ${project.name} changed, forwarding to solution`);
+                        log.debug(`Project ${project.name} changed, forwarding to solution`);
                         this._changeEmitter.fire(); // Forward to solution listeners
                     });
 
@@ -174,14 +175,14 @@ export class Solution {
                     const projectInitPromise = this.waitForProjectInitialization(project, solutionProject.name);
                     projectPromises.push(projectInitPromise);
                 } catch (error) {
-                    this.logger.error(`Failed to initialize project ${solutionProject.name}:`, error);
+                    log.error(`Failed to initialize project ${solutionProject.name}:`, error);
                 }
             }
         }
 
         // Wait for all projects to initialize
         await Promise.all(projectPromises);
-        this.logger.info(`All ${projectPromises.length} projects initialized`);
+        log.info(`All ${projectPromises.length} projects initialized`);
     }
 
     /**
@@ -195,9 +196,9 @@ export class Solution {
         }
 
         if (project.isInitialized) {
-            this.logger.debug(`Project ${projectName} initialized successfully`);
+            log.debug(`Project ${projectName} initialized successfully`);
         } else {
-            this.logger.warn(`Project ${projectName} initialization timed out`);
+            log.warn(`Project ${projectName} initialization timed out`);
         }
     }
 
@@ -209,7 +210,7 @@ export class Solution {
         for (const [projectPath, project] of newProjects) {
             if (!oldProjects.has(projectPath)) {
                 if (SolutionFileParser.isDotNetProject(project)) {
-                    this.logger.info(`Project added: ${project.name}`);
+                    log.info(`Project added: ${project.name}`);
 
                     // Initialize new project
                     const absolutePath = path.resolve(path.dirname(this._solutionPath), project.path);
@@ -218,10 +219,10 @@ export class Solution {
                         this._projects.set(absolutePath, newProject);
 
                     } catch (error) {
-                        this.logger.error(`Failed to initialize new project ${project.name}:`, error);
+                        log.error(`Failed to initialize new project ${project.name}:`, error);
                     }
                 } else if (SolutionFileParser.isSolutionFolder(project)) {
-                    this.logger.info(`Solution folder added: ${project.name}`);
+                    log.info(`Solution folder added: ${project.name}`);
                 }
             }
         }
@@ -230,7 +231,7 @@ export class Solution {
         for (const [projectPath, project] of oldProjects) {
             if (!newProjects.has(projectPath)) {
                 if (SolutionFileParser.isDotNetProject(project)) {
-                    this.logger.info(`Project removed: ${project.name}`);
+                    log.info(`Project removed: ${project.name}`);
 
                     // Dispose removed project
                     const absolutePath = path.resolve(path.dirname(this._solutionPath), project.path);
@@ -241,7 +242,7 @@ export class Solution {
                     }
 
                 } else if (SolutionFileParser.isSolutionFolder(project)) {
-                    this.logger.info(`Solution folder removed: ${project.name}`);
+                    log.info(`Solution folder removed: ${project.name}`);
                 }
             }
         }
@@ -254,21 +255,21 @@ export class Solution {
      * Gets a project by its file path
      */
     getProject(projectPath: string): Project | undefined {
-        this.logger.debug(`getProject called with: ${projectPath}`);
-        this.logger.debug(`Available project paths:`, Array.from(this._projects.keys()));
+        log.debug(`getProject called with: ${projectPath}`);
+        log.debug(`Available project paths:`, Array.from(this._projects.keys()));
 
         const project = this._projects.get(projectPath);
         if (!project) {
             // Try to find by matching project file name instead of full path
             for (const [storedPath, proj] of this._projects) {
                 if (storedPath === projectPath || proj.projectPath === projectPath) {
-                    this.logger.debug(`Found project by alternate matching: ${proj.name}`);
+                    log.debug(`Found project by alternate matching: ${proj.name}`);
                     return proj;
                 }
             }
-            this.logger.debug(`No project found for path: ${projectPath}`);
+            log.debug(`No project found for path: ${projectPath}`);
         } else {
-            this.logger.debug(`Found project: ${project.name}`);
+            log.debug(`Found project: ${project.name}`);
         }
 
         return project;
@@ -334,7 +335,7 @@ export class Solution {
      * Adds a solution folder to the solution file
      */
     async addSolutionFolder(folderName: string, parentFolderName?: string): Promise<void> {
-        this.logger.info(`Adding solution folder: ${folderName}${parentFolderName ? ` under ${parentFolderName}` : ''}`);
+        log.info(`Adding solution folder: ${folderName}${parentFolderName ? ` under ${parentFolderName}` : ''}`);
 
         try {
             // Read the current solution file
@@ -390,13 +391,13 @@ export class Solution {
             const updatedContent = newLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            this.logger.info(`Successfully added solution folder "${folderName}" to solution`);
+            log.info(`Successfully added solution folder "${folderName}" to solution`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
 
         } catch (error) {
-            this.logger.error(`Error adding solution folder to solution:`, error);
+            log.error(`Error adding solution folder to solution:`, error);
             throw error;
         }
     }
@@ -477,7 +478,7 @@ export class Solution {
      * Removes a solution folder from the solution file
      */
     async removeSolutionFolder(folderName: string): Promise<void> {
-        this.logger.info(`Removing solution folder: ${folderName}`);
+        log.info(`Removing solution folder: ${folderName}`);
 
         try {
             // Find the solution folder to get its GUID and capture it before removal
@@ -504,7 +505,7 @@ export class Solution {
             const updatedContent = newLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            this.logger.info(`Successfully removed solution folder "${folderName}" from solution`);
+            log.info(`Successfully removed solution folder "${folderName}" from solution`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -512,7 +513,7 @@ export class Solution {
             // File watcher will handle the tree update
 
         } catch (error) {
-            this.logger.error(`Error removing solution folder from solution:`, error);
+            log.error(`Error removing solution folder from solution:`, error);
             throw error;
         }
     }
@@ -521,7 +522,7 @@ export class Solution {
      * Renames a solution folder in the solution file
      */
     async renameSolutionFolder(oldName: string, newName: string): Promise<void> {
-        this.logger.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
+        log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
 
         try {
             // Find the solution folder to get its GUID
@@ -555,7 +556,7 @@ export class Solution {
             const updatedContent = updatedLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            this.logger.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
+            log.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -563,7 +564,7 @@ export class Solution {
             // File watcher will handle the tree update
 
         } catch (error) {
-            this.logger.error(`Error renaming solution folder:`, error);
+            log.error(`Error renaming solution folder:`, error);
             throw error;
         }
     }
@@ -572,7 +573,7 @@ export class Solution {
      * Adds a solution item (file) to a solution folder
      */
     async addSolutionItem(folderName: string, filePath: string): Promise<void> {
-        this.logger.info(`Adding solution item "${filePath}" to folder "${folderName}"`);
+        log.info(`Adding solution item "${filePath}" to folder "${folderName}"`);
 
         try {
             // Find the solution folder to get its GUID
@@ -596,7 +597,7 @@ export class Solution {
             const updatedContent = updatedLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            this.logger.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderName}"`);
+            log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderName}"`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -604,13 +605,13 @@ export class Solution {
             // File watcher will handle the tree update
 
         } catch (error) {
-            this.logger.error(`Error adding solution item:`, error);
+            log.error(`Error adding solution item:`, error);
             throw error;
         }
     }
 
     async removeSolutionItem(filePath: string): Promise<void> {
-        this.logger.info(`Removing solution item from solution: ${filePath}`);
+        log.info(`Removing solution item from solution: ${filePath}`);
 
         try {
             // Read the current solution file
@@ -628,7 +629,7 @@ export class Solution {
             const updatedContent = updatedLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            this.logger.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
+            log.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -636,7 +637,7 @@ export class Solution {
             // File watcher will handle the tree update
 
         } catch (error) {
-            this.logger.error(`Error removing solution item:`, error);
+            log.error(`Error removing solution item:`, error);
             throw error;
         }
     }
@@ -800,7 +801,7 @@ export class Solution {
         }
 
         if (removedItemIndex === -1) {
-            this.logger.warn(`Solution item "${relativePath}" not found in solution file`);
+            log.warn(`Solution item "${relativePath}" not found in solution file`);
             return newLines;
         }
 
@@ -859,14 +860,14 @@ export class Solution {
      * Adds a project to the solution file
      */
     async addProject(projectPath: string): Promise<void> {
-        this.logger.info(`Adding project to solution: ${projectPath}`);
+        log.info(`Adding project to solution: ${projectPath}`);
 
         try {
             // Use the dotnet CLI command to add the project
             const relativePath = path.relative(path.dirname(this._solutionPath), projectPath);
             const command = `dotnet sln "${this._solutionPath}" add "${relativePath}"`;
 
-            this.logger.debug(`Executing: ${command}`);
+            log.debug(`Executing: ${command}`);
 
             const { exec } = require('child_process');
             const { promisify } = require('util');
@@ -875,14 +876,14 @@ export class Solution {
 
             await execAsync(command, { cwd: solutionDir });
 
-            this.logger.info(`Successfully added project to solution: ${projectPath}`);
+            log.info(`Successfully added project to solution: ${projectPath}`);
 
             // Re-parse the solution file and re-initialize projects
             await this.parseSolutionFile();
             await this.initializeProjects();
 
         } catch (error) {
-            this.logger.error(`Error adding project to solution:`, error);
+            log.error(`Error adding project to solution:`, error);
             throw error;
         }
     }
@@ -891,14 +892,14 @@ export class Solution {
      * Removes a project from the solution file
      */
     async removeProject(projectPath: string): Promise<void> {
-        this.logger.info(`Removing project from solution: ${projectPath}`);
+        log.info(`Removing project from solution: ${projectPath}`);
 
         try {
             // Use the dotnet CLI command to remove the project
             const relativePath = path.relative(path.dirname(this._solutionPath), projectPath);
             const command = `dotnet sln "${this._solutionPath}" remove "${relativePath}"`;
 
-            this.logger.debug(`Executing: ${command}`);
+            log.debug(`Executing: ${command}`);
 
             const { exec } = require('child_process');
             const { promisify } = require('util');
@@ -907,14 +908,14 @@ export class Solution {
 
             await execAsync(command, { cwd: solutionDir });
 
-            this.logger.info(`Successfully removed project from solution: ${projectPath}`);
+            log.info(`Successfully removed project from solution: ${projectPath}`);
 
             // Re-parse the solution file and re-initialize projects
             await this.parseSolutionFile();
             await this.initializeProjects();
 
         } catch (error) {
-            this.logger.error(`Error removing project from solution:`, error);
+            log.error(`Error removing project from solution:`, error);
             throw error;
         }
     }
@@ -923,13 +924,13 @@ export class Solution {
      * Forces a refresh of the solution (re-parse and re-initialize projects)
      */
     async refresh(): Promise<void> {
-        this.logger.info('Forcing refresh...');
+        log.info('Forcing refresh...');
         await this.parseSolutionFile();
         await this.initializeProjects();
     }
 
     dispose(): void {
-        this.logger.info(`Disposing solution: ${path.basename(this._solutionPath)}`);
+        log.info(`Disposing solution: ${path.basename(this._solutionPath)}`);
 
         // Dispose all projects
         for (const project of this._projects.values()) {

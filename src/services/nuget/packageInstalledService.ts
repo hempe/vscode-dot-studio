@@ -5,13 +5,13 @@ import { logger } from '../../core/logger';
 import { InstalledPackage, ProjectInfo } from './types';
 
 const execAsync = promisify(exec);
+const log = logger('PackageInstalledService');
 
 /**
  * Service for managing installed NuGet packages using dotnet CLI
  * Handles listing, analyzing, and getting details about installed packages
  */
 export class PackageInstalledService {
-    private static readonly logger = logger('PackageInstalledService');
 
     /**
      * Get all installed packages across all projects in a solution
@@ -22,7 +22,7 @@ export class PackageInstalledService {
 
             // Use dotnet list package to get all installed packages
             const command = 'dotnet list package --format json';
-            this.logger.info(`Getting installed packages: ${command}`);
+            log.info(`Getting installed packages: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 cwd: workingDir,
@@ -31,13 +31,13 @@ export class PackageInstalledService {
             });
 
             if (stderr && !stderr.includes('warn')) {
-                this.logger.warn('dotnet list package stderr:', stderr);
+                log.warn('dotnet list package stderr:', stderr);
             }
 
             return this.parseInstalledPackages(stdout);
 
         } catch (error) {
-            this.logger.error('Error getting installed packages:', error);
+            log.error('Error getting installed packages:', error);
             return [];
         }
     }
@@ -48,7 +48,7 @@ export class PackageInstalledService {
     static async getProjectPackages(projectPath: string): Promise<InstalledPackage[]> {
         try {
             const command = `dotnet list "${projectPath}" package --format json`;
-            this.logger.info(`Getting packages for project: ${command}`);
+            log.info(`Getting packages for project: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 15000,
@@ -56,14 +56,14 @@ export class PackageInstalledService {
             });
 
             if (stderr && !stderr.includes('warn')) {
-                this.logger.warn('dotnet list package stderr:', stderr);
+                log.warn('dotnet list package stderr:', stderr);
             }
 
             const allPackages = this.parseInstalledPackages(stdout);
             return allPackages.filter(pkg => pkg.projectPath === projectPath);
 
         } catch (error) {
-            this.logger.error(`Error getting packages for project ${projectPath}:`, error);
+            log.error(`Error getting packages for project ${projectPath}:`, error);
             return [];
         }
     }
@@ -87,7 +87,7 @@ export class PackageInstalledService {
             };
 
         } catch (error) {
-            this.logger.error(`Error getting project info for ${projectPath}:`, error);
+            log.error(`Error getting project info for ${projectPath}:`, error);
             return null;
         }
     }
@@ -111,7 +111,7 @@ export class PackageInstalledService {
             return results.filter((info): info is ProjectInfo => info !== null);
 
         } catch (error) {
-            this.logger.error('Error getting all projects info:', error);
+            log.error('Error getting all projects info:', error);
             return [];
         }
     }
@@ -128,13 +128,13 @@ export class PackageInstalledService {
             }
 
             const command = `dotnet ${args.join(' ')}`;
-            this.logger.info(`Getting package dependencies: ${command}`);
+            log.info(`Getting package dependencies: ${command}`);
 
             const { stdout } = await execAsync(command, { timeout: 20000 });
             return this.parseInstalledPackages(stdout);
 
         } catch (error) {
-            this.logger.error(`Error getting package dependencies for ${projectPath}:`, error);
+            log.error(`Error getting package dependencies for ${projectPath}:`, error);
             return [];
         }
     }
@@ -199,7 +199,7 @@ export class PackageInstalledService {
             return packages;
 
         } catch (error) {
-            this.logger.error('Error parsing installed packages:', error);
+            log.error('Error parsing installed packages:', error);
             return [];
         }
     }
@@ -226,7 +226,7 @@ export class PackageInstalledService {
             return null;
 
         } catch (error) {
-            this.logger.debug(`Could not determine framework for ${projectPath}`);
+            log.debug(`Could not determine framework for ${projectPath}`);
             return null;
         }
     }
@@ -249,7 +249,7 @@ export class PackageInstalledService {
             return lines.map(relativePath => path.resolve(workingDir, relativePath));
 
         } catch (error) {
-            this.logger.error('Error getting solution projects:', error);
+            log.error('Error getting solution projects:', error);
             return [];
         }
     }

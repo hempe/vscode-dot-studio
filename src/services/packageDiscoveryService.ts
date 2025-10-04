@@ -4,8 +4,9 @@ import * as xml2js from 'xml2js';
 import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery';
 import { logger } from '../core/logger';
 
+const log = logger('NuGetService');
+
 export class PackageDiscoveryService {
-    private static readonly logger = logger('NuGetService');
 
     private static readonly parser = new xml2js.Parser({
         explicitArray: false,
@@ -28,7 +29,7 @@ export class PackageDiscoveryService {
 
             return this.deduplicatePackages(allPackages);
         } catch (error) {
-            this.logger.error('Error discovering installed packages:', error);
+            log.error('Error discovering installed packages:', error);
             throw new Error(`Failed to discover installed packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -50,7 +51,7 @@ export class PackageDiscoveryService {
 
             return projectInfos;
         } catch (error) {
-            this.logger.error('Error getting project package info:', error);
+            log.error('Error getting project package info:', error);
             throw new Error(`Failed to get project package information: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -97,7 +98,7 @@ export class PackageDiscoveryService {
 
             // Ensure we have valid XML content
             if (!projectContent || !projectContent.trim()) {
-                this.logger.warn(`Empty project file: ${projectPath}`);
+                log.warn(`Empty project file: ${projectPath}`);
                 return {
                     projectPath,
                     projectName,
@@ -135,7 +136,7 @@ export class PackageDiscoveryService {
                 packages
             };
         } catch (error) {
-            this.logger.error(`Error parsing project file ${projectPath}:`, error);
+            log.error(`Error parsing project file ${projectPath}:`, error);
             return {
                 projectPath,
                 projectName,
@@ -161,7 +162,7 @@ export class PackageDiscoveryService {
                 }
             }
         } catch (error) {
-            this.logger.error('Error extracting target framework:', error);
+            log.error('Error extracting target framework:', error);
         }
 
         return undefined;
@@ -183,7 +184,7 @@ export class PackageDiscoveryService {
                 }
             }
         } catch (error) {
-            this.logger.error('Error extracting package references:', error);
+            log.error('Error extracting package references:', error);
         }
 
         return packageRefs;
@@ -223,7 +224,7 @@ export class PackageDiscoveryService {
             const allPackages = await this.discoverInstalledPackages(solutionPath);
             return allPackages.filter(pkg => pkg.id === packageId);
         } catch (error) {
-            this.logger.error(`Error getting package usage for ${packageId}:`, error);
+            log.error(`Error getting package usage for ${packageId}:`, error);
             return [];
         }
     }
@@ -236,7 +237,7 @@ export class PackageDiscoveryService {
             const usage = await this.getPackageUsage(solutionPath, packageId);
             return usage.length > 0;
         } catch (error) {
-            this.logger.error(`Error checking if package ${packageId} is installed:`, error);
+            log.error(`Error checking if package ${packageId} is installed:`, error);
             return false;
         }
     }

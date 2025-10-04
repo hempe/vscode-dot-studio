@@ -1,12 +1,8 @@
-import * as path from 'path';
-import { logger } from '../core/logger';
-
 /**
  * Service for generating and managing unique expansion IDs for solution tree nodes
  * This prevents ID collisions between different node types (e.g. real folders vs virtual nodes)
  */
 export class SolutionExpansionIdService {
-    private static readonly logger = logger('SolutionExpansionIdService');
 
     // Prefixes for different node types to prevent collisions
     private static readonly PREFIXES = {
@@ -116,9 +112,9 @@ export class SolutionExpansionIdService {
      */
     static isVirtualNode(expansionId: string): boolean {
         return expansionId.startsWith(this.PREFIXES.dependencies) ||
-               expansionId.startsWith(this.PREFIXES.dependencyCategory) ||
-               expansionId.startsWith(this.PREFIXES.dependency) ||
-               expansionId.startsWith(this.PREFIXES.solutionFolder);
+            expansionId.startsWith(this.PREFIXES.dependencyCategory) ||
+            expansionId.startsWith(this.PREFIXES.dependency) ||
+            expansionId.startsWith(this.PREFIXES.solutionFolder);
     }
 
     /**

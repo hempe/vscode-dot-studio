@@ -26,9 +26,9 @@ export interface ProjectFileStructure {
 }
 
 const searchPattern = '**/*';  // everything under projectDir
+const log = logger('ProjectFileParser');
 
 export class ProjectFileParser {
-    private readonly logger = logger('ProjectFileParser');
 
     constructor(private workspaceRoot: string) { }
 
@@ -36,7 +36,7 @@ export class ProjectFileParser {
         try {
             // CRITICAL: Validate project path before any operations
             if (isSystemPath(projectPath)) {
-                this.logger.warn(`Blocked attempt to parse system path project: ${projectPath}`);
+                log.warn(`Blocked attempt to parse system path project: ${projectPath}`);
                 return { files: [], directories: new Set(), dependencies: [] };
             }
 
@@ -44,8 +44,8 @@ export class ProjectFileParser {
             try {
                 await fs.promises.access(projectPath, fs.constants.F_OK);
             } catch (accessError) {
-                this.logger.warn(`Project file does not exist: ${projectPath}`);
-                this.logger.warn(`This project is referenced in solution but file is missing`);
+                log.warn(`Project file does not exist: ${projectPath}`);
+                log.warn(`This project is referenced in solution but file is missing`);
                 return { files: [], directories: new Set(), dependencies: [] };
             }
 
@@ -53,7 +53,7 @@ export class ProjectFileParser {
 
             // CRITICAL: Validate project directory
             if (isSystemPath(projectDir)) {
-                this.logger.warn(`Blocked attempt to parse project in system directory: ${projectDir}`);
+                log.warn(`Blocked attempt to parse project in system directory: ${projectDir}`);
                 return { files: [], directories: new Set(), dependencies: [] };
             }
 
@@ -68,7 +68,7 @@ export class ProjectFileParser {
             const relativePath = path.relative(this.workspaceRoot, projectDir);
 
             if (isSystemPath(projectDir)) {
-                this.logger.warn(`Skipping system directory project: ${projectDir}`);
+                log.warn(`Skipping system directory project: ${projectDir}`);
 
             } else {
                 // Use glob search for projects within workspace                
@@ -83,7 +83,7 @@ export class ProjectFileParser {
                     allFiles.push(...files);
                 } catch (error) {
                     // Continue with other patterns even if one fails
-                    this.logger.error(`Pattern ${pattern} failed:`, error);
+                    log.error(`Pattern ${pattern} failed:`, error);
                 }
             }
 
@@ -99,7 +99,7 @@ export class ProjectFileParser {
             };
 
         } catch (error) {
-            this.logger.error('Error parsing project file:', error);
+            log.error('Error parsing project file:', error);
             return { files: [], directories: new Set(), dependencies: [] };
         }
     }
@@ -220,18 +220,18 @@ export class ProjectFileParser {
         try {
             // Validate path is not a system path (already resolved absolute path)
             if (isSystemPath(projectPath)) {
-                this.logger.error(`BLOCKED: parseDependencies - path is system path: ${projectPath}`);
+                log.error(`BLOCKED: parseDependencies - path is system path: ${projectPath}`);
                 return [];
             }
 
-            // this.logger.log(`parseDependencies - reading project file: ${projectPath}`);
+            // log.log(`parseDependencies - reading project file: ${projectPath}`);
 
             // Check if file exists before trying to read it
             try {
                 await fs.promises.access(projectPath, fs.constants.F_OK);
             } catch (accessError) {
-                this.logger.warn(`Project file does not exist: ${projectPath}`);
-                this.logger.warn(`This is likely a missing/deleted project referenced in the solution file`);
+                log.warn(`Project file does not exist: ${projectPath}`);
+                log.warn(`This is likely a missing/deleted project referenced in the solution file`);
                 return []; // Return empty dependencies for missing projects
             }
 
@@ -336,7 +336,7 @@ export class ProjectFileParser {
             });
 
         } catch (error) {
-            this.logger.error('Error parsing dependencies from project file:', error);
+            log.error('Error parsing dependencies from project file:', error);
             return [];
         }
     }

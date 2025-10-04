@@ -5,22 +5,18 @@ import { PackageUpdateService } from './packageUpdateService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageConsolidationService } from './packageConsolidationService';
 import {
-    NuGetPackage,
-    InstalledPackage,
-    UpdateablePackage,
-    ConsolidationInfo,
-    ProjectInfo,
     PackageSearchOptions,
     PackageInstallOptions,
     PackageOperationResult
 } from './types';
+
+const log = logger('NuGetManagerService');
 
 /**
  * Unified NuGet Manager Service that orchestrates all NuGet operations
  * This service provides both project-level and solution-level functionality
  */
 export class NuGetManagerService {
-    private static readonly logger = logger('NuGetManagerService');
 
     // ============ SOLUTION-LEVEL OPERATIONS ============
 
@@ -29,7 +25,7 @@ export class NuGetManagerService {
      */
     static async getSolutionNuGetData(solutionPath: string) {
         try {
-            this.logger.info(`Getting solution NuGet data for: ${solutionPath}`);
+            log.info(`Getting solution NuGet data for: ${solutionPath}`);
 
             const [
                 allProjects,
@@ -58,7 +54,7 @@ export class NuGetManagerService {
             };
 
         } catch (error) {
-            this.logger.error('Error getting solution NuGet data:', error);
+            log.error('Error getting solution NuGet data:', error);
             throw error;
         }
     }
@@ -84,7 +80,7 @@ export class NuGetManagerService {
         version: string,
         projectPaths: string[]
     ): Promise<PackageOperationResult[]> {
-        this.logger.info(`Installing ${packageId} v${version} in ${projectPaths.length} projects`);
+        log.info(`Installing ${packageId} v${version} in ${projectPaths.length} projects`);
 
         const results: PackageOperationResult[] = [];
 
@@ -129,7 +125,7 @@ export class NuGetManagerService {
      */
     static async getProjectNuGetData(projectPath: string) {
         try {
-            this.logger.info(`Getting project NuGet data for: ${projectPath}`);
+            log.info(`Getting project NuGet data for: ${projectPath}`);
 
             const [
                 projectInfo,
@@ -153,7 +149,7 @@ export class NuGetManagerService {
             };
 
         } catch (error) {
-            this.logger.error('Error getting project NuGet data:', error);
+            log.error('Error getting project NuGet data:', error);
             throw error;
         }
     }

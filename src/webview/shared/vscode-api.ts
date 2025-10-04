@@ -4,8 +4,9 @@ import { WebviewMessage, WebviewApi } from '../../types/webview';
 // Re-export types for backwards compatibility
 export { WebviewMessage, WebviewApi };
 
+const log = logger('PureWebviewAPI');
+
 export class PureWebviewAPI {
-    private readonly logger = logger('PureWebviewAPI');
 
     private messageHandlers: ((message: WebviewMessage) => void)[] = [];
     private state: any = {};
@@ -17,7 +18,7 @@ export class PureWebviewAPI {
     public postMessage(message: WebviewMessage): void {
         // For pure webview, this could be handled by the service bridge
         // For now, we'll use a message queue approach
-        this.logger.info('Webview message:', message);
+        log.info('Webview message:', message);
 
         // In a real implementation, this would communicate with services
         this.handleServiceMessage(message);

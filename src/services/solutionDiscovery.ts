@@ -4,14 +4,16 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../core/logger';
 
+const log = logger('SolutionDiscovery');
+
 export interface SolutionDiscoveryResult {
     type: 'none' | 'single' | 'multiple';
     solutionPath?: string;
     availableSolutions?: string[];
 }
 
+
 export class SolutionDiscovery {
-    private static readonly logger = logger('SolutionDiscovery');
     /**
      * Discovers solution files in the workspace root
      * Returns discovery result with type and available solutions
@@ -37,7 +39,7 @@ export class SolutionDiscovery {
                 };
             }
         } catch (error) {
-            SolutionDiscovery.logger.error('Error discovering solution files:', error);
+            log.error('Error discovering solution files:', error);
             return { type: 'none' };
         }
     }

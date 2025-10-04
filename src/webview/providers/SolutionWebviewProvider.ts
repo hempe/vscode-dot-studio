@@ -12,6 +12,8 @@ import { ProjectFileNode } from '../../core/Project';
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 
+const log = logger('SolutionWebviewProvider');
+
 interface FileChangeEvent {
     filePath: string;
     changeType: 'created' | 'changed' | 'deleted';
@@ -38,7 +40,6 @@ interface MessageData {
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotnet-solution-webview';
-    private readonly logger = logger('SolutionWebviewProvider');
 
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;
@@ -89,33 +90,33 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Send initial data when webview is ready (only if not already initialized)
         if (!this._isInitialized) {
-            this.logger.info('First time initialization');
+            log.info('First time initialization');
             this._updateWebview();
             this._isInitialized = true;
         } else {
-            this.logger.info('Webview reconnected, sending current data');
+            log.info('Webview reconnected, sending current data');
             // Just send current data without full reload if we're already initialized
             this._sendCurrentData();
         }
     }
 
     private async _handleMessage(message: WebviewMessage) {
-        this.logger.info('Received message:', message);
+        log.info('Received message:', message);
 
         switch (message.command) {
             case 'getSolutionData':
-                this.logger.info('Handling getSolutionData request');
+                log.info('Handling getSolutionData request');
                 await this._sendCurrentData();
                 break;
 
             case 'setFramework':
-                this.logger.info('Handling setFramework request:', message.framework);
+                log.info('Handling setFramework request:', message.framework);
                 await this._frameworkService.setActiveFramework(message.framework);
                 break;
 
             case 'projectAction':
                 if (message.action && message.projectPath) {
-                    this.logger.info('Handling projectAction:', {
+                    log.info('Handling projectAction:', {
                         action: message.action,
                         projectPath: message.projectPath,
                         data: message.data
@@ -125,7 +126,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'openFile':
-                this.logger.info('Handling direct openFile request:', message.projectPath);
+                log.info('Handling direct openFile request:', message.projectPath);
                 if (message.projectPath) {
                     const uri = vscode.Uri.file(message.projectPath);
                     await vscode.window.showTextDocument(uri);
@@ -134,14 +135,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'saveExpansionState':
                 if (message.expandedNodes) {
-                    this.logger.info('Handling saveExpansionState request:', message.expandedNodes);
+                    log.info('Handling saveExpansionState request:', message.expandedNodes);
                     SolutionExpansionService.saveExpansionState(message.expandedNodes, this._context);
                 }
                 break;
 
             case 'expandNode':
                 if (message.nodeId && message.nodeType) {
-                    this.logger.info('Handling expandNode request:', message.nodeId, message.nodeType);
+                    log.info('Handling expandNode request:', message.nodeId, message.nodeType);
                     await SolutionExpansionService.handleExpandNode(
                         message.nodeId,
                         message.nodeType,
@@ -154,7 +155,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'collapseNode':
                 if (message.nodeId) {
-                    this.logger.info('Handling collapseNode request:', message.nodeId);
+                    log.info('Handling collapseNode request:', message.nodeId);
                     await SolutionExpansionService.handleCollapseNode(
                         message.nodeId,
                         this._cachedSolutionData || null,
@@ -165,13 +166,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             default:
-                this.logger.info('Unknown message command:', message.command);
+                log.info('Unknown message command:', message.command);
         }
     }
 
     private async _handleRename(oldPath: string, newName: string, oldName: string, nodeType: NodeType) {
         try {
-            this.logger.info(`Attempting to rename ${nodeType} from "${oldName}" to "${newName}"`);
+            log.info(`Attempting to rename ${nodeType} from "${oldName}" to "${newName}"`);
 
             // Set flag to prevent file watcher from triggering refresh
             this._isRenaming = true;
@@ -202,7 +203,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             const newPath = path.join(directory, finalNewName);
 
-            this.logger.info(`Renaming path: ${oldPath} -> ${newPath}`);
+            log.info(`Renaming path: ${oldPath} -> ${newPath}`);
 
             // Use VS Code's workspace API to rename the file/folder
             const oldUri = vscode.Uri.file(oldPath);
@@ -214,7 +215,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const success = await vscode.workspace.applyEdit(edit);
 
             if (success) {
-                this.logger.info(`Successfully renamed ${oldName} to ${newName}`);
+                log.info(`Successfully renamed ${oldName} to ${newName}`);
                 // Send a targeted update instead of full refresh to preserve tree state
                 this._view?.webview.postMessage({
                     command: 'nodeRenamed',
@@ -223,24 +224,24 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     newName: path.basename(finalNewName)
                 });
             } else {
-                this.logger.error(`Failed to rename ${oldName} to ${newName}`);
+                log.error(`Failed to rename ${oldName} to ${newName}`);
                 vscode.window.showErrorMessage(`Failed to rename ${oldName} to ${newName}`);
             }
         } catch (error) {
-            this.logger.error(`Error during rename:`, error);
+            log.error(`Error during rename:`, error);
             vscode.window.showErrorMessage(`Error renaming file: ${error}`);
         } finally {
             // Clear the flag and allow refreshes again after a short delay
             setTimeout(() => {
                 this._isRenaming = false;
-                this.logger.info('Rename operation completed, refreshes allowed again');
+                log.info('Rename operation completed, refreshes allowed again');
             }, 1000); // 1 second delay to allow file system events to settle
         }
     }
 
     private async _handleSolutionFolderRename(oldName: string, newName: string) {
         try {
-            this.logger.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
+            log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
 
             // Get the active solution
             const solution = SolutionService.getActiveSolution();
@@ -253,7 +254,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             vscode.window.showInformationMessage(`Renamed solution folder "${oldName}" to "${newName}"`);
 
         } catch (error) {
-            this.logger.error(`Error renaming solution folder:`, error);
+            log.error(`Error renaming solution folder:`, error);
             vscode.window.showErrorMessage(`Error renaming solution folder: ${error}`);
         }
     }
@@ -294,7 +295,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Sends the complete current tree state to the webview
      */
     private async _sendCompleteTreeUpdate(): Promise<void> {
-        this.logger.debug('Sending complete tree update');
+        log.debug('Sending complete tree update');
 
         if (!this._view) {
             return;
@@ -327,7 +328,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const frameworks = await this._frameworkService.getAvailableFrameworks();
             const activeFramework = this._frameworkService.getActiveFramework();
 
-            this.logger.info('Sending solutionDataUpdate message with', freshSolutionData?.length || 0, 'projects');
+            log.info('Sending solutionDataUpdate message with', freshSolutionData?.length || 0, 'projects');
             this._view.webview.postMessage({
                 command: 'solutionDataUpdate',
                 data: {
@@ -338,7 +339,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
 
         } catch (error) {
-            this.logger.error('Error sending complete tree update:', error);
+            log.error('Error sending complete tree update:', error);
         }
     }
 
@@ -364,14 +365,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             let expansionPaths: string[];
             if (options.expansionPaths) {
                 expansionPaths = options.expansionPaths;
-                this.logger.debug('Restoring specific expansion states:', expansionPaths.length, 'paths');
+                log.debug('Restoring specific expansion states:', expansionPaths.length, 'paths');
             } else {
                 expansionPaths = this.getExpansionState();
-                this.logger.debug('Restoring expansion states:', expansionPaths.length, 'paths');
+                log.debug('Restoring expansion states:', expansionPaths.length, 'paths');
             }
 
             if (!expansionPaths || expansionPaths.length === 0) {
-                this.logger.info('No expansion paths to restore');
+                log.info('No expansion paths to restore');
                 return;
             }
 
@@ -380,7 +381,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 expansionPaths = expansionPaths.filter(path =>
                     path.startsWith(options.parentPath!) && path !== options.parentPath
                 );
-                this.logger.info(`Filtered to ${expansionPaths.length} nested paths under: ${options.parentPath}`);
+                log.info(`Filtered to ${expansionPaths.length} nested paths under: ${options.parentPath}`);
             }
 
             // CONSERVATIVE APPROACH: Preserve ALL expansion state
@@ -392,7 +393,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             for (const expandedPath of cleanedExpandedNodes) {
                 const nodeType = SolutionTreeService.getNodeTypeById(expandedPath, treeData);
                 if (nodeType) {
-                    this.logger.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
+                    log.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
 
                     // Set expanded = true in the tree
                     SolutionTreeService.updateNodeInTree(treeData, expandedPath, { expanded: true });
@@ -402,7 +403,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 } else {
                     // Node doesn't exist in current tree (like Dependencies nodes - they're lazy-loaded)
                     // This is expected for virtual nodes, preserve their expansion state
-                    this.logger.debug(`Node not found in current tree: ${expandedPath} - expansion state preserved for future restoration`);
+                    log.debug(`Node not found in current tree: ${expandedPath} - expansion state preserved for future restoration`);
                 }
             }
 
@@ -413,7 +414,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
         } catch (error) {
-            this.logger.error('Error restoring expansion states:', error);
+            log.error('Error restoring expansion states:', error);
         }
     }
 
@@ -439,7 +440,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _refreshExpandedFolders(children: ProjectNode[], project: any): Promise<void> {
         for (const child of children) {
             if (child.type === 'folder' && child.expanded && child.children) {
-                this.logger.info(`Refreshing expanded folder: ${child.path}`);
+                log.info(`Refreshing expanded folder: ${child.path}`);
                 try {
                     // Get fresh folder contents
                     const folderChildren = await project.getFolderChildren(child.path);
@@ -451,7 +452,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     // Recursively refresh nested expanded folders
                     await this._refreshExpandedFolders(child.children, project);
                 } catch (error) {
-                    this.logger.warn(`Error refreshing folder ${child.path}:`, error);
+                    log.warn(`Error refreshing folder ${child.path}:`, error);
                 }
             }
         }
@@ -565,7 +566,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         if (projectPath) {
                             const project = solution.getProject(projectPath);
                             if (project) {
-                                this.logger.info(`Creating folder watcher for restored folder: ${folderPath}`);
+                                log.info(`Creating folder watcher for restored folder: ${folderPath}`);
                                 project.createFolderWatcher(folderPath);
                             }
                         }
@@ -577,7 +578,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         const project = solution.getProject(projectPath);
                         if (project) {
                             const projectDir = require('path').dirname(projectPath);
-                            this.logger.info(`Creating folder watcher for restored project: ${projectDir}`);
+                            log.info(`Creating folder watcher for restored project: ${projectDir}`);
                             project.createFolderWatcher(projectDir);
                         }
                     }
@@ -585,7 +586,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
 
         } catch (error) {
-            this.logger.error(`Error loading children for ${nodeId}:`, error);
+            log.error(`Error loading children for ${nodeId}:`, error);
         }
     }
 
@@ -618,14 +619,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             await execAsync(`dotnet sln "${solutionPath}" remove "${projectPath}"`);
             return true;
         } catch (error) {
-            this.logger.error('Error removing project from solution:', error);
+            log.error('Error removing project from solution:', error);
             return false;
         }
     }
 
     private async _updateWebview() {
         if (!this._view) {
-            this.logger.info('No webview available, skipping update');
+            log.info('No webview available, skipping update');
             return;
         }
 
@@ -633,7 +634,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         const now = Date.now();
         if (this._lastUpdateTimestamp && (now - this._lastUpdateTimestamp) < this._rapidUpdateWindow) {
             this._rapidUpdateCount++;
-            this.logger.info(`Rapid update detected (${this._rapidUpdateCount}/${this._rapidUpdateThreshold})`);
+            log.info(`Rapid update detected (${this._rapidUpdateCount}/${this._rapidUpdateThreshold})`);
         } else {
             this._rapidUpdateCount = 1;
         }
@@ -641,10 +642,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // If we detect rapid updates, preserve the current expansion state
         if (this._rapidUpdateCount >= this._rapidUpdateThreshold && this._cachedSolutionData) {
-            this.logger.info('RAPID UPDATES DETECTED - Preserving current expansion state');
+            log.info('RAPID UPDATES DETECTED - Preserving current expansion state');
             this._protectedExpansionState = this.getExpandedNodePaths(this._cachedSolutionData);
         } else {
-            this.logger.debug('Manual operation detected - skipping rapid update protection');
+            log.debug('Manual operation detected - skipping rapid update protection');
         }
 
         try {
@@ -655,7 +656,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
 
             // Load data asynchronously to prevent blocking
-            this.logger.info('Loading solution data and frameworks...');
+            log.info('Loading solution data and frameworks...');
 
             const [solutionData, frameworks] = await Promise.all([
                 this._getSolutionData(),
@@ -664,31 +665,31 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             const activeFramework = this._frameworkService.getActiveFramework();
 
-            this.logger.info('Loaded data:', {
+            log.info('Loaded data:', {
                 projectCount: solutionData.length,
                 frameworkCount: frameworks?.length || 0,
                 activeFramework
             });
 
-            this.logger.info('Sending solution data to webview');
-                const data: SolutionData = {
-                    projects: solutionData,
-                    frameworks: frameworks || [],
-                    activeFramework
-                }
+            log.info('Sending solution data to webview');
+            const data: SolutionData = {
+                projects: solutionData,
+                frameworks: frameworks || [],
+                activeFramework
+            }
 
-                this.logger.info('Sending solutionData message with', data.projects?.length || 0, 'projects');
-                this._view?.webview.postMessage({
-                    command: 'solutionData',
-                    data
-                });
+            log.info('Sending solutionData message with', data.projects?.length || 0, 'projects');
+            this._view?.webview.postMessage({
+                command: 'solutionData',
+                data
+            });
 
-                // Hide loading bar
-                this._view?.webview.postMessage({
-                    command: 'hideLoading'
-                });
+            // Hide loading bar
+            this._view?.webview.postMessage({
+                command: 'hideLoading'
+            });
         } catch (error) {
-            this.logger.error('Error updating solution webview:', error);
+            log.error('Error updating solution webview:', error);
             this._view?.webview.postMessage({
                 command: 'error',
                 message: 'Failed to load solution data'
@@ -702,24 +703,24 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _getSolutionData(): Promise<ProjectNode[]> {
-        this.logger.info('Getting solution data...');
+        log.info('Getting solution data...');
 
         // Check cache first for better expand performance
         const now = Date.now();
         if (this._cachedSolutionData &&
             this._cacheTimestamp &&
             (now - this._cacheTimestamp) < this._cacheTimeout) {
-            this.logger.info('Using cached solution data');
+            log.info('Using cached solution data');
             return this._cachedSolutionData;
         }
 
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
-        this.logger.info('Workspace root:', workspaceRoot);
+        log.info('Workspace root:', workspaceRoot);
 
         // Use the new solution discovery and initialization
         const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
         if (!solution) {
-            this.logger.info('No solution found or failed to initialize');
+            log.info('No solution found or failed to initialize');
             return [];
         }
 
@@ -729,11 +730,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Get solution file data
         const solutionData = solution.solutionFile;
         if (!solutionData) {
-            this.logger.info('Failed to get solution data');
+            log.info('Failed to get solution data');
             return [];
         }
 
-        this.logger.info('Got solution data:', solutionData);
+        log.info('Got solution data:', solutionData);
 
         this._frameworkService.setSolution(solution.solutionPath, solutionData);
 
@@ -742,15 +743,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Check if we should use protected expansion state due to rapid updates
         if (this._protectedExpansionState) {
-            this.logger.info('Using PROTECTED expansion state due to rapid updates');
+            log.info('Using PROTECTED expansion state due to rapid updates');
             await this._restoreExpansionStates(treeStructure, { expansionPaths: this._protectedExpansionState });
             // Clear the protected state after one use
             this._protectedExpansionState = undefined;
         } else {
             // Restore expansion states if this is initial load (this modifies solutionData in place)
-            this.logger.info('About to restore expansion states...');
+            log.info('About to restore expansion states...');
             await this._restoreExpansionStates(treeStructure);
-            this.logger.info('Finished restoring expansion states');
+            log.info('Finished restoring expansion states');
         }
 
         return treeStructure;
@@ -765,7 +766,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Cache the result for faster subsequent calls
         this._cachedSolutionData = result;
         this._cacheTimestamp = Date.now();
-        this.logger.info('Cached solution data');
+        log.info('Cached solution data');
 
         return result;
     }
@@ -776,7 +777,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _clearCache() {
         this._cachedSolutionData = undefined;
         this._cacheTimestamp = undefined;
-        this.logger.info('Cache cleared');
+        log.info('Cache cleared');
     }
 
 
@@ -786,11 +787,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
 
     public refresh() {
-        this.logger.debug('Refresh called');
+        log.debug('Refresh called');
 
         // Don't refresh if we're in the middle of a rename operation
         if (this._isRenaming) {
-            this.logger.debug('Skipping refresh during rename operation');
+            log.debug('Skipping refresh during rename operation');
             return;
         }
 
@@ -800,8 +801,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private saveExpansionState(expandedNodes: string[]) {
-        this.logger.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
-        this.logger.debug('Expansion paths:', expandedNodes);
+        log.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
+        log.debug('Expansion paths:', expandedNodes);
         this._context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
@@ -815,23 +816,23 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private getExpansionState(): string[] {
         const state = this._context.workspaceState.get('solutionTreeExpanded', []);
-        this.logger.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
+        log.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
         if (state.length > 0) {
-            this.logger.debug('Restored expansion paths:', state);
+            log.debug('Restored expansion paths:', state);
         }
         return state;
     }
 
     private async _sendCurrentData() {
-        this.logger.debug('Sending current data to webview');
+        log.debug('Sending current data to webview');
 
         if (!this._view) {
-            this.logger.info('No webview available, skipping send');
+            log.info('No webview available, skipping send');
             return;
         }
 
         try {
-            this.logger.info('Rebuilding solution data for reconnection');
+            log.info('Rebuilding solution data for reconnection');
             const solutionData = await this._getSolutionData();
             const frameworks = await this._frameworkService.getAvailableFrameworks();
 
@@ -841,31 +842,31 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework: this._frameworkService.getActiveFramework()
             };
 
-            this.logger.info('Sending solutionData to reconnected webview with', data.projects?.length || 0, 'projects');
+            log.info('Sending solutionData to reconnected webview with', data.projects?.length || 0, 'projects');
             this._view.webview.postMessage({
                 command: 'solutionData',
                 data: data
             });
 
         } catch (error) {
-            this.logger.error('Error sending current data:', error);
+            log.error('Error sending current data:', error);
             // Fallback to full update on error
             this._updateWebview();
         }
     }
 
     public async handleProjectAdded(projectPath: string) {
-        this.logger.debug(`Project added via file watcher: ${projectPath}`);
+        log.debug(`Project added via file watcher: ${projectPath}`);
         this._updateWebview(); // Simple full refresh
     }
 
     public handleProjectRemoved(projectPath: string) {
-        this.logger.debug(`Project removed via file watcher: ${projectPath}`);
+        log.debug(`Project removed via file watcher: ${projectPath}`);
         this._updateWebview(); // Simple full refresh
     }
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
-        this.logger.debug(`Queueing file ${changeType}: ${filePath}`);
+        log.debug(`Queueing file ${changeType}: ${filePath}`);
 
 
         // Check if we already have a event for this file to avoid duplicates
@@ -875,7 +876,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         );
 
         if (existingEventIndex >= 0) {
-            this.logger.info(`Ignoring duplicate file change event for: ${filePath}`);
+            log.info(`Ignoring duplicate file change event for: ${filePath}`);
             return;
         }
 
@@ -901,7 +902,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Process all queued changes
             while (this._fileChangeQueue.length > 0) {
                 const event = this._fileChangeQueue.shift()!;
-                this.logger.info(`Processing queued file ${event.changeType}: ${event.filePath}`);
+                log.info(`Processing queued file ${event.changeType}: ${event.filePath}`);
 
                 // Add small delay between processing events to prevent race conditions
                 await new Promise(resolve => setTimeout(resolve, 50));
@@ -918,7 +919,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Handle different types of file changes
         if (fileName.endsWith('.sln')) {
-            this.logger.debug(`Solution file ${changeType}: ${filePath}`);
+            log.debug(`Solution file ${changeType}: ${filePath}`);
             if (changeType === 'deleted') {
                 // Solution file was deleted - clear everything
                 this._view?.webview.postMessage({
@@ -933,20 +934,20 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } else if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) {
             // Project file changes
             if (changeType === 'created') {
-                this.logger.debug(`Project file created: ${filePath}`);
+                log.debug(`Project file created: ${filePath}`);
                 await this.handleProjectAdded(filePath);
             } else if (changeType === 'deleted') {
-                this.logger.debug(`Project file deleted: ${filePath}`);
+                log.debug(`Project file deleted: ${filePath}`);
                 this.handleProjectRemoved(filePath);
             } else {
-                this.logger.debug(`Project file content changed: ${fileName}`);
+                log.debug(`Project file content changed: ${fileName}`);
                 // Clear cache to ensure fresh dependency data is loaded from disk
                 this._clearCache();
                 this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else {
             // All other files - use simple full refresh
-            this.logger.debug(`File ${changeType}: ${fileName}`);
+            log.debug(`File ${changeType}: ${fileName}`);
             this._updateWebview(); // Simple full refresh
         }
     }
@@ -966,7 +967,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 if ((node.type === 'dependencies' || node.type === 'dependencyCategory') &&
                     node.expanded && !node.isLoaded && !node.children) {
 
-                    this.logger.info(`Re-expanding ${node.type} node: ${node.path}`);
+                    log.info(`Re-expanding ${node.type} node: ${node.path}`);
 
                     try {
                         let children: ProjectNode[] = [];
@@ -992,10 +993,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         if (children.length > 0) {
                             node.children = children;
                             node.isLoaded = true;
-                            this.logger.info(`Successfully re-expanded ${node.type} node: ${node.path} with ${children.length} children`);
+                            log.info(`Successfully re-expanded ${node.type} node: ${node.path} with ${children.length} children`);
                         }
                     } catch (error) {
-                        this.logger.error(`Error re-expanding ${node.type} node ${node.path}:`, error);
+                        log.error(`Error re-expanding ${node.type} node ${node.path}:`, error);
                     }
                 }
 

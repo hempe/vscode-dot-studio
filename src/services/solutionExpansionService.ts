@@ -5,12 +5,13 @@ import { SolutionTreeService } from './solutionTreeService';
 import { SolutionExpansionIdService } from './solutionExpansionIdService';
 import { ProjectNode } from '../webview/solution-view/types';
 
+const log = logger('SolutionExpansionService');
+
 /**
  * Service responsible for handling node expansion/collapse operations
  * Extracted from SolutionWebviewProvider to improve maintainability
  */
 export class SolutionExpansionService {
-    private static readonly logger = logger('SolutionExpansionService');
 
     /**
      * Handles expanding a node in the solution tree
@@ -25,7 +26,7 @@ export class SolutionExpansionService {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
-                this.logger.warn('No active solution for expand operation');
+                log.warn('No active solution for expand operation');
                 return;
             }
 
@@ -39,7 +40,7 @@ export class SolutionExpansionService {
                 // Solution is always expanded when loaded, but check if we need to restore state
                 const existingNode = SolutionTreeService.findNodeById(nodeId, cachedSolutionData || []);
                 if (existingNode?.children) {
-                    this.logger.info(`Re-expanding solution node: ${nodeId}`);
+                    log.info(`Re-expanding solution node: ${nodeId}`);
 
                     // Restore expansion states for all projects
                     for (const child of existingNode.children) {
@@ -56,7 +57,7 @@ export class SolutionExpansionService {
                 // Expanding a project - extract actual project path from expansion ID
                 const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
                 }
 
@@ -84,7 +85,7 @@ export class SolutionExpansionService {
                 // Expanding a Dependencies node - extract project path from expansion ID
                 const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
                 }
 
@@ -99,7 +100,7 @@ export class SolutionExpansionService {
                 // Expanding a Dependency Category node - extract project path from expansion ID
                 const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;
                 }
 
@@ -112,14 +113,14 @@ export class SolutionExpansionService {
                 // Expanding a folder within a project - extract paths from expansion ID
                 const pathPortion = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!pathPortion) {
-                    this.logger.error(`Could not extract path from folder expansion ID: ${nodeId}`);
+                    log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
                 }
 
                 // Format is "projectPath:folderPath"
                 const colonIndex = pathPortion.indexOf(':');
                 if (colonIndex === -1) {
-                    this.logger.error(`Invalid folder expansion ID format: ${nodeId}`);
+                    log.error(`Invalid folder expansion ID format: ${nodeId}`);
                     return;
                 }
 
@@ -161,7 +162,7 @@ export class SolutionExpansionService {
             await updateWebviewCallback();
 
         } catch (error) {
-            this.logger.error('Error expanding node:', error);
+            log.error('Error expanding node:', error);
             // Reset loading state on error
             await this._updateNodeExpansionState(nodeId, false, undefined, cachedSolutionData, false);
             await updateWebviewCallback();
@@ -180,7 +181,7 @@ export class SolutionExpansionService {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
-                this.logger.warn('No active solution for collapse operation');
+                log.warn('No active solution for collapse operation');
                 return;
             }
 
@@ -217,7 +218,7 @@ export class SolutionExpansionService {
             await updateWebviewCallback();
 
         } catch (error) {
-            this.logger.error('Error collapsing node:', error);
+            log.error('Error collapsing node:', error);
         }
     }
 
@@ -254,10 +255,10 @@ export class SolutionExpansionService {
                     const nodeId = node.nodeId || node.path;
                     expandedIds.push(nodeId);
 
-                    this.logger.info(`Saving expanded state for ${node.type}: ${node.name} (${nodeId})`);
+                    log.info(`Saving expanded state for ${node.type}: ${node.name} (${nodeId})`);
                 } else if (level === 0 && node.type === 'solution') {
                     // Always log solution node state for debugging
-                    this.logger.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
+                    log.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
                     if (node.children) {
                         traverse(node.children, level + 1);
                     }
@@ -274,7 +275,7 @@ export class SolutionExpansionService {
      * Saves expansion state to workspace storage
      */
     static saveExpansionState(expandedNodes: string[], context: vscode.ExtensionContext): void {
-        this.logger.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
+        log.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
         context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
@@ -283,7 +284,7 @@ export class SolutionExpansionService {
      */
     static getExpansionState(context: vscode.ExtensionContext): string[] {
         const state = context.workspaceState.get<string[]>('solutionTreeExpanded', []);
-        this.logger.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
+        log.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
 
         return state;
     }
@@ -303,7 +304,7 @@ export class SolutionExpansionService {
             const expansionPaths = this.getExpansionState(context);
 
             if (!expansionPaths || expansionPaths.length === 0) {
-                this.logger.info('No expansion state to restore');
+                log.info('No expansion state to restore');
                 return;
             }
 
@@ -322,33 +323,33 @@ export class SolutionExpansionService {
             // No filtering - preserve all expansion state
             // Nodes that don't exist yet (like Dependencies) will be handled when they're created
 
-            this.logger.info(`Restoring expansion states for ${cleanedExpandedNodes.length} nodes:`);
-            cleanedExpandedNodes.forEach(id => this.logger.info(`  - ${id}`));
+            log.info(`Restoring expansion states for ${cleanedExpandedNodes.length} nodes:`);
+            cleanedExpandedNodes.forEach(id => log.info(`  - ${id}`));
 
             // Restore expansion states and load children
             for (const expandedId of cleanedExpandedNodes) {
                 const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
                 if (nodeType) {
-                    this.logger.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
+                    log.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
 
                     // Set expanded = true in the tree
                     const updateSuccess = SolutionTreeService.updateNodeInTree(treeData, expandedId, { expanded: true });
                     if (!updateSuccess) {
-                        this.logger.error(`Failed to update expansion state for node: ${expandedId}`);
+                        log.error(`Failed to update expansion state for node: ${expandedId}`);
                         continue;
                     }
 
                     // Load children for the expanded node
                     await this._loadChildrenForNode(expandedId, nodeType, treeData);
 
-                    this.logger.info(`Successfully restored and loaded children for: ${expandedId}`);
+                    log.info(`Successfully restored and loaded children for: ${expandedId}`);
                 } else {
-                    this.logger.warn(`Could not determine node type for ID: ${expandedId} - node not found in fresh tree`);
+                    log.warn(`Could not determine node type for ID: ${expandedId} - node not found in fresh tree`);
                 }
             }
 
         } catch (error) {
-            this.logger.error('Error restoring expansion states:', error);
+            log.error('Error restoring expansion states:', error);
         }
     }
 
@@ -358,7 +359,7 @@ export class SolutionExpansionService {
     private static async _refreshExpandedFolders(children: ProjectNode[], project: any): Promise<void> {
         for (const child of children) {
             if (child.type === 'folder' && child.expanded && child.children) {
-                this.logger.info(`Refreshing expanded folder: ${child.path}`);
+                log.info(`Refreshing expanded folder: ${child.path}`);
                 try {
                     // Get fresh folder contents
                     const folderChildren = await project.getFolderChildren(child.path);
@@ -370,7 +371,7 @@ export class SolutionExpansionService {
                     // Recursively refresh nested expanded folders
                     await this._refreshExpandedFolders(child.children, project);
                 } catch (error) {
-                    this.logger.warn(`Failed to refresh expanded folder: ${child.path}`, error);
+                    log.warn(`Failed to refresh expanded folder: ${child.path}`, error);
                 }
             }
         }
@@ -420,7 +421,7 @@ export class SolutionExpansionService {
             } else if (nodeType === 'project') {
                 const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
                 }
 
@@ -433,18 +434,18 @@ export class SolutionExpansionService {
                 // Expanding a Dependencies node - get the project and load its dependencies
                 const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
                 }
 
-                this.logger.info(`Loading children for dependencies node. ProjectPath: ${projectPath}`);
+                log.info(`Loading children for dependencies node. ProjectPath: ${projectPath}`);
                 const project = solution.getProject(projectPath);
                 if (project) {
                     const dependencies = project.getDependencies();
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
-                    this.logger.info(`Loaded ${children.length} dependency categories for ${projectPath}`);
+                    log.info(`Loaded ${children.length} dependency categories for ${projectPath}`);
                 } else {
-                    this.logger.warn(`Could not find project for dependencies: ${projectPath}`);
+                    log.warn(`Could not find project for dependencies: ${projectPath}`);
                 }
             } else if (nodeType === 'packageDependencies' ||
                 nodeType === 'projectDependencies' ||
@@ -452,29 +453,29 @@ export class SolutionExpansionService {
                 // Expanding a Dependency Category node - get dependencies for that specific category
                 const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
-                    this.logger.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
+                    log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;
                 }
 
-                this.logger.info(`Loading children for dependency category node. ProjectPath: ${projectPath}, CategoryId: ${nodeId}`);
+                log.info(`Loading children for dependency category node. ProjectPath: ${projectPath}, CategoryId: ${nodeId}`);
                 const project = solution.getProject(projectPath);
                 if (project) {
                     const categoryDependencies = project.getDependenciesByCategory(nodeId);
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
-                    this.logger.info(`Loaded ${children.length} dependencies for category ${nodeId}`);
+                    log.info(`Loaded ${children.length} dependencies for category ${nodeId}`);
                 } else {
-                    this.logger.warn(`Could not find project for dependency category: ${projectPath}`);
+                    log.warn(`Could not find project for dependency category: ${projectPath}`);
                 }
             } else if (nodeType === 'folder') {
                 const pathPortion = SolutionExpansionIdService.getPathFromId(nodeId);
                 if (!pathPortion) {
-                    this.logger.error(`Could not extract path from folder expansion ID: ${nodeId}`);
+                    log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
                 }
 
                 const colonIndex = pathPortion.indexOf(':');
                 if (colonIndex === -1) {
-                    this.logger.error(`Invalid folder expansion ID format: ${nodeId}`);
+                    log.error(`Invalid folder expansion ID format: ${nodeId}`);
                     return;
                 }
 
@@ -513,7 +514,7 @@ export class SolutionExpansionService {
             }
 
         } catch (error) {
-            this.logger.error('Error loading children for node:', error);
+            log.error('Error loading children for node:', error);
         }
     }
 }

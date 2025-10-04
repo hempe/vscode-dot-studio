@@ -3,8 +3,9 @@ import { InstalledPackage, ProjectPackageInfo } from '../types/packageDiscovery'
 import { PackageConflict, ConsolidationSummary } from '../types/packageConsolidation';
 import { logger } from '../core/logger';
 
+const log = logger('PackageConsolidationService');
+
 export class PackageConsolidationService {
-    private static readonly logger = logger('PackageConsolidationService');
 
     /**
      * Analyze solution for package version conflicts
@@ -36,7 +37,7 @@ export class PackageConsolidationService {
                 return a.packageId.localeCompare(b.packageId);
             });
         } catch (error) {
-            this.logger.error('Error analyzing package conflicts:', error);
+            log.error('Error analyzing package conflicts:', error);
             throw new Error(`Failed to analyze package conflicts: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -67,7 +68,7 @@ export class PackageConsolidationService {
                 conflictSeverity: severityCount
             };
         } catch (error) {
-            this.logger.error('Error getting consolidation summary:', error);
+            log.error('Error getting consolidation summary:', error);
             return {
                 totalPackages: 0,
                 conflictedPackages: 0,
@@ -285,7 +286,7 @@ export class PackageConsolidationService {
             const conflicts = await this.analyzePackageConflicts(solutionPath);
             return conflicts.some(conflict => conflict.packageId === packageId);
         } catch (error) {
-            this.logger.error(`Error checking conflicts for ${packageId}:`, error);
+            log.error(`Error checking conflicts for ${packageId}:`, error);
             return false;
         }
     }

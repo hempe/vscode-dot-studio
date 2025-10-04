@@ -5,13 +5,13 @@ import { logger } from '../../core/logger';
 import { UpdateablePackage, PackageOperationResult } from './types';
 
 const execAsync = promisify(exec);
+const log = logger('PackageUpdateService');
 
 /**
  * Service for managing package updates using dotnet CLI
  * Handles finding outdated packages and updating them
  */
 export class PackageUpdateService {
-    private static readonly logger = logger('PackageUpdateService');
 
     /**
      * Get all packages that have available updates across all projects
@@ -22,7 +22,7 @@ export class PackageUpdateService {
 
             // Use dotnet list package --outdated to find packages with updates
             const command = 'dotnet list package --outdated --format json';
-            this.logger.info(`Getting outdated packages: ${command}`);
+            log.info(`Getting outdated packages: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 cwd: workingDir,
@@ -31,13 +31,13 @@ export class PackageUpdateService {
             });
 
             if (stderr && !stderr.includes('warn')) {
-                this.logger.warn('dotnet list package --outdated stderr:', stderr);
+                log.warn('dotnet list package --outdated stderr:', stderr);
             }
 
             return this.parseOutdatedPackages(stdout);
 
         } catch (error) {
-            this.logger.error('Error getting outdated packages:', error);
+            log.error('Error getting outdated packages:', error);
             return [];
         }
     }
@@ -48,7 +48,7 @@ export class PackageUpdateService {
     static async getProjectOutdatedPackages(projectPath: string): Promise<UpdateablePackage[]> {
         try {
             const command = `dotnet list "${projectPath}" package --outdated --format json`;
-            this.logger.info(`Getting outdated packages for project: ${command}`);
+            log.info(`Getting outdated packages for project: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 30000,
@@ -56,14 +56,14 @@ export class PackageUpdateService {
             });
 
             if (stderr && !stderr.includes('warn')) {
-                this.logger.warn('dotnet list package --outdated stderr:', stderr);
+                log.warn('dotnet list package --outdated stderr:', stderr);
             }
 
             const allOutdated = this.parseOutdatedPackages(stdout);
             return allOutdated.filter(pkg => pkg.projectPath === projectPath);
 
         } catch (error) {
-            this.logger.error(`Error getting outdated packages for project ${projectPath}:`, error);
+            log.error(`Error getting outdated packages for project ${projectPath}:`, error);
             return [];
         }
     }
@@ -84,7 +84,7 @@ export class PackageUpdateService {
             }
 
             const command = `dotnet ${args.join(' ')}`;
-            this.logger.info(`Updating package: ${command}`);
+            log.info(`Updating package: ${command}`);
 
             const { stdout, stderr } = await execAsync(command, {
                 timeout: 60000,
@@ -95,7 +95,7 @@ export class PackageUpdateService {
             const success = !stderr.includes('error') && !stdout.includes('error');
 
             if (success) {
-                this.logger.info(`Successfully updated ${packageId} in ${path.basename(projectPath)}`);
+                log.info(`Successfully updated ${packageId} in ${path.basename(projectPath)}`);
                 return {
                     success: true,
                     message: `Successfully updated ${packageId} to ${targetVersion || 'latest version'}`,
@@ -105,7 +105,7 @@ export class PackageUpdateService {
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
-                this.logger.error(`Failed to update ${packageId}:`, errorMessage);
+                log.error(`Failed to update ${packageId}:`, errorMessage);
                 return {
                     success: false,
                     message: `Failed to update ${packageId}: ${errorMessage}`,
@@ -116,7 +116,7 @@ export class PackageUpdateService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logger.error(`Error updating package ${packageId} in ${projectPath}:`, error);
+            log.error(`Error updating package ${packageId} in ${projectPath}:`, error);
             return {
                 success: false,
                 message: `Error updating ${packageId}: ${errorMessage}`,
@@ -141,7 +141,7 @@ export class PackageUpdateService {
                 }];
             }
 
-            this.logger.info(`Updating ${outdatedPackages.length} packages in ${path.basename(projectPath)}`);
+            log.info(`Updating ${outdatedPackages.length} packages in ${path.basename(projectPath)}`);
 
             const updatePromises = outdatedPackages.map(pkg =>
                 this.updatePackage(projectPath, pkg.id, pkg.latestVersion)
@@ -152,12 +152,12 @@ export class PackageUpdateService {
             // Log summary
             const successful = results.filter(r => r.success).length;
             const failed = results.length - successful;
-            this.logger.info(`Update summary: ${successful} successful, ${failed} failed`);
+            log.info(`Update summary: ${successful} successful, ${failed} failed`);
 
             return results;
 
         } catch (error) {
-            this.logger.error(`Error updating all packages in ${projectPath}:`, error);
+            log.error(`Error updating all packages in ${projectPath}:`, error);
             return [{
                 success: false,
                 message: `Error updating packages: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -180,7 +180,7 @@ export class PackageUpdateService {
             ) || null;
 
         } catch (error) {
-            this.logger.error(`Error checking update for ${packageId}:`, error);
+            log.error(`Error checking update for ${packageId}:`, error);
             return null;
         }
     }
@@ -215,7 +215,7 @@ export class PackageUpdateService {
             };
 
         } catch (error) {
-            this.logger.error('Error getting update statistics:', error);
+            log.error('Error getting update statistics:', error);
             return {
                 totalPackages: 0,
                 outdatedPackages: 0,
@@ -275,7 +275,7 @@ export class PackageUpdateService {
             return outdatedPackages;
 
         } catch (error) {
-            this.logger.error('Error parsing outdated packages:', error);
+            log.error('Error parsing outdated packages:', error);
             return [];
         }
     }

@@ -3,12 +3,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../../core/logger';
 
+const log = logger('IconCacheService');
+
 /**
  * Service for caching package icons locally to bypass CSP restrictions
  * Downloads icons from NuGet.org flat container API and serves them from extension storage
  */
 export class IconCacheService {
-    private static readonly logger = logger('IconCacheService');
     private static cacheDir: string;
     private static readonly CACHE_VERSION = '1';
     private static readonly MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
@@ -27,7 +28,7 @@ export class IconCacheService {
         // Clean up old cached icons
         await this.cleanupOldIcons();
 
-        this.logger.info(`Icon cache initialized at: ${this.cacheDir}`);
+        log.info(`Icon cache initialized at: ${this.cacheDir}`);
     }
 
     /**
@@ -39,7 +40,7 @@ export class IconCacheService {
 
             // Check if this package is known to not have an icon
             if (this.failedPackages.has(packageKey)) {
-                this.logger.info(`Skipping known failed package: ${packageId}`);
+                log.info(`Skipping known failed package: ${packageId}`);
                 return null;
             }
 
@@ -63,12 +64,12 @@ export class IconCacheService {
             } else {
                 // Mark this package as having no icon to avoid future requests
                 this.failedPackages.add(packageKey);
-                this.logger.info(`Marked package as having no icon: ${packageId}`);
+                log.info(`Marked package as having no icon: ${packageId}`);
             }
 
             return null;
         } catch (error) {
-            this.logger.error(`Error getting icon for ${packageId}@${version}:`, error);
+            log.error(`Error getting icon for ${packageId}@${version}:`, error);
             return null;
         }
     }
@@ -88,7 +89,7 @@ export class IconCacheService {
      */
     private static async downloadIcon(iconUrl: string, localPath: string): Promise<boolean> {
         try {
-            this.logger.info(`Downloading icon from: ${iconUrl}`);
+            log.info(`Downloading icon from: ${iconUrl}`);
 
             const https = require('https');
 
@@ -100,36 +101,36 @@ export class IconCacheService {
 
                         fileStream.on('finish', () => {
                             fileStream.close();
-                            this.logger.info(`Icon downloaded successfully: ${localPath}`);
+                            log.info(`Icon downloaded successfully: ${localPath}`);
                             resolve(true);
                         });
 
                         fileStream.on('error', (error: Error) => {
-                            this.logger.error(`Error writing icon file:`, error);
+                            log.error(`Error writing icon file:`, error);
                             // Clean up partial file
                             this.deleteFile(localPath);
                             resolve(false);
                         });
                     } else {
-                        this.logger.warn(`Icon download failed with status ${response.statusCode}: ${iconUrl}`);
+                        log.warn(`Icon download failed with status ${response.statusCode}: ${iconUrl}`);
                         resolve(false);
                     }
                 });
 
                 request.on('error', (error: Error) => {
-                    this.logger.error(`Error downloading icon:`, error);
+                    log.error(`Error downloading icon:`, error);
                     resolve(false);
                 });
 
                 // Set timeout
                 request.setTimeout(10000, () => {
                     request.destroy();
-                    this.logger.error(`Icon download timeout: ${iconUrl}`);
+                    log.error(`Icon download timeout: ${iconUrl}`);
                     resolve(false);
                 });
             });
         } catch (error) {
-            this.logger.error(`Error in downloadIcon:`, error);
+            log.error(`Error in downloadIcon:`, error);
             return false;
         }
     }
@@ -162,7 +163,7 @@ export class IconCacheService {
         try {
             await fs.promises.mkdir(this.cacheDir, { recursive: true });
         } catch (error) {
-            this.logger.error('Error creating cache directory:', error);
+            log.error('Error creating cache directory:', error);
             throw error;
         }
     }
@@ -221,7 +222,7 @@ export class IconCacheService {
             const totalSizeBytes = cacheInfo.reduce((sum, info) => sum + info.size, 0);
             const totalSizeMB = totalSizeBytes / (1024 * 1024);
 
-            this.logger.info(`Cache size: ${totalSizeMB.toFixed(2)} MB (${cacheInfo.length} files)`);
+            log.info(`Cache size: ${totalSizeMB.toFixed(2)} MB (${cacheInfo.length} files)`);
 
             // Remove old files if cache is too large
             if (totalSizeMB > this.MAX_CACHE_SIZE_MB) {
@@ -241,7 +242,7 @@ export class IconCacheService {
                     deletedCount++;
                 }
 
-                this.logger.info(`Cleaned up ${deletedCount} old cached icons`);
+                log.info(`Cleaned up ${deletedCount} old cached icons`);
             }
 
             // Remove files older than cache duration
@@ -257,10 +258,10 @@ export class IconCacheService {
             }
 
             if (expiredCount > 0) {
-                this.logger.info(`Removed ${expiredCount} expired cached icons`);
+                log.info(`Removed ${expiredCount} expired cached icons`);
             }
         } catch (error) {
-            this.logger.error('Error cleaning up cache:', error);
+            log.error('Error cleaning up cache:', error);
         }
     }
 
@@ -274,10 +275,10 @@ export class IconCacheService {
                 for (const file of files) {
                     await this.deleteFile(path.join(this.cacheDir, file));
                 }
-                this.logger.info('Icon cache cleared');
+                log.info('Icon cache cleared');
             }
         } catch (error) {
-            this.logger.error('Error clearing cache:', error);
+            log.error('Error clearing cache:', error);
         }
     }
 

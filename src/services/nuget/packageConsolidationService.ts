@@ -7,13 +7,13 @@ import { PackageInstalledService } from './packageInstalledService';
 import { PackageOperationsService } from './packageOperationsService';
 
 const execAsync = promisify(exec);
+const log = logger('PackageConsolidationService');
 
 /**
  * Service for package consolidation across multiple projects in a solution
  * Helps manage package versions to ensure consistency across projects
  */
 export class PackageConsolidationService {
-    private static readonly logger = logger('PackageConsolidationService');
 
     /**
      * Get all packages that need consolidation across projects
@@ -67,11 +67,11 @@ export class PackageConsolidationService {
                 }
             }
 
-            this.logger.info(`Found ${consolidationInfos.length} packages needing consolidation`);
+            log.info(`Found ${consolidationInfos.length} packages needing consolidation`);
             return consolidationInfos;
 
         } catch (error) {
-            this.logger.error('Error getting packages needing consolidation:', error);
+            log.error('Error getting packages needing consolidation:', error);
             return [];
         }
     }
@@ -85,7 +85,7 @@ export class PackageConsolidationService {
         projectPaths: string[]
     ): Promise<PackageOperationResult[]> {
         try {
-            this.logger.info(`Consolidating ${packageId} to version ${targetVersion} across ${projectPaths.length} projects`);
+            log.info(`Consolidating ${packageId} to version ${targetVersion} across ${projectPaths.length} projects`);
 
             const results: PackageOperationResult[] = [];
 
@@ -137,12 +137,12 @@ export class PackageConsolidationService {
             // Log summary
             const successful = results.filter(r => r.success).length;
             const failed = results.length - successful;
-            this.logger.info(`Consolidation summary for ${packageId}: ${successful} successful, ${failed} failed`);
+            log.info(`Consolidation summary for ${packageId}: ${successful} successful, ${failed} failed`);
 
             return results;
 
         } catch (error) {
-            this.logger.error(`Error consolidating package ${packageId}:`, error);
+            log.error(`Error consolidating package ${packageId}:`, error);
             return [{
                 success: false,
                 message: `Error consolidating package ${packageId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -169,7 +169,7 @@ export class PackageConsolidationService {
 
             for (const consolidationInfo of packagesNeedingConsolidation) {
                 const targetVersion = consolidationInfo.latestVersion ||
-                                    this.getHighestVersion(consolidationInfo.versions.map(v => v.version));
+                    this.getHighestVersion(consolidationInfo.versions.map(v => v.version));
 
                 if (targetVersion) {
                     // Get all projects that have this package
@@ -188,7 +188,7 @@ export class PackageConsolidationService {
             return allResults;
 
         } catch (error) {
-            this.logger.error('Error consolidating all packages:', error);
+            log.error('Error consolidating all packages:', error);
             return [{
                 success: false,
                 message: `Error consolidating packages: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -236,7 +236,7 @@ export class PackageConsolidationService {
             });
 
         } catch (error) {
-            this.logger.error('Error getting consolidation recommendations:', error);
+            log.error('Error getting consolidation recommendations:', error);
             return [];
         }
     }
@@ -255,7 +255,7 @@ export class PackageConsolidationService {
             ) || null;
 
         } catch (error) {
-            this.logger.error(`Error checking consolidation for ${packageId}:`, error);
+            log.error(`Error checking consolidation for ${packageId}:`, error);
             return null;
         }
     }
@@ -286,7 +286,7 @@ export class PackageConsolidationService {
             return undefined;
 
         } catch (error) {
-            this.logger.debug(`Could not get latest version for ${packageId}`);
+            log.debug(`Could not get latest version for ${packageId}`);
             return undefined;
         }
     }

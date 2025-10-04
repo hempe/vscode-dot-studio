@@ -4,12 +4,13 @@ import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 
+const log = logger('NuGetCustomEditorProvider');
+
 /**
  * Custom editor provider for NuGet Package Manager that opens in the main editor area
  */
 export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvider {
     public static readonly viewType = 'dotnet.nugetPackageManager';
-    private readonly logger = logger('NuGetCustomEditorProvider');
     private readonly _webviewPanels = new Map<string, vscode.WebviewPanel>();
 
     constructor(
@@ -63,7 +64,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
         try {
             // Add debug logging to see if messages are reaching the provider
-            this.logger.info('NuGetCustomEditorProvider received message:', {
+            log.info('NuGetCustomEditorProvider received message:', {
                 type: message.type,
                 command: message.command,
                 payload: message.payload
@@ -125,14 +126,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                 case 'debug':
                     const debugMessage = message.message || message.payload?.message;
-                    this.logger.info('Debug from webview:', debugMessage);
+                    log.info('Debug from webview:', debugMessage);
                     break;
 
                 default:
-                    this.logger.warn('Unknown message command:', messageType);
+                    log.warn('Unknown message command:', messageType);
             }
         } catch (error) {
-            this.logger.error('Error handling message:', error);
+            log.error('Error handling message:', error);
             webview.postMessage({
                 command: 'error',
                 message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -155,7 +156,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             });
 
         } catch (error) {
-            this.logger.error('Error updating NuGet webview:', error);
+            log.error('Error updating NuGet webview:', error);
         }
     }
 
@@ -247,7 +248,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 };
             }
         } catch (error) {
-            this.logger.error('Error getting NuGet data:', error);
+            log.error('Error getting NuGet data:', error);
             return {
                 context: context.type,
                 target: context.target,
@@ -271,7 +272,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 data: results
             });
         } catch (error) {
-            this.logger.error('Error searching packages:', error);
+            log.error('Error searching packages:', error);
             webview.postMessage({
                 command: 'searchResults',
                 data: [],
@@ -288,7 +289,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 data: data.installedPackages || []
             });
         } catch (error) {
-            this.logger.error('Error getting installed packages:', error);
+            log.error('Error getting installed packages:', error);
         }
     }
 
@@ -300,7 +301,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 data: (data as any).outdatedPackages || []
             });
         } catch (error) {
-            this.logger.error('Error getting updates packages:', error);
+            log.error('Error getting updates packages:', error);
         }
     }
 
@@ -319,7 +320,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 });
             }
         } catch (error) {
-            this.logger.error('Error getting consolidate packages:', error);
+            log.error('Error getting consolidate packages:', error);
         }
     }
 
@@ -365,7 +366,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 }
             }
         } catch (error) {
-            this.logger.error('Error performing package action:', error);
+            log.error('Error performing package action:', error);
             vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -393,7 +394,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 await this._handleGetConsolidatePackages(webview, context);
             }
         } catch (error) {
-            this.logger.error('Error consolidating package:', error);
+            log.error('Error consolidating package:', error);
             vscode.window.showErrorMessage(`Error consolidating package: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -408,7 +409,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 return;
             }
 
-            this.logger.info(`Bulk updating ${packages.length} packages`);
+            log.info(`Bulk updating ${packages.length} packages`);
 
             // Show progress notification
             await vscode.window.withProgress({
@@ -444,7 +445,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                         results.push(result);
                         completed++;
                     } catch (error) {
-                        this.logger.error(`Error updating ${pkg.id}:`, error);
+                        log.error(`Error updating ${pkg.id}:`, error);
                         results.push({
                             success: false,
                             message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -469,14 +470,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             await this._handleGetUpdatesPackages(webview, context);
 
         } catch (error) {
-            this.logger.error('Error performing bulk package updates:', error);
+            log.error('Error performing bulk package updates:', error);
             vscode.window.showErrorMessage(`Error updating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
     private async _handleUpdateAllPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
-            this.logger.info('Updating all packages');
+            log.info('Updating all packages');
 
             // Get all outdated packages first
             const data = await this._getNuGetData(context);
@@ -521,7 +522,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                         results.push(result);
                         completed++;
                     } catch (error) {
-                        this.logger.error(`Error updating ${pkg.id}:`, error);
+                        log.error(`Error updating ${pkg.id}:`, error);
                         results.push({
                             success: false,
                             message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -546,7 +547,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             await this._handleGetUpdatesPackages(webview, context);
 
         } catch (error) {
-            this.logger.error('Error updating all packages:', error);
+            log.error('Error updating all packages:', error);
             vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -567,7 +568,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 iconUri
             });
         } catch (error) {
-            this.logger.error(`Error getting icon for ${packageId}@${version}:`, error);
+            log.error(`Error getting icon for ${packageId}@${version}:`, error);
 
             webview.postMessage({
                 command: 'packageIcon',
@@ -593,7 +594,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 readmeUrl
             });
         } catch (error) {
-            this.logger.error(`Error getting README for ${packageId}@${version}:`, error);
+            log.error(`Error getting README for ${packageId}@${version}:`, error);
 
             webview.postMessage({
                 command: 'packageReadme',

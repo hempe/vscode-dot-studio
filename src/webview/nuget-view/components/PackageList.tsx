@@ -1,6 +1,10 @@
 import React from 'react';
 import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
+import { logger } from '../../shared/logger';
+
+const log = logger('PackageList');
+
 
 interface PackageListProps {
     packages: LocalNuGetPackage[];
@@ -117,24 +121,82 @@ export const PackageList: React.FC<PackageListProps> = ({
                             </div>
 
                             {/* Package Details */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                                {/* Top row: Package name with authors and version */}
                                 <div style={{
-                                    fontWeight: 500,
-                                    fontSize: '13px',
-                                    color: 'var(--vscode-foreground)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-start',
                                     marginBottom: '2px'
                                 }}>
-                                    {pkg.id}
-                                    {pkg.authors && (
+                                    <div style={{ flex: 1, minWidth: 0 }}>
                                         <span style={{
-                                            fontWeight: 'normal',
-                                            fontSize: '12px',
-                                            color: 'var(--vscode-descriptionForeground)',
-                                            marginLeft: '8px'
+                                            fontWeight: 500,
+                                            fontSize: '13px',
+                                            color: 'var(--vscode-foreground)'
                                         }}>
-                                            by {formatAuthors(pkg.authors)}
+                                            {pkg.id}
                                         </span>
-                                    )}
+                                        {pkg.authors && (
+                                            <span style={{
+                                                fontWeight: 'normal',
+                                                fontSize: '12px',
+                                                color: 'var(--vscode-descriptionForeground)',
+                                                marginLeft: '8px'
+                                            }}>
+                                                by {formatAuthors(pkg.authors)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {/* Version in top right */}
+                                    <div style={{
+                                        flexShrink: 0,
+                                        marginLeft: '8px',
+                                        textAlign: 'right'
+                                    }}>
+                                        <div style={{
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            color: 'var(--vscode-foreground)'
+                                        }}>
+                                            v{pkg.version}
+                                        </div>
+                                        {/* Max installed version - only show if different from current and package has projects */}
+                                        {pkg.projects && pkg.projects.length > 0 && (() => {
+                                            // Debug logging
+                                            log.shotgun(`${pkg.id} has projects:`, pkg.projects);
+
+                                            // Find the highest installed version across all projects
+                                            const installedVersions = pkg.projects.map(p => p.version).filter(Boolean);
+                                            log.shotgun(`${pkg.id} installed versions:`, installedVersions);
+                                            if (installedVersions.length > 0) {
+                                                const maxInstalledVersion = installedVersions.sort((a, b) => {
+                                                    const aParts = a.split('.').map(Number);
+                                                    const bParts = b.split('.').map(Number);
+                                                    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                                                        const aPart = aParts[i] || 0;
+                                                        const bPart = bParts[i] || 0;
+                                                        if (aPart !== bPart) return bPart - aPart;
+                                                    }
+                                                    return 0;
+                                                })[0];
+
+                                                // Only show if different from the main version
+                                                if (maxInstalledVersion !== pkg.version) {
+                                                    return (
+                                                        <div style={{
+                                                            fontSize: '11px',
+                                                            color: 'var(--vscode-descriptionForeground)',
+                                                            marginTop: '1px'
+                                                        }}>
+                                                            max installed: v{maxInstalledVersion}
+                                                        </div>
+                                                    );
+                                                }
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
                                 </div>
 
                                 {/* Show update info for Updates tab */}
@@ -158,26 +220,11 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         display: '-webkit-box',
                                         WebkitLineClamp: 2,
                                         WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden',
-                                        marginBottom: '4px'
+                                        overflow: 'hidden'
                                     }}>
                                         {pkg.description}
                                     </div>
                                 )}
-
-                                {/* Version and download info */}
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    fontSize: '11px',
-                                    color: 'var(--vscode-descriptionForeground)'
-                                }}>
-                                    <span>v{pkg.version}</span>
-                                    {pkg.totalDownloads && (
-                                        <span>{pkg.totalDownloads.toLocaleString()} downloads</span>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     </div>

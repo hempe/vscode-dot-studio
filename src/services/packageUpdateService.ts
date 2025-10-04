@@ -5,8 +5,9 @@ import { InstalledPackage } from '../types/packageDiscovery';
 import { PackageUpdate, UpdateCheckOptions } from '../types/packageUpdate';
 import { logger } from '../core/logger';
 
+const log = logger('PackageUpdateService');
+
 export class PackageUpdateService {
-    private static readonly logger = logger('PackageUpdateService');
     private static readonly DEFAULT_BATCH_SIZE = 5;
     private static readonly VERSION_REGEX = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+([a-zA-Z0-9.-]+))?$/;
 
@@ -42,7 +43,7 @@ export class PackageUpdateService {
 
             return updates.sort((a, b) => a.id.localeCompare(b.id));
         } catch (error) {
-            this.logger.error('Error checking for package updates:', error);
+            log.error('Error checking for package updates:', error);
             throw new Error(`Failed to check for updates: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
@@ -75,7 +76,7 @@ export class PackageUpdateService {
 
             return null;
         } catch (error) {
-            this.logger.error(`Error checking update for package ${packageId}:`, error);
+            log.error(`Error checking update for package ${packageId}:`, error);
             return null;
         }
     }
@@ -132,7 +133,7 @@ export class PackageUpdateService {
                     }
                 }
             } catch (error) {
-                this.logger.error(`Error checking updates for ${packageId}:`, error);
+                log.error(`Error checking updates for ${packageId}:`, error);
                 // Continue with other packages
             }
         }
@@ -187,7 +188,7 @@ export class PackageUpdateService {
 
             return false;
         } catch (error) {
-            this.logger.error(`Error comparing versions ${version1} and ${version2}:`, error);
+            log.error(`Error comparing versions ${version1} and ${version2}:`, error);
             return false;
         }
     }

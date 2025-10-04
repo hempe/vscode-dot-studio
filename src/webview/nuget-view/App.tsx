@@ -11,7 +11,7 @@ import NugetHeader from './components/NugetHeader';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 
-const nugetLogger = logger('NuGetReact');
+const log = logger('NuGetReact');
 
 declare global {
     interface Window {
@@ -25,7 +25,7 @@ const vscode = (function() {
         return window.acquireVsCodeApi();
     } catch {
         // Fallback to mock API for development/testing
-        nugetLogger.info('Using fallback VSCodeAPI for development');
+        log.info('Using fallback VSCodeAPI for development');
         return new VSCodeAPI();
     }
 })();
@@ -153,12 +153,12 @@ export const App: React.FC = () => {
 
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            nugetLogger.info('NuGet React: Received message:', message);
+            log.info('NuGet React: Received message:', message);
 
             switch (message.command) {
                 case 'nugetData':
-                    nugetLogger.info('NuGet React: Setting data to:', message.data);
-                    nugetLogger.debug('NuGet React: Raw installed packages:', message.data?.installedPackages);
+                    log.info('NuGet React: Setting data to:', message.data);
+                    log.debug('NuGet React: Raw installed packages:', message.data?.installedPackages);
 
                     // Map backend data structure to frontend structure
                     const safeData = {
@@ -170,16 +170,16 @@ export const App: React.FC = () => {
                         projectPath: message.data?.projectPath
                     };
 
-                    nugetLogger.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
+                    log.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
 
                     setData(safeData);
 
                     // Auto-select first installed package when data loads
                     const uniquePackages = getUniquePackages(safeData.installedPackages);
-                    nugetLogger.debug('NuGet React: Unique packages after deduplication:', uniquePackages);
+                    log.debug('NuGet React: Unique packages after deduplication:', uniquePackages);
 
                     if (uniquePackages.length > 0 && !selectedPackage) {
-                        nugetLogger.info('NuGet React: Auto-selecting package:', uniquePackages[0]);
+                        log.info('NuGet React: Auto-selecting package:', uniquePackages[0]);
                         setSelectedPackage(uniquePackages[0]);
                     }
 
@@ -188,18 +188,18 @@ export const App: React.FC = () => {
                     break;
                 case 'searchResults':
                     const searchResults = message.packages || message.data;
-                    nugetLogger.info('NuGet React: Setting searchResults to:', searchResults);
+                    log.info('NuGet React: Setting searchResults to:', searchResults);
                     setData(prev => ({ ...prev, searchResults: ensureArray(searchResults) }));
                     setLoading(false);
                     setHasSearched(true);
                     break;
                 case 'updatesAvailable':
-                    nugetLogger.info('NuGet React: Setting updatesAvailable to:', message.packages);
-                    nugetLogger.debug('NuGet React: Raw updatesAvailable packages:', message.packages);
+                    log.info('NuGet React: Setting updatesAvailable to:', message.packages);
+                    log.debug('NuGet React: Raw updatesAvailable packages:', message.packages);
                     // Log a few sample packages to debug version issues
                     if (Array.isArray(message.packages) && message.packages.length > 0) {
                         message.packages.slice(0, 3).forEach((pkg: any, idx: number) => {
-                            nugetLogger.debug(`Sample update package ${idx}:`, {
+                            log.debug(`Sample update package ${idx}:`, {
                                 id: pkg.id,
                                 version: pkg.version,
                                 latestVersion: pkg.latestVersion,
@@ -210,14 +210,14 @@ export const App: React.FC = () => {
                     setData(prev => ({ ...prev, updatesAvailable: ensureArray(message.packages) }));
                     break;
                 case 'packageDetails':
-                    nugetLogger.info('NuGet React: Received package details:', message.package);
+                    log.info('NuGet React: Received package details:', message.package);
                     if (message.package && selectedPackage && selectedPackage.id === message.package.id) {
                         // Update the selected package with detailed metadata
                         setSelectedPackage({
                             ...selectedPackage,
                             ...message.package
                         });
-                        nugetLogger.info('NuGet React: Updated selected package with details');
+                        log.info('NuGet React: Updated selected package with details');
                     }
                     break;
                 case 'packageIcon':
@@ -231,11 +231,11 @@ export const App: React.FC = () => {
                                 newMap.set(packageKey, message.iconUri);
                                 return newMap;
                             });
-                            nugetLogger.info(`Icon received for ${iconKey}: success`);
+                            log.info(`Icon received for ${iconKey}: success`);
                         } else {
                             // Mark this package as having no icon to avoid future requests
                             setFailedIcons(prev => new Set(prev).add(packageKey));
-                            nugetLogger.info(`Icon failed for ${iconKey} - won't retry`);
+                            log.info(`Icon failed for ${iconKey} - won't retry`);
                         }
                     }
                     break;
@@ -250,9 +250,9 @@ export const App: React.FC = () => {
                                 newMap.set(packageKey, message.readmeUrl);
                                 return newMap;
                             });
-                            nugetLogger.info(`README URL received for ${readmeKey}: ${message.readmeUrl}`);
+                            log.info(`README URL received for ${readmeKey}: ${message.readmeUrl}`);
                         } else {
-                            nugetLogger.info(`README not available for ${readmeKey}`);
+                            log.info(`README not available for ${readmeKey}`);
                         }
                     }
                     break;
@@ -296,7 +296,7 @@ export const App: React.FC = () => {
 
     const handleSearch = () => {
         if (searchTerm.trim()) {
-            nugetLogger.info('Frontend: Starting search for:', searchTerm, 'includePrerelease:', includePrerelease);
+            log.info('Frontend: Starting search for:', searchTerm, 'includePrerelease:', includePrerelease);
             setLoading(true);
             vscode.postMessage({
                 type: 'searchPackages',
@@ -305,7 +305,7 @@ export const App: React.FC = () => {
                     includePrerelease: includePrerelease
                 }
             });
-            nugetLogger.info('Frontend: Search message sent to backend');
+            log.info('Frontend: Search message sent to backend');
         }
     };
 
@@ -395,6 +395,50 @@ export const App: React.FC = () => {
         return true;
     };
 
+    // Helper function to enhance search results with installed package information
+    const enhanceWithInstalledInfo = (searchResults: LocalNuGetPackage[], installedPackages: LocalNuGetPackage[]): LocalNuGetPackage[] => {
+        // Group installed packages by ID and create projects array
+        const installedMap = new Map<string, LocalNuGetPackage>();
+        const projectsMap = new Map<string, {name: string, version: string}[]>();
+
+        ensureArray(installedPackages).forEach(pkg => {
+            const key = pkg.id.toLowerCase();
+
+            // Store the package info
+            if (!installedMap.has(key)) {
+                installedMap.set(key, pkg);
+            }
+
+            // Build projects array
+            if (!projectsMap.has(key)) {
+                projectsMap.set(key, []);
+            }
+
+            // Add project info (from individual package entry format)
+            if (pkg.projectName) {
+                projectsMap.get(key)!.push({
+                    name: pkg.projectName,
+                    version: pkg.version
+                });
+            }
+        });
+
+        return ensureArray(searchResults).map(searchPkg => {
+            const key = searchPkg.id.toLowerCase();
+            const installedPkg = installedMap.get(key);
+            const projects = projectsMap.get(key);
+
+            if (installedPkg && projects && projects.length > 0) {
+                // Merge installation info into search result
+                return {
+                    ...searchPkg,
+                    projects: projects
+                };
+            }
+            return searchPkg;
+        });
+    };
+
     // Helper function to get version options for dropdown
     const getVersionOptions = (pkg: LocalNuGetPackage) => {
         if (!pkg.allVersions || pkg.allVersions.length === 0) {
@@ -427,19 +471,19 @@ export const App: React.FC = () => {
 
         // Check if we already have detailed data
         if (pkg.allVersions && pkg.tags && pkg.projectUrl) {
-            nugetLogger.info('Package already has detailed metadata:', pkg.id);
+            log.info('Package already has detailed metadata:', pkg.id);
             return;
         }
 
         // Fetch detailed metadata
-        nugetLogger.info('Fetching detailed metadata for package:', pkg.id);
+        log.info('Fetching detailed metadata for package:', pkg.id);
         try {
             vscode.postMessage({
                 type: 'getPackageDetails',
                 payload: { packageId: pkg.id }
             });
         } catch (error) {
-            nugetLogger.error('Error fetching package details:', error);
+            log.error('Error fetching package details:', error);
         }
     };
 
@@ -467,7 +511,7 @@ export const App: React.FC = () => {
     const getCurrentPackageList = () => {
         switch (activeTab) {
             case 'browse':
-                return filterPackages(ensureArray(data.searchResults), searchTerm);
+                return filterPackages(enhanceWithInstalledInfo(data.searchResults, data.installedPackages), searchTerm);
             case 'installed':
                 return filterPackages(ensureArray(data.installedPackages), filterTerm);
             case 'updates':
@@ -514,7 +558,7 @@ export const App: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
             {/* Search Input */}
             <div style={{
-                padding: '12px',
+                paddingBottom: '12px',
                 borderBottom: '1px solid var(--vscode-panel-border)',
                 background: 'var(--vscode-editor-background)'
             }}>
@@ -574,7 +618,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
-                        packages={data.searchResults}
+                        packages={enhanceWithInstalledInfo(data.searchResults, data.installedPackages)}
                         loading={loading}
                         emptyMessage="Search for packages to browse"
                         loadingMessage="Searching for packages..."
@@ -602,6 +646,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
+                                installedPackages={enhanceWithInstalledInfo(data.searchResults, data.installedPackages) || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                  />
@@ -643,7 +688,7 @@ export const App: React.FC = () => {
                                         appearance="primary"
                                         disabled={selectedProjects.size === 0}
                                         onClick={() => {
-                                            nugetLogger.info('Install action from Browse:', {
+                                            log.info('Install action from Browse:', {
                                                 package: selectedPackage.id,
                                                 version: selectedVersion || selectedPackage.version,
                                                 projects: Array.from(selectedProjects)
@@ -810,7 +855,7 @@ export const App: React.FC = () => {
                                     appearance="primary"
                                     disabled={selectedProjects.size === 0}
                                     onClick={() => {
-                                        nugetLogger.info('Install/Update action:', {
+                                        log.info('Install/Update action:', {
                                             package: selectedPackage.id,
                                             version: selectedVersion || selectedPackage.version,
                                             projects: Array.from(selectedProjects)
@@ -837,7 +882,7 @@ export const App: React.FC = () => {
                                     appearance="secondary"
                                     disabled={selectedProjects.size === 0}
                                     onClick={() => {
-                                        nugetLogger.info('Uninstall action:', {
+                                        log.info('Uninstall action:', {
                                             package: selectedPackage.id,
                                             projects: Array.from(selectedProjects)
                                         });
@@ -960,6 +1005,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
+                                installedPackages={data.installedPackages || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                  />
@@ -1001,7 +1047,7 @@ export const App: React.FC = () => {
                                         appearance="primary"
                                         disabled={selectedProjects.size === 0}
                                         onClick={() => {
-                                            nugetLogger.info('Update action:', {
+                                            log.info('Update action:', {
                                                 package: selectedPackage.id,
                                                 version: selectedVersion || selectedPackage.latestVersion,
                                                 projects: Array.from(selectedProjects)
@@ -1113,7 +1159,7 @@ export const App: React.FC = () => {
                                 appearance="primary"
                                 disabled={selectedProjects.size === 0}
                                 onClick={() => {
-                                    nugetLogger.info('Install button clicked for:', {
+                                    log.info('Install button clicked for:', {
                                         package: selectedPackage.id,
                                         version: selectedVersion || selectedPackage.version,
                                         projects: Array.from(selectedProjects)
