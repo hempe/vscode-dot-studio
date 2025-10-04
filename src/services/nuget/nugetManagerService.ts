@@ -35,8 +35,8 @@ export class NuGetManagerService {
                 updateStats
             ] = await Promise.all([
                 PackageInstalledService.getAllProjectsInfo(solutionPath),
-                PackageInstalledService.getInstalledPackages(solutionPath),
-                PackageUpdateService.getOutdatedPackages(solutionPath),
+                PackageInstalledService.getInstalledPackagesWithMetadata(solutionPath),
+                PackageUpdateService.getOutdatedPackagesWithMetadata(solutionPath),
                 PackageConsolidationService.getPackagesNeedingConsolidation(solutionPath),
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);

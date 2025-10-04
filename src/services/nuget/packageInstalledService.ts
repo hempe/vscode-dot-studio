@@ -2,7 +2,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { InstalledPackage, ProjectInfo } from './types';
+import { InstalledPackage, ProjectInfo, NuGetPackage } from './types';
+import { PackageBrowseService } from './packageBrowseService';
 
 const execAsync = promisify(exec);
 const log = logger('PackageInstalledService');
@@ -39,6 +40,82 @@ export class PackageInstalledService {
         } catch (error) {
             log.error('Error getting installed packages:', error);
             return [];
+        }
+    }
+
+    /**
+     * Get installed packages with rich metadata for UI display
+     * This enhances basic package data with NuGet API metadata
+     */
+    static async getInstalledPackagesWithMetadata(solutionPath?: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
+        try {
+            // Get basic installed package data from dotnet CLI
+            const basicPackages = await this.getInstalledPackages(solutionPath);
+
+            if (basicPackages.length === 0) {
+                return [];
+            }
+
+            // Get unique package IDs to avoid duplicate API calls
+            const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
+            log.info(`Enriching ${uniquePackageIds.length} unique packages with NuGet metadata`);
+
+            // Create a map to store metadata by package ID
+            const metadataMap = new Map<string, NuGetPackage>();
+
+            // Fetch metadata for each unique package in parallel (with limit to avoid overwhelming API)
+            const batchSize = 5; // Process 5 packages at a time
+            for (let i = 0; i < uniquePackageIds.length; i += batchSize) {
+                const batch = uniquePackageIds.slice(i, i + batchSize);
+
+                const metadataPromises = batch.map(async (packageId) => {
+                    try {
+                        const metadata = await PackageBrowseService.getPackageDetails(packageId);
+                        if (metadata) {
+                            metadataMap.set(packageId.toLowerCase(), metadata);
+                        }
+                    } catch (error) {
+                        log.warn(`Failed to get metadata for ${packageId}:`, error);
+                    }
+                });
+
+                await Promise.all(metadataPromises);
+            }
+
+            // Merge metadata into basic package data
+            const enrichedPackages = basicPackages.map(basicPkg => {
+                const metadata = metadataMap.get(basicPkg.id.toLowerCase());
+
+                if (metadata) {
+                    // Merge metadata while preserving installation-specific fields
+                    return {
+                        ...basicPkg, // Keep all original InstalledPackage fields
+                        // Add NuGet metadata
+                        description: metadata.description,
+                        authors: metadata.authors,
+                        projectUrl: metadata.projectUrl,
+                        licenseUrl: metadata.licenseUrl,
+                        iconUrl: metadata.iconUrl,
+                        tags: metadata.tags,
+                        totalDownloads: metadata.totalDownloads,
+                        latestVersion: metadata.latestVersion,
+                        allVersions: metadata.allVersions,
+                        source: metadata.source
+                    };
+                } else {
+                    // Return basic package if metadata fetch failed
+                    return basicPkg;
+                }
+            });
+
+            log.info(`Successfully enriched ${enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length}/${basicPackages.length} packages with metadata`);
+            return enrichedPackages;
+
+        } catch (error) {
+            log.error('Error enriching packages with metadata:', error);
+            // Return basic packages if enrichment fails
+            const basicPackages = await this.getInstalledPackages(solutionPath);
+            return basicPackages;
         }
     }
 

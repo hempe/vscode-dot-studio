@@ -2,7 +2,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { UpdateablePackage, PackageOperationResult } from './types';
+import { UpdateablePackage, PackageOperationResult, NuGetPackage } from './types';
+import { PackageBrowseService } from './packageBrowseService';
 
 const execAsync = promisify(exec);
 const log = logger('PackageUpdateService');
@@ -39,6 +40,87 @@ export class PackageUpdateService {
         } catch (error) {
             log.error('Error getting outdated packages:', error);
             return [];
+        }
+    }
+
+    /**
+     * Get outdated packages with rich metadata for UI display
+     * This enhances basic update data with NuGet API metadata
+     */
+    static async getOutdatedPackagesWithMetadata(solutionPath?: string): Promise<(UpdateablePackage & Partial<NuGetPackage>)[]> {
+        try {
+            // Get basic outdated package data from dotnet CLI
+            const basicPackages = await this.getOutdatedPackages(solutionPath);
+
+            if (basicPackages.length === 0) {
+                return [];
+            }
+
+            // Get unique package IDs to avoid duplicate API calls
+            const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
+            log.info(`Enriching ${uniquePackageIds.length} unique outdated packages with NuGet metadata`);
+
+            // Create a map to store metadata by package ID
+            const metadataMap = new Map<string, NuGetPackage>();
+
+            // Fetch metadata for each unique package in parallel (with limit to avoid overwhelming API)
+            const batchSize = 5; // Process 5 packages at a time
+            for (let i = 0; i < uniquePackageIds.length; i += batchSize) {
+                const batch = uniquePackageIds.slice(i, i + batchSize);
+
+                const metadataPromises = batch.map(async (packageId) => {
+                    try {
+                        const metadata = await PackageBrowseService.getPackageDetails(packageId);
+                        if (metadata) {
+                            metadataMap.set(packageId.toLowerCase(), metadata);
+                        }
+                    } catch (error) {
+                        log.warn(`Failed to get metadata for ${packageId}:`, error);
+                    }
+                });
+
+                await Promise.all(metadataPromises);
+            }
+
+            // Merge metadata into basic package data
+            const enrichedPackages = basicPackages.map(basicPkg => {
+                const metadata = metadataMap.get(basicPkg.id.toLowerCase());
+
+                if (metadata) {
+                    // Merge metadata while preserving update-specific fields
+                    return {
+                        ...basicPkg, // Keep all original UpdateablePackage fields
+                        // Add NuGet metadata
+                        description: metadata.description,
+                        authors: metadata.authors,
+                        projectUrl: metadata.projectUrl,
+                        licenseUrl: metadata.licenseUrl,
+                        iconUrl: metadata.iconUrl,
+                        tags: metadata.tags,
+                        totalDownloads: metadata.totalDownloads,
+                        allVersions: metadata.allVersions,
+                        source: metadata.source,
+                        // Set version to current version for consistency with UI expectations
+                        version: basicPkg.currentVersion
+                    };
+                } else {
+                    // Return basic package if metadata fetch failed
+                    return {
+                        ...basicPkg,
+                        // Set version field for UI consistency
+                        version: basicPkg.currentVersion
+                    };
+                }
+            });
+
+            log.info(`Successfully enriched ${enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length}/${basicPackages.length} outdated packages with metadata`);
+            return enrichedPackages;
+
+        } catch (error) {
+            log.error('Error enriching outdated packages with metadata:', error);
+            // Return basic packages if enrichment fails
+            const basicPackages = await this.getOutdatedPackages(solutionPath);
+            return basicPackages.map(pkg => ({ ...pkg, version: pkg.currentVersion }));
         }
     }
 
