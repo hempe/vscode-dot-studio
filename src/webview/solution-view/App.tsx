@@ -2,12 +2,17 @@ import React from 'react';
 import { FrameworkSelector } from './components/FrameworkSelector/FrameworkSelector';
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
+import { LoadingBar } from '../shared/LoadingBar';
 
 export const App: React.FC = () => {
     const { solutionData, loading, refreshing, handleFrameworkChange, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     if (loading) {
-        return <div className="loading">Loading solution...</div>;
+        return (
+            <div className="solution-explorer" style={{ position: 'relative', height: '100vh' }}>
+                <LoadingBar visible={true} />
+            </div>
+        );
     }
 
     if (!solutionData) {
@@ -15,7 +20,8 @@ export const App: React.FC = () => {
     }
 
     return (
-        <div className="solution-explorer">
+        <div className="solution-explorer" style={{ position: 'relative' }}>
+            <LoadingBar visible={refreshing} />
             <div className="header">
                 <FrameworkSelector
                     frameworks={solutionData.frameworks}

@@ -161,9 +161,14 @@ export class PackageInstalledService {
                         for (const framework of project.frameworks) {
                             if (framework.topLevelPackages && Array.isArray(framework.topLevelPackages)) {
                                 for (const pkg of framework.topLevelPackages) {
+                                    // Skip auto-referenced packages (like NETStandard.Library) as they're not explicitly installed
+                                    if (pkg.autoReferenced) {
+                                        continue;
+                                    }
+
                                     packages.push({
                                         id: pkg.id,
-                                        version: pkg.requestedVersion || pkg.resolvedVersion || '',
+                                        version: pkg.resolvedVersion || pkg.requestedVersion || '',
                                         projectPath,
                                         projectName,
                                         resolved: pkg.resolvedVersion,

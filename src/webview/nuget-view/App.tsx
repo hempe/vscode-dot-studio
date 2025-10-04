@@ -56,9 +56,11 @@ export const App: React.FC = () => {
     const [includePrerelease, setIncludePrerelease] = useState(false);
     const [activeTab, setActiveTab] = useState('installed');
     const [selectedPackage, setSelectedPackage] = useState<NuGetPackage | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState<number>(-1);
     const [filterTerm, setFilterTerm] = useState('');
     const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
     const [selectedVersion, setSelectedVersion] = useState('');
+    const selectedItemRef = React.useRef<HTMLDivElement>(null);
 
     // Helper function to ensure we always have a proper array
     const ensureArray = (value: any): any[] => {
@@ -284,6 +286,55 @@ export const App: React.FC = () => {
         }));
     };
 
+    // Keyboard navigation helpers
+    const getCurrentPackageList = () => {
+        switch (activeTab) {
+            case 'browse':
+                return filterPackages(ensureArray(data.searchResults), searchTerm);
+            case 'installed':
+                return filterPackages(ensureArray(data.installedPackages), filterTerm);
+            case 'updates':
+                return filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm);
+            case 'consolidate':
+                return filterPackages(ensureArray(data.consolidatePackages || []), filterTerm);
+            default:
+                return [];
+        }
+    };
+
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+        const packages = getCurrentPackageList();
+        if (packages.length === 0) return;
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            const newIndex = selectedIndex < packages.length - 1 ? selectedIndex + 1 : 0;
+            setSelectedIndex(newIndex);
+            setSelectedPackage(packages[newIndex]);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            const newIndex = selectedIndex > 0 ? selectedIndex - 1 : packages.length - 1;
+            setSelectedIndex(newIndex);
+            setSelectedPackage(packages[newIndex]);
+        }
+    };
+
+    // Reset selection when tab changes or package list changes
+    React.useEffect(() => {
+        setSelectedIndex(-1);
+        setSelectedPackage(null);
+    }, [activeTab, data.searchResults, data.installedPackages, data.updatesAvailable, searchTerm, filterTerm]);
+
+    // Scroll selected item into view
+    React.useEffect(() => {
+        if (selectedItemRef.current) {
+            selectedItemRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }
+    }, [selectedIndex]);
+
     const tabs = [
         { id: 'browse', label: 'Browse' },
         { id: 'installed', label: 'Installed' },
@@ -338,11 +389,17 @@ export const App: React.FC = () => {
                 borderTop: 'none'
             }}>
                 {/* Left Panel - Package List */}
-                <div style={{
-                    width: '40%',
-                    borderRight: '1px solid var(--vscode-panel-border)',
-                    overflow: 'auto'
-                }}>
+                <div
+                    style={{
+                        width: '40%',
+                        borderRight: '1px solid var(--vscode-panel-border)',
+                        overflow: 'auto',
+                        overscrollBehavior: 'contain',
+                        maxHeight: '100%'
+                    }}
+                    tabIndex={0}
+                    onKeyDown={handleKeyDown}
+                >
                     <div style={{
                         padding: '8px 12px',
                         background: 'var(--vscode-panel-background)',
@@ -365,15 +422,21 @@ export const App: React.FC = () => {
                         getUniquePackages(ensureArray(data.searchResults)).map((pkg, index) => (
                             <div
                                 key={`${pkg.id}-${pkg.version}`}
+                                ref={selectedIndex === index ? selectedItemRef : null}
                                 style={{
                                     padding: '12px',
                                     borderBottom: '1px solid var(--vscode-panel-border)',
                                     cursor: 'pointer',
-                                    background: selectedPackage?.id === pkg.id
+                                    background: selectedIndex === index
                                         ? 'var(--vscode-list-activeSelectionBackground)'
+                                        : selectedPackage?.id === pkg.id
+                                        ? 'var(--vscode-list-hoverBackground)'
                                         : 'transparent'
                                 }}
-                                onClick={() => setSelectedPackage(pkg)}
+                                onClick={() => {
+                                    setSelectedPackage(pkg);
+                                    setSelectedIndex(index);
+                                }}
                             >
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                 {/* Package Icon */}
@@ -666,11 +729,17 @@ export const App: React.FC = () => {
                 borderTop: 'none'
             }}>
                 {/* Left Panel - Package List */}
-                <div style={{
-                    width: '40%',
-                    borderRight: '1px solid var(--vscode-panel-border)',
-                    overflow: 'auto'
-                }}>
+                <div
+                    style={{
+                        width: '40%',
+                        borderRight: '1px solid var(--vscode-panel-border)',
+                        overflow: 'auto',
+                        overscrollBehavior: 'contain',
+                        maxHeight: '100%'
+                    }}
+                    tabIndex={0}
+                    onKeyDown={handleKeyDown}
+                >
                     <div style={{
                         padding: '8px 12px',
                         background: 'var(--vscode-panel-background)',
@@ -688,11 +757,16 @@ export const App: React.FC = () => {
                             padding: '12px',
                             borderBottom: '1px solid var(--vscode-panel-border)',
                             cursor: 'pointer',
-                            background: selectedPackage?.id === pkg.id
+                            background: selectedIndex === index
                                 ? 'var(--vscode-list-activeSelectionBackground)'
+                                : selectedPackage?.id === pkg.id
+                                ? 'var(--vscode-list-hoverBackground)'
                                 : 'transparent'
                         }}
-                        onClick={() => setSelectedPackage(pkg)}
+                        onClick={() => {
+                            setSelectedPackage(pkg);
+                            setSelectedIndex(index);
+                        }}
                     >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                             {/* Package Icon */}
@@ -1030,11 +1104,17 @@ export const App: React.FC = () => {
                 borderTop: 'none'
             }}>
                 {/* Left Panel - Package List */}
-                <div style={{
-                    width: '40%',
-                    borderRight: '1px solid var(--vscode-panel-border)',
-                    overflow: 'auto'
-                }}>
+                <div
+                    style={{
+                        width: '40%',
+                        borderRight: '1px solid var(--vscode-panel-border)',
+                        overflow: 'auto',
+                        overscrollBehavior: 'contain',
+                        maxHeight: '100%'
+                    }}
+                    tabIndex={0}
+                    onKeyDown={handleKeyDown}
+                >
                     <div style={{
                         padding: '8px 12px',
                         background: 'var(--vscode-panel-background)',
@@ -1052,11 +1132,16 @@ export const App: React.FC = () => {
                                 padding: '12px',
                                 borderBottom: '1px solid var(--vscode-panel-border)',
                                 cursor: 'pointer',
-                                background: selectedPackage?.id === pkg.id
+                                background: selectedIndex === index
                                     ? 'var(--vscode-list-activeSelectionBackground)'
+                                    : selectedPackage?.id === pkg.id
+                                    ? 'var(--vscode-list-hoverBackground)'
                                     : 'transparent'
                             }}
-                            onClick={() => setSelectedPackage(pkg)}
+                            onClick={() => {
+                            setSelectedPackage(pkg);
+                            setSelectedIndex(index);
+                        }}
                         >
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                 {/* Selection Checkbox */}
@@ -1337,11 +1422,17 @@ export const App: React.FC = () => {
                 borderTop: 'none'
             }}>
                 {/* Left Panel - Package List */}
-                <div style={{
-                    width: '40%',
-                    borderRight: '1px solid var(--vscode-panel-border)',
-                    overflow: 'auto'
-                }}>
+                <div
+                    style={{
+                        width: '40%',
+                        borderRight: '1px solid var(--vscode-panel-border)',
+                        overflow: 'auto',
+                        overscrollBehavior: 'contain',
+                        maxHeight: '100%'
+                    }}
+                    tabIndex={0}
+                    onKeyDown={handleKeyDown}
+                >
                     <div style={{
                         padding: '8px 12px',
                         background: 'var(--vscode-panel-background)',
@@ -1369,11 +1460,16 @@ export const App: React.FC = () => {
                                     padding: '12px',
                                     borderBottom: '1px solid var(--vscode-panel-border)',
                                     cursor: 'pointer',
-                                    background: selectedPackage?.id === pkg.id
+                                    background: selectedIndex === index
                                         ? 'var(--vscode-list-activeSelectionBackground)'
+                                        : selectedPackage?.id === pkg.id
+                                        ? 'var(--vscode-list-hoverBackground)'
                                         : 'transparent'
                                 }}
-                                onClick={() => setSelectedPackage(pkg)}
+                                onClick={() => {
+                            setSelectedPackage(pkg);
+                            setSelectedIndex(index);
+                        }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                     {/* Package Icon */}

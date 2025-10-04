@@ -648,34 +648,29 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         try {
-            // Use VS Code progress indicator instead of loading message
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Window,
-                title: "Loading solution",
-                cancellable: false
-            }, async (progress) => {
-                // Load data asynchronously to prevent blocking
-                this.logger.info('Loading solution data and frameworks...');
-                progress.report({ increment: 30, message: "Reading solution file..." });
+            // Show loading bar in webview
+            this._view?.webview.postMessage({
+                command: 'showLoading',
+                message: 'Loading solution...'
+            });
 
-                const [solutionData, frameworks] = await Promise.all([
-                    this._getSolutionData(),
-                    this._frameworkService.getAvailableFrameworks()
-                ]);
+            // Load data asynchronously to prevent blocking
+            this.logger.info('Loading solution data and frameworks...');
 
-                progress.report({ increment: 40, message: "Processing project data..." });
+            const [solutionData, frameworks] = await Promise.all([
+                this._getSolutionData(),
+                this._frameworkService.getAvailableFrameworks()
+            ]);
 
-                const activeFramework = this._frameworkService.getActiveFramework();
+            const activeFramework = this._frameworkService.getActiveFramework();
 
-                this.logger.info('Loaded data:', {
-                    projectCount: solutionData.length,
-                    frameworkCount: frameworks?.length || 0,
-                    activeFramework
-                });
+            this.logger.info('Loaded data:', {
+                projectCount: solutionData.length,
+                frameworkCount: frameworks?.length || 0,
+                activeFramework
+            });
 
-                progress.report({ increment: 30, message: "Updating tree view..." });
-
-                this.logger.info('Sending solution data to webview');
+            this.logger.info('Sending solution data to webview');
                 const data: SolutionData = {
                     projects: solutionData,
                     frameworks: frameworks || [],
@@ -687,12 +682,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     command: 'solutionData',
                     data
                 });
-            });
+
+                // Hide loading bar
+                this._view?.webview.postMessage({
+                    command: 'hideLoading'
+                });
         } catch (error) {
             this.logger.error('Error updating solution webview:', error);
             this._view?.webview.postMessage({
                 command: 'error',
                 message: 'Failed to load solution data'
+            });
+
+            // Hide loading bar on error
+            this._view?.webview.postMessage({
+                command: 'hideLoading'
             });
         }
     }

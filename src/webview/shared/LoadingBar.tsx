@@ -10,8 +10,6 @@ interface LoadingBarProps {
  * Used across different webview components for consistent loading indicators
  */
 export const LoadingBar: React.FC<LoadingBarProps> = ({ visible, className }) => {
-    if (!visible) return null;
-
     return (
         <div
             className={className}
@@ -21,27 +19,30 @@ export const LoadingBar: React.FC<LoadingBarProps> = ({ visible, className }) =>
                 left: 0,
                 right: 0,
                 height: 0,
-                overflow: 'visible'
+                overflow: 'visible',
+                pointerEvents: 'none'
             }}
         >
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '1px',
-                overflow: 'hidden'
-            }}>
+            {visible && (
                 <div style={{
                     position: 'absolute',
                     top: 0,
+                    left: 0,
+                    right: 0,
                     height: '1px',
-                    backgroundColor: 'var(--vscode-progressBar-background)',
-                    width: '120px',
-                    animation: 'loading-progress 2.5s linear infinite',
-                    transform: 'translateX(-100%)'
-                }}></div>
-            </div>
+                    overflow: 'hidden'
+                }}>
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        height: '1px',
+                        backgroundColor: 'var(--vscode-progressBar-background)',
+                        width: '120px',
+                        animation: 'loading-progress 2.5s linear infinite',
+                        transform: 'translateX(-100%)'
+                    }}></div>
+                </div>
+            )}
         </div>
     );
 };

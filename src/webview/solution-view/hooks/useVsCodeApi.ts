@@ -162,6 +162,19 @@ export const useVsCodeApi = () => {
                         setLoading(true);
                     }
                     break;
+                case 'showLoading':
+                    logger.info('Showing loading bar');
+                    if (solutionData) {
+                        setRefreshing(true);
+                    } else {
+                        setLoading(true);
+                    }
+                    break;
+                case 'hideLoading':
+                    logger.info('Hiding loading bar');
+                    setLoading(false);
+                    setRefreshing(false);
+                    break;
                 case 'solutionData':
                     logger.info('Received solution data:', message.data);
                     setSolutionData(message.data);
