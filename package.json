@@ -73,6 +73,7 @@
     "@types/uuid": "^10.0.0",
     "@vscode/codicons": "^0.0.35",
     "glob": "^10.4.5",
+    "markdown-to-jsx": "^7.7.13",
     "minimatch": "^9.0.3",
     "uuid": "^13.0.0",
     "vscrui": "^0.2.2",

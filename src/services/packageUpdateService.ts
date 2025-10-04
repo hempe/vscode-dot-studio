@@ -1,5 +1,5 @@
-import { NuGetService } from './nugetService';
-import { NuGetSearchOptions } from '../types/nuget';
+import { NuGetV3Service } from './nuget/nugetV3Service';
+import { PackageSearchOptions } from './nuget/types';
 import { PackageDiscoveryService } from './packageDiscoveryService';
 import { InstalledPackage } from '../types/packageDiscovery';
 import { PackageUpdate, UpdateCheckOptions } from '../types/packageUpdate';
@@ -52,13 +52,14 @@ export class PackageUpdateService {
      */
     static async checkPackageForUpdate(packageId: string, currentVersion: string, includePrerelease: boolean = false): Promise<string | null> {
         try {
-            const searchOptions: NuGetSearchOptions = {
+            const searchOptions: PackageSearchOptions = {
                 query: packageId,
                 includePrerelease,
                 take: 1
             };
 
-            const results = await NuGetService.searchPackages(searchOptions);
+            // Use nuget.org V3 API for package updates
+            const results = await NuGetV3Service.searchPackages('https://api.nuget.org/v3/index.json', searchOptions);
             const packageInfo = results.find(pkg => pkg.id.toLowerCase() === packageId.toLowerCase());
 
             if (!packageInfo || !packageInfo.version) {

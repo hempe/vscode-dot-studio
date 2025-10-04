@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { NuGetService } from '../../services/nugetService';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
@@ -15,8 +14,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _nugetService: NuGetService
-    ) { }
+        private readonly _extensionContext: vscode.ExtensionContext
+    ) {
+    }
 
     /**
      * Called when our custom editor is opened.
@@ -41,7 +41,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         webviewPanel.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'out', 'webview')
+                vscode.Uri.joinPath(this._extensionUri, 'out', 'webview'),
+                this._extensionContext.globalStorageUri // Allow access to icon cache
             ]
         };
 
@@ -61,7 +62,17 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     private async _handleMessage(message: any, document: vscode.TextDocument, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
 
         try {
-            switch (message.command) {
+            // Add debug logging to see if messages are reaching the provider
+            this.logger.info('NuGetCustomEditorProvider received message:', {
+                type: message.type,
+                command: message.command,
+                payload: message.payload
+            });
+
+            // Handle both old (command) and new (type) message formats
+            const messageType = message.command || message.type;
+
+            switch (messageType) {
                 case 'getNuGetData':
                     await this._updateWebview(webview, context);
                     break;
@@ -98,12 +109,27 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleUpdateAllPackages(message, webview, context);
                     break;
 
+                case 'getPackageIcon':
+                    const { packageId, version } = message.payload || message;
+                    if (packageId && version) {
+                        await this._getPackageIcon(packageId, version, webview);
+                    }
+                    break;
+
+                case 'getPackageReadme':
+                    const readmePayload = message.payload || message;
+                    if (readmePayload.packageId && readmePayload.version) {
+                        await this._getPackageReadme(readmePayload.packageId, readmePayload.version, webview);
+                    }
+                    break;
+
                 case 'debug':
-                    this.logger.info('Debug from webview:', message.message);
+                    const debugMessage = message.message || message.payload?.message;
+                    this.logger.info('Debug from webview:', debugMessage);
                     break;
 
                 default:
-                    this.logger.warn('Unknown message command:', message.command);
+                    this.logger.warn('Unknown message command:', messageType);
             }
         } catch (error) {
             this.logger.error('Error handling message:', error);
@@ -232,9 +258,13 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
     private async _handleSearchPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
+            // Extract query from both message formats
+            const query = message.query || message.payload?.query;
+            const includePrerelease = message.includePrerelease || message.payload?.includePrerelease || false;
+
             const results = context.type === 'solution'
-                ? await NuGetManagerService.searchPackagesForSolution(message.query, { includePrerelease: message.includePrerelease })
-                : await NuGetManagerService.searchPackagesForProject(context.target, message.query, { includePrerelease: message.includePrerelease });
+                ? await NuGetManagerService.searchPackagesForSolution(query, { includePrerelease })
+                : await NuGetManagerService.searchPackagesForProject(context.target, query, { includePrerelease });
 
             webview.postMessage({
                 command: 'searchResults',
@@ -296,7 +326,10 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     private async _handlePackageAction(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             let result;
-            const { action, packageId, version } = message;
+            // Extract properties from both message formats
+            const action = message.action || message.payload?.action;
+            const packageId = message.packageId || message.payload?.packageId;
+            const version = message.version || message.payload?.version;
 
             switch (action) {
                 case 'install':
@@ -339,6 +372,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
     private async _handleConsolidatePackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
+            // Extract packageId from both message formats
+            const packageId = message.packageId || message.payload?.packageId;
+
             if (context.type === 'solution') {
                 // For now, consolidate to latest version across all projects
                 // In a full implementation, you'd show a dialog to select target version
@@ -348,9 +384,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 const failed = result.length - successful;
 
                 if (failed === 0) {
-                    vscode.window.showInformationMessage(`Successfully consolidated ${message.packageId}`);
+                    vscode.window.showInformationMessage(`Successfully consolidated ${packageId || 'packages'}`);
                 } else {
-                    vscode.window.showWarningMessage(`Consolidated ${message.packageId}: ${successful} successful, ${failed} failed`);
+                    vscode.window.showWarningMessage(`Consolidated ${packageId || 'packages'}: ${successful} successful, ${failed} failed`);
                 }
 
                 // Refresh the consolidate tab
@@ -364,7 +400,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
     private async _handleBulkUpdatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
-            const { packages } = message;
+            // Extract packages from both message formats
+            const packages = message.packages || message.payload?.packages;
 
             if (!packages || !Array.isArray(packages) || packages.length === 0) {
                 vscode.window.showWarningMessage('No packages selected for update');
@@ -511,6 +548,59 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         } catch (error) {
             this.logger.error('Error updating all packages:', error);
             vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+
+    /**
+     * Get a package icon and send it to the webview
+     */
+    private async _getPackageIcon(packageId: string, version: string, webview: vscode.Webview): Promise<void> {
+        try {
+            // Use direct NuGet icon URL instead of caching
+            const iconUri = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/icon`;
+
+            webview.postMessage({
+                command: 'packageIcon',
+                packageId,
+                version,
+                iconUri
+            });
+        } catch (error) {
+            this.logger.error(`Error getting icon for ${packageId}@${version}:`, error);
+
+            webview.postMessage({
+                command: 'packageIcon',
+                packageId,
+                version,
+                iconUri: null
+            });
+        }
+    }
+
+    /**
+     * Get a package README URL and send it to the webview
+     */
+    private async _getPackageReadme(packageId: string, version: string, webview: vscode.Webview): Promise<void> {
+        try {
+            // Use direct NuGet README URL
+            const readmeUrl = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/readme`;
+
+            webview.postMessage({
+                command: 'packageReadme',
+                packageId,
+                version,
+                readmeUrl
+            });
+        } catch (error) {
+            this.logger.error(`Error getting README for ${packageId}@${version}:`, error);
+
+            webview.postMessage({
+                command: 'packageReadme',
+                packageId,
+                version,
+                readmeUrl: null
+            });
         }
     }
 

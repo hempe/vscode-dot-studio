@@ -4,7 +4,6 @@ import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
-import { NuGetService } from './services/nugetService';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
 
@@ -38,7 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Initialize services
     const solutionService = new SolutionService();
-    const nugetService = new NuGetService();
 
     // Create and register webview providers
     const solutionWebviewProvider = new SolutionWebviewProvider(
@@ -50,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Create NuGet custom editor provider
     const nugetCustomEditorProvider = new NuGetCustomEditorProvider(
         context.extensionUri,
-        nugetService
+        context
     );
 
     // Register webview providers

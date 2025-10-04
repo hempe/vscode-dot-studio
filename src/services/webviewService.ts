@@ -65,7 +65,7 @@ export class WebviewService {
      * Generate CSP (Content Security Policy) for webviews
      */
     static generateCSP(nonce: string): string {
-        return `default-src 'none'; script-src 'nonce-${nonce}' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://azuresearch-usnc.nuget.org;`;
+        return `default-src 'none'; script-src 'nonce-${nonce}' 'unsafe-inline'; style-src 'unsafe-inline'; img-src vscode-resource: data:; connect-src https://azuresearch-usnc.nuget.org;`;
     }
 
     /**

@@ -1,15 +1,15 @@
 import { PackageUpdateService } from './packageUpdateService';
 import { PackageUpdate, UpdateCheckOptions } from '../types/packageUpdate';
 import { PackageDiscoveryService } from './packageDiscoveryService';
-import { NuGetService } from './nugetService';
+import { NuGetV3Service } from './nuget/nugetV3Service';
 import * as path from 'path';
 
 // Mock the dependencies
 jest.mock('./packageDiscoveryService');
-jest.mock('./nugetService');
+jest.mock('./nuget/nugetV3Service');
 
 const mockPackageDiscoveryService = PackageDiscoveryService as jest.Mocked<typeof PackageDiscoveryService>;
-const mockNuGetService = NuGetService as jest.Mocked<typeof NuGetService>;
+const mockNuGetV3Service = NuGetV3Service as jest.Mocked<typeof NuGetV3Service>;
 
 describe('PackageUpdateService', () => {
   const testFixturePath = path.join(__dirname, '..', '__fixtures__', 'test-solution');
@@ -87,7 +87,7 @@ describe('PackageUpdateService', () => {
 
   describe('checkPackageForUpdate', () => {
     beforeEach(() => {
-      mockNuGetService.searchPackages.mockResolvedValue([
+      mockNuGetV3Service.searchPackages.mockResolvedValue([
         {
           id: 'TestPackage',
           version: '2.0.0',
@@ -100,11 +100,14 @@ describe('PackageUpdateService', () => {
     it('should return newer version when available', async () => {
       const result = await PackageUpdateService.checkPackageForUpdate('TestPackage', '1.0.0', false);
       expect(result).toBe('2.0.0');
-      expect(mockNuGetService.searchPackages).toHaveBeenCalledWith({
-        query: 'TestPackage',
-        includePrerelease: false,
-        take: 1
-      });
+      expect(mockNuGetV3Service.searchPackages).toHaveBeenCalledWith(
+        'https://api.nuget.org/v3/index.json',
+        {
+          query: 'TestPackage',
+          includePrerelease: false,
+          take: 1
+        }
+      );
     });
 
     it('should return null when no newer version available', async () => {
@@ -118,7 +121,7 @@ describe('PackageUpdateService', () => {
     });
 
     it('should include prerelease when requested', async () => {
-      mockNuGetService.searchPackages.mockResolvedValue([
+      mockNuGetV3Service.searchPackages.mockResolvedValue([
         {
           id: 'TestPackage',
           version: '2.0.0-beta.1',
@@ -129,27 +132,30 @@ describe('PackageUpdateService', () => {
 
       const result = await PackageUpdateService.checkPackageForUpdate('TestPackage', '1.0.0', true);
       expect(result).toBe('2.0.0-beta.1');
-      expect(mockNuGetService.searchPackages).toHaveBeenCalledWith({
-        query: 'TestPackage',
-        includePrerelease: true,
-        take: 1
-      });
+      expect(mockNuGetV3Service.searchPackages).toHaveBeenCalledWith(
+        'https://api.nuget.org/v3/index.json',
+        {
+          query: 'TestPackage',
+          includePrerelease: true,
+          take: 1
+        }
+      );
     });
 
     it('should return null when package not found', async () => {
-      mockNuGetService.searchPackages.mockResolvedValue([]);
+      mockNuGetV3Service.searchPackages.mockResolvedValue([]);
       const result = await PackageUpdateService.checkPackageForUpdate('NonExistentPackage', '1.0.0', false);
       expect(result).toBeNull();
     });
 
     it('should handle API errors gracefully', async () => {
-      mockNuGetService.searchPackages.mockRejectedValue(new Error('API Error'));
+      mockNuGetV3Service.searchPackages.mockRejectedValue(new Error('API Error'));
       const result = await PackageUpdateService.checkPackageForUpdate('TestPackage', '1.0.0', false);
       expect(result).toBeNull();
     });
 
     it('should handle case-insensitive package matching', async () => {
-      mockNuGetService.searchPackages.mockResolvedValue([
+      mockNuGetV3Service.searchPackages.mockResolvedValue([
         {
           id: 'testpackage',
           version: '2.0.0',
@@ -194,7 +200,7 @@ describe('PackageUpdateService', () => {
         }
       ]);
 
-      mockNuGetService.searchPackages.mockImplementation(async (options) => {
+      mockNuGetV3Service.searchPackages.mockImplementation(async (sourceUrl, options) => {
         if (options.query === 'PackageA') {
           return [{
             id: 'PackageA',
@@ -234,7 +240,7 @@ describe('PackageUpdateService', () => {
     });
 
     it('should return empty array when no updates available', async () => {
-      mockNuGetService.searchPackages.mockImplementation(async (options) => {
+      mockNuGetV3Service.searchPackages.mockImplementation(async (sourceUrl, options) => {
         return [{
           id: options.query as string,
           version: '1.0.0', // Same as installed
@@ -289,7 +295,7 @@ describe('PackageUpdateService', () => {
         }
       ]);
 
-      mockNuGetService.searchPackages.mockImplementation(async (options) => {
+      mockNuGetV3Service.searchPackages.mockImplementation(async (sourceUrl, options) => {
         return [{
           id: options.query as string,
           version: '2.0.0',
@@ -314,7 +320,7 @@ describe('PackageUpdateService', () => {
       const updates = await PackageUpdateService.checkForUpdates(testSolutionPath, batchOptions);
 
       // Should still work correctly with smaller batch size
-      expect(mockNuGetService.searchPackages).toHaveBeenCalledTimes(2); // Once for each unique package
+      expect(mockNuGetV3Service.searchPackages).toHaveBeenCalledTimes(2); // Once for each unique package
     });
 
     it('should handle errors gracefully', async () => {
@@ -325,7 +331,7 @@ describe('PackageUpdateService', () => {
     });
 
     it('should continue on individual package errors', async () => {
-      mockNuGetService.searchPackages.mockImplementation(async (options) => {
+      mockNuGetV3Service.searchPackages.mockImplementation(async (sourceUrl, options) => {
         if (options.query === 'PackageA') {
           throw new Error('API Error for PackageA');
         }
@@ -502,7 +508,7 @@ describe('PackageUpdateService', () => {
       ];
 
       mockPackageDiscoveryService.discoverInstalledPackages.mockResolvedValue(mockPackages);
-      mockNuGetService.searchPackages.mockResolvedValue([{
+      mockNuGetV3Service.searchPackages.mockResolvedValue([{
         id: 'SharedPackage',
         version: '2.0.0',
         description: 'Shared package',

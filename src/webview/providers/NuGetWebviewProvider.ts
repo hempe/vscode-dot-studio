@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { NuGetService } from '../../services/nugetService';
+import { PackageBrowseService } from '../../services/nuget/packageBrowseService';
+import { IconCacheService } from '../../services/nuget/iconCacheService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 
@@ -12,7 +13,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _nugetService: NuGetService
+        private readonly _extensionContext: vscode.ExtensionContext
     ) { }
 
     public resolveWebviewView(
@@ -25,7 +26,8 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'out', 'webview')
+                vscode.Uri.joinPath(this._extensionUri, 'out', 'webview'),
+                this._extensionContext.globalStorageUri // Allow access to icon cache
             ]
         };
 
@@ -37,31 +39,47 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
             []
         );
 
+        // Initialize icon cache service
+        this._initializeIconCache();
+
         // Send initial data when webview is ready
         this._updateWebview();
     }
 
     private async _handleMessage(message: any) {
-        switch (message.command) {
+        // Handle both old (command) and new (type) message formats
+        const messageType = message.command || message.type;
+
+        switch (messageType) {
             case 'getNuGetData':
                 await this._updateWebview();
                 break;
 
             case 'searchPackages':
-                if (message.query) {
-                    await this._searchPackages(message.query);
+                const query = message.query || message.payload?.query;
+                if (query) {
+                    await this._searchPackages(query);
                 }
                 break;
 
             case 'installPackage':
-                if (message.package) {
-                    await this._installPackage(message.package);
+                const installPackage = message.package || message.payload?.package;
+                if (installPackage) {
+                    await this._installPackage(installPackage);
                 }
                 break;
 
             case 'uninstallPackage':
-                if (message.package) {
-                    await this._uninstallPackage(message.package);
+                const uninstallPackage = message.package || message.payload?.package;
+                if (uninstallPackage) {
+                    await this._uninstallPackage(uninstallPackage);
+                }
+                break;
+
+            case 'getPackageIcon':
+                const { packageId, version } = message.payload || message;
+                if (packageId && version && this._view) {
+                    await this._getPackageIcon(packageId, version);
                 }
                 break;
         }
@@ -97,7 +115,7 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         try {
-            const searchResults = await NuGetService.searchPackages({
+            const searchResults = await PackageBrowseService.searchPackages({
                 query,
                 includePrerelease: false,
                 take: 20
@@ -205,6 +223,46 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
         return undefined;
     }
 
+    /**
+     * Initialize the icon cache service
+     */
+    private async _initializeIconCache(): Promise<void> {
+        try {
+            await IconCacheService.initialize(this._extensionContext);
+            this.logger.info('Icon cache service initialized');
+        } catch (error) {
+            this.logger.error('Failed to initialize icon cache service:', error);
+        }
+    }
+
+    /**
+     * Get a package icon and send it to the webview
+     */
+    private async _getPackageIcon(packageId: string, version: string): Promise<void> {
+        if (!this._view) {
+            return;
+        }
+
+        try {
+            const iconUri = await IconCacheService.getIconPath(packageId, version, this._view.webview);
+
+            this._view.webview.postMessage({
+                command: 'packageIcon',
+                packageId,
+                version,
+                iconUri: iconUri || null
+            });
+        } catch (error) {
+            this.logger.error(`Error getting icon for ${packageId}@${version}:`, error);
+
+            this._view.webview.postMessage({
+                command: 'packageIcon',
+                packageId,
+                version,
+                iconUri: null
+            });
+        }
+    }
 
     public refresh() {
         this._updateWebview();

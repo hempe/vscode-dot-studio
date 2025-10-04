@@ -14,6 +14,7 @@ export interface NuGetPackage {
     totalDownloads?: number;
     latestVersion?: string;
     allVersions?: string[];
+    source?: string;  // Package source URL or name
 }
 
 export interface InstalledPackage {

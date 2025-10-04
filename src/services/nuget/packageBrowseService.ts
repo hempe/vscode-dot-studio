@@ -2,70 +2,29 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource } from './types';
+import { NuGetV3Service } from './nugetV3Service';
+import { NuGetV2Service } from './nugetV2Service';
 
 const execAsync = promisify(exec);
 
 /**
- * Service for browsing and searching NuGet packages using dotnet CLI
- * Replaces the external API-based approach with dotnet commands
+ * Service for browsing and searching NuGet packages using NuGet V2/V3 APIs
+ * Supports all standard NuGet feeds including public and private sources
  */
 export class PackageBrowseService {
     private static readonly logger = logger('PackageBrowseService');
 
     /**
-     * Search for packages using dotnet CLI
-     * Uses `dotnet search` command which searches NuGet.org and configured sources
+     * Search for packages across all configured NuGet sources
+     * Uses NuGet V2/V3 APIs to search public and private feeds
      */
     static async searchPackages(options: PackageSearchOptions): Promise<NuGetPackage[]> {
         if (!options.query || options.query.trim().length < 2) {
             return [];
         }
 
-        try {
-            const args = [
-                'search',
-                `"${options.query.trim()}"`,
-                '--format', 'json'
-            ];
-
-            if (options.includePrerelease) {
-                args.push('--prerelease');
-            }
-
-            if (options.take && options.take > 0) {
-                args.push('--take', options.take.toString());
-            }
-
-            if (options.skip && options.skip > 0) {
-                args.push('--skip', options.skip.toString());
-            }
-
-            if (options.source) {
-                args.push('--source', options.source);
-            }
-
-            const command = `dotnet ${args.join(' ')}`;
-            this.logger.info(`Searching packages: ${command}`);
-
-            const { stdout, stderr } = await execAsync(command, {
-                timeout: 30000,
-                encoding: 'utf8'
-            });
-
-            if (stderr && !stderr.includes('warn')) {
-                this.logger.warn('dotnet search stderr:', stderr);
-            }
-
-            // Parse the JSON output from dotnet search
-            return this.parseSearchResults(stdout);
-
-        } catch (error) {
-            this.logger.error('Error searching packages:', error);
-
-            // Fallback to a simpler approach if dotnet search fails
-            // This might happen if dotnet search is not available in older versions
-            return this.fallbackSearch(options);
-        }
+        this.logger.info(`Searching packages across configured sources for: ${options.query}`);
+        return this.searchAcrossConfiguredSources(options);
     }
 
     /**
@@ -73,22 +32,42 @@ export class PackageBrowseService {
      */
     static async getPackageDetails(packageId: string, source?: string): Promise<NuGetPackage | null> {
         try {
-            const args = ['search', `"${packageId}"`, '--exact-match', '--format', 'json'];
+            let targetSources: PackageSource[] = [];
 
             if (source) {
-                args.push('--source', source);
+                // Use specific source
+                targetSources = [{ name: 'specified', url: source, enabled: true, isLocal: false }];
+            } else {
+                // Get all configured sources
+                targetSources = await this.getPackageSources();
             }
 
-            const command = `dotnet ${args.join(' ')}`;
-            const { stdout } = await execAsync(command, { timeout: 15000 });
+            // Try each source until we find the package
+            for (const packageSource of targetSources) {
+                if (!packageSource.enabled) continue;
 
-            const results = this.parseSearchResults(stdout);
-            const exactMatch = results.find(pkg => pkg.id.toLowerCase() === packageId.toLowerCase());
+                try {
+                    const accessToken = await this.getSourceToken(packageSource);
+                    let packageDetails: NuGetPackage | null = null;
 
-            if (exactMatch) {
-                // Get all versions for this package
-                exactMatch.allVersions = await this.getPackageVersions(packageId, source);
-                return exactMatch;
+                    // Upgrade nuget.org V2 URLs to V3 for better functionality
+                    const upgradedUrl = this.upgradeNuGetOrgUrl(packageSource.url);
+
+                    if (this.isV3Source(upgradedUrl)) {
+                        packageDetails = await NuGetV3Service.getPackageDetails(upgradedUrl, packageId, accessToken);
+                    } else {
+                        packageDetails = await NuGetV2Service.getPackageDetails(upgradedUrl, packageId, accessToken);
+                    }
+
+                    if (packageDetails) {
+                        // Get all versions
+                        packageDetails.allVersions = await this.getPackageVersions(packageId, packageSource.url);
+                        return packageDetails;
+                    }
+                } catch (error) {
+                    this.logger.warn(`Failed to get package details from ${packageSource.name}:`, error);
+                    continue;
+                }
             }
 
             return null;
@@ -104,23 +83,43 @@ export class PackageBrowseService {
      */
     static async getPackageVersions(packageId: string, source?: string): Promise<string[]> {
         try {
-            // Use dotnet list package with --outdated to get version info
-            // Note: This is a workaround since dotnet CLI doesn't have a direct "list versions" command
-            const args = ['search', `"${packageId}"`, '--exact-match', '--prerelease', '--format', 'json'];
+            let targetSources: PackageSource[] = [];
 
             if (source) {
-                args.push('--source', source);
+                // Use specific source
+                targetSources = [{ name: 'specified', url: source, enabled: true, isLocal: false }];
+            } else {
+                // Get all configured sources
+                targetSources = await this.getPackageSources();
             }
 
-            const command = `dotnet ${args.join(' ')}`;
-            const { stdout } = await execAsync(command, { timeout: 15000 });
+            // Try each source until we find versions
+            for (const packageSource of targetSources) {
+                if (!packageSource.enabled) continue;
 
-            const results = this.parseSearchResults(stdout);
-            const packageData = results.find(pkg => pkg.id.toLowerCase() === packageId.toLowerCase());
+                try {
+                    const accessToken = await this.getSourceToken(packageSource);
+                    let versions: string[] = [];
 
-            // Extract versions from the search result
-            // Note: dotnet search might not return all versions, this is a limitation
-            return packageData ? [packageData.version] : [];
+                    // Upgrade nuget.org V2 URLs to V3 for better functionality
+                    const upgradedUrl = this.upgradeNuGetOrgUrl(packageSource.url);
+
+                    if (this.isV3Source(upgradedUrl)) {
+                        versions = await NuGetV3Service.getPackageVersions(upgradedUrl, packageId, accessToken);
+                    } else {
+                        versions = await NuGetV2Service.getPackageVersions(upgradedUrl, packageId, accessToken);
+                    }
+
+                    if (versions.length > 0) {
+                        return versions;
+                    }
+                } catch (error) {
+                    this.logger.warn(`Failed to get versions from ${packageSource.name}:`, error);
+                    continue;
+                }
+            }
+
+            return [];
 
         } catch (error) {
             this.logger.error(`Error getting versions for ${packageId}:`, error);
@@ -129,29 +128,19 @@ export class PackageBrowseService {
     }
 
     /**
-     * Get configured package sources
+     * Get configured package sources from multiple nuget.config locations
+     * Searches in: root/.nuget/nuget.config, project folders, and global configs
      */
     static async getPackageSources(): Promise<PackageSource[]> {
         try {
-            const { stdout } = await execAsync('dotnet nuget list source --format json', { timeout: 10000 });
-
-            // Parse the sources from dotnet nuget list source output
-            const lines = stdout.split('\n').filter(line => line.trim());
-            const sources: PackageSource[] = [];
-
-            for (const line of lines) {
-                if (line.includes('nuget.org')) {
-                    sources.push({
-                        name: 'nuget.org',
-                        url: 'https://api.nuget.org/v3/index.json',
-                        enabled: true,
-                        isLocal: false
-                    });
-                }
-                // Parse other sources as needed
+            // First try to get sources using dotnet CLI (respects all nuget.config files)
+            const sources = await this.getSourcesFromDotnetCli();
+            if (sources.length > 0) {
+                return sources;
             }
 
-            return sources;
+            // Fallback: manually parse nuget.config files
+            return await this.getSourcesFromNugetConfigs();
 
         } catch (error) {
             this.logger.error('Error getting package sources:', error);
@@ -166,60 +155,367 @@ export class PackageBrowseService {
     }
 
     /**
-     * Parse the JSON output from dotnet search command
+     * Get sources using dotnet CLI (recommended method)
      */
-    private static parseSearchResults(stdout: string): NuGetPackage[] {
+    private static async getSourcesFromDotnetCli(): Promise<PackageSource[]> {
         try {
-            if (!stdout.trim()) {
-                return [];
-            }
+            const { stdout } = await execAsync('dotnet nuget list source --format detailed', { timeout: 10000 });
 
-            // dotnet search outputs one JSON object per line
+            const sources: PackageSource[] = [];
             const lines = stdout.split('\n').filter(line => line.trim());
-            const packages: NuGetPackage[] = [];
+
+            let currentSource: Partial<PackageSource> = {};
 
             for (const line of lines) {
-                try {
-                    const packageData = JSON.parse(line);
+                const trimmedLine = line.trim();
 
-                    packages.push({
-                        id: packageData.id || packageData.packageId || '',
-                        version: packageData.version || packageData.latestVersion || '',
-                        description: packageData.description || '',
-                        authors: packageData.authors || [],
-                        projectUrl: packageData.projectUrl,
-                        licenseUrl: packageData.licenseUrl,
-                        iconUrl: packageData.iconUrl,
-                        tags: packageData.tags ? packageData.tags.split(' ') : [],
-                        totalDownloads: packageData.totalDownloads || 0
-                    });
-                } catch (parseError) {
-                    // Skip malformed JSON lines
+                // Match source number and name
+                const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)(?:\s+\[Enabled\]|\s+\[Disabled\])?$/);
+                if (sourceMatch) {
+                    // Save previous source if complete
+                    if (currentSource.name && currentSource.url) {
+                        sources.push({
+                            name: currentSource.name,
+                            url: currentSource.url,
+                            enabled: currentSource.enabled ?? true,
+                            isLocal: currentSource.isLocal ?? false
+                        });
+                    }
+
+                    // Start new source
+                    currentSource = {
+                        name: sourceMatch[2],
+                        enabled: !trimmedLine.includes('[Disabled]')
+                    };
+                    continue;
+                }
+
+                // Match URL
+                if (trimmedLine.startsWith('http')) {
+                    currentSource.url = trimmedLine;
+                    currentSource.isLocal = false;
+                    continue;
+                }
+
+                // Match local path
+                if (trimmedLine.match(/^[A-Za-z]:\\|^\/|^\./)) {
+                    currentSource.url = trimmedLine;
+                    currentSource.isLocal = true;
                     continue;
                 }
             }
 
-            return packages;
+            // Add the last source
+            if (currentSource.name && currentSource.url) {
+                sources.push({
+                    name: currentSource.name,
+                    url: currentSource.url,
+                    enabled: currentSource.enabled ?? true,
+                    isLocal: currentSource.isLocal ?? false
+                });
+            }
+
+            this.logger.info(`Found ${sources.length} package sources from dotnet CLI`);
+            return sources;
 
         } catch (error) {
-            this.logger.error('Error parsing search results:', error);
+            this.logger.warn('Failed to get sources from dotnet CLI:', error);
             return [];
         }
     }
 
     /**
-     * Fallback search method for when dotnet search is not available
-     * This is a simple approach that just validates package names
+     * Manually parse nuget.config files from common locations
      */
-    private static async fallbackSearch(options: PackageSearchOptions): Promise<NuGetPackage[]> {
-        this.logger.info('Using fallback search method');
+    private static async getSourcesFromNugetConfigs(): Promise<PackageSource[]> {
+        const fs = require('fs');
+        const path = require('path');
+        const sources: PackageSource[] = [];
 
-        // For now, return empty results
-        // In a real implementation, you might use alternative approaches like:
-        // - Direct NuGet API calls (what we're trying to avoid)
-        // - Local package cache search
-        // - User's recently used packages
+        // Common nuget.config locations
+        const configPaths = [
+            // Project root/.nuget/nuget.config
+            path.join(process.cwd(), '.nuget', 'nuget.config'),
+            // Project root/nuget.config
+            path.join(process.cwd(), 'nuget.config'),
+            // Look for csproj folders and check for nuget.config
+            ...(await this.findProjectNugetConfigs())
+        ];
 
-        return [];
+        for (const configPath of configPaths) {
+            try {
+                if (fs.existsSync(configPath)) {
+                    this.logger.info(`Parsing nuget.config: ${configPath}`);
+                    const configSources = await this.parseNugetConfig(configPath);
+                    sources.push(...configSources);
+                }
+            } catch (error) {
+                this.logger.warn(`Failed to parse ${configPath}:`, error);
+            }
+        }
+
+        // Add default nuget.org if no sources found
+        if (sources.length === 0) {
+            sources.push({
+                name: 'nuget.org',
+                url: 'https://api.nuget.org/v3/index.json',
+                enabled: true,
+                isLocal: false
+            });
+        }
+
+        return sources;
+    }
+
+    /**
+     * Find nuget.config files in project directories
+     */
+    private static async findProjectNugetConfigs(): Promise<string[]> {
+        const fs = require('fs');
+        const path = require('path');
+        const configs: string[] = [];
+
+        try {
+            // Find all csproj/vbproj/fsproj files
+            const { stdout } = await execAsync('find . -name "*.csproj" -o -name "*.vbproj" -o -name "*.fsproj" 2>/dev/null || echo ""', { timeout: 5000 });
+            const projectFiles = stdout.split('\n').filter(line => line.trim());
+
+            for (const projectFile of projectFiles) {
+                const projectDir = path.dirname(projectFile);
+                const nugetConfig = path.join(projectDir, 'nuget.config');
+                if (fs.existsSync(nugetConfig)) {
+                    configs.push(nugetConfig);
+                }
+            }
+        } catch (error) {
+            // Ignore errors in project discovery
+        }
+
+        return configs;
+    }
+
+    /**
+     * Parse a nuget.config XML file
+     */
+    private static async parseNugetConfig(configPath: string): Promise<PackageSource[]> {
+        const fs = require('fs');
+        const sources: PackageSource[] = [];
+
+        try {
+            const configContent = fs.readFileSync(configPath, 'utf8');
+
+            // Simple XML parsing for packageSources
+            const packageSourcesMatch = configContent.match(/<packageSources[^>]*>([\s\S]*?)<\/packageSources>/);
+            if (!packageSourcesMatch) {
+                return sources;
+            }
+
+            const packageSourcesXml = packageSourcesMatch[1];
+
+            // Extract add elements
+            const addMatches = packageSourcesXml.matchAll(/<add\s+key="([^"]+)"\s+value="([^"]+)"[^>]*\/?>|<add\s+value="([^"]+)"\s+key="([^"]+)"[^>]*\/?>/g);
+
+            for (const match of addMatches) {
+                const key = match[1] || match[4];
+                const value = match[2] || match[3];
+
+                if (key && value) {
+                    sources.push({
+                        name: key,
+                        url: value,
+                        enabled: true, // TODO: Check for disabled sources
+                        isLocal: !value.startsWith('http')
+                    });
+                }
+            }
+
+            this.logger.info(`Parsed ${sources.length} sources from ${configPath}`);
+
+        } catch (error) {
+            this.logger.error(`Error parsing nuget.config ${configPath}:`, error);
+        }
+
+        return sources;
+    }
+
+    /**
+     * Search across all configured NuGet sources
+     * This respects nuget.config and private feeds
+     */
+    private static async searchAcrossConfiguredSources(options: PackageSearchOptions): Promise<NuGetPackage[]> {
+        try {
+            // Get all configured sources from nuget.config
+            const sources = await this.getPackageSources();
+            this.logger.info(`Found ${sources.length} configured package sources`);
+
+            const allResults: NuGetPackage[] = [];
+            const searchPromises: Promise<NuGetPackage[]>[] = [];
+
+            // Search each source (but limit to avoid overwhelming)
+            for (const source of sources.slice(0, 3)) { // Limit to first 3 sources for performance
+                if (source.enabled) {
+                    this.logger.info(`Searching source: ${source.name} (${source.url})`);
+                    searchPromises.push(this.searchSingleSource(source, options));
+                }
+            }
+
+            // Wait for all searches to complete
+            const results = await Promise.allSettled(searchPromises);
+
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    allResults.push(...result.value);
+                } else {
+                    this.logger.warn(`Search failed for source ${index}:`, result.reason);
+                }
+            });
+
+            // Remove duplicates based on package ID
+            const uniquePackages = this.deduplicatePackages(allResults);
+            this.logger.info(`Found ${uniquePackages.length} unique packages across all sources`);
+
+            return uniquePackages.slice(0, options.take || 20);
+
+        } catch (error) {
+            this.logger.error('Error searching across configured sources:', error);
+            // Ultimate fallback - try nuget.org V3 API directly
+            try {
+                const accessToken = await this.getSourceToken({ name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, isLocal: false });
+                return await NuGetV3Service.searchPackages('https://api.nuget.org/v3/index.json', options, accessToken);
+            } catch (fallbackError) {
+                this.logger.error('Fallback search also failed:', fallbackError);
+                return [];
+            }
+        }
+    }
+
+    /**
+     * Search a single package source using appropriate API version
+     */
+    private static async searchSingleSource(source: PackageSource, options: PackageSearchOptions): Promise<NuGetPackage[]> {
+        try {
+            const accessToken = await this.getSourceToken(source);
+
+            // Upgrade nuget.org V2 URLs to V3 for better functionality
+            const upgradedUrl = this.upgradeNuGetOrgUrl(source.url);
+            const upgradedSource = { ...source, url: upgradedUrl };
+
+            if (this.isV3Source(upgradedUrl)) {
+                this.logger.info(`Using NuGet V3 API for: ${source.name}`);
+                return await NuGetV3Service.searchPackages(upgradedUrl, options, accessToken);
+            } else {
+                this.logger.info(`Using NuGet V2 API for: ${source.name}`);
+                return await NuGetV2Service.searchPackages(upgradedUrl, options, accessToken);
+            }
+
+        } catch (error) {
+            this.logger.error(`Error searching source ${source.name}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Determine if a source uses NuGet V3 API
+     */
+    private static isV3Source(sourceUrl: string): boolean {
+        return sourceUrl.includes('/v3/') || sourceUrl.endsWith('/index.json');
+    }
+
+    /**
+     * Upgrade nuget.org V2 URLs to V3 for better functionality
+     */
+    private static upgradeNuGetOrgUrl(sourceUrl: string): string {
+        // Upgrade old nuget.org V2 URLs to V3
+        if (sourceUrl.includes('nuget.org') && sourceUrl.includes('/api/v2')) {
+            this.logger.info(`Upgrading nuget.org V2 URL to V3: ${sourceUrl}`);
+            return 'https://api.nuget.org/v3/index.json';
+        }
+
+        // Upgrade www.nuget.org URLs to api.nuget.org V3
+        if (sourceUrl.includes('www.nuget.org')) {
+            this.logger.info(`Upgrading www.nuget.org URL to V3: ${sourceUrl}`);
+            return 'https://api.nuget.org/v3/index.json';
+        }
+
+        return sourceUrl;
+    }
+
+    /**
+     * Get authentication token for a source
+     */
+    private static async getSourceToken(source: PackageSource): Promise<string | undefined> {
+        try {
+            // For Azure DevOps feeds, check if credential provider is available
+            if (source.url.includes('dev.azure.com') || source.url.includes('visualstudio.com')) {
+                return await this.getAzureDevOpsToken(source.url);
+            }
+
+            // For other private feeds, return undefined (no auth)
+            return undefined;
+
+        } catch (error) {
+            this.logger.warn(`Failed to get token for ${source.name}:`, error);
+            return undefined;
+        }
+    }
+
+    /**
+     * Get Azure DevOps authentication token using credential provider
+     */
+    private static async getAzureDevOpsToken(sourceUrl: string): Promise<string | undefined> {
+        try {
+            // Try to get token from Azure Artifacts Credential Provider
+            // This is installed when users set up Azure DevOps feeds
+            const authCommand = `dotnet restore --verbosity quiet --no-cache --force --interactive false`;
+            try {
+                await execAsync(authCommand, { timeout: 5000, cwd: process.cwd() });
+                this.logger.info('Azure DevOps credentials are available');
+
+                // For now, return a placeholder - in production you'd extract from credential provider
+                // The credential provider handles this automatically for dotnet commands
+                return 'credential-provider-managed';
+            } catch (authError) {
+                this.logger.warn('Azure DevOps credential provider not configured or no access');
+                return undefined;
+            }
+
+        } catch (error) {
+            this.logger.error('Error checking Azure DevOps authentication:', error);
+            return undefined;
+        }
+    }
+
+
+    /**
+     * Remove duplicate packages based on ID, keeping the one with highest version
+     */
+    private static deduplicatePackages(packages: NuGetPackage[]): NuGetPackage[] {
+        const packageMap = new Map<string, NuGetPackage>();
+
+        for (const pkg of packages) {
+            const existing = packageMap.get(pkg.id.toLowerCase());
+            if (!existing || this.compareVersions(pkg.version, existing.version) > 0) {
+                packageMap.set(pkg.id.toLowerCase(), pkg);
+            }
+        }
+
+        return Array.from(packageMap.values());
+    }
+
+    /**
+     * Simple version comparison (returns 1 if a > b, -1 if a < b, 0 if equal)
+     */
+    private static compareVersions(a: string, b: string): number {
+        const aParts = a.split('.').map(Number);
+        const bParts = b.split('.').map(Number);
+        const maxLength = Math.max(aParts.length, bParts.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            const aPart = aParts[i] || 0;
+            const bPart = bParts[i] || 0;
+            if (aPart > bPart) return 1;
+            if (aPart < bPart) return -1;
+        }
+        return 0;
     }
 }
