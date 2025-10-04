@@ -22,7 +22,6 @@ export default function ProjectList({
     setSelectedProjects
 }: ProjectListProps) {
 
-
     return (
         <div style={{
             background: 'var(--vscode-panel-background)',
