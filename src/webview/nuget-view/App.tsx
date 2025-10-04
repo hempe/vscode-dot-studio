@@ -555,7 +555,6 @@ export const App: React.FC = () => {
                         appearance="primary"
                     >
                         <Icon name="search" />
-                        {loading ? 'Searching...' : 'Search'}
                     </Button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -712,7 +711,7 @@ export const App: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
             {/* Search and Filter */}
             <div style={{
-                padding: '12px',
+                paddingBottom: '12px',
                 borderBottom: '1px solid var(--vscode-panel-border)',
                 background: 'var(--vscode-editor-background)'
             }}>
@@ -903,7 +902,7 @@ export const App: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
             {/* Search and Filter */}
             <div style={{
-                padding: '12px',
+                paddingBottom: '12px',
                 borderBottom: '1px solid var(--vscode-panel-border)',
                 background: 'var(--vscode-editor-background)'
             }}>
