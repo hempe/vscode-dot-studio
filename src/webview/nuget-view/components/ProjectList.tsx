@@ -12,14 +12,16 @@ interface ProjectListProps {
     installedPackages?: LocalNuGetPackage[];
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
+    initializing?: boolean;
 }
 
-export default function ProjectList({ 
+export default function ProjectList({
     selectedPackage,
-    projects, 
+    projects,
     installedPackages = [],
     selectedProjects,
-    setSelectedProjects
+    setSelectedProjects,
+    initializing = false
 }: ProjectListProps) {
 
     return (
@@ -55,14 +57,17 @@ export default function ProjectList({
                     }}>
                         <Checkbox
                             checked={selectedProjects.has(project.name)}
+                            disabled={initializing}
                             onChange={() => {
-                                const newSelected = new Set(selectedProjects);
-                                if (newSelected.has(project.name)) {
-                                    newSelected.delete(project.name);
-                                } else {
-                                    newSelected.add(project.name);
+                                if (!initializing) {
+                                    const newSelected = new Set(selectedProjects);
+                                    if (newSelected.has(project.name)) {
+                                        newSelected.delete(project.name);
+                                    } else {
+                                        newSelected.add(project.name);
+                                    }
+                                    setSelectedProjects(newSelected);
                                 }
-                                setSelectedProjects(newSelected);
                             }}
                         />
                         <div style={{

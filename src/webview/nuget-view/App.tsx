@@ -539,19 +539,20 @@ export const App: React.FC = () => {
             }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <TextField
-                        placeholder="Search for packages..."
+                        placeholder={initializing ? "Initializing..." : "Search for packages..."}
                         value={searchTerm}
                         onChange={setSearchTerm}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                            if (e.key === 'Enter' && !initializing) {
                                 handleSearch();
                             }
                         }}
+                        disabled={initializing}
                         style={{ flex: 1 }}
                     />
                     <Button
                         onClick={handleSearch}
-                        disabled={loading}
+                        disabled={loading || initializing}
                         appearance="primary"
                     >
                         <Icon name="search" />
@@ -561,12 +562,13 @@ export const App: React.FC = () => {
                     <Checkbox
                         checked={includePrerelease}
                         onChange={setIncludePrerelease}
+                        disabled={initializing}
                     />
                     <label style={{
                         fontSize: '13px',
                         color: 'var(--vscode-foreground)',
-                        cursor: 'pointer'
-                    }} onClick={() => setIncludePrerelease(!includePrerelease)}>
+                        cursor: initializing ? 'default' : 'pointer'
+                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
                 </div>
@@ -622,6 +624,7 @@ export const App: React.FC = () => {
                                 installedPackages={enhancedSearchResults || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
+                                initializing={initializing}
                                  />
                             {/* Install Action */}
                             <div style={{
@@ -654,19 +657,22 @@ export const App: React.FC = () => {
                                             value={selectedVersion || selectedPackage.version}
                                             onChange={handleVersionChange}
                                             options={getVersionOptions(selectedPackage)}
+                                            disabled={initializing}
                                             style={{ flex: 1, maxWidth: '200px' }}
                                         />
                                     </div>
                                     <Button
                                         appearance="primary"
-                                        disabled={selectedProjects.size === 0}
+                                        disabled={selectedProjects.size === 0 || initializing}
                                         onClick={() => {
-                                            log.info('Install action from Browse:', {
-                                                package: selectedPackage.id,
-                                                version: selectedVersion || selectedPackage.version,
-                                                projects: Array.from(selectedProjects)
-                                            });
-                                            handleInstallPackage(selectedPackage);
+                                            if (!initializing) {
+                                                log.info('Install action from Browse:', {
+                                                    package: selectedPackage.id,
+                                                    version: selectedVersion || selectedPackage.version,
+                                                    projects: Array.from(selectedProjects)
+                                                });
+                                                handleInstallPackage(selectedPackage);
+                                            }
                                         }}
                                     >
                                         Install
@@ -719,7 +725,8 @@ export const App: React.FC = () => {
                     <TextField
                         value={filterTerm}
                         onChange={setFilterTerm}
-                        placeholder="Filter installed packages..."
+                        placeholder={initializing ? "Initializing..." : "Filter installed packages..."}
+                        disabled={initializing}
                         style={{ flex: 1 }}
                     />
                 </div>
@@ -727,12 +734,13 @@ export const App: React.FC = () => {
                     <Checkbox
                         checked={includePrerelease}
                         onChange={setIncludePrerelease}
+                        disabled={initializing}
                     />
                     <label style={{
                         fontSize: '13px',
                         color: 'var(--vscode-foreground)',
-                        cursor: 'pointer'
-                    }} onClick={() => setIncludePrerelease(!includePrerelease)}>
+                        cursor: initializing ? 'default' : 'pointer'
+                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
                 </div>
@@ -785,6 +793,7 @@ export const App: React.FC = () => {
                                 projects={data.projects || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
+                                initializing={initializing}
                                  />
                         {/* Version Selection and Actions */}
                         <div style={{
@@ -820,18 +829,21 @@ export const App: React.FC = () => {
                                         value={selectedVersion || selectedPackage.version}
                                         onChange={handleVersionChange}
                                         options={getVersionOptions(selectedPackage)}
+                                        disabled={initializing}
                                         style={{ flex: 1, maxWidth: '200px' }}
                                     />
                                 </div>
                                 <Button
                                     appearance="primary"
-                                    disabled={selectedProjects.size === 0}
+                                    disabled={selectedProjects.size === 0 || initializing}
                                     onClick={() => {
-                                        log.info('Install/Update action:', {
-                                            package: selectedPackage.id,
-                                            version: selectedVersion || selectedPackage.version,
-                                            projects: Array.from(selectedProjects)
-                                        });
+                                        if (!initializing) {
+                                            log.info('Install/Update action:', {
+                                                package: selectedPackage.id,
+                                                version: selectedVersion || selectedPackage.version,
+                                                projects: Array.from(selectedProjects)
+                                            });
+                                        }
                                     }}
                                 >
                                     Install/Update
@@ -852,13 +864,15 @@ export const App: React.FC = () => {
                                 </div>
                                 <Button
                                     appearance="secondary"
-                                    disabled={selectedProjects.size === 0}
+                                    disabled={selectedProjects.size === 0 || initializing}
                                     onClick={() => {
-                                        log.info('Uninstall action:', {
-                                            package: selectedPackage.id,
-                                            projects: Array.from(selectedProjects)
-                                        });
-                                        handleUninstallPackage(selectedPackage);
+                                        if (!initializing) {
+                                            log.info('Uninstall action:', {
+                                                package: selectedPackage.id,
+                                                projects: Array.from(selectedProjects)
+                                            });
+                                            handleUninstallPackage(selectedPackage);
+                                        }
                                     }}
                                 >
                                     Uninstall
@@ -910,7 +924,8 @@ export const App: React.FC = () => {
                     <TextField
                         value={filterTerm}
                         onChange={setFilterTerm}
-                        placeholder="Filter packages with updates..."
+                        placeholder={initializing ? "Initializing..." : "Filter packages with updates..."}
+                        disabled={initializing}
                         style={{ flex: 1 }}
                     />
                 </div>
@@ -918,12 +933,13 @@ export const App: React.FC = () => {
                     <Checkbox
                         checked={includePrerelease}
                         onChange={setIncludePrerelease}
+                        disabled={initializing}
                     />
                     <label style={{
                         fontSize: '13px',
                         color: 'var(--vscode-foreground)',
-                        cursor: 'pointer'
-                    }} onClick={() => setIncludePrerelease(!includePrerelease)}>
+                        cursor: initializing ? 'default' : 'pointer'
+                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
                 </div>
@@ -979,6 +995,7 @@ export const App: React.FC = () => {
                                 installedPackages={data.installedPackages || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
+                                initializing={initializing}
                                  />
                             {/* Update Action */}
                             <div style={{
@@ -1011,19 +1028,22 @@ export const App: React.FC = () => {
                                             value={selectedVersion || selectedPackage.latestVersion}
                                             onChange={handleVersionChange}
                                             options={getVersionOptions(selectedPackage)}
+                                            disabled={initializing}
                                             style={{ flex: 1, maxWidth: '200px' }}
                                         />
                                     </div>
                                     <Button
                                         appearance="primary"
-                                        disabled={selectedProjects.size === 0}
+                                        disabled={selectedProjects.size === 0 || initializing}
                                         onClick={() => {
-                                            log.info('Update action:', {
-                                                package: selectedPackage.id,
-                                                version: selectedVersion || selectedPackage.latestVersion,
-                                                projects: Array.from(selectedProjects)
-                                            });
-                                            handleUpdatePackage(selectedPackage);
+                                            if (!initializing) {
+                                                log.info('Update action:', {
+                                                    package: selectedPackage.id,
+                                                    version: selectedVersion || selectedPackage.latestVersion,
+                                                    projects: Array.from(selectedProjects)
+                                                });
+                                                handleUpdatePackage(selectedPackage);
+                                            }
                                         }}
                                     >
                                         Update
@@ -1085,6 +1105,7 @@ export const App: React.FC = () => {
                         projects={data.projects || []}
                         selectedProjects={selectedProjects}
                         setSelectedProjects={setSelectedProjects}
+                        initializing={initializing}
                          />
                     {/* Install Action */}
                     <div style={{
@@ -1111,6 +1132,7 @@ export const App: React.FC = () => {
                                 value={selectedVersion || selectedPackage.version}
                                 options={getVersionOptions(selectedPackage)}
                                 onChange={handleVersionChange}
+                                disabled={initializing}
                                 placeholder="Select version"
                             />
                         </div>
@@ -1128,14 +1150,16 @@ export const App: React.FC = () => {
                             </span>
                             <Button
                                 appearance="primary"
-                                disabled={selectedProjects.size === 0}
+                                disabled={selectedProjects.size === 0 || initializing}
                                 onClick={() => {
-                                    log.info('Install button clicked for:', {
-                                        package: selectedPackage.id,
-                                        version: selectedVersion || selectedPackage.version,
-                                        projects: Array.from(selectedProjects)
-                                    });
-                                    handleInstallPackage(selectedPackage);
+                                    if (!initializing) {
+                                        log.info('Install button clicked for:', {
+                                            package: selectedPackage.id,
+                                            version: selectedVersion || selectedPackage.version,
+                                            projects: Array.from(selectedProjects)
+                                        });
+                                        handleInstallPackage(selectedPackage);
+                                    }
                                 }}
                             >
                                 Install
