@@ -35,9 +35,35 @@ interface NuGetViewData {
     searchResults: LocalNuGetPackage[];
     updatesAvailable: LocalNuGetPackage[];
     consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality
-    projects?: Array<{ name: string; path: string, version: string }>;
+    projects?: { name: string; path: string, version: string }[];
     projectPath?: string;
 }
+
+
+// Helper function to deduplicate packages by ID and group project information
+const getUniquePackages = (packages: LocalNuGetPackage[], projects: { name: string; path: string, version: string }[]) => {
+    const packageMap = new Map<string, LocalNuGetPackage>();
+
+    packages.forEach(pkg => {
+        const existing = packageMap.get(pkg.id);
+        const existingProject = projects.find(p => p.name === pkg.projectName);
+
+        if (existing) {
+            // Add project info to existing package (avoid duplicates)
+            if (!existing.projects) existing.projects = [];
+            if (!existingProject) return;
+            existing.projects.push({ name: existingProject.name, version: existingProject.version });
+        } else {
+            // First time seeing this package
+            packageMap.set(pkg.id, {
+                ...pkg,
+                projects: existingProject ? [{name:existingProject.name, version:existingProject.version}]:[]
+            });
+        }
+    });
+
+    return Array.from(packageMap.values());
+};
 
 export const App: React.FC = () => {
     const [data, setData] = useState<NuGetViewData>({
@@ -57,61 +83,12 @@ export const App: React.FC = () => {
     const [filterTerm, setFilterTerm] = useState('');
     const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
     const [selectedVersion, setSelectedVersion] = useState('');
-    const [detailsTab, setDetailsTab] = useState<'details' | 'readme'>('details');
     const selectedItemRef = React.useRef<HTMLDivElement>(null);
     const [packageIcons, setPackageIcons] = useState<Map<string, string>>(new Map());
     const [requestedIcons, setRequestedIcons] = useState<Set<string>>(new Set());
     const [failedIcons, setFailedIcons] = useState<Set<string>>(new Set());
     const [packageReadmes, setPackageReadmes] = useState<Map<string, string>>(new Map());
     const [requestedReadmes, setRequestedReadmes] = useState<Set<string>>(new Set());
-
-    // Helper function to deduplicate packages by ID and group project information
-    const getUniquePackages = (packages: LocalNuGetPackage[]) => {
-        const packageMap = new Map<string, LocalNuGetPackage>();
-
-        packages.forEach(pkg => {
-            const existing = packageMap.get(pkg.id);
-            if (existing) {
-                // Add project info to existing package (avoid duplicates)
-                if (!existing.projects) {
-                    existing.projects = [];
-                }
-
-                // Check if this project is already in the list
-                const projectName = pkg.projectName || 'Unknown Project';
-                const existingProject = existing.projects.find(p => p.name === projectName);
-
-                if (!existingProject) {
-                    // Only add if project not already in list
-                    existing.projects.push({
-                        name: projectName,
-                        version: pkg.version
-                    });
-                } else if (pkg.version > existingProject.version) {
-                    // Update to higher version if found
-                    existingProject.version = pkg.version;
-                }
-
-                // Use the latest version as the display version
-                if (pkg.version > existing.version) {
-                    existing.version = pkg.version;
-                    existing.description = pkg.description || existing.description;
-                    existing.authors = pkg.authors || existing.authors;
-                }
-            } else {
-                // First time seeing this package
-                packageMap.set(pkg.id, {
-                    ...pkg,
-                    projects: [{
-                        name: pkg.projectName || 'Unknown Project',
-                        version: pkg.version
-                    }]
-                });
-            }
-        });
-
-        return Array.from(packageMap.values());
-    };
 
     // Helper function to filter packages based on search term
     const filterPackages = (packages: LocalNuGetPackage[], searchTerm: string) => {
@@ -145,8 +122,8 @@ export const App: React.FC = () => {
     };
 
     // Compute filtered package lists
-    const filteredPackages = filterPackages(getUniquePackages(ensureArray(data.installedPackages)), filterTerm);
-    const filteredUpdates = filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm);
+    const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm);
+    const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
     useEffect(() => {
         vscode.postMessage({ type: 'getNuGetData' });
@@ -162,10 +139,10 @@ export const App: React.FC = () => {
 
                     // Map backend data structure to frontend structure
                     const safeData = {
-                        installedPackages: ensureArray(message.data?.installedPackages),
-                        searchResults: ensureArray(message.data?.searchResults),
+                        installedPackages: getUniquePackages(ensureArray(message.data?.installedPackages), message.data?.projects || []),
+                        searchResults: getUniquePackages(ensureArray(message.data?.searchResults), message.data?.projects || []),
                         // Backend sends 'outdatedPackages' array, not 'updatesAvailable'
-                        updatesAvailable: ensureArray(message.data?.outdatedPackages),
+                        updatesAvailable: getUniquePackages(ensureArray(message.data?.outdatedPackages), message.data?.projects || []),
                         projects: ensureArray(message.data?.projects),
                         projectPath: message.data?.projectPath
                     };
@@ -175,7 +152,7 @@ export const App: React.FC = () => {
                     setData(safeData);
 
                     // Auto-select first installed package when data loads
-                    const uniquePackages = getUniquePackages(safeData.installedPackages);
+                    const uniquePackages = safeData.installedPackages;
                     log.debug('NuGet React: Unique packages after deduplication:', uniquePackages);
 
                     if (uniquePackages.length > 0 && !selectedPackage) {
@@ -266,7 +243,7 @@ export const App: React.FC = () => {
     // Handle filter changes - reset selection if current package is not visible
     useEffect(() => {
         if (selectedPackage && filterTerm) {
-            const uniquePackages = getUniquePackages(ensureArray(data.installedPackages));
+            const uniquePackages = ensureArray(data.installedPackages);
             const filteredPackages = filterPackages(uniquePackages, filterTerm);
 
             // If selected package is not in filtered results, select first filtered package
@@ -285,8 +262,8 @@ export const App: React.FC = () => {
     // Batch load icons and READMEs when packages are available
     useEffect(() => {
         const packagesToLoad = activeTab === 'browse'
-            ? getUniquePackages(ensureArray(data.searchResults))
-            : getUniquePackages(ensureArray(data.installedPackages));
+            ? ensureArray(data.searchResults)
+            : ensureArray(data.installedPackages);
 
         packagesToLoad.forEach((pkg) => {
             requestPackageIcon(pkg);
@@ -404,6 +381,7 @@ export const App: React.FC = () => {
         ensureArray(installedPackages).forEach(pkg => {
             const key = pkg.id.toLowerCase();
 
+
             // Store the package info
             if (!installedMap.has(key)) {
                 installedMap.set(key, pkg);
@@ -416,10 +394,15 @@ export const App: React.FC = () => {
 
             // Add project info (from individual package entry format)
             if (pkg.projectName) {
-                projectsMap.get(key)!.push({
-                    name: pkg.projectName,
-                    version: pkg.version
-                });
+                const projects = projectsMap.get(key)!;
+                // Avoid duplicates
+                const exists = projects.find(p => p.name === pkg.projectName && p.version === pkg.version);
+                if (!exists) {
+                    projects.push({
+                        name: pkg.projectName,
+                        version: pkg.version
+                    });
+                }
             }
         });
 
@@ -494,28 +477,20 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleUpdateAll = () => {
-        vscode.postMessage({ type: 'updateAllPackages' });
-    };
-
-    const togglePackageSelection = (packageId: string) => {
-        setData(prev => ({
-            ...prev,
-            updatesAvailable: ensureArray(prev.updatesAvailable).map(pkg =>
-                pkg.id === packageId ? { ...pkg, selected: !pkg.selected } : pkg
-            )
-        }));
-    };
+    // Cache enhanced search results to avoid multiple processing
+    const enhancedSearchResults = React.useMemo(() => {
+        return enhanceWithInstalledInfo(data.searchResults, data.installedPackages);
+    }, [data.searchResults, data.installedPackages]);
 
     // Keyboard navigation helpers
     const getCurrentPackageList = () => {
         switch (activeTab) {
             case 'browse':
-                return filterPackages(enhanceWithInstalledInfo(data.searchResults, data.installedPackages), searchTerm);
+                return filterPackages(enhancedSearchResults, searchTerm);
             case 'installed':
                 return filterPackages(ensureArray(data.installedPackages), filterTerm);
             case 'updates':
-                return filterPackages(getUniquePackages(ensureArray(data.updatesAvailable)), filterTerm);
+                return filterPackages(ensureArray(data.updatesAvailable), filterTerm);
             case 'consolidate':
                 return filterPackages(ensureArray(data.consolidatePackages || []), filterTerm);
             default:
@@ -618,7 +593,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
-                        packages={enhanceWithInstalledInfo(data.searchResults, data.installedPackages)}
+                        packages={enhancedSearchResults}
                         loading={loading}
                         emptyMessage="Search for packages to browse"
                         loadingMessage="Searching for packages..."
@@ -628,7 +603,6 @@ export const App: React.FC = () => {
                         selectedPackage={selectedPackage}
                         selectedItemRef={selectedItemRef}
                         onPackageSelect={selectPackageWithDetails}
-                        getUniquePackages={getUniquePackages}
                         getPackageIconUrl={getPackageIconUrl}
                         title="Browse"
                     />
@@ -646,7 +620,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                installedPackages={enhanceWithInstalledInfo(data.searchResults, data.installedPackages) || []}
+                                installedPackages={enhancedSearchResults || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                  />
@@ -793,7 +767,6 @@ export const App: React.FC = () => {
                         selectedPackage={selectedPackage}
                         selectedItemRef={selectedItemRef}
                         onPackageSelect={selectPackageWithDetails}
-                        getUniquePackages={getUniquePackages}
                         getPackageIconUrl={getPackageIconUrl}
                         title="Installed"
                     />
@@ -985,7 +958,6 @@ export const App: React.FC = () => {
                         selectedPackage={selectedPackage}
                         selectedItemRef={selectedItemRef}
                         onPackageSelect={selectPackageWithDetails}
-                        getUniquePackages={getUniquePackages}
                         getPackageIconUrl={getPackageIconUrl}
                         showUpdateInfo={true}
                         getVersionChangeText={getVersionChangeText}
@@ -1214,7 +1186,6 @@ export const App: React.FC = () => {
                     selectedPackage={selectedPackage}
                     selectedItemRef={selectedItemRef}
                     onPackageSelect={selectPackageWithDetails}
-                    getUniquePackages={getUniquePackages}
                     getPackageIconUrl={getPackageIconUrl}
                     title="Consolidate"
                 />

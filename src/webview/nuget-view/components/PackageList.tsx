@@ -17,7 +17,6 @@ interface PackageListProps {
     selectedPackage: LocalNuGetPackage | null;
     selectedItemRef: React.RefObject<HTMLDivElement>;
     onPackageSelect: (pkg: LocalNuGetPackage, index: number) => void;
-    getUniquePackages: (packages: LocalNuGetPackage[]) => LocalNuGetPackage[];
     getPackageIconUrl: (pkg: LocalNuGetPackage) => string;
     showUpdateInfo?: boolean; // For Updates tab to show version changes
     getVersionChangeText?: (pkg: LocalNuGetPackage) => string;
@@ -35,13 +34,12 @@ export const PackageList: React.FC<PackageListProps> = ({
     selectedPackage,
     selectedItemRef,
     onPackageSelect,
-    getUniquePackages,
     getPackageIconUrl,
     showUpdateInfo = false,
     getVersionChangeText,
     title
 }) => {
-    const uniquePackages = getUniquePackages(ensureArray(packages));
+    const uniquePackages = ensureArray(packages);
 
     return (
         <>
@@ -121,110 +119,106 @@ export const PackageList: React.FC<PackageListProps> = ({
                             </div>
 
                             {/* Package Details */}
-                            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'row' }}>
                                 {/* Top row: Package name with authors and version */}
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'flex-start',
-                                    marginBottom: '2px'
-                                }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <span style={{
-                                            fontWeight: 500,
-                                            fontSize: '13px',
-                                            color: 'var(--vscode-foreground)'
-                                        }}>
-                                            {pkg.id}
-                                        </span>
-                                        {pkg.authors && (
+                                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'flex-start',
+                                        marginBottom: '2px'
+                                    }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
                                             <span style={{
-                                                fontWeight: 'normal',
-                                                fontSize: '12px',
-                                                color: 'var(--vscode-descriptionForeground)',
-                                                marginLeft: '8px'
+                                                fontWeight: 500,
+                                                fontSize: '13px',
+                                                color: 'var(--vscode-foreground)'
                                             }}>
-                                                by {formatAuthors(pkg.authors)}
+                                                {pkg.id}
                                             </span>
-                                        )}
-                                    </div>
-                                    {/* Version in top right */}
-                                    <div style={{
-                                        flexShrink: 0,
-                                        marginLeft: '8px',
-                                        textAlign: 'right'
-                                    }}>
-                                        <div style={{
-                                            fontSize: '13px',
-                                            fontWeight: 500,
-                                            color: 'var(--vscode-foreground)'
-                                        }}>
-                                            v{pkg.version}
+                                            {pkg.authors && (
+                                                <span style={{
+                                                    fontWeight: 'normal',
+                                                    fontSize: '12px',
+                                                    color: 'var(--vscode-descriptionForeground)',
+                                                    marginLeft: '8px'
+                                                }}>
+                                                    by {formatAuthors(pkg.authors)}
+                                                </span>
+                                            )}
                                         </div>
-                                        {/* Max installed version - only show if different from current and package has projects */}
-                                        {pkg.projects && pkg.projects.length > 0 && (() => {
-                                            // Debug logging
-                                            log.shotgun(`${pkg.id} has projects:`, pkg.projects);
-
-                                            // Find the highest installed version across all projects
-                                            const installedVersions = pkg.projects.map(p => p.version).filter(Boolean);
-                                            log.shotgun(`${pkg.id} installed versions:`, installedVersions);
-                                            if (installedVersions.length > 0) {
-                                                const maxInstalledVersion = installedVersions.sort((a, b) => {
-                                                    const aParts = a.split('.').map(Number);
-                                                    const bParts = b.split('.').map(Number);
-                                                    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-                                                        const aPart = aParts[i] || 0;
-                                                        const bPart = bParts[i] || 0;
-                                                        if (aPart !== bPart) return bPart - aPart;
-                                                    }
-                                                    return 0;
-                                                })[0];
-
-                                                // Only show if different from the main version
-                                                if (maxInstalledVersion !== pkg.version) {
-                                                    return (
-                                                        <div style={{
-                                                            fontSize: '11px',
-                                                            color: 'var(--vscode-descriptionForeground)',
-                                                            marginTop: '1px'
-                                                        }}>
-                                                            max installed: v{maxInstalledVersion}
-                                                        </div>
-                                                    );
-                                                }
-                                            }
-                                            return null;
-                                        })()}
+                                        
                                     </div>
+                                    {/* Show update info for Updates tab */}
+                                    {showUpdateInfo && getVersionChangeText && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-charts-blue)',
+                                            marginBottom: '4px',
+                                            fontWeight: 500
+                                        }}>
+                                            {getVersionChangeText(pkg)}
+                                        </div>
+                                    )}
+
+                                    {/* Package description */}
+                                    {pkg.description && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-descriptionForeground)',
+                                            lineHeight: '1.3',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden'
+                                        }}>
+                                            {pkg.description}
+                                        </div>
+                                    )}
                                 </div>
-
-                                {/* Show update info for Updates tab */}
-                                {showUpdateInfo && getVersionChangeText && (
+                                {/* Version in top right */}
+                                <div style={{
+                                    flexShrink: 0,
+                                    marginLeft: '8px',
+                                    textAlign: 'right'
+                                }}>
                                     <div style={{
-                                        fontSize: '11px',
-                                        color: 'var(--vscode-charts-blue)',
-                                        marginBottom: '4px',
-                                        fontWeight: 500
+                                        fontSize: '13px',
+                                        fontWeight: 500,
+                                        color: 'var(--vscode-foreground)'
                                     }}>
-                                        {getVersionChangeText(pkg)}
+                                        v{pkg.version}
                                     </div>
-                                )}
+                                    {/* Max installed version - only show if different from current and package has projects */}
+                                    {pkg.projects && pkg.projects.length > 0 && (() => {
+                                        // Find the highest installed version across all projects
+                                        const installedVersions = pkg.projects.map(p => p.version).filter(Boolean);
+                                        if (installedVersions.length > 0) {
+                                            const maxInstalledVersion = installedVersions.sort((a, b) => {
+                                                const aParts = a.split('.').map(Number);
+                                                const bParts = b.split('.').map(Number);
+                                                for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                                                    const aPart = aParts[i] || 0;
+                                                    const bPart = bParts[i] || 0;
+                                                    if (aPart !== bPart) return bPart - aPart;
+                                                }
+                                                return 0;
+                                            })[0];
 
-                                {/* Package description */}
-                                {pkg.description && (
-                                    <div style={{
-                                        fontSize: '11px',
-                                        color: 'var(--vscode-descriptionForeground)',
-                                        lineHeight: '1.3',
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden'
-                                    }}>
-                                        {pkg.description}
-                                    </div>
-                                )}
+                                            // Always show the max installed version when package is installed
+                                            return (
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: 'var(--vscode-descriptionForeground)',
+                                                    marginTop: '1px'
+                                                }}>
+                                                    v{maxInstalledVersion}
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
