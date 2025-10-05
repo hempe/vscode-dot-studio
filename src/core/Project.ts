@@ -502,6 +502,23 @@ export class Project {
 
             // Add root files and folders (excluding .csproj and other project files)
             if (this._fileTree?.children) {
+                // First, find the Properties folder if it exists
+                const propertiesFolder = this._fileTree.children.find(child =>
+                    child.type === 'folder' && child.name === 'Properties'
+                );
+
+                // Add Properties folder right after Dependencies
+                if (propertiesFolder) {
+                    items.push({
+                        type: 'folder',
+                        name: propertiesFolder.name,
+                        path: propertiesFolder.path,
+                        hasChildren: propertiesFolder.hasChildren,
+                        nodeId: SolutionExpansionIdService.generateFolderId(propertiesFolder.path, this._projectPath)
+                    });
+                }
+
+                // Then add all other files and folders
                 for (const child of this._fileTree.children) {
                     // Filter out project files
                     if (child.type === 'file' && (
@@ -513,11 +530,21 @@ export class Project {
                         continue;
                     }
 
+                    // Skip Properties folder since we already added it
+                    if (child.type === 'folder' && child.name === 'Properties') {
+                        continue;
+                    }
+
+                    const nodeId = child.type === 'folder'
+                        ? SolutionExpansionIdService.generateFolderId(child.path, this._projectPath)
+                        : SolutionExpansionIdService.generateFileId(child.path);
+
                     items.push({
                         type: child.type as 'folder' | 'file',
                         name: child.name,
                         path: child.path,
-                        hasChildren: child.hasChildren
+                        hasChildren: child.hasChildren,
+                        nodeId: nodeId
                     });
                 }
             }

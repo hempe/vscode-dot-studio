@@ -114,7 +114,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             case 'solutionFolder':
                 return {
                     icon: node.expanded ? 'mdi:folder-open' : 'mdi:folder',
-                    color: '#d7ab69' // Folder color
+                    color: '#d8ac6a' // Folder color
                 };
             case 'project':
                 // Different icons based on project type - same icon as code files but gray with green border
@@ -134,14 +134,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     color: '#378BBA', // Gray
                     border: true
                 };
-                return { icon: 'mdi:folder', color: '#d7ab69' };
+                return { icon: 'mdi:folder', color: '#d8ac6a' };
             case 'folder':
                 // Special folder names with specific icons
                 if (node.name === 'Dependencies') return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
                 if (node.name === 'Properties') return { icon: 'streamline:wrench-solid', color: '#dcdcdc' };
                 return {
                     icon: node.expanded ? 'mdi:folder-open' : 'mdi:folder',
-                    color: '#d7ab69' // Folder color
+                    color: '#d8ac6a' // Folder color
                 };
             case 'file':
                 // File type specific icons matching Visual Studio dark theme
@@ -205,7 +205,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 if (node.name === 'Projects') return { icon: 'mdi:application-outline', color: '#dcdcdc' };
                 if (node.name === 'Assemblies') return { icon: 'mdi:package-variant', color: '#dcdcdc' };
                 if (node.name === 'Frameworks') return { icon: 'hugeicons:frameworks', color: '#dcdcdc' };
-                return { icon: 'mdi:folder', color: '#d7ab69' };
+                return { icon: 'mdi:folder', color: '#d8ac6a' };
             case 'packageDependencies': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
             case 'projectDependencies': return { icon: 'mdi:application-outline', color: '#dcdcdc' };
             case 'assemblyDependencies': return { icon: 'mdi:package-variant', color: '#dcdcdc' };
