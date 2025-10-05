@@ -17,6 +17,7 @@
     "views": {
       "solution-explorer": [
         {
+          "icon": "$(folder-library)",
           "id": "dotnet-solution-webview",
           "name": "Solution Explorer",
           "type": "webview",
@@ -70,6 +71,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@iconify/react": "^6.0.2",
     "@types/uuid": "^10.0.0",
     "@vscode/codicons": "^0.0.35",
     "glob": "^10.4.5",

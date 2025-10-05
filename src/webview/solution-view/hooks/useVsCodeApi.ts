@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
-
-import { logger as loggerFn } from '../utils/logger';
+import { logger } from '../../shared/logger';
 
 declare global {
     interface Window {
@@ -134,14 +133,14 @@ const removeFileFromTree = (solutionData: SolutionData, filePath: string): Solut
     };
 };
 
-const logger = loggerFn('useVsCodeApi');
+const log = logger('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
-        logger.info('Hook initialized, requesting solution data');
+        log.info('Hook initialized, requesting solution data');
 
         // Request initial solution data
         vscode.postMessage({ command: 'getSolutionData' });
@@ -149,12 +148,12 @@ export const useVsCodeApi = () => {
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            logger.info('Received message from extension:', message);
+            log.info('Received message from extension:', message);
 
 
             switch (message.command) {
                 case 'loading':
-                    logger.info('Setting refreshing state');
+                    log.info('Setting refreshing state');
                     // If we already have data, show refreshing indicator instead of full loading
                     if (solutionData) {
                         setRefreshing(true);
@@ -163,7 +162,7 @@ export const useVsCodeApi = () => {
                     }
                     break;
                 case 'showLoading':
-                    logger.info('Showing loading bar');
+                    log.info('Showing loading bar');
                     if (solutionData) {
                         setRefreshing(true);
                     } else {
@@ -171,73 +170,73 @@ export const useVsCodeApi = () => {
                     }
                     break;
                 case 'hideLoading':
-                    logger.info('Hiding loading bar');
+                    log.info('Hiding loading bar');
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    logger.info('Received solution data:', message.data);
+                    log.info('Received solution data:', message.data);
                     setSolutionData(message.data);
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionDataUpdate':
-                    logger.info('Received solution data update (preserving tree state):', message.data);
+                    log.info('Received solution data update (preserving tree state):', message.data);
                     // For updates triggered by file changes, we preserve tree state
                     // by updating data but not resetting component state
                     setSolutionData(message.data);
                     setRefreshing(false);
                     break;
                 case 'frameworkChanged':
-                    logger.info('Framework changed to:', message.framework);
+                    log.info('Framework changed to:', message.framework);
                     setSolutionData(prev => prev ? { ...prev, activeFramework: message.framework } : null);
                     break;
                 case 'error':
-                    logger.info('Received error:', message.message);
+                    log.info('Received error:', message.message);
                     setLoading(false);
                     break;
                 case 'nodeRenamed':
-                    logger.info('Node renamed:', message);
+                    log.info('Node renamed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return updateNodeInTree(prev, message.oldPath, message.newPath, message.newName);
                     });
                     break;
                 case 'projectAdded':
-                    logger.info('Project added:', message);
+                    log.info('Project added:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return addProjectToTree(prev, message.project);
                     });
                     break;
                 case 'projectRemoved':
-                    logger.info('Project removed:', message);
+                    log.info('Project removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return removeProjectFromTree(prev, message.projectPath);
                     });
                     break;
                 case 'fileChanged':
-                    logger.info('File changed:', message);
+                    log.info('File changed:', message);
                     // For now just log - could be used to show file modification indicators
                     // or trigger specific updates based on file type
                     break;
                 case 'fileAdded':
-                    logger.info('File added:', message);
+                    log.info('File added:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return addFileToTree(prev, message.file, message.parentPath);
                     });
                     break;
                 case 'fileRemoved':
-                    logger.info('File removed:', message);
+                    log.info('File removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         return removeFileFromTree(prev, message.filePath);
                     });
                     break;
                 case 'updateSolution':
-                    logger.info('Received complete solution update:', message);
+                    log.info('Received complete solution update:', message);
                     setSolutionData({
                         projects: message.projects || [],
                         frameworks: message.frameworks || [],
@@ -247,35 +246,35 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 default:
-                    logger.info('Unknown message command:', message.command);
+                    log.info('Unknown message command:', message.command);
             }
         };
 
         window.addEventListener('message', handleMessage);
         return () => {
-            logger.info('Cleaning up message listener');
+            log.info('Cleaning up message listener');
             window.removeEventListener('message', handleMessage);
         };
     }, []);
 
     const handleFrameworkChange = (framework: string) => {
-        logger.info('Framework change requested:', framework);
+        log.info('Framework change requested:', framework);
         vscode.postMessage({ command: 'setFramework', framework });
     };
 
     const handleProjectAction = (action: ProjectActionType, projectPath: string, data?: any) => {
-        logger.info('Project action requested:', { action, projectPath, data });
+        log.info('Project action requested:', { action, projectPath, data });
         vscode.postMessage({ command: 'projectAction', action, projectPath, data });
     };
 
 
     const expandNode = (nodeId: string, nodeType: string) => {
-        logger.info('Expanding node:', nodeId, nodeType);
+        log.info('Expanding node:', nodeId, nodeType);
         vscode.postMessage({ command: 'expandNode', nodeId, nodeType });
     };
 
     const collapseNode = (nodeId: string) => {
-        logger.info('Collapsing node:', nodeId);
+        log.info('Collapsing node:', nodeId);
         vscode.postMessage({ command: 'collapseNode', nodeId });
     };
 

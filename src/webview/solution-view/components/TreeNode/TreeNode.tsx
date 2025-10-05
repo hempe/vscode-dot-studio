@@ -1,9 +1,10 @@
 import React from 'react';
+import { Icon } from '@iconify/react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
-import {logger as loggerFn} from '../../utils/logger';
+import { logger } from '../../../shared/logger';
 
-const logger = loggerFn('TreeNode');
+const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
     level,
@@ -25,11 +26,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
 
     const handleClick = () => {
-        logger.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
+        log.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
         // Don't handle clicks if node is loading
         if (node.isLoading) {
-            logger.info(`Node ${node.name} is loading, ignoring click`);
+            log.info(`Node ${node.name} is loading, ignoring click`);
             return;
         }
 
@@ -41,17 +42,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Set up debounced single click action
         const timeout = setTimeout(() => {
-            logger.info(`Executing single click action for: ${node.name}`);
+            log.info(`Executing single click action for: ${node.name}`);
 
             // Click selects and focuses the item
             onNodeClick(nodeIdentifier);
 
             // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
             if (node.children?.length || node.hasChildren) {
-                logger.info(`Toggling expansion for: ${node.name}`);
+                log.info(`Toggling expansion for: ${node.name}`);
                 onToggleExpand(nodeIdentifier, node.type);
             } else {
-                logger.info(`Node ${node.name} has no children, just focused`);
+                log.info(`Node ${node.name} has no children, just focused`);
             }
 
             setClickTimeout(null);
@@ -61,11 +62,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleDoubleClick = () => {
-        logger.info(`Double click on ${node.type}: ${node.name} (path: ${node.path})`);
+        log.info(`Double click on ${node.type}: ${node.name} (path: ${node.path})`);
 
         // Don't handle clicks if node is loading
         if (node.isLoading) {
-            logger.info(`Node ${node.name} is loading, ignoring double click`);
+            log.info(`Node ${node.name} is loading, ignoring double click`);
             return;
         }
 
@@ -77,118 +78,139 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Double click opens file for file types and project files
         if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project') {
-            logger.info(`Opening file: ${node.path}`);
+            log.info(`Opening file: ${node.path}`);
             onProjectAction('openFile', node.path);
         } else {
-            logger.info(`Double click on ${node.type} - no action needed`);
+            log.info(`Double click on ${node.type} - no action needed`);
         }
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
-        logger.info(`RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
-        logger.info(`Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
+        log.info(`RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
+        log.info(`Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
         onContextMenu(e.clientX, e.clientY, node);
-        logger.info(`onContextMenu called successfully`);
+        log.info(`onContextMenu called successfully`);
     };
 
     const handleRenameConfirmLocal = (newName: string) => {
-        logger.info(`Renaming ${node.name} to ${newName}`);
+        log.info(`Renaming ${node.name} to ${newName}`);
         onRenameConfirm(newName, node.path, node.type, node.name);
     };
 
     const handleRenameCancelLocal = () => {
-        logger.info(`Cancelling rename for: ${node.name}`);
+        log.info(`Cancelling rename for: ${node.name}`);
         onRenameCancel();
     };
 
 
-    const getIcon = () => {
+    const getIconConfig = () => {
         switch (node.type) {
-            case 'solution': return 'codicon-symbol-namespace';
+            case 'solution': return {
+                icon: 'mdi:microsoft-visual-studio',
+                color: '#d294e2', // Updated solution color
+                border: true
+            };
             case 'solutionFolder':
-                // Solution folders are virtual folders in the solution file
-                return node.expanded ? 'codicon-folder-opened' : 'codicon-folder';
+                return {
+                    icon: node.expanded ? 'mdi:folder-open' : 'mdi:folder',
+                    color: '#d7ab69' // Folder color
+                };
             case 'project':
-                // Different icons based on project type
-                if (node.path.includes('.csproj')) return 'codicon-symbol-class';
-                if (node.path.includes('.vbproj')) return 'codicon-symbol-class';
-                if (node.path.includes('.fsproj')) return 'codicon-symbol-class';
-                return 'codicon-file-directory';
+                // Different icons based on project type - same icon as code files but gray with green border
+                if (node.path.includes('.csproj')) return {
+                    icon: 'mdi:language-csharp',
+                    __color: '#82c87e', // Green icon
+                    color:'#3BA745',
+                    border: true
+                };
+                if (node.path.includes('.vbproj')) return {
+                    icon: 'mdi:file-code',
+                    color: '#68217A', // Gray
+                    border: true
+                };
+                if (node.path.includes('.fsproj')) return {
+                    icon: 'mdi:file-code',
+                    color: '#378BBA', // Gray
+                    border: true
+                };
+                return { icon: 'mdi:folder', color: '#d7ab69' };
             case 'folder':
                 // Special folder names with specific icons
-                if (node.name === 'Dependencies') return 'codicon-references';
-                if (node.name === 'Properties') return 'codicon-gear';
-                return node.expanded ? 'codicon-folder-opened' : 'codicon-folder';
+                if (node.name === 'Dependencies') return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
+                if (node.name === 'Properties') return { icon: 'streamline:wrench-solid', color: '#dcdcdc' };
+                return {
+                    icon: node.expanded ? 'mdi:folder-open' : 'mdi:folder',
+                    color: '#d7ab69' // Folder color
+                };
             case 'file':
-                // File type specific icons matching Visual Studio
+                // File type specific icons matching Visual Studio dark theme
                 const fileName = node.name.toLowerCase();
 
-                // C# files
+                // C# files - Green color for code files
                 if (fileName.endsWith('.cs')) {
-                    if (fileName.includes('.designer.') || fileName.includes('.generated.')) return 'codicon-symbol-method';
-                    if (fileName.includes('.partial.')) return 'codicon-symbol-interface';
-                    return 'codicon-symbol-class';
+                    return { icon: 'mdi:language-csharp', color: '#3BA745' };
                 }
 
                 // VB.NET files
-                if (fileName.endsWith('.vb')) return 'codicon-symbol-class';
+                if (fileName.endsWith('.vb')) return { icon: 'mdi:file-code', color: '#68217A' };
 
                 // F# files
-                if (fileName.endsWith('.fs') || fileName.endsWith('.fsx')) return 'codicon-symbol-class';
+                if (fileName.endsWith('.fs') || fileName.endsWith('.fsx')) return { icon: 'mdi:file-code', color: '#378BBA' };
 
                 // Configuration files
-                if (fileName === 'appsettings.json' || fileName.startsWith('appsettings.')) return 'codicon-settings-gear';
-                if (fileName.endsWith('.config')) return 'codicon-gear';
-                if (fileName === 'web.config' || fileName === 'app.config') return 'codicon-gear';
+                if (fileName === 'appsettings.json' || fileName.startsWith('appsettings.')) return { icon: 'mdi:cog', color: '#dcdcdc' };
+                if (fileName.endsWith('.config')) return { icon: 'mdi:cog', color: '#dcdcdc' };
+                if (fileName === 'web.config' || fileName === 'app.config') return { icon: 'mdi:cog', color: '#dcdcdc' };
 
                 // Project/build files
-                if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) return 'codicon-symbol-class';
-                if (fileName.endsWith('.sln')) return 'codicon-symbol-namespace';
-                if (fileName === 'global.asax') return 'codicon-globe';
+                if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) return { icon: 'mdi:microsoft-visual-studio', color: '#dcdcdc' };
+                if (fileName.endsWith('.sln')) return { icon: 'mdi:microsoft-visual-studio', color: '#68217a' };
+                if (fileName === 'global.asax') return { icon: 'mdi:web', color: '#dcdcdc' };
 
                 // Web files
-                if (fileName.endsWith('.cshtml') || fileName.endsWith('.vbhtml')) return 'codicon-symbol-color';
-                if (fileName.endsWith('.aspx') || fileName.endsWith('.ascx')) return 'codicon-symbol-color';
-                if (fileName.endsWith('.master')) return 'codicon-symbol-color';
-                if (fileName.endsWith('.css')) return 'codicon-symbol-color';
-                if (fileName.endsWith('.js') || fileName.endsWith('.ts')) return 'codicon-symbol-variable';
-                if (fileName.endsWith('.html') || fileName.endsWith('.htm')) return 'codicon-symbol-color';
+                if (fileName.endsWith('.cshtml') || fileName.endsWith('.vbhtml')) return { icon: 'mdi:language-html5', color: '#dcdcdc' };
+                if (fileName.endsWith('.aspx') || fileName.endsWith('.ascx')) return { icon: 'mdi:web', color: '#dcdcdc' };
+                if (fileName.endsWith('.master')) return { icon: 'mdi:web', color: '#dcdcdc' };
+                if (fileName.endsWith('.css')) return { icon: 'mdi:language-css3', color: '#dcdcdc' };
+                if (fileName.endsWith('.js')) return { icon: 'mdi:language-javascript', color: '#dcdcdc' };
+                if (fileName.endsWith('.ts')) return { icon: 'mdi:language-typescript', color: '#3178C6' };
+                if (fileName.endsWith('.html') || fileName.endsWith('.htm')) return { icon: 'mdi:language-html5', color: '#dcdcdc' };
 
                 // Resources
-                if (fileName.endsWith('.resx')) return 'codicon-symbol-string';
-                if (fileName.endsWith('.xaml')) return 'codicon-symbol-color';
+                if (fileName.endsWith('.resx')) return { icon: 'mdi:file-xml', color: '#dcdcdc' };
+                if (fileName.endsWith('.xaml')) return { icon: 'mdi:file-xml', color: '#dcdcdc' };
 
-                // Data files
-                if (fileName.endsWith('.json')) return 'codicon-json';
-                if (fileName.endsWith('.xml')) return 'codicon-symbol-namespace';
-                if (fileName.endsWith('.sql')) return 'codicon-database';
+                // Data files - JSON as gray
+                if (fileName.endsWith('.json')) return { icon: 'mdi:code-json', color: '#dcdcdc' };
+                if (fileName.endsWith('.xml')) return { icon: 'mdi:file-xml', color: '#dcdcdc' };
+                if (fileName.endsWith('.sql')) return { icon: 'mdi:database', color: '#dcdcdc' };
 
                 // Documentation
-                if (fileName.endsWith('.md')) return 'codicon-markdown';
-                if (fileName.endsWith('.txt')) return 'codicon-file-text';
-                if (fileName === 'readme.md' || fileName === 'readme.txt') return 'codicon-info';
+                if (fileName.endsWith('.md')) return { icon: 'mdi:language-markdown', color: '#dcdcdc' };
+                if (fileName.endsWith('.txt')) return { icon: 'mdi:file-document', color: '#dcdcdc' };
+                if (fileName === 'readme.md' || fileName === 'readme.txt') return { icon: 'mdi:information', color: '#dcdcdc' };
 
                 // Build/CI files
-                if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) return 'codicon-symbol-property';
-                if (fileName === 'dockerfile' || fileName.startsWith('dockerfile.')) return 'codicon-vm';
+                if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) return { icon: 'mdi:file-code', color: '#dcdcdc' };
+                if (fileName === 'dockerfile' || fileName.startsWith('dockerfile.')) return { icon: 'mdi:docker', color: '#dcdcdc' };
 
                 // Default file icon
-                return 'codicon-file';
+                return { icon: 'mdi:file', color: '#dcdcdc' };
 
-            case 'dependencies': return 'codicon-references';
+            case 'dependencies': return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
             case 'dependencyCategory':
-                // Use different icons for different dependency categories (legacy)
-                if (node.name === 'Packages') return 'codicon-package';
-                if (node.name === 'Projects') return 'codicon-symbol-class';
-                if (node.name === 'Assemblies') return 'codicon-library';
-                if (node.name === 'Frameworks') return 'codicon-symbol-namespace';
-                return 'codicon-folder';
-            case 'packageDependencies': return 'codicon-package';
-            case 'projectDependencies': return 'codicon-symbol-class';
-            case 'assemblyDependencies': return 'codicon-library';
-            case 'dependency': return 'codicon-package';
-            default: return 'codicon-question';
+                // Use different icons for different dependency categories
+                if (node.name === 'Packages') return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
+                if (node.name === 'Projects') return { icon: 'mdi:application-outline', color: '#dcdcdc' };
+                if (node.name === 'Assemblies') return { icon: 'mdi:package-variant', color: '#dcdcdc' };
+                if (node.name === 'Frameworks') return { icon: 'hugeicons:frameworks', color: '#dcdcdc' };
+                return { icon: 'mdi:folder', color: '#d7ab69' };
+            case 'packageDependencies': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
+            case 'projectDependencies': return { icon: 'mdi:application-outline', color: '#dcdcdc' };
+            case 'assemblyDependencies': return { icon: 'mdi:package-variant', color: '#dcdcdc' };
+            case 'dependency': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
+            default: return { icon: 'mdi:file', color: '#dcdcdc' };
         }
     };
 
@@ -206,11 +228,54 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onContextMenu={handleContextMenu}
             >
                 {(node.children?.length || node.hasChildren) ? (
-                    <span className={`expand-icon codicon ${node.expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}`}></span>
+                    <Icon
+                        icon={node.expanded ? 'codicon:chevron-down' : 'codicon:chevron-right'}
+                        className="expand-icon"
+                        width="16"
+                        height="16"
+                    />
                 ) : (
                     <span className="expand-icon-placeholder"></span>
                 )}
-                <span className={`node-icon codicon ${getIcon()}`}></span>
+                <div
+                    className="node-icon"
+                    style={{
+                        ...(getIconConfig().border ? {
+                            width: '16px',
+                            height: '9px',
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: '3px 1px 2px 1px',
+                            borderStyle: 'solid',
+                            borderColor: 'var(--vscode-descriptionForeground)',
+                            borderRadius: '2px',
+                            marginBottom: '3px'
+                        } : {
+                            width: '16px',
+                            height: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        })
+                    }}
+                >
+                    <Icon
+                        icon={getIconConfig().icon}
+                        width={getIconConfig().border ? "13": "14"}
+                        height={getIconConfig().border ? "13": "14"}
+                        style={{
+                            color: getIconConfig().color,
+                            ...(getIconConfig().border && {
+                                position: 'absolute',
+                                bottom: '-5px',
+                                left: '0px',
+                                background: 'var(--vscode-editor-background)'
+                            })
+                        }}
+                    />
+                </div>
                 {isRenaming ? (
                     <RenameInput
                         initialValue={node.name}

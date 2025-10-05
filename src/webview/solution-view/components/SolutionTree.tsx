@@ -3,10 +3,10 @@ import { ProjectNode, SolutionTreeProps } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
-import {logger as loggerFn} from '../utils/logger';
 import { LoadingBar } from '../../shared/LoadingBar';
+import { logger } from '../../shared/logger';
 
-const logger = loggerFn('SolutionTree');
+const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
@@ -32,24 +32,24 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     }, []);
 
     const handleToggleExpand = (nodeId: string, nodeType: string) => {
-        logger.info(`Toggle expand request for nodeId: ${nodeId}, type: ${nodeType}`);
+        log.info(`Toggle expand request for nodeId: ${nodeId}, type: ${nodeType}`);
 
         // Find the node to check its current state
         const node = findNodeById(nodeId, treeNodes);
         if (!node) {
-            logger.warn(`Node not found: ${nodeId}`);
+            log.warn(`Node not found: ${nodeId}`);
             return;
         }
 
         if (node.expanded) {
-            logger.info(`Requesting collapse: ${nodeId}`);
+            log.info(`Requesting collapse: ${nodeId}`);
 
             // Immediately set local loading state for instant feedback
             setLocalLoadingNodes(prev => new Set(prev).add(nodeId));
 
             onCollapseNode?.(nodeId);
         } else {
-            logger.info(`Requesting expand: ${nodeId}`);
+            log.info(`Requesting expand: ${nodeId}`);
 
             // Immediately set local loading state for instant feedback
             setLocalLoadingNodes(prev => new Set(prev).add(nodeId));
@@ -59,20 +59,20 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     };
 
     const handleNodeClick = (nodeId: string) => {
-        logger.info(`Node clicked: ${nodeId}`);
+        log.info(`Node clicked: ${nodeId}`);
         setSelectedNodeId(nodeId);
         setFocusedNodeId(nodeId);
     };
 
     const handleNodeFocus = (nodeId: string) => {
-        logger.info(`Setting focus to: ${nodeId}`);
+        log.info(`Setting focus to: ${nodeId}`);
         setFocusedNodeId(nodeId);
     };
 
     const handleContextMenu = (x: number, y: number, node: ProjectNode) => {
-        logger.info(`HANDLE CONTEXT MENU CALLED for ${node.type}: ${node.name}`);
-        logger.info(`Coordinates:`, x, y);
-        logger.info(`Current contextMenu state:`, contextMenu);
+        log.info(`HANDLE CONTEXT MENU CALLED for ${node.type}: ${node.name}`);
+        log.info(`Coordinates:`, x, y);
+        log.info(`Current contextMenu state:`, contextMenu);
 
         // Right-click focuses the item but doesn't select it
         setFocusedNodeId(node.nodeId);
@@ -102,7 +102,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         adjustedY = Math.max(0, adjustedY);
 
         setContextMenu({ x: adjustedX, y: adjustedY, node });
-        logger.info(`Context menu state SET:`, { x: adjustedX, y: adjustedY, node });
+        log.info(`Context menu state SET:`, { x: adjustedX, y: adjustedY, node });
     };
 
     const handleCloseContextMenu = () => {
@@ -115,20 +115,20 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     const handleRename = () => {
         if (contextMenu) {
-            logger.info(`Starting rename for: ${contextMenu.node.name}`);
+            log.info(`Starting rename for: ${contextMenu.node.name}`);
             setRenamingNodeId(contextMenu.node.nodeId);
             setContextMenu(null);
         }
     };
 
     const handleRenameConfirm = (newName: string, filePath: string, nodeType: string, oldName: string) => {
-        logger.info(`Rename confirmed: ${oldName} -> ${newName}`);
+        log.info(`Rename confirmed: ${oldName} -> ${newName}`);
         setRenamingNodeId(undefined);
         onProjectAction('rename', filePath, { newName, oldName, type: nodeType });
     };
 
     const handleRenameCancel = () => {
-        logger.info(`Rename cancelled`);
+        log.info(`Rename cancelled`);
         setRenamingNodeId(undefined);
     };
 
@@ -345,7 +345,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 if (node && (node.expanded || node.isLoading === false)) {
                     newSet.delete(path);
                     hasChanges = true;
-                    logger.info(`Clearing local loading state for: ${path}`);
+                    log.info(`Clearing local loading state for: ${path}`);
                 }
             }
 
@@ -353,7 +353,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         });
     }, [treeNodes, findNodeById]);
 
-    logger.info(`Rendering ${treeNodes.length} root nodes`);
+    log.info(`Rendering ${treeNodes.length} root nodes`);
 
     return (
         <div
@@ -363,7 +363,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         >
             <LoadingBar visible={showLoadingBar} />
             {treeNodes.map((node, index) => {
-                logger.info(`Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
+                log.info(`Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
                 return (<TreeNode
                     key={`${node.nodeId}-${index}`}
                     node={{
@@ -386,7 +386,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                                         if (allNodes[i].level === currentLevel - 1) {
                                             const parentNode = allNodes[i].node;
                                             if (parentNode.children && parentNode.expanded) {
-                                                logger.info(`Collapsing parent: ${parentNode.name}`);
+                                                log.info(`Collapsing parent: ${parentNode.name}`);
                                                 handleToggleExpand(parentNode.path, parentNode.type);
                                             }
                                             break;

@@ -1,9 +1,9 @@
 import React from 'react';
 import { NodeType, MenuActionType } from '../../types';
 import { contextMenus, MenuItem, MenuAction } from './menuActions';
-import {logger as loggerFn} from '../../utils/logger';
+import { logger } from '../../../shared/logger';
 
-const logger = loggerFn('ContextMenu');
+const log = logger('ContextMenu');
 export interface ContextMenuProps {
     x: number;
     y: number;
@@ -24,19 +24,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     nodeName
 }) => {
 
-    logger.info(`RENDERING for nodeType: ${nodeType}, nodeName: ${nodeName}`);
-    logger.info(`Available contextMenus keys:`, Object.keys(contextMenus));
-    logger.info(`Full contextMenus object:`, contextMenus);
+    log.info(`RENDERING for nodeType: ${nodeType}, nodeName: ${nodeName}`);
+    log.info(`Available contextMenus keys:`, Object.keys(contextMenus));
+    log.info(`Full contextMenus object:`, contextMenus);
 
     const menuRef = React.useRef<HTMLDivElement>(null);
     const [focusedItemIndex, setFocusedItemIndex] = React.useState(0);
 
     // Get the menu configuration for this node type
-    logger.info(`Looking up contextMenus[${nodeType}] for nodeName: ${nodeName}`);
+    log.info(`Looking up contextMenus[${nodeType}] for nodeName: ${nodeName}`);
     const menuItems = contextMenus[nodeType] || [];
-    logger.info(`Found ${menuItems.length} menu items:`, menuItems);
+    log.info(`Found ${menuItems.length} menu items:`, menuItems);
     const actionItems: MenuItem[] = menuItems.filter(item => item.kind === 'action') as MenuAction[];
-    logger.info(`Filtered to ${actionItems.length} action items:`, actionItems);
+    log.info(`Filtered to ${actionItems.length} action items:`, actionItems);
 
 
     React.useEffect(() => {
@@ -112,9 +112,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     };
 
     const renderMenuItems = () => {
-        logger.info(`renderMenuItems called, rendering ${menuItems.length} items`);
+        log.info(`renderMenuItems called, rendering ${menuItems.length} items`);
         return menuItems.map((item, index) => {
-            logger.info(`Rendering item ${index}:`, item);
+            log.info(`Rendering item ${index}:`, item);
             if (item.kind === 'separator') {
                 return <div key={`sep-${index}`} className="context-menu-separator"></div>;
             }
