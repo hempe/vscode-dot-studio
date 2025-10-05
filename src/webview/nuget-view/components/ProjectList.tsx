@@ -33,13 +33,21 @@ export default function ProjectList({
     projectPath
 }: ProjectListProps) {
 
-    // Auto-select the current project when opening from project context
+    // Auto-select projects based on context
     useEffect(() => {
-        if (projectPath && projects) {
-            const currentProject = projects.find(p => p.path === projectPath);
-            if (currentProject && !selectedProjects.has(currentProject.path)) {
-                log.info('Auto-selecting current project:', currentProject.name);
-                setSelectedProjects(new Set([currentProject.path]));
+        if (projects && projects.length > 0) {
+            // If there's only one project, always auto-select it
+            if (projects.length === 1 && !selectedProjects.has(projects[0].path)) {
+                log.info('Auto-selecting single project:', projects[0].name);
+                setSelectedProjects(new Set([projects[0].path]));
+            }
+            // If opening from project context, auto-select the current project
+            else if (projectPath) {
+                const currentProject = projects.find(p => p.path === projectPath);
+                if (currentProject && !selectedProjects.has(currentProject.path)) {
+                    log.info('Auto-selecting current project:', currentProject.name);
+                    setSelectedProjects(new Set([currentProject.path]));
+                }
             }
         }
     }, [projectPath, projects, selectedProjects, setSelectedProjects]);
@@ -66,23 +74,25 @@ export default function ProjectList({
                             ? '1px solid var(--vscode-panel-border)'
                             : 'none'
                     }}>
-                        <Checkbox
-                            checked={selectedProjects.has(project.path)}
-                            disabled={initializing || (projectPath === project.path)}
-                            onChange={() => {
-                                if (!initializing && projectPath !== project.path) {
-                                    const newSelected = new Set(selectedProjects);
-                                    if (newSelected.has(project.path)) {
-                                        newSelected.delete(project.path);
-                                    } else {
-                                        newSelected.add(project.path);
+                        {projectList.length > 1 && (
+                            <Checkbox
+                                checked={selectedProjects.has(project.path)}
+                                disabled={initializing || (projectPath === project.path)}
+                                onChange={() => {
+                                    if (!initializing && projectPath !== project.path) {
+                                        const newSelected = new Set(selectedProjects);
+                                        if (newSelected.has(project.path)) {
+                                            newSelected.delete(project.path);
+                                        } else {
+                                            newSelected.add(project.path);
+                                        }
+                                        setSelectedProjects(newSelected);
                                     }
-                                    setSelectedProjects(newSelected);
-                                }
-                            }}
-                        />
+                                }}
+                            />
+                        )}
                         <div style={{
-                            marginLeft: '8px',
+                            marginLeft: projectList.length > 1 ? '8px' : '0px',
                             flex: 1,
                             display: 'flex',
                             justifyContent: 'space-between',
