@@ -150,6 +150,13 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
     const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
 
+    // Auto-focus the first node for keyboard navigation if no node is focused
+    useEffect(() => {
+        if (!focusedNodeId && flatNodes.length > 0) {
+            setFocusedNodeId(flatNodes[0].node.nodeId);
+        }
+    }, [focusedNodeId, flatNodes]);
+
     const handleProjectActionWrapper = useCallback((action: string, path: string, data?: any) => {
         if (action === 'startRename') {
             setRenamingNodeId(path);
