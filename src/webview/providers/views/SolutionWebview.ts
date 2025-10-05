@@ -39,7 +39,7 @@ export class SolutionWebView {
                             margin: 0;
                             padding: 8px;
                             height: calc(100vh - 16px);
-                            width: calc(100vh - 16px);
+                            width: calc(100vw - 16px);
                             overflow: auto;
                         }
 

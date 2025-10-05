@@ -257,14 +257,14 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 case 'ArrowRight':
                     e.preventDefault();
                     const currentNode = flatNodes[currentIndex].node;
-                    if (currentNode.children && !currentNode.expanded) {
+                    if ((currentNode.children || currentNode.hasChildren) && !currentNode.expanded) {
                         handleToggleExpand(currentNode.nodeId, currentNode.type);
                     }
                     break;
                 case 'ArrowLeft':
                     e.preventDefault();
                     const currentNodeLeft = flatNodes[currentIndex].node;
-                    if (currentNodeLeft.children && currentNodeLeft.expanded) {
+                    if ((currentNodeLeft.children || currentNodeLeft.hasChildren) && currentNodeLeft.expanded) {
                         // If current node has expanded children, collapse it
                         handleToggleExpand(currentNodeLeft.nodeId, currentNodeLeft.type);
                     } else {
