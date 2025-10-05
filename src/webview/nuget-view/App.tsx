@@ -1038,12 +1038,22 @@ export const App: React.FC = () => {
         </div>
     );
 
+    // Only show consolidate tab if there are multiple projects
+    const shouldShowConsolidate = (data.projects?.length || 0) > 1;
+
     const tabs = [
         { id: 'browse', label: 'Browse' },
         { id: 'installed', label: 'Installed' },
         { id: 'updates', label: 'Updates' },
-        { id: 'consolidate', label: 'Consolidate' }
+        ...(shouldShowConsolidate ? [{ id: 'consolidate', label: 'Consolidate' }] : [])
     ];
+
+    // Switch to installed tab if currently on consolidate but it's hidden
+    React.useEffect(() => {
+        if (activeTab === 'consolidate' && !shouldShowConsolidate) {
+            setActiveTab('installed');
+        }
+    }, [activeTab, shouldShowConsolidate]);
 
     const rightSidePanel = (
         <div style={{
