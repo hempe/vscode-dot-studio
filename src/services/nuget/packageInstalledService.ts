@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../../core/logger';
 import { InstalledPackage, ProjectInfo, NuGetPackage } from './types';
-import { PackageBrowseService } from './packageBrowseService';
+import { PackageSharedService } from './packageSharedService';
 
 const execAsync = promisify(exec);
 const log = logger('PackageInstalledService');
@@ -50,7 +50,7 @@ export class PackageInstalledService {
      */
     static async getInstalledPackagesWithMetadata(solutionPath?: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
         const basicPackages = await this.getInstalledPackages(solutionPath);
-        return await this.enrichWithBrowseMetadata(basicPackages);
+        return await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
     }
 
     /**
@@ -129,7 +129,7 @@ export class PackageInstalledService {
      */
     static async getProjectPackagesWithMetadata(projectPath: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
         const basicPackages = await this.getProjectPackages(projectPath);
-        return this.enrichWithBrowseMetadata(basicPackages);
+        return PackageSharedService.enrichWithBrowseMetadata(basicPackages);
     }
 
     /**
@@ -316,67 +316,6 @@ export class PackageInstalledService {
         return null;
     }
 
-    /**
-     * Enrich installed packages with metadata using the same path as browse packages
-     */
-    private static async enrichWithBrowseMetadata(basicPackages: InstalledPackage[]): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
-        if (basicPackages.length === 0) {
-            return [];
-        }
-
-        log.info(`Enriching ${basicPackages.length} installed packages with browse metadata`);
-
-        // Get unique package IDs to avoid duplicate API calls
-        const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
-        const metadataMap = new Map<string, NuGetPackage>();
-
-        // Fetch metadata for each unique package using the same service as browse
-        for (const packageId of uniquePackageIds) {
-            try {
-                const metadata = await PackageBrowseService.getPackageDetails(packageId);
-                if (metadata) {
-                    metadataMap.set(packageId.toLowerCase(), metadata);
-                    log.debug(`Got metadata for ${packageId}: description=${!!metadata.description}, authors=${metadata.authors?.length || 0}`);
-                } else {
-                    log.warn(`No metadata found for ${packageId}`);
-                }
-            } catch (error) {
-                log.warn(`Failed to get metadata for ${packageId}:`, error);
-            }
-        }
-
-        // Merge metadata into package data
-        const enrichedPackages = basicPackages.map(pkg => {
-            const metadata = metadataMap.get(pkg.id.toLowerCase());
-
-            if (metadata) {
-                return {
-                    ...pkg,
-                    description: metadata.description,
-                    authors: metadata.authors,
-                    projectUrl: metadata.projectUrl,
-                    licenseUrl: metadata.licenseUrl,
-                    iconUrl: metadata.iconUrl,
-                    tags: metadata.tags,
-                    totalDownloads: metadata.totalDownloads,
-                    latestVersion: metadata.latestVersion,
-                    allVersions: metadata.allVersions,
-                    source: metadata.source,
-                    installedVersion: pkg.version
-                };
-            } else {
-                return {
-                    ...pkg,
-                    installedVersion: pkg.version
-                };
-            }
-        });
-
-        const enrichedCount = enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length;
-        log.info(`Successfully enriched ${enrichedCount}/${basicPackages.length} installed packages with metadata`);
-
-        return enrichedPackages;
-    }
 
     /**
      * Get all project paths in a solution

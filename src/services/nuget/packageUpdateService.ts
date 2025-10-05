@@ -1,9 +1,10 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
+import semver from 'semver';
 import { logger } from '../../core/logger';
 import { UpdateablePackage, PackageOperationResult, NuGetPackage } from './types';
-import { PackageBrowseService } from './packageBrowseService';
+import { PackageSharedService } from './packageSharedService';
 
 const execAsync = promisify(exec);
 const log = logger('PackageUpdateService');
@@ -57,7 +58,7 @@ export class PackageUpdateService {
             }
 
             // Enrich packages with metadata using the same method as browse packages
-            const enrichedPackages = await this.enrichWithBrowseMetadata(basicPackages);
+            const enrichedPackages = await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
 
             // Set version field to current version for UI consistency
             return enrichedPackages.map(pkg => ({
@@ -113,7 +114,7 @@ export class PackageUpdateService {
             }
 
             // Enrich packages with metadata using the same method as browse packages
-            const enrichedPackages = await this.enrichWithBrowseMetadata(basicPackages);
+            const enrichedPackages = await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
 
             // Set version field to current version for UI consistency
             return enrichedPackages.map(pkg => ({
@@ -263,9 +264,14 @@ export class PackageUpdateService {
             // Consider packages as "critical" if they have major version updates
             // This is a simple heuristic - in reality you'd want more sophisticated analysis
             const criticalUpdates = outdatedPackages.filter(pkg => {
-                const currentMajor = this.getMajorVersion(pkg.currentVersion);
-                const latestMajor = this.getMajorVersion(pkg.latestVersion);
-                return latestMajor > currentMajor;
+                try {
+                    const currentMajor = semver.major(pkg.currentVersion);
+                    const latestMajor = semver.major(pkg.latestVersion);
+                    return latestMajor > currentMajor;
+                } catch {
+                    // If semver parsing fails, fall back to false (not critical)
+                    return false;
+                }
             }).length;
 
             return {
@@ -341,72 +347,5 @@ export class PackageUpdateService {
         }
     }
 
-    /**
-     * Extract major version number from a version string
-     */
-    private static getMajorVersion(version: string): number {
-        try {
-            const match = version.match(/^(\d+)/);
-            return match ? parseInt(match[1], 10) : 0;
-        } catch {
-            return 0;
-        }
-    }
 
-    /**
-     * Enrich updatable packages with metadata using the same path as browse packages
-     */
-    private static async enrichWithBrowseMetadata(basicPackages: UpdateablePackage[]): Promise<(UpdateablePackage & Partial<NuGetPackage>)[]> {
-        if (basicPackages.length === 0) {
-            return [];
-        }
-
-        log.info(`Enriching ${basicPackages.length} updatable packages with browse metadata`);
-
-        // Get unique package IDs to avoid duplicate API calls
-        const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
-        const metadataMap = new Map<string, NuGetPackage>();
-
-        // Fetch metadata for each unique package using the same service as browse
-        for (const packageId of uniquePackageIds) {
-            try {
-                const metadata = await PackageBrowseService.getPackageDetails(packageId);
-                if (metadata) {
-                    metadataMap.set(packageId.toLowerCase(), metadata);
-                    log.debug(`Got metadata for ${packageId}: description=${!!metadata.description}, authors=${metadata.authors?.length || 0}`);
-                } else {
-                    log.warn(`No metadata found for ${packageId}`);
-                }
-            } catch (error) {
-                log.warn(`Failed to get metadata for ${packageId}:`, error);
-            }
-        }
-
-        // Merge metadata into package data
-        const enrichedPackages = basicPackages.map(pkg => {
-            const metadata = metadataMap.get(pkg.id.toLowerCase());
-
-            if (metadata) {
-                return {
-                    ...pkg,
-                    description: metadata.description,
-                    authors: metadata.authors,
-                    projectUrl: metadata.projectUrl,
-                    licenseUrl: metadata.licenseUrl,
-                    iconUrl: metadata.iconUrl,
-                    tags: metadata.tags,
-                    totalDownloads: metadata.totalDownloads,
-                    allVersions: metadata.allVersions,
-                    source: metadata.source
-                };
-            } else {
-                return pkg;
-            }
-        });
-
-        const enrichedCount = enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length;
-        log.info(`Successfully enriched ${enrichedCount}/${basicPackages.length} updatable packages with metadata`);
-
-        return enrichedPackages;
-    }
 }

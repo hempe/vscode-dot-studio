@@ -3,6 +3,10 @@ import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
 import * as https from 'https';
 import semver, { rsort } from "semver";
+import { PersistentCache, CacheEntry } from '../../core/persistentCache';
+import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
+import * as path from 'path';
+import * as os from 'os';
 
 const log = logger('NuGetV3Service');
 
@@ -11,6 +15,93 @@ const log = logger('NuGetV3Service');
  * Handles modern NuGet feeds including nuget.org and Azure DevOps Artifacts
  */
 export class NuGetV3Service {
+    // In-memory cache (existing)
+    private static requestCache: Map<string, { timestamp: number, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
+
+    // Persistent cache
+    private static persistentCache: PersistentCache<{ body: string, statusCode: number }> | null = null;
+
+    // Background refresh queue
+    private static refreshQueue: BackgroundRefreshQueue | null = null;
+
+    // UI notification callbacks
+    private static uiNotificationCallbacks: Array<(url: string) => void> = [];
+
+    /**
+     * Initialize the caching system
+     */
+    static initializeCache(extensionPath?: string): void {
+        if (this.persistentCache) return; // Already initialized
+
+        const cacheDir = extensionPath
+            ? path.join(extensionPath, '.cache', 'nuget-requests')
+            : path.join(os.tmpdir(), 'vscode-dotnet-extension', 'cache', 'nuget-requests');
+
+        this.persistentCache = new PersistentCache(cacheDir, {
+            maxAge: 30 * 60 * 1000, // 30 minutes for fresh cache
+            maxEntries: 5000
+        });
+
+        this.refreshQueue = new BackgroundRefreshQueue({
+            idleDelayMs: 2000, // 2 seconds idle
+            maxConcurrent: 3,
+            maxRetries: 2,
+            onRefreshComplete: (url, success, data) => {
+                if (success && data) {
+                    // Update both caches
+                    const cacheKey = this.getCacheKey(url);
+                    this.requestCache.set(cacheKey, {
+                        timestamp: Date.now(),
+                        promise: Promise.resolve(data)
+                    });
+                    this.persistentCache?.set(cacheKey, data, url);
+
+                    // Notify UI with delay to avoid spam
+                    setTimeout(() => {
+                        this.notifyUI(url);
+                    }, 500);
+                }
+            }
+        });
+
+        // Inject the refresh function
+        this.refreshQueue.setRefreshFunction((url, accessToken) => {
+            return this._makeHttpRequest(url, accessToken);
+        });
+
+        log.info(`Initialized caching system with directory: ${cacheDir}`);
+    }
+
+    /**
+     * Register a callback for UI notifications when cache is updated
+     */
+    static onCacheUpdate(callback: (url: string) => void): void {
+        this.uiNotificationCallbacks.push(callback);
+    }
+
+    /**
+     * Remove UI notification callback
+     */
+    static offCacheUpdate(callback: (url: string) => void): void {
+        const index = this.uiNotificationCallbacks.indexOf(callback);
+        if (index !== -1) {
+            this.uiNotificationCallbacks.splice(index, 1);
+        }
+    }
+
+    private static notifyUI(url: string): void {
+        this.uiNotificationCallbacks.forEach(callback => {
+            try {
+                callback(url);
+            } catch (error) {
+                log.warn('Error in UI notification callback:', error);
+            }
+        });
+    }
+
+    private static getCacheKey(url: string, accessToken?: string): string {
+        return `${url}|${accessToken || ''}`;
+    }
 
     /**
      * Search packages using NuGet V3 API
@@ -284,22 +375,88 @@ export class NuGetV3Service {
         return url.toString();
     }
 
-    private static requestCache: Map<string, { timestamp: number, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
-
     /**
-     * Make HTTP request with authentication
+     * Make HTTP request with multi-tier caching and ETag support
      */
     private static async makeRequest(url: string, accessToken?: string): Promise<{ body: string, statusCode: number }> {
-        const cacheKey = `${url}|${accessToken || ''}`;
-        const cached = this.requestCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < 2 * 60 * 1000) { // 2 minute cache
-            log.info(`Using cached request for ${url}`);
-            return cached.promise;
+        // Initialize cache if not done yet
+        if (!this.persistentCache) {
+            this.initializeCache();
         }
 
-        log.info(`Making request to ${url}`);
+        // Mark activity for background queue
+        this.refreshQueue?.markActivity();
 
-        const promise = new Promise<{ body: string, statusCode: number }>((resolve, reject) => {
+        const cacheKey = this.getCacheKey(url, accessToken);
+        const allowedCacheTime = 5 * 60 * 1000; // 5 minutes for fresh cache
+
+        // 1. Check in-memory cache first
+        const memoryCache = this.requestCache.get(cacheKey);
+        if (memoryCache && (Date.now() - memoryCache.timestamp) < allowedCacheTime) {
+            log.debug(`Using fresh in-memory cache for ${url}`);
+            return memoryCache.promise;
+        }
+
+        // 2. Check persistent cache
+        const persistentEntry = await this.persistentCache?.get(cacheKey);
+        if (persistentEntry) {
+            const age = Date.now() - persistentEntry.timestamp;
+
+            if (age < allowedCacheTime) {
+                // Fresh persistent cache - update memory cache and use it
+                log.debug(`Using fresh persistent cache for ${url}`);
+                const promise = Promise.resolve(persistentEntry.data);
+                this.requestCache.set(cacheKey, { timestamp: persistentEntry.timestamp, promise });
+                return promise;
+            } else {
+                // Stale persistent cache - use it but queue a refresh
+                log.debug(`Using stale persistent cache for ${url}, queuing refresh`);
+                this.refreshQueue?.enqueue(url, accessToken, 'normal');
+
+                // Update memory cache with stale data
+                const promise = Promise.resolve(persistentEntry.data);
+                this.requestCache.set(cacheKey, { timestamp: persistentEntry.timestamp, promise });
+                return promise;
+            }
+        }
+
+        // 3. No cache available - make fresh request
+        log.info(`Making fresh request to ${url}`);
+        const promise = this._makeHttpRequestWithETag(url, accessToken);
+
+        this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
+
+        return promise
+            .then(async (result) => {
+                // Cache the result if successful
+                if (result.statusCode === 200) {
+                    await this.persistentCache?.set(cacheKey, result, url, this.extractETag(result));
+                } else if (result.statusCode === 304) {
+                    // Not modified - this should only happen when we have a persistentEntry
+                    // but TypeScript doesn't know that, so let's check again
+                    const currentEntry = await this.persistentCache?.get(cacheKey);
+                    if (currentEntry) {
+                        log.debug(`Got 304 Not Modified for ${url}, updating cache timestamp`);
+                        await this.persistentCache?.set(cacheKey, currentEntry.data, url, currentEntry.etag);
+                        return currentEntry.data;
+                    }
+                } else if (result.statusCode >= 500) {
+                    // Server error - remove from memory cache
+                    this.requestCache.delete(cacheKey);
+                }
+                return result;
+            })
+            .catch(error => {
+                this.requestCache.delete(cacheKey);
+                throw error;
+            });
+    }
+
+    /**
+     * Make HTTP request with ETag support
+     */
+    private static async _makeHttpRequestWithETag(url: string, accessToken?: string, etag?: string): Promise<{ body: string, statusCode: number, etag?: string }> {
+        return new Promise<{ body: string, statusCode: number, etag?: string }>((resolve, reject) => {
             const urlObj = new URL(url);
             const headers: Record<string, string> = {
                 'Accept': 'application/json',
@@ -308,6 +465,11 @@ export class NuGetV3Service {
 
             if (accessToken && accessToken !== 'credential-provider-managed') {
                 headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            // Add If-None-Match header if we have an ETag
+            if (etag) {
+                headers['If-None-Match'] = etag;
             }
 
             const options = {
@@ -322,7 +484,12 @@ export class NuGetV3Service {
                 let data = '';
                 res.on('data', (chunk: any) => data += chunk);
                 res.on('end', () => {
-                    resolve({ statusCode: res.statusCode, body: data });
+                    const responseETag = res.headers['etag'];
+                    resolve({
+                        statusCode: res.statusCode,
+                        body: data,
+                        etag: responseETag
+                    });
                 });
             });
 
@@ -333,19 +500,18 @@ export class NuGetV3Service {
             });
             req.end();
         });
+    }
 
-        this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
-        return promise
-            .then(result => {
-                if (result?.statusCode >= 500) {
-                    this.requestCache.delete(cacheKey);
-                }
-                return result;
-            })
-            .catch(error => {
-                this.requestCache.delete(cacheKey);
-                throw error;
-            });
+    /**
+     * Legacy method for background refresh (without ETag)
+     */
+    private static async _makeHttpRequest(url: string, accessToken?: string): Promise<{ body: string, statusCode: number }> {
+        const result = await this._makeHttpRequestWithETag(url, accessToken);
+        return { body: result.body, statusCode: result.statusCode };
+    }
+
+    private static extractETag(result: { body: string, statusCode: number, etag?: string }): string | undefined {
+        return (result as any).etag;
     }
 
     /**
