@@ -717,8 +717,18 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
         log.info('Workspace root:', workspaceRoot);
 
-        // Use the new solution discovery and initialization
-        const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+        // CRITICAL FIX: Don't dispose the active solution unnecessarily
+        // First check if we already have an active solution for the same workspace
+        let solution = SolutionService.getActiveSolution();
+
+        if (!solution || !solution.solutionPath ||
+            !solution.solutionPath.startsWith(workspaceRoot)) {
+            // Only discover and initialize if we don't have a solution or it's for a different workspace
+            log.info('No active solution or different workspace, discovering solution...');
+            solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot) || undefined;
+        } else {
+            log.info('Reusing existing active solution:', solution.solutionPath);
+        }
         if (!solution) {
             log.info('No solution found or failed to initialize');
             return [];
