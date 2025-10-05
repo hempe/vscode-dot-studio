@@ -666,18 +666,23 @@ export class Project {
     /**
      * Gets children for a specific folder path within this project
      */
-    async getFolderChildren(folderPath: string): Promise<{ type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean }[]> {
-        const items: { type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean }[] = [];
+    async getFolderChildren(folderPath: string): Promise<{ type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean, nodeId?: string }[]> {
+        const items: { type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] = [];
 
         try {
             const children = await this.expandFolder(folderPath);
 
             for (const child of children) {
+                const nodeId = child.type === 'folder'
+                    ? SolutionExpansionIdService.generateFolderId(child.path, this._projectPath)
+                    : SolutionExpansionIdService.generateFileId(child.path);
+
                 items.push({
                     type: child.type as 'folder' | 'file',
                     name: child.name,
                     path: child.path,
-                    hasChildren: child.hasChildren
+                    hasChildren: child.hasChildren,
+                    nodeId: nodeId
                 });
             }
 

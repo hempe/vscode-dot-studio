@@ -136,12 +136,11 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const buildTreeNodes = useCallback((projects: any[]): ProjectNode[] => {
         const result = projects.map(project => ({
             ...project, // Preserve all properties from original data including expanded state
-            isLoading: project.isLoading || localLoadingNodes.has(project.nodeId), // Merge local loading state
             children: project.children ? buildTreeNodes(project.children) : undefined
         }));
 
         return result;
-    }, [localLoadingNodes]);
+    }, []);
 
     // Flatten tree nodes for keyboard navigation
     const flattenNodes = useCallback((nodes: ProjectNode[], level: number = 0): Array<{node: ProjectNode, level: number}> => {
@@ -155,8 +154,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         return result;
     }, []);
 
-    const treeNodes = buildTreeNodes(projects);
-    const flatNodes = flattenNodes(treeNodes);
+    const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
+    const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
 
 
     // Keyboard navigation
@@ -335,22 +334,27 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     // Clear local loading states when nodes become expanded or backend loading states change
     useEffect(() => {
-        setLocalLoadingNodes(prev => {
-            const newSet = new Set(prev);
-            let hasChanges = false;
+        // Debounce this effect to prevent rapid state updates
+        const timeoutId = setTimeout(() => {
+            setLocalLoadingNodes(prev => {
+                const newSet = new Set(prev);
+                let hasChanges = false;
 
-            // Remove nodes that are now expanded or have backend loading state
-            for (const path of prev) {
-                const node = findNodeById(path, treeNodes);
-                if (node && (node.expanded || node.isLoading === false)) {
-                    newSet.delete(path);
-                    hasChanges = true;
-                    log.info(`Clearing local loading state for: ${path}`);
+                // Remove nodes that are now expanded or have backend loading state
+                for (const path of prev) {
+                    const node = findNodeById(path, treeNodes);
+                    if (node && (node.expanded || node.isLoading === false)) {
+                        newSet.delete(path);
+                        hasChanges = true;
+                        log.info(`Clearing local loading state for: ${path}`);
+                    }
                 }
-            }
 
-            return hasChanges ? newSet : prev;
-        });
+                return hasChanges ? newSet : prev;
+            });
+        }, 100); // Debounce to prevent rapid updates
+
+        return () => clearTimeout(timeoutId);
     }, [treeNodes, findNodeById]);
 
     log.info(`Rendering ${treeNodes.length} root nodes`);
@@ -365,7 +369,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             {treeNodes.map((node, index) => {
                 log.info(`Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
                 return (<TreeNode
-                    key={`${node.nodeId}-${index}`}
+                    key={node.nodeId}
                     node={{
                         ...node,
                         isLoading: node.isLoading || localLoadingNodes.has(node.nodeId)

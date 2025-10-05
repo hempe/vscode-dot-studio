@@ -37,11 +37,15 @@ export class SolutionWebView {
                         .solution-explorer {
                             display: flex;
                             flex-direction: column;
-                            height: 100%;
+                            height: 100vh;
+                            overflow: hidden;
                         }
-    
+
                         .solution-tree {
                             outline: none;
+                            flex: 1;
+                            overflow-y: auto;
+                            overflow-x: hidden;
                         }
     
                         .solution-tree:focus,
@@ -77,7 +81,7 @@ export class SolutionWebView {
     
                         .content {
                             flex: 1;
-                            overflow-y: auto;
+                            overflow: hidden;
                         }
     
                         .tree-node {

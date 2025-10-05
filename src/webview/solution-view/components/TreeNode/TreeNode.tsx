@@ -5,7 +5,7 @@ import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 
 const log = logger('TreeNode');
-export const TreeNode: React.FC<TreeNodeProps> = ({
+export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
     node,
     level,
     onProjectAction,
@@ -218,6 +218,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isSelected = selectedNodeId === nodeIdentifier;
     const isFocused = focusedNodeId === nodeIdentifier;
 
+    // Memoize icon configuration to prevent multiple calls during render
+    const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, node.path, node.expanded]);
+
     return (
         <div>
             <div
@@ -240,7 +243,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 <div
                     className="node-icon"
                     style={{
-                        ...(getIconConfig().border ? {
+                        ...(iconConfig.border ? {
                             width: '16px',
                             height: '9px',
                             position: 'relative',
@@ -262,12 +265,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     }}
                 >
                     <Icon
-                        icon={getIconConfig().icon}
-                        width={getIconConfig().border ? "13": "14"}
-                        height={getIconConfig().border ? "13": "14"}
+                        icon={iconConfig.icon}
+                        width={iconConfig.border ? "13": "14"}
+                        height={iconConfig.border ? "13": "14"}
                         style={{
-                            color: getIconConfig().color,
-                            ...(getIconConfig().border && {
+                            color: iconConfig.color,
+                            ...(iconConfig.border && {
                                 position: 'absolute',
                                 bottom: '-5px',
                                 left: '0px',
@@ -309,4 +312,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             )}
         </div>
     );
-};
+}, (prevProps, nextProps) => {
+    // Only re-render if essential props have changed
+    return (
+        prevProps.node.nodeId === nextProps.node.nodeId &&
+        prevProps.node.expanded === nextProps.node.expanded &&
+        prevProps.node.isLoading === nextProps.node.isLoading &&
+        prevProps.node.name === nextProps.node.name &&
+        prevProps.selectedNodeId === nextProps.selectedNodeId &&
+        prevProps.focusedNodeId === nextProps.focusedNodeId &&
+        prevProps.renamingNodeId === nextProps.renamingNodeId &&
+        prevProps.level === nextProps.level
+    );
+});
