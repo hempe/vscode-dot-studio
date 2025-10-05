@@ -3,6 +3,7 @@ import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
+import { LocalNuGetPackage } from '../nuget-view/shared';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -529,7 +530,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     private async _handleBulkUpdatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             // Extract packages from both message formats
-            const packages = message.packages || message.payload?.packages;
+            const packages: LocalNuGetPackage[] = message.packages || message.payload?.packages;
 
             if (!packages || !Array.isArray(packages) || packages.length === 0) {
                 vscode.window.showWarningMessage('No packages selected for update');
@@ -545,7 +546,6 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 cancellable: false
             }, async (progress) => {
                 const results = [];
-                let completed = 0;
 
                 for (const pkg of packages) {
                     progress.report({
@@ -554,23 +554,35 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     });
 
                     try {
-                        let result;
                         if (context.type === 'project') {
-                            result = await NuGetManagerService.updatePackageInProject(
+                            const result = await NuGetManagerService.updatePackageInProject(
                                 context.target,
                                 pkg.id,
                                 pkg.latestVersion
                             );
+                            results.push(result);
+
                         } else {
-                            // For solution context, update in the specific project
-                            result = await NuGetManagerService.updatePackageInProject(
-                                pkg.projectPath,
-                                pkg.id,
-                                pkg.latestVersion
-                            );
+                            for (const project of pkg.projects || []) {
+                                try {
+                                    // For solution context, update in the specific project
+                                    const result = await NuGetManagerService.updatePackageInProject(
+                                        project.path,
+                                        pkg.id,
+                                        pkg.latestVersion
+                                    );
+                                    results.push(result);
+                                } catch (error) {
+                                    log.error(`Error updating ${pkg.id}:`, error);
+                                    results.push({
+                                        success: false,
+                                        message: `Failed to update ${pkg.id} in ${project.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                                        packageId: pkg.id
+                                    });
+                                }
+
+                            }
                         }
-                        results.push(result);
-                        completed++;
                     } catch (error) {
                         log.error(`Error updating ${pkg.id}:`, error);
                         results.push({
@@ -596,9 +608,22 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Refresh the updates tab
             await this._handleGetUpdatesPackages(webview, context);
 
+            // Send completion message to frontend
+            webview.postMessage({
+                command: 'bulkUpdateComplete',
+                success: true
+            });
+
         } catch (error) {
             log.error('Error performing bulk package updates:', error);
             vscode.window.showErrorMessage(`Error updating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+            // Send failure completion message
+            webview.postMessage({
+                command: 'bulkUpdateComplete',
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
         }
     }
 
@@ -618,7 +643,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Show progress notification
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Updating all ${outdatedPackages.length} packages...`,
+                title: `Updating Packages`,
                 cancellable: false
             }, async (progress) => {
                 const results = [];
@@ -627,7 +652,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 for (const pkg of outdatedPackages) {
                     progress.report({
                         increment: (100 / outdatedPackages.length),
-                        message: `Updating ${pkg.id}...`
+                        message: `: ${pkg.id}...`
                     });
 
                     try {

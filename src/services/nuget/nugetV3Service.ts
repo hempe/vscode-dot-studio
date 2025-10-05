@@ -2,7 +2,7 @@ import { sign } from 'crypto';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
 import * as https from 'https';
-import semver from "semver";
+import semver, { rsort } from "semver";
 
 const log = logger('NuGetV3Service');
 
@@ -292,7 +292,7 @@ export class NuGetV3Service {
     private static async makeRequest(url: string, accessToken?: string): Promise<{ body: string, statusCode: number }> {
         const cacheKey = `${url}|${accessToken || ''}`;
         const cached = this.requestCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < 30 * 1000) { // 30 second cache
+        if (cached && (Date.now() - cached.timestamp) < 2 * 60 * 1000) { // 2 minute cache
             log.info(`Using cached request for ${url}`);
             return cached.promise;
         }
@@ -335,10 +335,17 @@ export class NuGetV3Service {
         });
 
         this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
-        return promise.catch(error => {
-            this.requestCache.delete(cacheKey);
-            throw error;
-        });
+        return promise
+            .then(result => {
+                if (result?.statusCode >= 500) {
+                    this.requestCache.delete(cacheKey);
+                }
+                return result;
+            })
+            .catch(error => {
+                this.requestCache.delete(cacheKey);
+                throw error;
+            });
     }
 
     /**

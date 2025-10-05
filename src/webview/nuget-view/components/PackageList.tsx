@@ -2,6 +2,7 @@ import React from 'react';
 import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { logger } from '../../shared/logger';
+import { Checkbox } from 'vscrui';
 import * as semver from 'semver';
 
 const log = logger('PackageList');
@@ -22,6 +23,8 @@ interface PackageListProps {
     showUpdateInfo?: boolean; // For Updates tab to show version changes
     getVersionChangeText?: (pkg: LocalNuGetPackage) => string;
     title: string;
+    showCheckboxes?: boolean; // For Updates tab to show checkboxes
+    onPackageToggle?: (pkg: LocalNuGetPackage, checked: boolean) => void;
 }
 
 export const PackageList: React.FC<PackageListProps> = ({
@@ -37,6 +40,8 @@ export const PackageList: React.FC<PackageListProps> = ({
     onPackageSelect,
     getPackageIconUrl,
     showUpdateInfo = false,
+    showCheckboxes = false,
+    onPackageToggle,
     getVersionChangeText,
     title
 }) => {
@@ -80,6 +85,17 @@ export const PackageList: React.FC<PackageListProps> = ({
                         onClick={() => onPackageSelect(pkg, index)}
                     >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            {/* Checkbox for Updates tab */}
+                            {showCheckboxes && (
+                                <div style={{ paddingTop: '2px' }}>
+                                    <Checkbox
+                                        checked={pkg.selected || false}
+                                        onChange={(checked) => onPackageToggle?.(pkg, checked)}
+                                        onClick={(e) => e.stopPropagation()} // Prevent triggering package selection
+                                    />
+                                </div>
+                            )}
+
                             {/* Package Icon */}
                             <div style={{
                                 width: '24px',

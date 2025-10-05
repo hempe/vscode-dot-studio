@@ -11,6 +11,7 @@ import NugetHeader from './components/NugetHeader';
 import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
+import * as semver from 'semver';
 
 const log = logger('NuGetReact');
 
@@ -262,6 +263,22 @@ export const App: React.FC = () => {
                         vscode.postMessage({ type: 'getNuGetData' });
                     }
                     break;
+                case 'bulkUpdateComplete':
+                    // Handle bulk update completion
+                    setLoading(false);
+                    log.info(`NuGet React: Bulk update complete - success: ${message.success}`);
+
+                    // Refresh data and clear selections after successful bulk update
+                    if (message.success) {
+                        log.info(`NuGet React: Refreshing data after successful bulk update`);
+                        vscode.postMessage({ type: 'getNuGetData' });
+                        // Clear all selections after successful update
+                        setData(prevData => ({
+                            ...prevData,
+                            updatesAvailable: prevData.updatesAvailable.map(p => ({ ...p, selected: false }))
+                        }));
+                    }
+                    break;
             }
         };
 
@@ -447,16 +464,33 @@ export const App: React.FC = () => {
         });
     };
 
+    // Helper function to determine if a version is prerelease using semver
+    const isPrerelease = (version: string): boolean => {
+        try {
+            const parsed = semver.parse(version);
+            return parsed !== null && parsed.prerelease.length > 0;
+        } catch {
+            // If semver parsing fails, fall back to simple pattern matching
+            return /-(alpha|beta|rc|preview|pre|dev|nightly|canary|snapshot)/i.test(version);
+        }
+    };
+
     // Helper function to get version options for dropdown
     const getVersionOptions = (pkg: LocalNuGetPackage) => {
         if (!pkg.allVersions || pkg.allVersions.length === 0) {
             return [{ label: pkg.version, value: pkg.version }];
         }
 
-        // Sort versions in descending order (newest first)
-        return pkg.allVersions
+        // Filter versions based on prerelease setting
+        let filteredVersions = pkg.allVersions;
+        if (!includePrerelease) {
+            filteredVersions = pkg.allVersions.filter(version => !isPrerelease(version));
+        }
+
+        // Sort versions in descending order (newest first) using semver
+        return filteredVersions
             .slice()
-            .reverse()
+            .sort((a, b) => semver.rcompare(a, b)) // rcompare for descending order
             .map(version => ({
                 label: version,
                 value: version
@@ -495,9 +529,38 @@ export const App: React.FC = () => {
         }
     };
 
+    const handlePackageToggle = (pkg: LocalNuGetPackage, checked: boolean) => {
+        setData(prevData => ({
+            ...prevData,
+            updatesAvailable: prevData.updatesAvailable.map(p =>
+                p.id === pkg.id ? { ...p, selected: checked } : p
+            )
+        }));
+    };
+
+    const handleSelectAllUpdates = (checked: boolean) => {
+        // Only select/deselect the filtered packages
+        const filteredPackageIds = new Set(filteredUpdates.map(pkg => pkg.id));
+
+        setData(prevData => ({
+            ...prevData,
+            updatesAvailable: prevData.updatesAvailable.map(p =>
+                filteredPackageIds.has(p.id) ? { ...p, selected: checked } : p
+            )
+        }));
+    };
+
+    // Helper to get select all state for filtered packages only
+    const getSelectAllState = () => {
+        if (filteredUpdates.length === 0) return false;
+        const selectedCount = filteredUpdates.filter(pkg => pkg.selected).length;
+        return selectedCount === filteredUpdates.length;
+    };
+
     const handleBulkUpdate = () => {
         const selectedPackages = ensureArray(data.updatesAvailable).filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
+            setLoading(true);
             vscode.postMessage({ type: 'bulkUpdatePackages', payload: { packages: selectedPackages } });
         }
     };
@@ -829,20 +892,47 @@ export const App: React.FC = () => {
                         disabled={initializing}
                         style={{ flex: 1 }}
                     />
+                    <Button
+                        onClick={handleBulkUpdate}
+                        disabled={
+                            initializing ||
+                            loading ||
+                            !ensureArray(data.updatesAvailable).some(pkg => pkg.selected)
+                        }
+                        appearance="primary"
+                    >
+                        Update Selected
+                    </Button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Checkbox
-                        checked={includePrerelease}
-                        onChange={setIncludePrerelease}
-                        disabled={initializing}
-                    />
-                    <label style={{
-                        fontSize: '13px',
-                        color: 'var(--vscode-foreground)',
-                        cursor: initializing ? 'default' : 'pointer'
-                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
-                        Include prerelease
-                    </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Checkbox
+                            checked={includePrerelease}
+                            onChange={setIncludePrerelease}
+                            disabled={initializing}
+                        />
+                        <label style={{
+                            fontSize: '13px',
+                            color: 'var(--vscode-foreground)',
+                            cursor: initializing ? 'default' : 'pointer'
+                        }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
+                            Include prerelease
+                        </label>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Checkbox
+                            checked={getSelectAllState()}
+                            onChange={handleSelectAllUpdates}
+                            disabled={initializing || filteredUpdates.length === 0}
+                        />
+                        <label style={{
+                            fontSize: '13px',
+                            color: 'var(--vscode-foreground)',
+                            cursor: (initializing || filteredUpdates.length === 0) ? 'default' : 'pointer'
+                        }} onClick={() => !initializing && filteredUpdates.length > 0 && handleSelectAllUpdates(!getSelectAllState())}>
+                            Select all
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -878,6 +968,8 @@ export const App: React.FC = () => {
                         showUpdateInfo={true}
                         getVersionChangeText={getVersionChangeText}
                         title="Updates"
+                        showCheckboxes={true}
+                        onPackageToggle={handlePackageToggle}
                     />
                 </div>
 
