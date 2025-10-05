@@ -207,6 +207,12 @@ export const App: React.FC = () => {
                         }
                     }
                     break;
+                case 'installComplete':
+                case 'uninstallComplete':
+                    // Clear loading state when install/uninstall operations complete
+                    setLoading(false);
+                    log.info(`NuGet React: ${message.command} - success: ${message.success}`);
+                    break;
             }
         };
 
@@ -259,14 +265,28 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleInstallPackage = (pkg: LocalNuGetPackage) => {
-        vscode.postMessage({ type: 'installPackage', payload: { package: pkg } });
+    const handleInstallPackage = (pkg: LocalNuGetPackage, projects: string[], version: string) => {
+        setLoading(true);
+        vscode.postMessage({
+            type: 'installPackage',
+            payload: {
+                package: pkg,
+                projects: projects,
+                version: version
+            }
+        });
     };
 
-    const handleUninstallPackage = (pkg: LocalNuGetPackage) => {
-        vscode.postMessage({ type: 'uninstallPackage', payload: { package: pkg } });
+    const handleUninstallPackage = (pkg: LocalNuGetPackage, projects: string[]) => {
+        setLoading(true);
+        vscode.postMessage({
+            type: 'uninstallPackage',
+            payload: {
+                package: pkg,
+                projects: projects
+            }
+        });
     };
-
 
     // Helper function to get package icon URL
     const getPackageIconUrl = (pkg: LocalNuGetPackage): string => {
@@ -591,7 +611,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                installedPackages={enhancedSearchResults || []}
+                                installedPackages={data.installedPackages || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
@@ -601,6 +621,7 @@ export const App: React.FC = () => {
                                 selectedVersion={selectedVersion}
                                 selectedProjects={selectedProjects}
                                 initializing={initializing}
+                                loading={loading}
                                 onVersionChange={handleVersionChange}
                                 onInstallUpdate={handleInstallPackage}
                                 onUninstall={handleUninstallPackage}
@@ -729,6 +750,7 @@ export const App: React.FC = () => {
                             selectedVersion={selectedVersion}
                             selectedProjects={selectedProjects}
                             initializing={initializing}
+                            loading={loading}
                             onVersionChange={handleVersionChange}
                             onInstallUpdate={handleInstallPackage}
                             onUninstall={handleUninstallPackage}
@@ -846,6 +868,7 @@ export const App: React.FC = () => {
                                 selectedVersion={selectedVersion}
                                 selectedProjects={selectedProjects}
                                 initializing={initializing}
+                                loading={loading}
                                 onVersionChange={handleVersionChange}
                                 onInstallUpdate={handleInstallPackage}
                                 onUninstall={handleUninstallPackage}
@@ -915,6 +938,7 @@ export const App: React.FC = () => {
                         selectedVersion={selectedVersion}
                         selectedProjects={selectedProjects}
                         initializing={initializing}
+                        loading={loading}
                         onVersionChange={handleVersionChange}
                         onInstallUpdate={handleInstallPackage}
                         onUninstall={handleUninstallPackage}

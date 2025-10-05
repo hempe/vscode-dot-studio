@@ -10,9 +10,10 @@ interface PackageActionsProps {
     selectedVersion: string | null;
     selectedProjects: Set<string>;
     initializing: boolean;
+    loading?: boolean;
     onVersionChange: (version: string | any) => void;
-    onInstallUpdate: (packageData: LocalNuGetPackage) => void;
-    onUninstall: (packageData: LocalNuGetPackage) => void;
+    onInstallUpdate: (packageData: LocalNuGetPackage, projects: string[], version: string) => void;
+    onUninstall: (packageData: LocalNuGetPackage, projects: string[]) => void;
     getVersionOptions: (pkg: LocalNuGetPackage) => Array<{ value: string; label: string }>;
     installButtonText?: string;
 }
@@ -22,6 +23,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
     selectedVersion,
     selectedProjects,
     initializing,
+    loading = false,
     onVersionChange,
     onInstallUpdate,
     onUninstall,
@@ -57,25 +59,27 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     value={selectedVersion || selectedPackage.version}
                     onChange={onVersionChange}
                     options={getVersionOptions(selectedPackage)}
-                    disabled={initializing}
+                    disabled={initializing || loading}
                     style={{ flex: 1, maxWidth: '200px' }}
                 />
                 <Button
                     style={{ width: '120px', justifyContent: 'center' }}
                     appearance="primary"
-                    disabled={selectedProjects.size === 0 || initializing}
+                    disabled={selectedProjects.size === 0 || initializing || loading}
                     onClick={() => {
-                        if (!initializing) {
+                        if (!initializing && !loading) {
+                            const projectsList = Array.from(selectedProjects);
+                            const versionToInstall = selectedVersion || selectedPackage.version;
                             log.info('Install/Update action:', {
                                 package: selectedPackage.id,
-                                version: selectedVersion || selectedPackage.version,
-                                projects: Array.from(selectedProjects)
+                                version: versionToInstall,
+                                projects: projectsList
                             });
-                            onInstallUpdate(selectedPackage);
+                            onInstallUpdate(selectedPackage, projectsList, versionToInstall);
                         }
                     }}
                 >
-                    {installButtonText}
+                    {loading ? 'Installing...' : installButtonText}
                 </Button>
             </div>
 
@@ -95,18 +99,19 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                 <Button
                     style={{ width: '120px', justifyContent: 'center' }}
                     appearance="secondary"
-                    disabled={selectedProjects.size === 0 || initializing}
+                    disabled={selectedProjects.size === 0 || initializing || loading}
                     onClick={() => {
-                        if (!initializing) {
+                        if (!initializing && !loading) {
+                            const projectsList = Array.from(selectedProjects);
                             log.info('Uninstall action:', {
                                 package: selectedPackage.id,
-                                projects: Array.from(selectedProjects)
+                                projects: projectsList
                             });
-                            onUninstall(selectedPackage);
+                            onUninstall(selectedPackage, projectsList);
                         }
                     }}
                 >
-                    Uninstall
+                    {loading ? 'Uninstalling...' : 'Uninstall'}
                 </Button>
             </div>
         </div>

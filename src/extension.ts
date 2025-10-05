@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-// import { SolutionProvider } from './services/solutionProvider'; // Legacy - not used, webview handles tree now
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';

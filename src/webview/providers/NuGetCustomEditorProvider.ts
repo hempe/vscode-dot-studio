@@ -98,6 +98,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handlePackageAction(message, webview, context);
                     break;
 
+                case 'installPackage':
+                    await this._handleInstallPackage(message, webview, context);
+                    break;
+
+                case 'uninstallPackage':
+                    await this._handleUninstallPackage(message, webview, context);
+                    break;
+
                 case 'consolidatePackage':
                     await this._handleConsolidatePackage(message, webview, context);
                     break;
@@ -368,6 +376,125 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         } catch (error) {
             log.error('Error performing package action:', error);
             vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private async _handleInstallPackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+        try {
+            const installData = message.payload || message;
+            const installPackage = installData.package;
+            const installProjects = installData.projects || [];
+            const installVersion = installData.version;
+
+            if (!installPackage || !installProjects.length) {
+                vscode.window.showErrorMessage('No projects selected for installation');
+                return;
+            }
+
+            log.info(`Installing package ${installPackage.id} version ${installVersion} to projects:`, installProjects);
+
+            // Use NuGetManagerService to install the package in multiple projects
+            const results = await NuGetManagerService.installPackageInMultipleProjects(
+                installPackage.id,
+                installVersion,
+                installProjects
+            );
+
+            // Process results and show appropriate messages
+            const successful = results.filter(r => r.success);
+            const failed = results.filter(r => !r.success);
+
+            if (successful.length > 0) {
+                vscode.window.showInformationMessage(
+                    `Successfully installed ${installPackage.id}@${installVersion} in ${successful.length} project(s)`
+                );
+            }
+
+            if (failed.length > 0) {
+                log.error('Failed installations:', failed);
+                vscode.window.showErrorMessage(
+                    `Failed to install ${installPackage.id} in ${failed.length} project(s). Check logs for details.`
+                );
+            }
+
+            // Refresh the webview
+            await this._updateWebview(webview, context);
+
+            // Send completion message to clear loading state
+            webview.postMessage({
+                command: 'installComplete',
+                success: successful.length > 0,
+                packageId: installPackage.id
+            });
+        } catch (error) {
+            log.error('Error installing package:', error);
+            vscode.window.showErrorMessage(`Failed to install package: ${error}`);
+
+            // Send completion message even on error
+            webview.postMessage({
+                command: 'installComplete',
+                success: false,
+                packageId: message.payload?.package?.id || 'unknown'
+            });
+        }
+    }
+
+    private async _handleUninstallPackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+        try {
+            const uninstallData = message.payload || message;
+            const uninstallPackage = uninstallData.package;
+            const uninstallProjects = uninstallData.projects || [];
+
+            if (!uninstallPackage || !uninstallProjects.length) {
+                vscode.window.showErrorMessage('No projects selected for uninstallation');
+                return;
+            }
+
+            log.info(`Uninstalling package ${uninstallPackage.id} from projects:`, uninstallProjects);
+
+            // Use NuGetManagerService to uninstall the package from multiple projects
+            const results = [];
+            for (const projectPath of uninstallProjects) {
+                const result = await NuGetManagerService.uninstallPackageFromProject(projectPath, uninstallPackage.id);
+                results.push(result);
+            }
+
+            // Process results and show appropriate messages
+            const successful = results.filter(r => r.success);
+            const failed = results.filter(r => !r.success);
+
+            if (successful.length > 0) {
+                vscode.window.showInformationMessage(
+                    `Successfully uninstalled ${uninstallPackage.id} from ${successful.length} project(s)`
+                );
+            }
+
+            if (failed.length > 0) {
+                log.error('Failed uninstallations:', failed);
+                vscode.window.showErrorMessage(
+                    `Failed to uninstall ${uninstallPackage.id} from ${failed.length} project(s). Check logs for details.`
+                );
+            }
+
+            // Refresh the webview
+            await this._updateWebview(webview, context);
+
+            // Send completion message to clear loading state
+            webview.postMessage({
+                command: 'uninstallComplete',
+                success: successful.length > 0,
+                packageId: uninstallPackage.id
+            });
+        } catch (error) {
+            log.error('Error uninstalling package:', error);
+            vscode.window.showErrorMessage(`Failed to uninstall package: ${error}`);
+
+            // Send completion message even on error
+            webview.postMessage({
+                command: 'uninstallComplete',
+                success: false,
+                packageId: message.payload?.package?.id || 'unknown'
+            });
         }
     }
 
