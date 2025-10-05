@@ -20,6 +20,7 @@ interface ProjectListProps {
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
     initializing?: boolean;
+    projectPath?: string; // For project-specific context
 }
 
 export default function ProjectList({
@@ -28,8 +29,20 @@ export default function ProjectList({
     installedPackages = [],
     selectedProjects,
     setSelectedProjects,
-    initializing = false
+    initializing = false,
+    projectPath
 }: ProjectListProps) {
+
+    // Auto-select the current project when opening from project context
+    useEffect(() => {
+        if (projectPath && projects) {
+            const currentProject = projects.find(p => p.path === projectPath);
+            if (currentProject && !selectedProjects.has(currentProject.path)) {
+                log.info('Auto-selecting current project:', currentProject.name);
+                setSelectedProjects(new Set([currentProject.path]));
+            }
+        }
+    }, [projectPath, projects, selectedProjects, setSelectedProjects]);
 
     return (
         <div style={{
@@ -55,9 +68,9 @@ export default function ProjectList({
                     }}>
                         <Checkbox
                             checked={selectedProjects.has(project.path)}
-                            disabled={initializing}
+                            disabled={initializing || (projectPath === project.path)}
                             onChange={() => {
-                                if (!initializing) {
+                                if (!initializing && projectPath !== project.path) {
                                     const newSelected = new Set(selectedProjects);
                                     if (newSelected.has(project.path)) {
                                         newSelected.delete(project.path);

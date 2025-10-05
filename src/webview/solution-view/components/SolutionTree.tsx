@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ProjectNode, SolutionTreeProps } from '../types';
+import { ProjectNode, SolutionTreeProps, ProjectActionType } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
@@ -174,7 +174,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 }
             }
         } else {
-            onProjectAction(action, path, data);
+            onProjectAction(action as ProjectActionType, path, data);
         }
     }, [treeNodes, flattenNodes, handleToggleExpand, onProjectAction]);
 

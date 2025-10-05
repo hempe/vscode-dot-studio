@@ -5,7 +5,7 @@ import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 
 const log = logger('TreeNode');
-export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
+export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
     level,
     onProjectAction,

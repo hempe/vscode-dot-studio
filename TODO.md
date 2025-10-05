@@ -61,6 +61,7 @@ This document tracks the missing functionality and improvements needed for the S
 **Services Created**:
 
 - ✅ **SolutionTreeService** (~378 lines) - Tree building and hierarchy management
+
   - ✅ `buildSolutionTree()` - Build complete tree from Solution data
   - ✅ `mergeTreeStates()` - Merge fresh data with cached expansion states
   - ✅ `updateNodeInTree()` - Update specific nodes in tree structure
@@ -69,6 +70,7 @@ This document tracks the missing functionality and improvements needed for the S
   - ✅ `convertProjectChildrenToProjectNodes()` - Type conversion utilities
 
 - ✅ **SolutionActionService** (~350+ lines) - Handle all project/solution operations
+
   - ✅ Project operations (build, clean, rebuild, restore)
   - ✅ Solution folder operations (add, remove with GUID-based safety)
   - ✅ File operations (delete, reveal, open with binary file handling)
@@ -83,12 +85,14 @@ This document tracks the missing functionality and improvements needed for the S
   - ✅ `getExpandedNodePaths()` - Path collection utilities
 
 ### ✅ Critical Fixes Included
+
 - ✅ **Fixed folder expansion bug** - Folders now show expand arrows and children properly
 - ✅ **GUID-based solution folder operations** - Much safer than name-based parsing
 - ✅ **Improved error handling** - Better error messages and fallback behavior
 - ✅ **Enhanced logging** - Better debugging information throughout
 
 ### ✅ Benefits Achieved
+
 - **Separation of Concerns**: Each service has single responsibility
 - **Maintainability**: Much easier to understand, test, and modify individual services
 - **Reusability**: Services can be used by other extension components
@@ -120,16 +124,21 @@ This document tracks the missing functionality and improvements needed for the S
 
 Note: Solution folders in Visual Studio are virtual organizational containers. They typically don't have "Add New Project" or "Add Existing Project" - those operations happen at the solution level. Solution folders can contain sub-folders and can have projects moved into them.
 
+- [] Get rid of add framework reference
+- [] Get rid of add add assembly reference.
+
 ### Project Node Context Menu
 
 - [x] **Dependencies node functionality** (PRIORITY - COMPLETED!)
   - [x] Restore Dependencies container node display ✅
   - [x] Fix collapse bug when clicking dependencies node ✅
   - [x] Implement dependencies expansion to show individual packages ✅
-  - [x] Add context menu for dependencies (Manage NuGet Packages, Add Reference, Restore Dependencies) ✅
-- [ ] Add Reference
-- [ ] Add Project Reference
-- [ ] Manage NuGet Packages
+  - [x] Add context menu for dependencies (Manage NuGet Packages, Add Reference, Restore Dependencies)
+
+### Project Depencency Node Context Menu
+
+- [ ] Add Project Reference should open file selection. (also on "Projects" child node)
+- [x] Manage NuGet Packages (also on "Packges" child node)
 - [ ] Add Class/Item (with templates)
 - [ ] Add Folder
 - [ ] Set as Startup project [startup project should be "bold" in the tree ]
@@ -146,7 +155,6 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 - [ ] Add Class/Item
 - [ ] Add Folder
 - [ ] Copy/Cut/Paste
-
 
 ## 🔧 Functionality Gaps (Priority 3)
 

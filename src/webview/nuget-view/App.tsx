@@ -713,6 +713,7 @@ export const App: React.FC = () => {
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
+                                projectPath={data.projectPath}
                                  />
                             <PackageActions
                                 selectedPackage={selectedPackage}
@@ -989,6 +990,7 @@ export const App: React.FC = () => {
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
+                                projectPath={data.projectPath}
                                  />
                             <PackageActions
                                 selectedPackage={selectedPackage}
@@ -1059,6 +1061,7 @@ export const App: React.FC = () => {
                         selectedProjects={selectedProjects}
                         setSelectedProjects={setSelectedProjects}
                         initializing={initializing}
+                        projectPath={data.projectPath}
                          />
                     <PackageActions
                         selectedPackage={selectedPackage}

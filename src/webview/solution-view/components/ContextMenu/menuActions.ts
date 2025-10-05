@@ -189,6 +189,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     project: [
         openAction,
         separator,
+        manageNuGetPackagesAction,
+        separator,
         renameAction,
         removeFromSolutionAction,
         deleteProjectAction,
