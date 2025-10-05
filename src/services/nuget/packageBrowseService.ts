@@ -4,6 +4,7 @@ import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource } from './types';
 import { NuGetV3Service } from './nugetV3Service';
 import * as semver from 'semver';
+import { RequestQueue } from '../../core/requestQueue';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -32,28 +33,22 @@ export class PackageBrowseService {
      */
     static async getPackageDetails(packageId: string, source?: string): Promise<NuGetPackage | null> {
         try {
-            let targetSources: PackageSource[] = [];
-
-            if (source) {
+            const targetSources: PackageSource[] = source
                 // Use specific source
-                targetSources = [{ name: 'specified', url: source, enabled: true, isLocal: false }];
-            } else {
+                ? [{ name: 'specified', url: source, enabled: true, isLocal: false }]
                 // Get all configured sources
-                targetSources = await this.getPackageSources();
-            }
+                : await this.getPackageSources();
 
             // Try each source until we find the package
-            for (const packageSource of targetSources) {
-                if (!packageSource.enabled) continue;
+            await Promise.all(targetSources.map(packageSource => RequestQueue.next(async () => {
+                if (!packageSource.enabled) return;
 
                 try {
                     const accessToken = await this.getSourceToken(packageSource);
 
                     // Upgrade nuget.org V2 URLs to V3 for better functionality
                     const upgradedUrl = this.upgradeNuGetOrgUrl(packageSource.url);
-
                     const packageDetails = await NuGetV3Service.getPackageDetails(upgradedUrl, packageId, accessToken);
-
                     if (packageDetails) {
                         // Get all versions
                         packageDetails.allVersions = await this.getPackageVersions(packageId, packageSource.url);
@@ -61,9 +56,9 @@ export class PackageBrowseService {
                     }
                 } catch (error) {
                     log.warn(`Failed to get package details from ${packageSource.name}:`, error);
-                    continue;
+                    return;
                 }
-            }
+            })));
 
             return null;
 
