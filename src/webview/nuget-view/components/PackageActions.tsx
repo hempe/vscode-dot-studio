@@ -16,6 +16,7 @@ interface PackageActionsProps {
     onUninstall: (packageData: LocalNuGetPackage, projects: string[]) => void;
     getVersionOptions: (pkg: LocalNuGetPackage) => Array<{ value: string; label: string }>;
     installButtonText?: string;
+    totalProjects?: number; // To determine if we should show "from selected projects" text
 }
 
 export const PackageActions: React.FC<PackageActionsProps> = ({
@@ -28,7 +29,8 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
     onInstallUpdate,
     onUninstall,
     getVersionOptions,
-    installButtonText = "Install"
+    installButtonText = "Install",
+    totalProjects = 1
 }) => {
     return (
         <div style={{
@@ -94,7 +96,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     fontSize: '14px',
                     flex: 1,
                 }}>
-                    Remove package from selected projects:
+                    {totalProjects > 1 ? 'Remove package from selected projects:' : ''}
                 </div>
                 <Button
                     style={{ width: '120px', justifyContent: 'center' }}

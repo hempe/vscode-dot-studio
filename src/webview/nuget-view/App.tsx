@@ -721,6 +721,7 @@ export const App: React.FC = () => {
                                 selectedProjects={selectedProjects}
                                 initializing={initializing}
                                 loading={loading}
+                                totalProjects={data.projects?.length || 0}
                                 onVersionChange={handleVersionChange}
                                 onInstallUpdate={handleInstallPackage}
                                 onUninstall={handleUninstallPackage}
@@ -850,6 +851,7 @@ export const App: React.FC = () => {
                             selectedProjects={selectedProjects}
                             initializing={initializing}
                             loading={loading}
+                            totalProjects={data.projects?.length || 0}
                             onVersionChange={handleVersionChange}
                             onInstallUpdate={handleInstallPackage}
                             onUninstall={handleUninstallPackage}
@@ -998,6 +1000,7 @@ export const App: React.FC = () => {
                                 selectedProjects={selectedProjects}
                                 initializing={initializing}
                                 loading={loading}
+                                totalProjects={data.projects?.length || 0}
                                 onVersionChange={handleVersionChange}
                                 onInstallUpdate={handleInstallPackage}
                                 onUninstall={handleUninstallPackage}
