@@ -1,5 +1,8 @@
+import { sign } from 'crypto';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
+import * as https from 'https';
+import semver from "semver";
 
 const log = logger('NuGetV3Service');
 
@@ -35,7 +38,11 @@ export class NuGetV3Service {
 
             // Make authenticated request
             const response = await this.makeRequest(searchUrl, accessToken);
-            const searchResults = JSON.parse(response);
+            if (response.statusCode !== 200) {
+                throw new Error(`Search request failed with status code: ${response.statusCode}`);
+            }
+
+            const searchResults = JSON.parse(response.body);
 
             const packages = this.parseSearchResults(searchResults);
 
@@ -53,6 +60,8 @@ export class NuGetV3Service {
         }
     }
 
+    private static packageCache: Map<string, { timestamp: number, request: Promise<NuGetPackage | null> }> = new Map();
+
     /**
      * Get package details including all versions
      */
@@ -61,26 +70,100 @@ export class NuGetV3Service {
         packageId: string,
         accessToken?: string
     ): Promise<NuGetPackage | null> {
+        const now = Date.now();
+        const cacheKey = `${sourceUrl}|${packageId}`;
+        const cached = this.packageCache.get(cacheKey);
+        if (cached && (now - cached.timestamp) < 10 * 60 * 1000) { // 10 minutes cache
+            log.info(`Using cached package details for ${packageId}`);
+            return cached.request;
+        }
+
+        const request = this._getPackageDetails(sourceUrl, packageId, accessToken);
         try {
-            const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
-            const registrationUrl = this.findRegistrationService(serviceIndex);
-
-            if (!registrationUrl) {
-                log.warn('No registration service found in V3 service index');
-                return null;
-            }
-
-            // Get package registration data
-            const packageUrl = `${registrationUrl}${packageId.toLowerCase()}/index.json`;
-            const response = await this.makeRequest(packageUrl, accessToken);
-            const packageData = JSON.parse(response);
-
-            return this.parsePackageDetails(packageData);
+            this.packageCache.set(cacheKey, { timestamp: now, request });
+            return await request;
 
         } catch (error) {
             log.error(`Error getting V3 package details for ${packageId}:`, error);
+            this.packageCache.delete(cacheKey);
             return null;
         }
+    }
+
+    private static async _getPackageDetails(
+        sourceUrl: string,
+        packageId: string,
+        accessToken?: string
+    ): Promise<NuGetPackage | null> {
+        for (let i = 0; i < 3; i++) {
+            try {
+                const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
+                const registrationUrl = this.findRegistrationService(serviceIndex);
+
+                if (!registrationUrl) {
+                    log.warn('No registration service found in V3 service index');
+                    return null;
+                }
+
+                const packageUrl = `${registrationUrl}${packageId.toLowerCase()}/index.json`;
+                const response = await this.makeRequest(packageUrl, accessToken);
+                if (response.statusCode !== 200) {
+                    log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode}`);
+                    return null;
+                }
+
+                const packageData = JSON.parse(response.body);
+
+                if (!packageData.items || packageData.items.length === 0) {
+                    return null;
+                }
+
+                // 🧮 Find the page with the highest `upper` version
+                const pages = packageData.items.filter((i: any) => i['@id'] && i.upper);
+                if (pages.length === 0) {
+                    return null;
+                }
+
+                // Compare versions using semver if available
+                const latestPage = pages.reduce((best: any, cur: any) => {
+                    try {
+                        return semver.gt(cur.upper, best.upper) ? cur : best;
+                    } catch {
+                        return cur.upper > best.upper ? cur : best;
+                    }
+                }, pages[0]);
+
+                let allItems: any[] = [];
+
+                if (Array.isArray(latestPage.items) && latestPage.items.length > 0) {
+                    allItems = latestPage.items;
+                } else if (latestPage['@id']) {
+                    // 🔗 Fetch only the latest page
+                    const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
+                    if (subResponse.statusCode === 200) {
+                        const subData = JSON.parse(subResponse.body);
+                        allItems = subData.items || [];
+                    } else {
+                        log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
+                    }
+                }
+
+                if (allItems.length === 0) {
+                    return null;
+                }
+
+                // Reshape data so parsePackageDetails() can handle it
+                const mergedData = { items: [{ items: allItems }] };
+
+                return this.parsePackageDetails(mergedData, packageUrl);
+
+            } catch (error) {
+                await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
+                log.error(`Error getting V3 package details for ${packageId}:`, error);
+            }
+        }
+
+        throw new Error(`Failed to get package details for ${packageId} after multiple attempts`);
     }
 
     /**
@@ -98,7 +181,12 @@ export class NuGetV3Service {
             log.info(`Fetching package versions from flat container: ${flatContainerUrl}`);
 
             const response = await this.makeRequest(flatContainerUrl, accessToken);
-            const versionData = JSON.parse(response);
+            if (response.statusCode !== 200) {
+                log.warn(`Failed to get versions for ${packageId}, status code: ${response.statusCode}`);
+                return [];
+            }
+
+            const versionData = JSON.parse(response.body);
 
             // Flat container returns {versions: ["1.0.0", "1.0.1", ...]}
             const versions = versionData.versions || [];
@@ -112,12 +200,34 @@ export class NuGetV3Service {
         }
     }
 
+    private static serviceIndexCache: Map<string, { timestamp: number, request: Promise<any> }> = new Map();
+
     /**
      * Fetch NuGet V3 service index
      */
     private static async fetchServiceIndex(sourceUrl: string, accessToken?: string): Promise<any> {
-        const response = await this.makeRequest(sourceUrl, accessToken);
-        return JSON.parse(response);
+        if (this.serviceIndexCache.has(sourceUrl)) {
+            const cached = this.serviceIndexCache.get(sourceUrl)!;
+            if (Date.now() - cached.timestamp < 10 * 60 * 1000) { // 10 minutes cache
+                return cached.request;
+            }
+        }
+
+        log.info(`Fetching V3 service index from: ${sourceUrl}`);
+
+        const request = this.makeRequest(sourceUrl, accessToken)
+            .then(response => {
+                if (response.statusCode === 200)
+                    return JSON.parse(response.body);
+                this.serviceIndexCache.delete(sourceUrl);
+                throw new Error(`Failed to fetch service index, status code: ${response.statusCode}`);
+            })
+            .catch(error => {
+                this.serviceIndexCache.delete(sourceUrl);
+                throw error;
+            });
+        this.serviceIndexCache.set(sourceUrl, { timestamp: Date.now(), request });
+        return request;
     }
 
     /**
@@ -174,14 +284,23 @@ export class NuGetV3Service {
         return url.toString();
     }
 
+    private static requestCache: Map<string, { timestamp: number, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
+
     /**
      * Make HTTP request with authentication
      */
-    private static async makeRequest(url: string, accessToken?: string): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const https = require('https');
-            const urlObj = new URL(url);
+    private static async makeRequest(url: string, accessToken?: string): Promise<{ body: string, statusCode: number }> {
+        const cacheKey = `${url}|${accessToken || ''}`;
+        const cached = this.requestCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < 30 * 1000) { // 30 second cache
+            log.info(`Using cached request for ${url}`);
+            return cached.promise;
+        }
 
+        log.info(`Making request to ${url}`);
+
+        const promise = new Promise<{ body: string, statusCode: number }>((resolve, reject) => {
+            const urlObj = new URL(url);
             const headers: Record<string, string> = {
                 'Accept': 'application/json',
                 'User-Agent': 'DotNet-Extension-VSCode/1.0'
@@ -196,18 +315,14 @@ export class NuGetV3Service {
                 port: urlObj.port || 443,
                 path: urlObj.pathname + urlObj.search,
                 method: 'GET',
-                headers
+                headers,
             };
 
             const req = https.request(options, (res: any) => {
                 let data = '';
                 res.on('data', (chunk: any) => data += chunk);
                 res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(data);
-                    } else {
-                        reject(new Error(`HTTP ${res.statusCode}: ${data}`));
-                    }
+                    resolve({ statusCode: res.statusCode, body: data });
                 });
             });
 
@@ -217,6 +332,12 @@ export class NuGetV3Service {
                 reject(new Error('Request timeout'));
             });
             req.end();
+        });
+
+        this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
+        return promise.catch(error => {
+            this.requestCache.delete(cacheKey);
+            throw error;
         });
     }
 
@@ -365,34 +486,93 @@ export class NuGetV3Service {
     /**
      * Parse package details from registration data
      */
-    private static parsePackageDetails(packageData: any): NuGetPackage | null {
+    private static parsePackageDetails(packageData: any, packageUrl: string): NuGetPackage | null {
         try {
+            if (!packageData) {
+                return null;
+            }
+
             const items = packageData.items || [];
             if (items.length === 0) {
                 return null;
             }
 
-            const latestItem = items[items.length - 1];
-            const catalogEntry = latestItem.catalogEntry || {};
+            // Flatten nested structure (items[].items[].catalogEntry)
+            const flatEntries = items.flatMap((i: any) =>
+                Array.isArray(i.items) ? i.items : [i]
+            );
+
+            // Extract all catalog entries
+            const catalogEntries = flatEntries
+                .map((i: { catalogEntry: any }) => i.catalogEntry)
+                .filter(Boolean);
+
+            if (catalogEntries.length === 0) {
+                return null;
+            }
+
+            // Filter for relevant types
+            const validEntries = catalogEntries.filter((e: any) => {
+                const types = Array.isArray(e["@type"])
+                    ? e["@type"]
+                    : typeof e["@type"] === "string"
+                        ? [e["@type"]]
+                        : [];
+                return types.some(t => t.includes("PackageDetails") || t.includes("Package"));
+            });
+
+            if (validEntries.length === 0) {
+                return null;
+            }
+
+            // Pick the highest version (using semver if available)
+            const latestEntry = validEntries.reduce((best: any, current: any) => {
+                const vBest = best?.version ?? "0.0.0";
+                const vCur = current.version ?? "0.0.0";
+                try {
+                    return semver.gt(vCur, vBest) ? current : best;
+                } catch {
+                    // fallback if version not semver-parsable
+                    return vCur > vBest ? current : best;
+                }
+            }, validEntries[0]);
+
+            const entry = latestEntry;
+
+            // Normalize authors
+            const authors =
+                typeof entry.authors === "string"
+                    ? entry.authors.split(",").map((a: string) => a.trim())
+                    : Array.isArray(entry.authors)
+                        ? entry.authors
+                        : [];
+
+            // Normalize tags
+            const tags =
+                Array.isArray(entry.tags)
+                    ? entry.tags
+                    : typeof entry.tags === "string"
+                        ? entry.tags.split(/\s+/).filter(Boolean)
+                        : [];
 
             return {
-                id: catalogEntry.id || '',
-                version: catalogEntry.version || '',
-                description: catalogEntry.description || '',
-                authors: catalogEntry.authors ? catalogEntry.authors.split(',').map((a: string) => a.trim()) : [],
-                projectUrl: catalogEntry.projectUrl,
-                licenseUrl: catalogEntry.licenseUrl,
-                iconUrl: catalogEntry.iconUrl,
-                tags: catalogEntry.tags ? catalogEntry.tags.split(' ') : [],
-                totalDownloads: 0, // Not available in registration
+                id: entry.id ?? "",
+                version: entry.version ?? "",
+                description: entry.description ?? "",
+                authors,
+                projectUrl: entry.projectUrl ?? "",
+                licenseUrl: entry.licenseUrl ?? "",
+                iconUrl: entry.iconUrl ?? "",
+                tags,
+                totalDownloads: 0, // still not exposed by registration API
                 allVersions: this.extractVersions(packageData)
             };
-
         } catch (error) {
-            log.error('Error parsing package details:', error);
+            log.error(`Error parsing package details: ${packageUrl}`, error, packageData);
             return null;
         }
     }
+
 
     /**
      * Extract all versions from package registration data

@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
+import * as fs from 'fs';
 import { logger } from '../../core/logger';
 import { InstalledPackage, ProjectInfo, NuGetPackage } from './types';
 import { PackageBrowseService } from './packageBrowseService';
@@ -45,78 +46,11 @@ export class PackageInstalledService {
 
     /**
      * Get installed packages with rich metadata for UI display
-     * This enhances basic package data with NuGet API metadata
+     * This uses the same metadata enrichment as browse packages
      */
     static async getInstalledPackagesWithMetadata(solutionPath?: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
-        try {
-            // Get basic installed package data from dotnet CLI
-            const basicPackages = await this.getInstalledPackages(solutionPath);
-
-            if (basicPackages.length === 0) {
-                return [];
-            }
-
-            // Get unique package IDs to avoid duplicate API calls
-            const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
-            log.info(`Enriching ${uniquePackageIds.length} unique packages with NuGet metadata`);
-
-            // Create a map to store metadata by package ID
-            const metadataMap = new Map<string, NuGetPackage>();
-
-            // Fetch metadata for each unique package in parallel (with limit to avoid overwhelming API)
-            const batchSize = 5; // Process 5 packages at a time
-            for (let i = 0; i < uniquePackageIds.length; i += batchSize) {
-                const batch = uniquePackageIds.slice(i, i + batchSize);
-
-                const metadataPromises = batch.map(async (packageId) => {
-                    try {
-                        const metadata = await PackageBrowseService.getPackageDetails(packageId);
-                        if (metadata) {
-                            metadataMap.set(packageId.toLowerCase(), metadata);
-                        }
-                    } catch (error) {
-                        log.warn(`Failed to get metadata for ${packageId}:`, error);
-                    }
-                });
-
-                await Promise.all(metadataPromises);
-            }
-
-            // Merge metadata into basic package data
-            const enrichedPackages = basicPackages.map(basicPkg => {
-                const metadata = metadataMap.get(basicPkg.id.toLowerCase());
-
-                if (metadata) {
-                    // Merge metadata while preserving installation-specific fields
-                    return {
-                        ...basicPkg, // Keep all original InstalledPackage fields
-                        // Add NuGet metadata
-                        description: metadata.description,
-                        authors: metadata.authors,
-                        projectUrl: metadata.projectUrl,
-                        licenseUrl: metadata.licenseUrl,
-                        iconUrl: metadata.iconUrl,
-                        tags: metadata.tags,
-                        totalDownloads: metadata.totalDownloads,
-                        latestVersion: metadata.latestVersion,
-                        allVersions: metadata.allVersions,
-                        source: metadata.source
-                    };
-                } else {
-                    // Return basic package if metadata fetch failed
-                    return basicPkg;
-                }
-            });
-
-            log.info(`Successfully enriched ${enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length}/${basicPackages.length} packages with metadata`);
-            return enrichedPackages;
-
-        } catch (error) {
-            log.error('Error enriching packages with metadata:', error);
-            // Return basic packages if enrichment fails
-            const basicPackages = await this.getInstalledPackages(solutionPath);
-            return basicPackages;
-        }
+        const basicPackages = await this.getInstalledPackages(solutionPath);
+        return await this.enrichWithBrowseMetadata(basicPackages);
     }
 
     /**
@@ -124,10 +58,18 @@ export class PackageInstalledService {
      */
     static async getProjectPackages(projectPath: string): Promise<InstalledPackage[]> {
         try {
-            const command = `dotnet list "${projectPath}" package --format json`;
-            log.info(`Getting packages for project: ${command}`);
+            // Determine the working directory - use the project's directory or solution directory
+            const workingDir = path.dirname(projectPath);
+            const absoluteProjectPath = path.resolve(projectPath);
+
+            // Use relative path if the project is in the working directory, otherwise use absolute path
+            const projectArg = path.relative(workingDir, absoluteProjectPath) || absoluteProjectPath;
+
+            const command = `dotnet list "${projectArg}" package --format json`;
+            log.info(`Getting packages for project: ${command} (cwd: ${workingDir})`);
 
             const { stdout, stderr } = await execAsync(command, {
+                cwd: workingDir,
                 timeout: 15000,
                 encoding: 'utf8'
             });
@@ -136,13 +78,58 @@ export class PackageInstalledService {
                 log.warn('dotnet list package stderr:', stderr);
             }
 
+            if (!stdout || !stdout.trim()) {
+                log.warn(`No output from dotnet list package for ${projectPath}`);
+                return [];
+            }
+
             const allPackages = this.parseInstalledPackages(stdout);
-            return allPackages.filter(pkg => pkg.projectPath === projectPath);
+            return allPackages.filter(pkg =>
+                pkg.projectPath === projectPath ||
+                pkg.projectPath === absoluteProjectPath ||
+                path.resolve(pkg.projectPath) === absoluteProjectPath
+            );
 
         } catch (error) {
-            log.error(`Error getting packages for project ${projectPath}:`, error);
+            // Provide more detailed error information
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            log.error(`Error getting packages for project ${projectPath}: ${errorMessage}`);
+
+            // Try to provide helpful debugging info
+            if (errorMessage.includes('Command failed')) {
+                log.error(`Project path: ${projectPath}`);
+                log.error(`Project exists: ${fs.existsSync(projectPath)}`);
+                log.error(`Working directory: ${path.dirname(projectPath)}`);
+            }
+
+            // Fallback: try to get packages from solution-wide listing
+            try {
+                log.info(`Attempting fallback: getting packages from solution-wide listing for ${projectPath}`);
+                const solutionPath = this.findSolutionFile(path.dirname(projectPath));
+                if (solutionPath) {
+                    const allPackages = await this.getInstalledPackages(solutionPath);
+                    const projectPackages = allPackages.filter(pkg =>
+                        pkg.projectPath === projectPath ||
+                        path.resolve(pkg.projectPath) === path.resolve(projectPath)
+                    );
+                    log.info(`Fallback found ${projectPackages.length} packages for project`);
+                    return projectPackages;
+                }
+            } catch (fallbackError) {
+                log.warn('Fallback also failed:', fallbackError);
+            }
+
             return [];
         }
+    }
+
+    /**
+     * Get installed packages for a specific project with rich metadata for UI display
+     * This uses the same metadata enrichment as browse packages
+     */
+    static async getProjectPackagesWithMetadata(projectPath: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
+        const basicPackages = await this.getProjectPackages(projectPath);
+        return this.enrichWithBrowseMetadata(basicPackages);
     }
 
     /**
@@ -306,6 +293,89 @@ export class PackageInstalledService {
             log.debug(`Could not determine framework for ${projectPath}`);
             return null;
         }
+    }
+
+    /**
+     * Find solution file in directory or parent directories
+     */
+    private static findSolutionFile(startDir: string): string | null {
+        let currentDir = startDir;
+
+        while (currentDir !== path.dirname(currentDir)) {
+            try {
+                const files = fs.readdirSync(currentDir);
+                const solutionFile = files.find((file: string) => file.endsWith('.sln'));
+                if (solutionFile) {
+                    return path.join(currentDir, solutionFile);
+                }
+            } catch (error) {
+                // Continue searching in parent directory
+            }
+            currentDir = path.dirname(currentDir);
+        }
+        return null;
+    }
+
+    /**
+     * Enrich installed packages with metadata using the same path as browse packages
+     */
+    private static async enrichWithBrowseMetadata(basicPackages: InstalledPackage[]): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
+        if (basicPackages.length === 0) {
+            return [];
+        }
+
+        log.info(`Enriching ${basicPackages.length} installed packages with browse metadata`);
+
+        // Get unique package IDs to avoid duplicate API calls
+        const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];
+        const metadataMap = new Map<string, NuGetPackage>();
+
+        // Fetch metadata for each unique package using the same service as browse
+        for (const packageId of uniquePackageIds) {
+            try {
+                const metadata = await PackageBrowseService.getPackageDetails(packageId);
+                if (metadata) {
+                    metadataMap.set(packageId.toLowerCase(), metadata);
+                    log.debug(`Got metadata for ${packageId}: description=${!!metadata.description}, authors=${metadata.authors?.length || 0}`);
+                } else {
+                    log.warn(`No metadata found for ${packageId}`);
+                }
+            } catch (error) {
+                log.warn(`Failed to get metadata for ${packageId}:`, error);
+            }
+        }
+
+        // Merge metadata into package data
+        const enrichedPackages = basicPackages.map(pkg => {
+            const metadata = metadataMap.get(pkg.id.toLowerCase());
+
+            if (metadata) {
+                return {
+                    ...pkg,
+                    description: metadata.description,
+                    authors: metadata.authors,
+                    projectUrl: metadata.projectUrl,
+                    licenseUrl: metadata.licenseUrl,
+                    iconUrl: metadata.iconUrl,
+                    tags: metadata.tags,
+                    totalDownloads: metadata.totalDownloads,
+                    latestVersion: metadata.latestVersion,
+                    allVersions: metadata.allVersions,
+                    source: metadata.source,
+                    installedVersion: pkg.version
+                };
+            } else {
+                return {
+                    ...pkg,
+                    installedVersion: pkg.version
+                };
+            }
+        });
+
+        const enrichedCount = enrichedPackages.filter(pkg => 'description' in pkg && pkg.description).length;
+        log.info(`Successfully enriched ${enrichedCount}/${basicPackages.length} installed packages with metadata`);
+
+        return enrichedPackages;
     }
 
     /**

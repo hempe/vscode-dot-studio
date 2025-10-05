@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { PackageBrowseService } from '../../services/nuget/packageBrowseService';
+import { PackageInstalledService } from '../../services/nuget/packageInstalledService';
 import { IconCacheService } from '../../services/nuget/iconCacheService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
@@ -197,8 +199,10 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
                 return [];
             }
 
-            // TODO: Implement getting installed packages
-            return [];
+            // Get installed packages with metadata (description, authors, etc.)
+            const packages = await PackageInstalledService.getProjectPackagesWithMetadata(projectPath);
+            log.info(`Retrieved ${packages.length} installed packages with metadata for ${projectPath}`);
+            return packages;
         } catch (error) {
             log.error('Error getting installed packages:', error);
             return [];
@@ -209,13 +213,17 @@ export class NuGetWebviewProvider implements vscode.WebviewViewProvider {
         let currentDir = path.dirname(filePath);
 
         while (currentDir !== path.dirname(currentDir)) {
-            const possibleProjectFiles = ['*.csproj', '*.vbproj', '*.fsproj'];
+            try {
+                const files = fs.readdirSync(currentDir);
+                const projectFile = files.find((file: string) =>
+                    file.endsWith('.csproj') || file.endsWith('.vbproj') || file.endsWith('.fsproj')
+                );
 
-            for (const pattern of possibleProjectFiles) {
-                const projectFile = path.join(currentDir, pattern);
-                if (require('fs').existsSync(projectFile)) {
-                    return projectFile;
+                if (projectFile) {
+                    return path.join(currentDir, projectFile);
                 }
+            } catch (error) {
+                // Continue searching in parent directory
             }
 
             currentDir = path.dirname(currentDir);

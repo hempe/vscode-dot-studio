@@ -40,30 +40,6 @@ interface NuGetViewData {
 }
 
 
-// Helper function to deduplicate packages by ID and group project information
-const getUniquePackages = (packages: LocalNuGetPackage[], projects: { name: string; path: string, version: string }[]) => {
-    const packageMap = new Map<string, LocalNuGetPackage>();
-
-    packages.forEach(pkg => {
-        const existing = packageMap.get(pkg.id);
-        const existingProject = projects.find(p => p.name === pkg.projectName);
-
-        if (existing) {
-            // Add project info to existing package (avoid duplicates)
-            if (!existing.projects) existing.projects = [];
-            if (!existingProject) return;
-            existing.projects.push({ name: existingProject.name, version: existingProject.version });
-        } else {
-            // First time seeing this package
-            packageMap.set(pkg.id, {
-                ...pkg,
-                projects: existingProject ? [{name:existingProject.name, version:existingProject.version}]:[]
-            });
-        }
-    });
-
-    return Array.from(packageMap.values());
-};
 
 export const App: React.FC = () => {
     const [data, setData] = useState<NuGetViewData>({
@@ -137,12 +113,12 @@ export const App: React.FC = () => {
                     log.info('NuGet React: Setting data to:', message.data);
                     log.debug('NuGet React: Raw installed packages:', message.data?.installedPackages);
 
-                    // Map backend data structure to frontend structure
+                    // Backend now sends properly grouped data
                     const safeData = {
-                        installedPackages: getUniquePackages(ensureArray(message.data?.installedPackages), message.data?.projects || []),
-                        searchResults: getUniquePackages(ensureArray(message.data?.searchResults), message.data?.projects || []),
+                        installedPackages: ensureArray(message.data?.installedPackages),
+                        searchResults: ensureArray(message.data?.searchResults),
                         // Backend sends 'outdatedPackages' array, not 'updatesAvailable'
-                        updatesAvailable: getUniquePackages(ensureArray(message.data?.outdatedPackages), message.data?.projects || []),
+                        updatesAvailable: ensureArray(message.data?.outdatedPackages),
                         projects: ensureArray(message.data?.projects),
                         projectPath: message.data?.projectPath
                     };
@@ -152,12 +128,9 @@ export const App: React.FC = () => {
                     setData(safeData);
 
                     // Auto-select first installed package when data loads
-                    const uniquePackages = safeData.installedPackages;
-                    log.debug('NuGet React: Unique packages after deduplication:', uniquePackages);
-
-                    if (uniquePackages.length > 0 && !selectedPackage) {
-                        log.info('NuGet React: Auto-selecting package:', uniquePackages[0]);
-                        setSelectedPackage(uniquePackages[0]);
+                    if (safeData.installedPackages.length > 0 && !selectedPackage) {
+                        log.info('NuGet React: Auto-selecting package:', safeData.installedPackages[0]);
+                        setSelectedPackage(safeData.installedPackages[0]);
                     }
 
                     // Mark initialization as complete
@@ -243,8 +216,7 @@ export const App: React.FC = () => {
     // Handle filter changes - reset selection if current package is not visible
     useEffect(() => {
         if (selectedPackage && filterTerm) {
-            const uniquePackages = ensureArray(data.installedPackages);
-            const filteredPackages = filterPackages(uniquePackages, filterTerm);
+            const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm);
 
             // If selected package is not in filtered results, select first filtered package
             if (!filteredPackages.find(pkg => pkg.id === selectedPackage.id)) {
@@ -791,6 +763,7 @@ export const App: React.FC = () => {
                         <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
+                                installedPackages={data.installedPackages || []}
                                 selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
@@ -1103,6 +1076,7 @@ export const App: React.FC = () => {
                     <ProjectList
                         selectedPackage={selectedPackage}
                         projects={data.projects || []}
+                        installedPackages={data.installedPackages || []}
                         selectedProjects={selectedProjects}
                         setSelectedProjects={setSelectedProjects}
                         initializing={initializing}

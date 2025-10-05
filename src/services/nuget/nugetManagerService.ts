@@ -35,8 +35,8 @@ export class NuGetManagerService {
                 updateStats
             ] = await Promise.all([
                 PackageInstalledService.getAllProjectsInfo(solutionPath),
-                PackageInstalledService.getInstalledPackagesWithMetadata(solutionPath),
-                PackageUpdateService.getOutdatedPackagesWithMetadata(solutionPath),
+                this.getGroupedInstalledPackages(solutionPath, false),
+                this.getGroupedOutdatedPackages(solutionPath, false),
                 PackageConsolidationService.getPackagesNeedingConsolidation(solutionPath),
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);
@@ -56,6 +56,115 @@ export class NuGetManagerService {
         } catch (error) {
             log.error('Error getting solution NuGet data:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Get installed packages grouped by package ID with project info and rich metadata
+     * Returns the final UI structure directly
+     */
+    static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false) {
+        try {
+            // Get enriched installed packages (individual entries per project)
+            const installedPackages = isProject
+                ? await PackageInstalledService.getProjectPackagesWithMetadata(targetPath!)
+                : await PackageInstalledService.getInstalledPackagesWithMetadata(targetPath);
+
+            // Group by package ID and create projects array
+            const packageMap = new Map();
+
+            log.info(`Grouping ${installedPackages.length} packages for UI`);
+
+            // Count how many packages have metadata
+            const packagesWithMetadata = installedPackages.filter(pkg => (pkg as any).description);
+            log.info(`${packagesWithMetadata.length}/${installedPackages.length} packages have metadata`);
+
+            for (const pkg of installedPackages) {
+                // Log first package to debug the structure
+                if (packageMap.size === 0) {
+                    log.info('Sample package structure:', {
+                        id: pkg.id,
+                        version: pkg.version,
+                        latestVersion: (pkg as any).latestVersion,
+                        installedVersion: (pkg as any).installedVersion,
+                        description: (pkg as any).description,
+                        authors: (pkg as any).authors,
+                        projectName: (pkg as any).projectName,
+                        hasMetadata: !!(pkg as any).description
+                    });
+                }
+
+                const existing = packageMap.get(pkg.id);
+
+                if (existing) {
+                    // Add project info to existing package
+                    if (pkg.projectName) {
+                        // Use the installed version from the enriched data
+                        const installedVersion = (pkg as any).installedVersion || pkg.version;
+                        const projectInfo = { name: pkg.projectName, version: installedVersion };
+                        if (!existing.projects.find((p: any) => p.name === projectInfo.name)) {
+                            existing.projects.push(projectInfo);
+                        }
+                    }
+                } else {
+                    // First time seeing this package
+                    const installedVersion = (pkg as any).installedVersion || pkg.version;
+                    packageMap.set(pkg.id, {
+                        ...pkg,
+                        version: (pkg as any).latestVersion || installedVersion, // Use latest version as main version for UI
+                        projects: pkg.projectName ? [{ name: pkg.projectName, version: installedVersion }] : []
+                    });
+                }
+            }
+
+            return Array.from(packageMap.values());
+
+        } catch (error) {
+            log.error('Error getting grouped installed packages:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get outdated packages grouped by package ID with project info and rich metadata
+     * Returns the final UI structure directly
+     */
+    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false) {
+        try {
+            // Get enriched outdated packages (individual entries per project)
+            const outdatedPackages = isProject
+                ? await PackageUpdateService.getProjectOutdatedPackagesWithMetadata(targetPath!)
+                : await PackageUpdateService.getOutdatedPackagesWithMetadata(targetPath);
+
+            // Group by package ID and create projects array
+            const packageMap = new Map();
+
+            for (const pkg of outdatedPackages) {
+                const existing = packageMap.get(pkg.id);
+
+                if (existing) {
+                    // Add project info to existing package
+                    if (pkg.projectName) {
+                        const projectInfo = { name: pkg.projectName, version: pkg.currentVersion };
+                        if (!existing.projects.find((p: any) => p.name === projectInfo.name)) {
+                            existing.projects.push(projectInfo);
+                        }
+                    }
+                } else {
+                    // First time seeing this package
+                    packageMap.set(pkg.id, {
+                        ...pkg,
+                        version: pkg.latestVersion, // Use latest version as main version
+                        projects: pkg.projectName ? [{ name: pkg.projectName, version: pkg.currentVersion }] : []
+                    });
+                }
+            }
+
+            return Array.from(packageMap.values());
+
+        } catch (error) {
+            log.error('Error getting grouped outdated packages:', error);
+            return [];
         }
     }
 
@@ -133,8 +242,8 @@ export class NuGetManagerService {
                 outdatedPackages
             ] = await Promise.all([
                 PackageInstalledService.getProjectInfo(projectPath),
-                PackageInstalledService.getProjectPackages(projectPath),
-                PackageUpdateService.getProjectOutdatedPackages(projectPath)
+                this.getGroupedInstalledPackages(projectPath, true),
+                this.getGroupedOutdatedPackages(projectPath, true)
             ]);
 
             return {

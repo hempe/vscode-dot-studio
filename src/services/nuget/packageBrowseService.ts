@@ -67,7 +67,7 @@ export class PackageBrowseService {
             return null;
 
         } catch (error) {
-            log.error(`Error getting package details for ${packageId}:`, error);
+            log.warn(`Failed to get package details for ${packageId} (network issues during VS Code initialization are common):`, error);
             return null;
         }
     }
