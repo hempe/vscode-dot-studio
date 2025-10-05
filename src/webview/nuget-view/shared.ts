@@ -6,7 +6,12 @@ const log = logger('NuGetReact');
 export interface LocalNuGetPackage extends NuGetPackage {
     selected?: boolean;
     projectName?: string;
-    projects?: { name: string; version: string }[];
+    projects?: {
+        name: string;
+        path: string;
+        framework: string;
+        packages: any[];
+    }[];
 }
 
 // Helper function to format authors display

@@ -453,34 +453,7 @@ export class NuGetV3Service {
      * Compare two semantic versions (returns > 0 if a > b, < 0 if a < b, 0 if equal)
      */
     private static compareVersions(a: string, b: string): number {
-        const parseVersion = (version: string) => {
-            // Handle versions like "10.0.0-rc.1.25451.107"
-            const [main, prerelease] = version.split('-', 2);
-            const mainParts = main.split('.').map(Number);
-            return { mainParts, prerelease: prerelease || null };
-        };
-
-        const aVer = parseVersion(a);
-        const bVer = parseVersion(b);
-
-        // Compare main version parts first
-        const maxLength = Math.max(aVer.mainParts.length, bVer.mainParts.length);
-        for (let i = 0; i < maxLength; i++) {
-            const aPart = aVer.mainParts[i] || 0;
-            const bPart = bVer.mainParts[i] || 0;
-            if (aPart !== bPart) return aPart - bPart;
-        }
-
-        // Main versions are equal, now compare prerelease status
-        // For major version differences (like 10.x vs 9.x), prerelease doesn't matter
-        // But this should already be handled above
-
-        if (aVer.prerelease === null && bVer.prerelease === null) return 0;
-        if (aVer.prerelease === null) return 1; // Release version > prerelease version
-        if (bVer.prerelease === null) return -1; // Prerelease version < release version
-
-        // Both are prereleases, compare prerelease identifiers
-        return aVer.prerelease.localeCompare(bVer.prerelease);
+        return semver.compare(a, b);
     }
 
     /**

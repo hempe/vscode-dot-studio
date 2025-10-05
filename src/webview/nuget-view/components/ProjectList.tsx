@@ -6,9 +6,16 @@ import { logger } from "../../shared/logger";
 
 const log = logger('ProjectList');
 
+interface ProjectInfo {
+    name: string;
+    path: string;
+    framework: string;
+    packages: any[];
+}
+
 interface ProjectListProps {
     selectedPackage: LocalNuGetPackage;
-    projects?: { name: string; version: string }[];
+    projects?: ProjectInfo[];
     installedPackages?: LocalNuGetPackage[];
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
@@ -34,17 +41,8 @@ export default function ProjectList({
         }}>
             {/* Get all available projects from the solution */}
             {(() => {
-                // For Browse tab, show all projects from the solution
-                const projectList = ensureArray(projects).map(project => {
-                    // Check if this project already has the selected package installed
-                    const existingInstall = ensureArray(installedPackages)
-                        .find(pkg => pkg.id === selectedPackage.id && pkg.projects?.some(p => p.name === project.name));
-
-                    return {
-                        name: project.name,
-                        version: existingInstall?.projects?.find(p => p.name === project.name)?.version || null
-                    };
-                });
+                // Use projects directly - no need to transform since they already have all needed info
+                const projectList = ensureArray(projects);
 
                 return projectList.map((project, idx) => (
                     <div key={idx} style={{
@@ -56,15 +54,15 @@ export default function ProjectList({
                             : 'none'
                     }}>
                         <Checkbox
-                            checked={selectedProjects.has(project.name)}
+                            checked={selectedProjects.has(project.path)}
                             disabled={initializing}
                             onChange={() => {
                                 if (!initializing) {
                                     const newSelected = new Set(selectedProjects);
-                                    if (newSelected.has(project.name)) {
-                                        newSelected.delete(project.name);
+                                    if (newSelected.has(project.path)) {
+                                        newSelected.delete(project.path);
                                     } else {
-                                        newSelected.add(project.name);
+                                        newSelected.add(project.path);
                                     }
                                     setSelectedProjects(newSelected);
                                 }
@@ -86,7 +84,10 @@ export default function ProjectList({
                                 marginLeft: '8px',
                                 flexShrink: 0
                             }}>
-                                {project.version ? `v${project.version}` : 'Not installed'}
+                                {(() => {
+                                    const installedPackage = project.packages?.find((pkg: any) => pkg.id === selectedPackage.id);
+                                    return installedPackage ? `v${installedPackage.version}` : 'Not installed';
+                                })()}
                             </div>
                         </div>
                     </div>

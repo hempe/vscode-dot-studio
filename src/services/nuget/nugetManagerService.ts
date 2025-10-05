@@ -7,7 +7,8 @@ import { PackageConsolidationService } from './packageConsolidationService';
 import {
     PackageSearchOptions,
     PackageInstallOptions,
-    PackageOperationResult
+    PackageOperationResult,
+    ProjectInfo
 } from './types';
 
 const log = logger('NuGetManagerService');
@@ -27,16 +28,17 @@ export class NuGetManagerService {
         try {
             log.info(`Getting solution NuGet data for: ${solutionPath}`);
 
+            // First get all projects info
+            const allProjects = await PackageInstalledService.getAllProjectsInfo(solutionPath);
+
             const [
-                allProjects,
                 installedPackages,
                 outdatedPackages,
                 consolidationInfo,
                 updateStats
             ] = await Promise.all([
-                PackageInstalledService.getAllProjectsInfo(solutionPath),
-                this.getGroupedInstalledPackages(solutionPath, false),
-                this.getGroupedOutdatedPackages(solutionPath, false),
+                this.getGroupedInstalledPackages(solutionPath, false, allProjects),
+                this.getGroupedOutdatedPackages(solutionPath, false, allProjects),
                 PackageConsolidationService.getPackagesNeedingConsolidation(solutionPath),
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);
@@ -63,7 +65,7 @@ export class NuGetManagerService {
      * Get installed packages grouped by package ID with project info and rich metadata
      * Returns the final UI structure directly
      */
-    static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false) {
+    static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[]) {
         try {
             // Get enriched installed packages (individual entries per project)
             const installedPackages = isProject
@@ -99,20 +101,20 @@ export class NuGetManagerService {
                 if (existing) {
                     // Add project info to existing package
                     if (pkg.projectName) {
-                        // Use the installed version from the enriched data
-                        const installedVersion = (pkg as any).installedVersion || pkg.version;
-                        const projectInfo = { name: pkg.projectName, version: installedVersion };
-                        if (!existing.projects.find((p: any) => p.name === projectInfo.name)) {
-                            existing.projects.push(projectInfo);
+                        // Find the full project info from allProjects
+                        const fullProjectInfo = allProjects?.find(proj => proj.name === pkg.projectName);
+                        if (fullProjectInfo && !existing.projects.find((p: any) => p.path === fullProjectInfo.path)) {
+                            existing.projects.push(fullProjectInfo);
                         }
                     }
                 } else {
                     // First time seeing this package
                     const installedVersion = (pkg as any).installedVersion || pkg.version;
+                    const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
                         version: (pkg as any).latestVersion || installedVersion, // Use latest version as main version for UI
-                        projects: pkg.projectName ? [{ name: pkg.projectName, version: installedVersion }] : []
+                        projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
             }
@@ -129,7 +131,7 @@ export class NuGetManagerService {
      * Get outdated packages grouped by package ID with project info and rich metadata
      * Returns the final UI structure directly
      */
-    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false) {
+    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[]) {
         try {
             // Get enriched outdated packages (individual entries per project)
             const outdatedPackages = isProject
@@ -145,17 +147,19 @@ export class NuGetManagerService {
                 if (existing) {
                     // Add project info to existing package
                     if (pkg.projectName) {
-                        const projectInfo = { name: pkg.projectName, version: pkg.currentVersion };
-                        if (!existing.projects.find((p: any) => p.name === projectInfo.name)) {
-                            existing.projects.push(projectInfo);
+                        // Find the full project info from allProjects
+                        const fullProjectInfo = allProjects?.find(proj => proj.name === pkg.projectName);
+                        if (fullProjectInfo && !existing.projects.find((p: any) => p.path === fullProjectInfo.path)) {
+                            existing.projects.push(fullProjectInfo);
                         }
                     }
                 } else {
                     // First time seeing this package
+                    const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
                         version: pkg.latestVersion, // Use latest version as main version
-                        projects: pkg.projectName ? [{ name: pkg.projectName, version: pkg.currentVersion }] : []
+                        projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
             }
@@ -236,14 +240,16 @@ export class NuGetManagerService {
         try {
             log.info(`Getting project NuGet data for: ${projectPath}`);
 
+            // First get project info
+            const projectInfo = await PackageInstalledService.getProjectInfo(projectPath);
+            const allProjects = projectInfo ? [projectInfo] : []; // Handle potential null
+
             const [
-                projectInfo,
                 installedPackages,
                 outdatedPackages
             ] = await Promise.all([
-                PackageInstalledService.getProjectInfo(projectPath),
-                this.getGroupedInstalledPackages(projectPath, true),
-                this.getGroupedOutdatedPackages(projectPath, true)
+                this.getGroupedInstalledPackages(projectPath, true, allProjects),
+                this.getGroupedOutdatedPackages(projectPath, true, allProjects)
             ]);
 
             return {

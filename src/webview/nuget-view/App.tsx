@@ -36,7 +36,12 @@ interface NuGetViewData {
     searchResults: LocalNuGetPackage[];
     updatesAvailable: LocalNuGetPackage[];
     consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality
-    projects?: { name: string; path: string, version: string }[];
+    projects?: {
+        name: string;
+        path: string;
+        framework: string;
+        packages: any[];
+    }[];
     projectPath?: string;
 }
 
@@ -364,35 +369,21 @@ export const App: React.FC = () => {
 
     // Helper function to enhance search results with installed package information
     const enhanceWithInstalledInfo = (searchResults: LocalNuGetPackage[], installedPackages: LocalNuGetPackage[]): LocalNuGetPackage[] => {
-        // Group installed packages by ID and create projects array
+        // Group installed packages by ID and extract their projects array
         const installedMap = new Map<string, LocalNuGetPackage>();
-        const projectsMap = new Map<string, {name: string, version: string}[]>();
+        const projectsMap = new Map<string, {name: string, path: string, framework: string, packages: any[]}[]>();
 
         ensureArray(installedPackages).forEach(pkg => {
             const key = pkg.id.toLowerCase();
-
 
             // Store the package info
             if (!installedMap.has(key)) {
                 installedMap.set(key, pkg);
             }
 
-            // Build projects array
-            if (!projectsMap.has(key)) {
-                projectsMap.set(key, []);
-            }
-
-            // Add project info (from individual package entry format)
-            if (pkg.projectName) {
-                const projects = projectsMap.get(key)!;
-                // Avoid duplicates
-                const exists = projects.find(p => p.name === pkg.projectName && p.version === pkg.version);
-                if (!exists) {
-                    projects.push({
-                        name: pkg.projectName,
-                        version: pkg.version
-                    });
-                }
+            // Use the projects array from the backend (already contains full ProjectInfo)
+            if (pkg.projects && pkg.projects.length > 0) {
+                projectsMap.set(key, pkg.projects);
             }
         });
 

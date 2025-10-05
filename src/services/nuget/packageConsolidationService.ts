@@ -5,6 +5,7 @@ import { logger } from '../../core/logger';
 import { ConsolidationInfo, InstalledPackage, PackageOperationResult } from './types';
 import { PackageInstalledService } from './packageInstalledService';
 import { PackageOperationsService } from './packageOperationsService';
+import * as semver from 'semver';
 
 const execAsync = promisify(exec);
 const log = logger('PackageConsolidationService');
@@ -297,21 +298,7 @@ export class PackageConsolidationService {
     private static getHighestVersion(versions: string[]): string | undefined {
         if (versions.length === 0) return undefined;
 
-        // Simple version comparison - in a real implementation you'd want proper semver comparison
-        return versions.sort((a, b) => {
-            const aParts = a.split('.').map(Number);
-            const bParts = b.split('.').map(Number);
-
-            for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-                const aPart = aParts[i] || 0;
-                const bPart = bParts[i] || 0;
-
-                if (aPart !== bPart) {
-                    return bPart - aPart; // Descending order
-                }
-            }
-
-            return 0;
-        })[0];
+        // Use semver for proper version comparison
+        return versions.sort((a, b) => semver.rcompare(a, b))[0]; // rcompare for descending order
     }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { logger } from '../../shared/logger';
+import * as semver from 'semver';
 
 const log = logger('PackageList');
 
@@ -192,18 +193,14 @@ export const PackageList: React.FC<PackageListProps> = ({
                                     {/* Max installed version - only show if different from current and package has projects */}
                                     {pkg.projects && pkg.projects.length > 0 && (() => {
                                         // Find the highest installed version across all projects
-                                        const installedVersions = pkg.projects.map(p => p.version).filter(Boolean);
+                                        const installedVersions = pkg.projects.map(p => {
+                                            const installedPkg = p.packages?.find(installedPkg => installedPkg.id === pkg.id);
+                                            return installedPkg?.version;
+                                        }).filter(Boolean);
                                         if (installedVersions.length > 0) {
-                                            const maxInstalledVersion = installedVersions.sort((a, b) => {
-                                                const aParts = a.split('.').map(Number);
-                                                const bParts = b.split('.').map(Number);
-                                                for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-                                                    const aPart = aParts[i] || 0;
-                                                    const bPart = bParts[i] || 0;
-                                                    if (aPart !== bPart) return bPart - aPart;
-                                                }
-                                                return 0;
-                                            })[0];
+                                            const maxInstalledVersion = installedVersions.sort((a, b) =>
+                                                semver.rcompare(a, b) // rcompare for descending order
+                                            )[0];
 
                                             // Always show the max installed version when package is installed
                                             return (

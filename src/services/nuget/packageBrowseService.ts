@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource } from './types';
 import { NuGetV3Service } from './nugetV3Service';
+import * as semver from 'semver';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -479,19 +480,9 @@ export class PackageBrowseService {
     }
 
     /**
-     * Simple version comparison (returns 1 if a > b, -1 if a < b, 0 if equal)
+     * Version comparison using semver library (returns 1 if a > b, -1 if a < b, 0 if equal)
      */
     private static compareVersions(a: string, b: string): number {
-        const aParts = a.split('.').map(Number);
-        const bParts = b.split('.').map(Number);
-        const maxLength = Math.max(aParts.length, bParts.length);
-
-        for (let i = 0; i < maxLength; i++) {
-            const aPart = aParts[i] || 0;
-            const bPart = bParts[i] || 0;
-            if (aPart > bPart) return 1;
-            if (aPart < bPart) return -1;
-        }
-        return 0;
+        return semver.compare(a, b);
     }
 }
