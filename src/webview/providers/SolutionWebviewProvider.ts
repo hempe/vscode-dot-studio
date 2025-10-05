@@ -147,7 +147,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         message.nodeId,
                         message.nodeType,
                         this._cachedSolutionData || null,
-                        () => this._updateWebview(),
+                        () => this._sendCachedData(),
                         this._context
                     );
                 }
@@ -159,7 +159,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     await SolutionExpansionService.handleCollapseNode(
                         message.nodeId,
                         this._cachedSolutionData || null,
-                        () => this._updateWebview(),
+                        () => this._sendCachedData(),
                         this._context
                     );
                 }
@@ -821,6 +821,50 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.debug('Restored expansion paths:', state);
         }
         return state;
+    }
+
+    /**
+     * Sends cached data to webview without reloading solution - used for node expansion
+     */
+    private async _sendCachedData() {
+        log.debug('Sending cached data to webview (no reload)');
+
+        if (!this._view) {
+            log.info('No webview available, skipping send');
+            return;
+        }
+
+        if (!this._cachedSolutionData) {
+            log.info('No cached data available, falling back to full reload');
+            return this._updateWebview();
+        }
+
+        try {
+            const frameworks = await this._frameworkService.getAvailableFrameworks();
+            const activeFramework = this._frameworkService.getActiveFramework();
+
+            const data: SolutionData = {
+                projects: this._cachedSolutionData,
+                frameworks: frameworks || [],
+                activeFramework
+            };
+
+            log.info('Sending cached solutionData with', data.projects?.length || 0, 'projects');
+            this._view.webview.postMessage({
+                command: 'solutionData',
+                data
+            });
+
+            // Hide loading bar
+            this._view.webview.postMessage({
+                command: 'hideLoading'
+            });
+
+        } catch (error) {
+            log.error('Error sending cached data:', error);
+            // Fallback to full update on error
+            this._updateWebview();
+        }
     }
 
     private async _sendCurrentData() {
