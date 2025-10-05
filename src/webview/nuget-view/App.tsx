@@ -8,6 +8,7 @@ import NugetDetail from './components/NugetDetail';
 import { ensureArray, formatAuthors, LocalNuGetPackage } from './shared';
 import NugetDetails from './components/NugetDetails';
 import NugetHeader from './components/NugetHeader';
+import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 
@@ -266,9 +267,6 @@ export const App: React.FC = () => {
         vscode.postMessage({ type: 'uninstallPackage', payload: { package: pkg } });
     };
 
-    const handleUpdatePackage = (pkg: LocalNuGetPackage) => {
-        vscode.postMessage({ type: 'updatePackage', payload: { package: pkg } });
-    };
 
     // Helper function to get package icon URL
     const getPackageIconUrl = (pkg: LocalNuGetPackage): string => {
@@ -598,70 +596,28 @@ export const App: React.FC = () => {
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                  />
-                            {/* Install Action */}
-                            <div style={{
-                                background: 'var(--vscode-panel-background)',
-                                border: '1px solid var(--vscode-panel-border)',
-                                borderRadius: '4px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '12px'
-                                }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        flex: 1
-                                    }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            whiteSpace: 'nowrap'
-                                        }}>
-                                            Version:
-                                        </div>
-                                        <Dropdown
-                                            value={selectedVersion || selectedPackage.version}
-                                            onChange={handleVersionChange}
-                                            options={getVersionOptions(selectedPackage)}
-                                            disabled={initializing}
-                                            style={{ flex: 1, maxWidth: '200px' }}
-                                        />
-                                    </div>
-                                    <Button
-                                        appearance="primary"
-                                        disabled={selectedProjects.size === 0 || initializing}
-                                        onClick={() => {
-                                            if (!initializing) {
-                                                log.info('Install action from Browse:', {
-                                                    package: selectedPackage.id,
-                                                    version: selectedVersion || selectedPackage.version,
-                                                    projects: Array.from(selectedProjects)
-                                                });
-                                                handleInstallPackage(selectedPackage);
-                                            }
-                                        }}
-                                    >
-                                        Install
-                                    </Button>
-                                </div>
+                            <PackageActions
+                                selectedPackage={selectedPackage}
+                                selectedVersion={selectedVersion}
+                                selectedProjects={selectedProjects}
+                                initializing={initializing}
+                                onVersionChange={handleVersionChange}
+                                onInstallUpdate={handleInstallPackage}
+                                onUninstall={handleUninstallPackage}
+                                getVersionOptions={getVersionOptions}
+                                installButtonText="Install"
+                            />
 
-                                {selectedProjects.size === 0 && (
-                                    <div style={{
-                                        fontSize: '12px',
-                                        color: 'var(--vscode-descriptionForeground)',
-                                        marginTop: '12px',
-                                        fontStyle: 'italic'
-                                    }}>
-                                        Select one or more projects to install to
-                                    </div>
-                                )}
-                            </div>
+                            {selectedProjects.size === 0 && (
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    marginBottom: '16px',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Select one or more projects to install to
+                                </div>
+                            )}
 
                             <NugetDetails
                                 selectedPackage={selectedPackage}
@@ -768,101 +724,16 @@ export const App: React.FC = () => {
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                  />
-                        {/* Version Selection and Actions */}
-                        <div style={{
-                            background: 'var(--vscode-panel-background)',
-                            border: '1px solid var(--vscode-panel-border)',
-                            borderRadius: '4px',
-                            padding: '8px 16px',
-                            marginBottom: '16px'
-                        }}>
-                            {/* Installed Section */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '16px',
-                                paddingBottom: '12px',
-                                borderBottom: '1px solid var(--vscode-panel-border)'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    flex: 1
-                                }}>
-                                    <div style={{
-                                        fontSize: '14px',
-                                        fontWeight: 600,
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                        Version:
-                                    </div>
-                                    <Dropdown
-                                        value={selectedVersion || selectedPackage.version}
-                                        onChange={handleVersionChange}
-                                        options={getVersionOptions(selectedPackage)}
-                                        disabled={initializing}
-                                        style={{ flex: 1, maxWidth: '200px' }}
-                                    />
-                                </div>
-                                <Button
-                                    appearance="primary"
-                                    disabled={selectedProjects.size === 0 || initializing}
-                                    onClick={() => {
-                                        if (!initializing) {
-                                            log.info('Install/Update action:', {
-                                                package: selectedPackage.id,
-                                                version: selectedVersion || selectedPackage.version,
-                                                projects: Array.from(selectedProjects)
-                                            });
-                                        }
-                                    }}
-                                >
-                                    Install/Update
-                                </Button>
-                            </div>
-
-                            {/* Uninstall Section */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <div style={{
-                                    fontSize: '14px',
-                                    fontWeight: 600
-                                }}>
-                                    Remove package from selected projects
-                                </div>
-                                <Button
-                                    appearance="secondary"
-                                    disabled={selectedProjects.size === 0 || initializing}
-                                    onClick={() => {
-                                        if (!initializing) {
-                                            log.info('Uninstall action:', {
-                                                package: selectedPackage.id,
-                                                projects: Array.from(selectedProjects)
-                                            });
-                                            handleUninstallPackage(selectedPackage);
-                                        }
-                                    }}
-                                >
-                                    Uninstall
-                                </Button>
-                            </div>
-
-                            {selectedProjects.size === 0 && (
-                                <div style={{
-                                    fontSize: '12px',
-                                    color: 'var(--vscode-descriptionForeground)',
-                                    marginTop: '12px',
-                                    fontStyle: 'italic'
-                                }}>
-                                    Select one or more projects to perform actions
-                                </div>
-                            )}
-                        </div>
+                        <PackageActions
+                            selectedPackage={selectedPackage}
+                            selectedVersion={selectedVersion}
+                            selectedProjects={selectedProjects}
+                            initializing={initializing}
+                            onVersionChange={handleVersionChange}
+                            onInstallUpdate={handleInstallPackage}
+                            onUninstall={handleUninstallPackage}
+                            getVersionOptions={getVersionOptions}
+                        />
                         <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
@@ -970,70 +841,28 @@ export const App: React.FC = () => {
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                  />
-                            {/* Update Action */}
-                            <div style={{
-                                background: 'var(--vscode-panel-background)',
-                                border: '1px solid var(--vscode-panel-border)',
-                                borderRadius: '4px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '12px'
-                                }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        flex: 1
-                                    }}>
-                                        <div style={{
-                                            fontSize: '14px',
-                                            fontWeight: 600,
-                                            whiteSpace: 'nowrap'
-                                        }}>
-                                            Update to:
-                                        </div>
-                                        <Dropdown
-                                            value={selectedVersion || selectedPackage.latestVersion}
-                                            onChange={handleVersionChange}
-                                            options={getVersionOptions(selectedPackage)}
-                                            disabled={initializing}
-                                            style={{ flex: 1, maxWidth: '200px' }}
-                                        />
-                                    </div>
-                                    <Button
-                                        appearance="primary"
-                                        disabled={selectedProjects.size === 0 || initializing}
-                                        onClick={() => {
-                                            if (!initializing) {
-                                                log.info('Update action:', {
-                                                    package: selectedPackage.id,
-                                                    version: selectedVersion || selectedPackage.latestVersion,
-                                                    projects: Array.from(selectedProjects)
-                                                });
-                                                handleUpdatePackage(selectedPackage);
-                                            }
-                                        }}
-                                    >
-                                        Update
-                                    </Button>
-                                </div>
+                            <PackageActions
+                                selectedPackage={selectedPackage}
+                                selectedVersion={selectedVersion}
+                                selectedProjects={selectedProjects}
+                                initializing={initializing}
+                                onVersionChange={handleVersionChange}
+                                onInstallUpdate={handleInstallPackage}
+                                onUninstall={handleUninstallPackage}
+                                getVersionOptions={getVersionOptions}
+                                installButtonText="Install"
+                            />
 
-                                {selectedProjects.size === 0 && (
-                                    <div style={{
-                                        fontSize: '12px',
-                                        color: 'var(--vscode-descriptionForeground)',
-                                        marginTop: '12px',
-                                        fontStyle: 'italic'
-                                    }}>
-                                        Select one or more projects to update
-                                    </div>
-                                )}
-                            </div>
+                            {selectedProjects.size === 0 && (
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: 'var(--vscode-descriptionForeground)',
+                                    marginBottom: '16px',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Select one or more projects to install to
+                                </div>
+                            )}
 
                             <NugetDetails
                                 selectedPackage={selectedPackage}
@@ -1081,76 +910,28 @@ export const App: React.FC = () => {
                         setSelectedProjects={setSelectedProjects}
                         initializing={initializing}
                          />
-                    {/* Install Action */}
-                    <div style={{
-                        background: 'var(--vscode-panel-background)',
-                        border: '1px solid var(--vscode-panel-border)',
-                        borderRadius: '4px',
-                        padding: '16px',
-                        marginBottom: '16px'
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '12px'
-                        }}>
-                            <span style={{
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: 'var(--vscode-foreground)'
-                            }}>
-                                Version
-                            </span>
-                            <Dropdown
-                                value={selectedVersion || selectedPackage.version}
-                                options={getVersionOptions(selectedPackage)}
-                                onChange={handleVersionChange}
-                                disabled={initializing}
-                                placeholder="Select version"
-                            />
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <span style={{
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                color: 'var(--vscode-foreground)'
-                            }}>
-                                Install
-                            </span>
-                            <Button
-                                appearance="primary"
-                                disabled={selectedProjects.size === 0 || initializing}
-                                onClick={() => {
-                                    if (!initializing) {
-                                        log.info('Install button clicked for:', {
-                                            package: selectedPackage.id,
-                                            version: selectedVersion || selectedPackage.version,
-                                            projects: Array.from(selectedProjects)
-                                        });
-                                        handleInstallPackage(selectedPackage);
-                                    }
-                                }}
-                            >
-                                Install
-                            </Button>
-                        </div>
+                    <PackageActions
+                        selectedPackage={selectedPackage}
+                        selectedVersion={selectedVersion}
+                        selectedProjects={selectedProjects}
+                        initializing={initializing}
+                        onVersionChange={handleVersionChange}
+                        onInstallUpdate={handleInstallPackage}
+                        onUninstall={handleUninstallPackage}
+                        getVersionOptions={getVersionOptions}
+                        installButtonText="Install"
+                    />
 
-                        {selectedProjects.size === 0 && (
-                            <div style={{
-                                fontSize: '12px',
-                                color: 'var(--vscode-descriptionForeground)',
-                                marginTop: '12px',
-                                fontStyle: 'italic'
-                            }}>
-                                Select one or more projects to install to
-                            </div>
-                        )}
-                    </div>
+                    {selectedProjects.size === 0 && (
+                        <div style={{
+                            fontSize: '12px',
+                            color: 'var(--vscode-descriptionForeground)',
+                            marginBottom: '16px',
+                            fontStyle: 'italic'
+                        }}>
+                            Select one or more projects to install to
+                        </div>
+                    )}
 
                     <NugetDetails
                         selectedPackage={selectedPackage}

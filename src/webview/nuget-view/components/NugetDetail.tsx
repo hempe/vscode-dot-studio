@@ -90,7 +90,7 @@ export default function NugetDetail({ selectedPackage }: NugetDetailProps) {
                     </div>
 
                     {/* Authors */}
-                    {selectedPackage.authors && (
+                    {!!selectedPackage.authors?.length && (
                         <div style={{
                             display: 'flex',
                             borderBottom: '1px solid var(--vscode-panel-border)',
@@ -118,7 +118,7 @@ export default function NugetDetail({ selectedPackage }: NugetDetailProps) {
                     )}
 
                     {/* Tags */}
-                    {selectedPackage.tags && selectedPackage.tags.length > 0 && (
+                    {!!selectedPackage.tags?.length && (
                         <div style={{
                             display: 'flex',
                             borderBottom: '1px solid var(--vscode-panel-border)',
@@ -146,7 +146,7 @@ export default function NugetDetail({ selectedPackage }: NugetDetailProps) {
                     )}
 
                     {/* Total Downloads */}
-                    {selectedPackage.totalDownloads && (
+                    {!!selectedPackage.totalDownloads && (
                         <div style={{
                             display: 'flex',
                             borderBottom: '1px solid var(--vscode-panel-border)',
