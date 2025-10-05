@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Panels, TextField, Button, Table, TableRow, TableCell, Checkbox, Icon, Dropdown } from 'vscrui';
 import { VSCodeAPI, WebviewApi } from '../shared/vscode-api';
 import { logger } from '../shared/logger';
@@ -61,6 +61,12 @@ export const App: React.FC = () => {
     const [includePrerelease, setIncludePrerelease] = useState(false);
     const [activeTab, setActiveTab] = useState('installed');
     const [selectedPackage, setSelectedPackage] = useState<LocalNuGetPackage | null>(null);
+    const selectedPackageRef = useRef<LocalNuGetPackage | null>(null);
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        selectedPackageRef.current = selectedPackage;
+    }, [selectedPackage]);
     const [selectedIndex, setSelectedIndex] = useState<number>(-1);
     const [filterTerm, setFilterTerm] = useState('');
     const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
@@ -133,8 +139,40 @@ export const App: React.FC = () => {
 
                     setData(safeData);
 
-                    // Auto-select first installed package when data loads
-                    if (safeData.installedPackages.length > 0 && !selectedPackage) {
+                    // Try to preserve selected package after data refresh, or auto-select first package
+                    if (selectedPackageRef.current) {
+                        // Find the same package in updated data to preserve selection (check all arrays)
+                        // For Browse tab, we need to check the enhanced search results too
+                        const freshEnhancedResults = enhanceWithInstalledInfo(safeData.searchResults, safeData.installedPackages);
+
+                        log.info('NuGet React: Looking for package in refresh data:', {
+                            selectedPackageId: selectedPackageRef.current.id,
+                            installedPackagesCount: safeData.installedPackages.length,
+                            installedPackageIds: safeData.installedPackages.map(p => p.id)
+                        });
+
+                        const updatedPackage =
+                            safeData.installedPackages.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
+                            freshEnhancedResults.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
+                            safeData.updatesAvailable.find(pkg => pkg.id === selectedPackageRef.current!.id);
+
+                        if (updatedPackage) {
+                            log.info('NuGet React: Preserving selection after data refresh:', {
+                                packageId: updatedPackage.id,
+                                oldVersion: selectedPackageRef.current.version,
+                                newVersion: updatedPackage.version
+                            });
+                            setSelectedPackage(updatedPackage);
+                        } else {
+                            // Keep the existing selection even if not found in fresh data
+                            // This handles cases where data refresh timing might cause temporary mismatches
+                            log.warn('NuGet React: Package not found in fresh data, keeping existing selection:', {
+                                selectedPackageId: selectedPackageRef.current.id,
+                                availablePackages: safeData.installedPackages.map(p => ({ id: p.id, version: p.version }))
+                            });
+                        }
+                    } else if (safeData.installedPackages.length > 0) {
+                        // Auto-select first installed package when data loads initially
                         log.info('NuGet React: Auto-selecting package:', safeData.installedPackages[0]);
                         setSelectedPackage(safeData.installedPackages[0]);
                     }
@@ -217,6 +255,12 @@ export const App: React.FC = () => {
                     // Clear loading state when install/uninstall operations complete
                     setLoading(false);
                     log.info(`NuGet React: ${message.command} - success: ${message.success}`);
+
+                    // Refresh data to reflect the changes in the UI
+                    if (message.success) {
+                        log.info(`NuGet React: Refreshing data after successful ${message.command}`);
+                        vscode.postMessage({ type: 'getNuGetData' });
+                    }
                     break;
             }
         };
@@ -494,11 +538,11 @@ export const App: React.FC = () => {
         }
     };
 
-    // Reset selection when tab changes or package list changes
+    // Reset selection when tab changes or search terms change
     React.useEffect(() => {
         setSelectedIndex(-1);
         setSelectedPackage(null);
-    }, [activeTab, data.searchResults, data.installedPackages, data.updatesAvailable, searchTerm, filterTerm]);
+    }, [activeTab, searchTerm, filterTerm]);
 
     // Scroll selected item into view
     React.useEffect(() => {
