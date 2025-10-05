@@ -256,6 +256,7 @@ export class NuGetManagerService {
                 context: 'project',
                 projectPath,
                 projectInfo,
+                projects: allProjects, // Add projects array for frontend compatibility
                 installedPackages,
                 outdatedPackages,
                 totalPackages: installedPackages.length,
