@@ -3,9 +3,15 @@ import { FrameworkSelector } from './components/FrameworkSelector/FrameworkSelec
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
+import { logger } from '../shared/logger';
 
-export const App: React.FC = () => {
+const log = logger('App');
+
+export const App: React.FC = React.memo(() => {
     const { solutionData, loading, refreshing, handleFrameworkChange, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+
+    // Temporarily disable to check if logging causes issues
+    // log.shotgun('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData);
 
     if (loading) {
         return (
@@ -54,4 +60,4 @@ export const App: React.FC = () => {
             </div>
         </div>
     );
-};
+});

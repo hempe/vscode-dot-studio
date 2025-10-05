@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
 
@@ -148,7 +148,7 @@ export const useVsCodeApi = () => {
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            log.info('Received message from extension:', message);
+            log.shotgun('🔄 BACKEND MESSAGE:', message.command, message);
 
 
             switch (message.command) {
@@ -162,26 +162,22 @@ export const useVsCodeApi = () => {
                     }
                     break;
                 case 'showLoading':
-                    log.info('Showing loading bar');
-                    if (solutionData) {
-                        setRefreshing(true);
-                    } else {
-                        setLoading(true);
-                    }
+                    log.shotgun('⏳ showLoading received - ignoring to prevent flicker');
+                    // Skip showing loading for quick operations
                     break;
                 case 'hideLoading':
-                    log.info('Hiding loading bar');
+                    log.shotgun('✅ hideLoading received');
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    log.info('Received solution data:', message.data);
+                    log.shotgun('📦 FULL SOLUTION DATA RECEIVED - This will cause full re-render!');
                     setSolutionData(message.data);
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionDataUpdate':
-                    log.info('Received solution data update (preserving tree state):', message.data);
+                    log.shotgun('🔄 SOLUTION DATA UPDATE - This will cause full re-render!');
                     // For updates triggered by file changes, we preserve tree state
                     // by updating data but not resetting component state
                     setSolutionData(message.data);
@@ -257,26 +253,25 @@ export const useVsCodeApi = () => {
         };
     }, []);
 
-    const handleFrameworkChange = (framework: string) => {
+    const handleFrameworkChange = useCallback((framework: string) => {
         log.info('Framework change requested:', framework);
         vscode.postMessage({ command: 'setFramework', framework });
-    };
+    }, []);
 
-    const handleProjectAction = (action: ProjectActionType, projectPath: string, data?: any) => {
+    const handleProjectAction = useCallback((action: ProjectActionType, projectPath: string, data?: any) => {
         log.info('Project action requested:', { action, projectPath, data });
         vscode.postMessage({ command: 'projectAction', action, projectPath, data });
-    };
+    }, []);
 
-
-    const expandNode = (nodeId: string, nodeType: string) => {
+    const expandNode = useCallback((nodeId: string, nodeType: string) => {
         log.info('Expanding node:', nodeId, nodeType);
         vscode.postMessage({ command: 'expandNode', nodeId, nodeType });
-    };
+    }, []);
 
-    const collapseNode = (nodeId: string) => {
+    const collapseNode = useCallback((nodeId: string) => {
         log.info('Collapsing node:', nodeId);
         vscode.postMessage({ command: 'collapseNode', nodeId });
-    };
+    }, []);
 
     return {
         solutionData,

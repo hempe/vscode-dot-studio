@@ -43,17 +43,9 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
         if (node.expanded) {
             log.info(`Requesting collapse: ${nodeId}`);
-
-            // Immediately set local loading state for instant feedback
-            setLocalLoadingNodes(prev => new Set(prev).add(nodeId));
-
             onCollapseNode?.(nodeId);
         } else {
             log.info(`Requesting expand: ${nodeId}`);
-
-            // Immediately set local loading state for instant feedback
-            setLocalLoadingNodes(prev => new Set(prev).add(nodeId));
-
             onExpandNode?.(nodeId, nodeType);
         }
     };
@@ -132,6 +124,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         setRenamingNodeId(undefined);
     };
 
+
     // Convert the projects data into tree structure - backend controls expansion state
     const buildTreeNodes = useCallback((projects: any[]): ProjectNode[] => {
         const result = projects.map(project => ({
@@ -156,6 +149,34 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
     const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
+
+    const handleProjectActionWrapper = useCallback((action: string, path: string, data?: any) => {
+        if (action === 'startRename') {
+            setRenamingNodeId(path);
+        } else if (action === 'collapseParent') {
+            // Find the parent of the clicked file and collapse it
+            const allNodes = flattenNodes(treeNodes);
+            const nodeIndex = allNodes.findIndex(item => item.node.path === path);
+            if (nodeIndex >= 0) {
+                const currentLevel = allNodes[nodeIndex].level;
+                if (currentLevel > 0) {
+                    // Find parent node (previous node with level - 1)
+                    for (let i = nodeIndex - 1; i >= 0; i--) {
+                        if (allNodes[i].level === currentLevel - 1) {
+                            const parentNode = allNodes[i].node;
+                            if (parentNode.children && parentNode.expanded) {
+                                log.info(`Collapsing parent: ${parentNode.name}`);
+                                handleToggleExpand(parentNode.nodeId, parentNode.type);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            onProjectAction(action, path, data);
+        }
+    }, [treeNodes, flattenNodes, handleToggleExpand, onProjectAction]);
 
 
     // Keyboard navigation
@@ -357,8 +378,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         return () => clearTimeout(timeoutId);
     }, [treeNodes, findNodeById]);
 
-    log.info(`Rendering ${treeNodes.length} root nodes`);
-
     return (
         <div
             ref={treeRef}
@@ -366,42 +385,12 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             tabIndex={0}
         >
             <LoadingBar visible={showLoadingBar} />
-            {treeNodes.map((node, index) => {
-                log.info(`Rendering TreeNode ${index}: ${node.type} - ${node.name}`);
-                return (<TreeNode
+            {treeNodes.map((node, index) => (
+                <TreeNode
                     key={node.nodeId}
-                    node={{
-                        ...node,
-                        isLoading: node.isLoading || localLoadingNodes.has(node.nodeId)
-                    }}
+                    node={node}
                     level={0}
-                    onProjectAction={(action, path, data) => {
-                        if (action === 'startRename') {
-                            setRenamingNodeId(path);
-                        } else if (action === 'collapseParent') {
-                            // Find the parent of the clicked file and collapse it
-                            const allNodes = flattenNodes(treeNodes);
-                            const nodeIndex = allNodes.findIndex(item => item.node.path === path);
-                            if (nodeIndex >= 0) {
-                                const currentLevel = allNodes[nodeIndex].level;
-                                if (currentLevel > 0) {
-                                    // Find parent node (previous node with level - 1)
-                                    for (let i = nodeIndex - 1; i >= 0; i--) {
-                                        if (allNodes[i].level === currentLevel - 1) {
-                                            const parentNode = allNodes[i].node;
-                                            if (parentNode.children && parentNode.expanded) {
-                                                log.info(`Collapsing parent: ${parentNode.name}`);
-                                                handleToggleExpand(parentNode.path, parentNode.type);
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            onProjectAction(action, path, data);
-                        }
-                    }}
+                    onProjectAction={handleProjectActionWrapper}
                     onToggleExpand={handleToggleExpand}
                     onNodeClick={handleNodeClick}
                     onNodeFocus={handleNodeFocus}
@@ -411,8 +400,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     selectedNodeId={selectedNodeId}
                     focusedNodeId={focusedNodeId}
                     renamingNodeId={renamingNodeId}
-                />);
-            })}
+                />
+            ))}
             {contextMenu && (
                 <ContextMenu
                     x={contextMenu.x}

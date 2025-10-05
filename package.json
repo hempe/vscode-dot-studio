@@ -17,9 +17,9 @@
     "views": {
       "solution-explorer": [
         {
-          "icon": "$(folder-library)",
+          "icon": "",
           "id": "dotnet-solution-webview",
-          "name": "Solution Explorer",
+          "name": "",
           "type": "webview",
           "when": "workspaceHasDotnetFiles"
         }

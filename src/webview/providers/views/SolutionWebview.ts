@@ -24,7 +24,13 @@ export class SolutionWebView {
                     <title>Solution Explorer</title>
                     <link rel="stylesheet" type="text/css" href="${codiconsCss}">
                     <style>
-    
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            height: 100%;
+                            width: 100%;
+                            overflow: hidden;
+                        }
                         body {
                             font-family: var(--vscode-font-family);
                             font-size: var(--vscode-font-size);
@@ -32,12 +38,15 @@ export class SolutionWebView {
                             background-color: var(--vscode-editor-background);
                             margin: 0;
                             padding: 8px;
+                            height: calc(100vh - 16px);
+                            width: calc(100vh - 16px);
+                            overflow: auto;
                         }
-    
+
                         .solution-explorer {
                             display: flex;
                             flex-direction: column;
-                            height: 100vh;
+                            height: 100%;
                             overflow: hidden;
                         }
 

@@ -25,6 +25,7 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
     const isRenaming = renamingNodeId === nodeIdentifier;
 
 
+
     const handleClick = () => {
         log.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
@@ -44,15 +45,14 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
         const timeout = setTimeout(() => {
             log.info(`Executing single click action for: ${node.name}`);
 
-            // Click selects and focuses the item
-            onNodeClick(nodeIdentifier);
-
-            // Expand/collapse if has children (either loaded children or marked as having children for lazy loading)
+            // If has children, just expand/collapse - don't change selection
             if (node.children?.length || node.hasChildren) {
                 log.info(`Toggling expansion for: ${node.name}`);
                 onToggleExpand(nodeIdentifier, node.type);
             } else {
-                log.info(`Node ${node.name} has no children, just focused`);
+                // If no children, select and focus the item
+                log.info(`Node ${node.name} has no children, selecting it`);
+                onNodeClick(nodeIdentifier);
             }
 
             setClickTimeout(null);
@@ -232,10 +232,17 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
             >
                 {(node.children?.length || node.hasChildren) ? (
                     <Icon
-                        icon={node.expanded ? 'codicon:chevron-down' : 'codicon:chevron-right'}
+                        icon="codicon:chevron-right"
                         className="expand-icon"
-                        width="16"
-                        height="16"
+                        width="12"
+                        height="12"
+                        style={{
+                            display: 'inline-flex',
+                            minWidth: '12px',
+                            minHeight: '12px',
+                            transition: 'transform 0.15s ease',
+                            transform: node.expanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                        }}
                     />
                 ) : (
                     <span className="expand-icon-placeholder"></span>
@@ -270,6 +277,9 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
                         height={iconConfig.border ? "13": "14"}
                         style={{
                             color: iconConfig.color,
+                            display: 'block',
+                            minWidth: iconConfig.border ? "13px" : "14px",
+                            minHeight: iconConfig.border ? "13px" : "14px",
                             ...(iconConfig.border && {
                                 position: 'absolute',
                                 bottom: '-5px',
@@ -293,7 +303,7 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
                 <div className="tree-children">
                     {node.children.map((child, index) => (
                         <TreeNode
-                            key={`${child.nodeId}-${index}`}
+                            key={child.nodeId}
                             node={child}
                             level={level + 1}
                             onProjectAction={onProjectAction}
@@ -312,16 +322,4 @@ export const TreeNode: React.FC<TreeNodeProps> = React.memo(({
             )}
         </div>
     );
-}, (prevProps, nextProps) => {
-    // Only re-render if essential props have changed
-    return (
-        prevProps.node.nodeId === nextProps.node.nodeId &&
-        prevProps.node.expanded === nextProps.node.expanded &&
-        prevProps.node.isLoading === nextProps.node.isLoading &&
-        prevProps.node.name === nextProps.node.name &&
-        prevProps.selectedNodeId === nextProps.selectedNodeId &&
-        prevProps.focusedNodeId === nextProps.focusedNodeId &&
-        prevProps.renamingNodeId === nextProps.renamingNodeId &&
-        prevProps.level === nextProps.level
-    );
-});
+};
