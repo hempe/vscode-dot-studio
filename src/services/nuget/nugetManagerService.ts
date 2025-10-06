@@ -142,7 +142,7 @@ export class NuGetManagerService {
      * Returns the final UI structure directly
      */
     static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
-        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[] })[]> {
+        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[]; latestVersion?: string })[]> {
         try {
             // Get enriched outdated packages (individual entries per project)
             const outdatedPackages = isProject
@@ -150,9 +150,22 @@ export class NuGetManagerService {
                 : await PackageUpdateService.getOutdatedPackagesWithMetadata(targetPath);
 
             // Group by package ID and create projects array
-            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[] })>();
+            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[]; latestVersion?: string })>();
+
+            log.info(`Found ${outdatedPackages.length} enriched outdated packages`);
 
             for (const pkg of outdatedPackages) {
+                // Log first package to debug the structure
+                if (packageMap.size === 0) {
+                    log.debug('Sample outdated package structure:', {
+                        id: pkg.id,
+                        version: pkg.version,
+                        currentVersion: (pkg as any).currentVersion,
+                        latestVersion: (pkg as any).latestVersion,
+                        hasMetadata: !!(pkg as any).description
+                    });
+                }
+
                 const existing = packageMap.get(pkg.id);
 
                 if (existing) {
@@ -169,7 +182,7 @@ export class NuGetManagerService {
                     const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
-                        version: pkg.latestVersion, // Use latest version as main version
+                        version: (pkg as any).currentVersion || pkg.version, // Use current/installed version
                         projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
