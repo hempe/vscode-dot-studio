@@ -131,7 +131,7 @@ This document tracks the missing functionality and improvements needed for the S
 Note: Solution folders in Visual Studio are virtual organizational containers. They typically don't have "Add New Project" or "Add Existing Project" - those operations happen at the solution level. Solution folders can contain sub-folders and can have projects moved into them.
 
 - [] Get rid of add framework reference
-- [] Get rid of add add assembly reference.
+- [] Get rid of add assembly reference.
 
 ### Project Node Context Menu
 

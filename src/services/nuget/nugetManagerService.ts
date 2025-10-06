@@ -4,12 +4,15 @@ import { PackageInstalledService } from './packageInstalledService';
 import { PackageUpdateService } from './packageUpdateService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageConsolidationService } from './packageConsolidationService';
+import { PackageSharedService } from './packageSharedService';
 import {
     PackageSearchOptions,
     PackageInstallOptions,
     PackageOperationResult,
     ProjectInfo,
-    ConsolidationInfo
+    ConsolidationInfo,
+    BasicInstalledPackage,
+    BasicConsolidationPackage
 } from './types';
 
 const log = logger('NuGetManagerService');
@@ -44,8 +47,9 @@ export class NuGetManagerService {
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);
 
-            // Transform consolidation info to package format for UI
-            const consolidatePackages = this.transformConsolidationInfoToPackages(consolidationInfo, allProjects);
+            // Transform consolidation info to package format for UI and enrich with metadata
+            const basicConsolidatePackages = this.transformConsolidationInfoToPackages(consolidationInfo, allProjects);
+            const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(basicConsolidatePackages);
 
             return {
                 context: 'solution',
@@ -70,7 +74,8 @@ export class NuGetManagerService {
      * Get installed packages grouped by package ID with project info and rich metadata
      * Returns the final UI structure directly
      */
-    static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[]) {
+    static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
+        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[] })[]> {
         try {
             // Get enriched installed packages (individual entries per project)
             const installedPackages = isProject
@@ -78,7 +83,7 @@ export class NuGetManagerService {
                 : await PackageInstalledService.getInstalledPackagesWithMetadata(targetPath);
 
             // Group by package ID and create projects array
-            const packageMap = new Map();
+            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[] })>();
 
             log.info(`Grouping ${installedPackages.length} packages for UI`);
 
@@ -89,7 +94,7 @@ export class NuGetManagerService {
             for (const pkg of installedPackages) {
                 // Log first package to debug the structure
                 if (packageMap.size === 0) {
-                    log.info('Sample package structure:', {
+                    log.debug('Sample package structure:', {
                         id: pkg.id,
                         version: pkg.version,
                         latestVersion: (pkg as any).latestVersion,
@@ -118,7 +123,7 @@ export class NuGetManagerService {
                     const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
-                        version: (pkg as any).latestVersion || installedVersion, // Use latest version as main version for UI
+                        version: installedVersion, // Keep installed version as main version
                         projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
@@ -136,7 +141,8 @@ export class NuGetManagerService {
      * Get outdated packages grouped by package ID with project info and rich metadata
      * Returns the final UI structure directly
      */
-    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[]) {
+    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
+        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[] })[]> {
         try {
             // Get enriched outdated packages (individual entries per project)
             const outdatedPackages = isProject
@@ -144,7 +150,7 @@ export class NuGetManagerService {
                 : await PackageUpdateService.getOutdatedPackagesWithMetadata(targetPath);
 
             // Group by package ID and create projects array
-            const packageMap = new Map();
+            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[] })>();
 
             for (const pkg of outdatedPackages) {
                 const existing = packageMap.get(pkg.id);
@@ -376,34 +382,22 @@ export class NuGetManagerService {
     // ============ HELPER METHODS ============
 
     /**
-     * Transform ConsolidationInfo to LocalNuGetPackage format for UI
+     * Transform ConsolidationInfo to BasicConsolidationPackage format for enrichment
      */
-    private static transformConsolidationInfoToPackages(consolidationInfo: ConsolidationInfo[], allProjects: ProjectInfo[]) {
-        const consolidatePackages: any[] = [];
+    private static transformConsolidationInfoToPackages(consolidationInfo: ConsolidationInfo[], allProjects: ProjectInfo[]): BasicConsolidationPackage[] {
+        const consolidatePackages: BasicConsolidationPackage[] = [];
 
         for (const info of consolidationInfo) {
-            // Create a package entry for consolidation
-            const versionInfo = info.versions.map(v => `${v.version} (${v.projects.length} projects)`).join(', ');
-
             // Find the latest version being used
             const latestUsedVersion = info.versions.reduce((latest, current) => {
                 return !latest || current.version > latest.version ? current : latest;
             }).version;
 
-            const consolidatePackage = {
+            const consolidatePackage: BasicConsolidationPackage = {
                 id: info.packageId,
                 version: latestUsedVersion,
-                description: `Package used with different versions across projects: ${versionInfo}`,
-                authors: [],
-                projectUrl: '',
-                licenseUrl: '',
-                iconUrl: '',
-                tags: [],
-                totalDownloads: 0,
-                latestVersion: info.latestVersion || latestUsedVersion,
+                latestVersion: info.latestVersion,
                 allVersions: info.versions.map(v => v.version),
-                source: '',
-                // Add consolidation-specific info
                 needsConsolidation: true,
                 currentVersions: info.versions,
                 projects: allProjects.filter(p =>

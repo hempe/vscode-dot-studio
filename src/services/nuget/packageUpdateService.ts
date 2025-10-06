@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import * as path from 'path';
 import semver from 'semver';
 import { logger } from '../../core/logger';
-import { UpdateablePackage, PackageOperationResult, NuGetPackage } from './types';
+import { BasicUpdateablePackage, UpdateablePackage, PackageOperationResult, NuGetPackage } from './types';
 import { PackageSharedService } from './packageSharedService';
 
 const execAsync = promisify(exec);
@@ -18,7 +18,7 @@ export class PackageUpdateService {
     /**
      * Get all packages that have available updates across all projects
      */
-    static async getOutdatedPackages(solutionPath?: string): Promise<UpdateablePackage[]> {
+    static async getOutdatedPackages(solutionPath?: string): Promise<BasicUpdateablePackage[]> {
         try {
             const workingDir = solutionPath ? path.dirname(solutionPath) : process.cwd();
 
@@ -77,7 +77,7 @@ export class PackageUpdateService {
     /**
      * Get outdated packages for a specific project
      */
-    static async getProjectOutdatedPackages(projectPath: string): Promise<UpdateablePackage[]> {
+    static async getProjectOutdatedPackages(projectPath: string): Promise<BasicUpdateablePackage[]> {
         try {
             const command = `dotnet list "${projectPath}" package --outdated --format json`;
             log.info(`Getting outdated packages for project: ${command}`);
@@ -295,14 +295,14 @@ export class PackageUpdateService {
     /**
      * Parse the JSON output from dotnet list package --outdated command
      */
-    private static parseOutdatedPackages(stdout: string): UpdateablePackage[] {
+    private static parseOutdatedPackages(stdout: string): BasicUpdateablePackage[] {
         try {
             if (!stdout.trim()) {
                 return [];
             }
 
             const data = JSON.parse(stdout);
-            const outdatedPackages: UpdateablePackage[] = [];
+            const outdatedPackages: BasicUpdateablePackage[] = [];
 
             if (data.projects && Array.isArray(data.projects)) {
                 for (const project of data.projects) {

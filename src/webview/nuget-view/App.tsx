@@ -557,6 +557,15 @@ export const App: React.FC = () => {
         }));
     };
 
+    const handleConsolidatePackageToggle = (pkg: LocalNuGetPackage, checked: boolean) => {
+        setData(prevData => ({
+            ...prevData,
+            consolidatePackages: prevData.consolidatePackages?.map(p =>
+                p.id === pkg.id ? { ...p, selected: checked } : p
+            ) || []
+        }));
+    };
+
     const handleSelectAllUpdates = (checked: boolean) => {
         // Only select/deselect the filtered packages
         const filteredPackageIds = new Set(filteredUpdates.map(pkg => pkg.id));
@@ -1194,7 +1203,7 @@ export const App: React.FC = () => {
                         }
                         appearance="primary"
                     >
-                        Consolidate Selected
+                        Consolidate
                     </Button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -1242,6 +1251,7 @@ export const App: React.FC = () => {
                         onPackageSelect={selectPackageWithDetails}
                         getPackageIconUrl={getPackageIconUrl}
                         showCheckboxes={true}
+                        onPackageToggle={handleConsolidatePackageToggle}
                         title="Consolidate"
                     />
                 </div>

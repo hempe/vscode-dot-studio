@@ -22,11 +22,25 @@ export class NuGetV3Service {
     private static persistentCache: PersistentCache<{ body: string, statusCode: number }> | null = null;
 
     // Background refresh queue
-    private static refreshQueue: BackgroundRefreshQueue | null = null;
+    private static refreshQueue = new BackgroundRefreshQueue(async (url: string, accessToken?: string) => {
+        const data = await this._makeHttpRequest(url, accessToken);
+        if (data) {
+            // Update both caches
+            const cacheKey = this.getCacheKey(url);
+            this.requestCache.set(cacheKey, {
+                timestamp: Date.now(),
+                promise: Promise.resolve(data)
+            });
+            this.persistentCache?.set(cacheKey, data, url);
+
+            // Notify UI (simplified, no rate limiting needed since queue handles timing)
+            this.notifyUI(url);
+        }
+        return data;
+    });
 
     // UI notification callbacks
     private static uiNotificationCallbacks: Array<(url: string) => void> = [];
-    private static lastUINotification = 0;
 
     /**
      * Initialize the caching system
@@ -41,37 +55,6 @@ export class NuGetV3Service {
         this.persistentCache = new PersistentCache(cacheDir, {
             maxAge: 30 * 60 * 1000, // 30 minutes for fresh cache
             maxEntries: 5000
-        });
-
-        this.refreshQueue = new BackgroundRefreshQueue({
-            idleDelayMs: 2000, // 2 seconds idle
-            maxConcurrent: 3,
-            maxRetries: 2,
-            onRefreshComplete: (url, success, data) => {
-                if (success && data) {
-                    // Update both caches
-                    const cacheKey = this.getCacheKey(url);
-                    this.requestCache.set(cacheKey, {
-                        timestamp: Date.now(),
-                        promise: Promise.resolve(data)
-                    });
-                    this.persistentCache?.set(cacheKey, data, url);
-
-                    // Notify UI with delay and rate limiting to avoid spam
-                    const now = Date.now();
-                    if (now - this.lastUINotification > 2000) { // Max 1 notification per 2 seconds
-                        this.lastUINotification = now;
-                        setTimeout(() => {
-                            this.notifyUI(url);
-                        }, 500);
-                    }
-                }
-            }
-        });
-
-        // Inject the refresh function
-        this.refreshQueue.setRefreshFunction((url, accessToken) => {
-            return this._makeHttpRequest(url, accessToken);
         });
 
         log.info(`Initialized caching system with directory: ${cacheDir}`);
@@ -389,13 +372,7 @@ export class NuGetV3Service {
             this.initializeCache();
         }
 
-        // Mark activity for background queue (only if cache system is working properly)
-        try {
-            this.refreshQueue?.markActivity();
-        } catch (error) {
-            log.warn('Background refresh queue error, disabling:', error);
-            this.refreshQueue = null; // Disable on error
-        }
+        // Note: The simplified background queue doesn't need activity marking
 
         const cacheKey = this.getCacheKey(url, accessToken);
         const allowedCacheTime = 5 * 60 * 1000; // 5 minutes for fresh cache
@@ -420,9 +397,9 @@ export class NuGetV3Service {
                 return promise;
             } else {
                 // Stale persistent cache - use it but queue a refresh
-                log.debug(`Using stale persistent cache for ${url}, queuing refresh`);
+                log.debug(`Using stale persistent cache for ${url}, queuing background refresh`);
                 try {
-                    this.refreshQueue?.enqueue(url, accessToken, 'normal');
+                    this.refreshQueue?.enqueue(url, accessToken); // Background refresh
                 } catch (error) {
                     log.warn('Failed to enqueue background refresh:', error);
                 }
@@ -435,7 +412,7 @@ export class NuGetV3Service {
         }
 
         // 3. No cache available - make fresh request
-        log.info(`Making fresh request to ${url}`);
+        log.error(`Making fresh request to ${url}`);
         const promise = this._makeHttpRequestWithETag(url, accessToken);
 
         this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });

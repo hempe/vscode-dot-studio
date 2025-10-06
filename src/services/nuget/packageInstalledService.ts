@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../../core/logger';
-import { InstalledPackage, ProjectInfo, NuGetPackage } from './types';
+import { BasicInstalledPackage, InstalledPackage, ProjectInfo, NuGetPackage } from './types';
 import { PackageSharedService } from './packageSharedService';
 
 const execAsync = promisify(exec);
@@ -18,7 +18,7 @@ export class PackageInstalledService {
     /**
      * Get all installed packages across all projects in a solution
      */
-    static async getInstalledPackages(solutionPath?: string): Promise<InstalledPackage[]> {
+    static async getInstalledPackages(solutionPath?: string): Promise<BasicInstalledPackage[]> {
         try {
             const workingDir = solutionPath ? path.dirname(solutionPath) : process.cwd();
 
@@ -56,7 +56,7 @@ export class PackageInstalledService {
     /**
      * Get installed packages for a specific project
      */
-    static async getProjectPackages(projectPath: string): Promise<InstalledPackage[]> {
+    static async getProjectPackages(projectPath: string): Promise<BasicInstalledPackage[]> {
         try {
             // Determine the working directory - use the project's directory or solution directory
             const workingDir = path.dirname(projectPath);
@@ -206,14 +206,14 @@ export class PackageInstalledService {
     /**
      * Parse the JSON output from dotnet list package command
      */
-    private static parseInstalledPackages(stdout: string): InstalledPackage[] {
+    private static parseInstalledPackages(stdout: string): BasicInstalledPackage[] {
         try {
             if (!stdout.trim()) {
                 return [];
             }
 
             const data = JSON.parse(stdout);
-            const packages: InstalledPackage[] = [];
+            const packages: BasicInstalledPackage[] = [];
 
             // Handle the structure from dotnet list package --format json
             if (data.projects && Array.isArray(data.projects)) {
@@ -232,7 +232,7 @@ export class PackageInstalledService {
 
                                     packages.push({
                                         id: pkg.id,
-                                        version: pkg.resolvedVersion || pkg.requestedVersion || '',
+                                        version: pkg.requestedVersion || pkg.resolvedVersion || '',
                                         projectPath,
                                         projectName,
                                         resolved: pkg.resolvedVersion,
