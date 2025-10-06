@@ -30,6 +30,7 @@ export class BackgroundRefreshQueue {
     private options: Required<RefreshQueueOptions>;
     private activeRequests = 0;
     private requestQueue: RequestQueue;
+    private scheduleCount = 0; // Circuit breaker for infinite scheduling
 
     constructor(options: RefreshQueueOptions = {}) {
         this.options = {
@@ -121,6 +122,14 @@ export class BackgroundRefreshQueue {
     }
 
     private scheduleProcessing(): void {
+        // Circuit breaker: prevent infinite scheduling
+        this.scheduleCount++;
+        if (this.scheduleCount > 50) {
+            log.warn('Background refresh queue: Too many schedule attempts, stopping to prevent infinite loop');
+            this.scheduleCount = 0;
+            return;
+        }
+
         if (this.processingTimer) {
             clearTimeout(this.processingTimer);
         }
@@ -130,10 +139,17 @@ export class BackgroundRefreshQueue {
 
         this.processingTimer = setTimeout(() => {
             if (Date.now() - this.lastActivity >= this.options.idleDelayMs) {
+                this.scheduleCount = 0; // Reset counter on successful processing
                 this.processQueue();
             } else {
-                // Re-schedule if activity happened recently
-                this.scheduleProcessing();
+                // Only re-schedule if we haven't hit the limit
+                if (this.scheduleCount < 50) {
+                    // Add exponential backoff to prevent rapid rescheduling
+                    setTimeout(() => this.scheduleProcessing(), Math.min(1000, this.scheduleCount * 100));
+                } else {
+                    log.warn('Background refresh queue: Reached max reschedule attempts');
+                    this.scheduleCount = 0;
+                }
             }
         }, delay);
     }
@@ -162,8 +178,13 @@ export class BackgroundRefreshQueue {
 
             // Continue processing if there are more tasks and we're still idle
             if (this.queue.size > 0 && Date.now() - this.lastActivity >= this.options.idleDelayMs) {
-                // Small delay before next batch
-                setTimeout(() => this.processQueue(), 100);
+                // Small delay before next batch, but limit consecutive processing
+                if (tasks.length > 0) { // Only continue if we actually processed something
+                    setTimeout(() => this.processQueue(), 1000); // Longer delay
+                } else {
+                    this.isProcessing = false;
+                    this.scheduleProcessing();
+                }
             } else {
                 this.isProcessing = false;
                 if (this.queue.size > 0) {

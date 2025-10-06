@@ -132,11 +132,13 @@ export const App: React.FC = () => {
                         searchResults: ensureArray(message.data?.searchResults),
                         // Backend sends 'outdatedPackages' array, not 'updatesAvailable'
                         updatesAvailable: ensureArray(message.data?.outdatedPackages),
+                        consolidatePackages: ensureArray(message.data?.consolidatePackages),
                         projects: ensureArray(message.data?.projects),
                         projectPath: message.data?.projectPath
                     };
 
                     log.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
+                    log.debug('NuGet React: Processed consolidate packages:', safeData.consolidatePackages);
 
                     setData(safeData);
 
@@ -276,6 +278,23 @@ export const App: React.FC = () => {
                         setData(prevData => ({
                             ...prevData,
                             updatesAvailable: prevData.updatesAvailable.map(p => ({ ...p, selected: false }))
+                        }));
+                    }
+                    break;
+
+                case 'bulkConsolidateComplete':
+                    // Handle bulk consolidate completion
+                    setLoading(false);
+                    log.info(`NuGet React: Bulk consolidate complete - success: ${message.success}`);
+
+                    // Refresh data and clear selections after successful bulk consolidate
+                    if (message.success) {
+                        log.info(`NuGet React: Refreshing data after successful bulk consolidate`);
+                        vscode.postMessage({ type: 'getNuGetData' });
+                        // Clear all selections after successful consolidation
+                        setData(prevData => ({
+                            ...prevData,
+                            consolidatePackages: prevData.consolidatePackages?.map(p => ({ ...p, selected: false })) || []
                         }));
                     }
                     break;
@@ -562,6 +581,36 @@ export const App: React.FC = () => {
         if (selectedPackages.length > 0) {
             setLoading(true);
             vscode.postMessage({ type: 'bulkUpdatePackages', payload: { packages: selectedPackages } });
+        }
+    };
+
+    // Consolidate package selection management
+    const filteredConsolidate = filterPackages(ensureArray(data.consolidatePackages || []), filterTerm);
+
+    const handleSelectAllConsolidate = (checked: boolean) => {
+        // Only select/deselect the filtered packages
+        const filteredPackageIds = new Set(filteredConsolidate.map(pkg => pkg.id));
+
+        setData(prevData => ({
+            ...prevData,
+            consolidatePackages: prevData.consolidatePackages?.map(p =>
+                filteredPackageIds.has(p.id) ? { ...p, selected: checked } : p
+            ) || []
+        }));
+    };
+
+    // Helper to get select all state for filtered consolidate packages
+    const getSelectAllConsolidateState = () => {
+        if (filteredConsolidate.length === 0) return false;
+        const selectedCount = filteredConsolidate.filter(pkg => pkg.selected).length;
+        return selectedCount === filteredConsolidate.length;
+    };
+
+    const handleBulkConsolidate = () => {
+        const selectedPackages = ensureArray(data.consolidatePackages).filter(pkg => pkg.selected);
+        if (selectedPackages.length > 0) {
+            setLoading(true);
+            vscode.postMessage({ type: 'bulkConsolidatePackages', payload: { packages: selectedPackages } });
         }
     };
 
@@ -1121,21 +1170,87 @@ export const App: React.FC = () => {
     );
 
     const consolidateView = (
-        <div style={{ display: 'flex', flex: 1, height: '100%' }}>
-            <div style={{ flex: 1, borderRight: '1px solid var(--vscode-panel-border)' }}>
-                <PackageList
-                    packages={ensureArray(data.consolidatePackages || [])}
-                    loading={false}
-                    emptyMessage="No packages need consolidation"
-                    selectedIndex={selectedIndex}
-                    selectedPackage={selectedPackage}
-                    selectedItemRef={selectedItemRef}
-                    onPackageSelect={selectPackageWithDetails}
-                    getPackageIconUrl={getPackageIconUrl}
-                    title="Consolidate"
-                />
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+            {/* Search and Filter */}
+            <div style={{
+                paddingBottom: '12px',
+                borderBottom: '1px solid var(--vscode-panel-border)',
+                background: 'var(--vscode-editor-background)'
+            }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <TextField
+                        value={filterTerm}
+                        onChange={setFilterTerm}
+                        placeholder={initializing ? "Initializing..." : "Filter packages to consolidate..."}
+                        disabled={initializing}
+                        style={{ flex: 1 }}
+                    />
+                    <Button
+                        onClick={handleBulkConsolidate}
+                        disabled={
+                            initializing ||
+                            loading ||
+                            !ensureArray(data.consolidatePackages).some(pkg => pkg.selected)
+                        }
+                        appearance="primary"
+                    >
+                        Consolidate Selected
+                    </Button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Checkbox
+                            checked={getSelectAllConsolidateState()}
+                            onChange={handleSelectAllConsolidate}
+                            disabled={initializing || filteredConsolidate.length === 0}
+                        />
+                        <label style={{
+                            fontSize: '13px',
+                            color: 'var(--vscode-foreground)',
+                            cursor: (initializing || filteredConsolidate.length === 0) ? 'default' : 'pointer'
+                        }} onClick={() => !initializing && filteredConsolidate.length > 0 && handleSelectAllConsolidate(!getSelectAllConsolidateState())}>
+                            Select all
+                        </label>
+                    </div>
+                </div>
             </div>
-            {rightSidePanel}
+
+            {/* Two-Panel Layout */}
+            <div style={{
+                display: 'flex',
+                flex: 1,
+                border: '1px solid var(--vscode-panel-border)',
+                borderTop: 'none'
+            }}>
+                {/* Left Panel - Package List */}
+                <div
+                    style={{
+                        width: '40%',
+                        borderRight: '1px solid var(--vscode-panel-border)',
+                        overflow: 'auto',
+                        overscrollBehavior: 'contain',
+                        maxHeight: '100%'
+                    }}
+                >
+                    <PackageList
+                        packages={filteredConsolidate}
+                        loading={false}
+                        emptyMessage="No packages need consolidation"
+                        selectedIndex={selectedIndex}
+                        selectedPackage={selectedPackage}
+                        selectedItemRef={selectedItemRef}
+                        onPackageSelect={selectPackageWithDetails}
+                        getPackageIconUrl={getPackageIconUrl}
+                        showCheckboxes={true}
+                        title="Consolidate"
+                    />
+                </div>
+
+                {/* Right Panel - Package Details */}
+                <div style={{ width: '60%', overflow: 'auto' }}>
+                    {rightSidePanel}
+                </div>
+            </div>
         </div>
     );
 

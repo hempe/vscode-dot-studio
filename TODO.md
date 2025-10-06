@@ -110,12 +110,18 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] Add Solution Folder
 - [x] Restore Nugets
 - [x] Build commands (Clean, Build, Rebuild) like on project node.
+- [ ] Double click on solution node should open the solution file, doesn nothing right now.
 
 ### Solution Folder Context Menu
 
-- [x] Add Solution Folder (sub-folder)
+- [ ] Add Solution Folder (sub-folder)
+      --> Regression this does not work anymore.
+      --> all solution folders collapse.
+      --> They get added at root so it seems we don't update (GlobalSection(NestedProjects))
 - [x] Remove
-- [x] Add Existing Item...
+- [ ] Add Existing Item...
+      --> Regression this does not work anymore gets added but in the right place but tree does not update.
+      --> all solution folders collapse.
 - [x] Rename
 
 ### Solution Folder Item Context Menu

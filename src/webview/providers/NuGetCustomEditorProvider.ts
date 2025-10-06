@@ -115,6 +115,10 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleBulkUpdatePackages(message, webview, context);
                     break;
 
+                case 'bulkConsolidatePackages':
+                    await this._handleBulkConsolidatePackages(message, webview, context);
+                    break;
+
                 case 'updateAllPackages':
                     await this._handleUpdateAllPackages(message, webview, context);
                     break;
@@ -621,6 +625,97 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Send failure completion message
             webview.postMessage({
                 command: 'bulkUpdateComplete',
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+
+    private async _handleBulkConsolidatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+        try {
+            // Extract packages from both message formats
+            const packages: LocalNuGetPackage[] = message.packages || message.payload?.packages;
+
+            if (!packages || !Array.isArray(packages) || packages.length === 0) {
+                vscode.window.showWarningMessage('No packages selected for consolidation');
+                return;
+            }
+
+            log.info(`Bulk consolidating ${packages.length} packages`);
+
+            // Show progress notification
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Consolidating ${packages.length} packages...`,
+                cancellable: false
+            }, async (progress) => {
+                const results = [];
+
+                for (const pkg of packages) {
+                    progress.report({
+                        increment: (100 / packages.length),
+                        message: `Consolidating ${pkg.id}...`
+                    });
+
+                    try {
+                        // For consolidation, we need to find the target version and affected projects
+                        const targetVersion = pkg.latestVersion || pkg.version;
+
+                        if (context.type === 'solution') {
+                            // Use the consolidation service to consolidate this specific package
+                            const result = await NuGetManagerService.consolidatePackage(
+                                context.target,
+                                pkg.id,
+                                targetVersion
+                            );
+                            results.push(...result);
+                        } else {
+                            // For project context, we can't really consolidate (need multiple projects)
+                            results.push({
+                                success: false,
+                                message: `Consolidation requires a solution context, not a single project`,
+                                packageId: pkg.id
+                            });
+                        }
+
+                    } catch (error) {
+                        log.error(`Error consolidating ${pkg.id}:`, error);
+                        results.push({
+                            success: false,
+                            message: `Failed to consolidate ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                            packageId: pkg.id
+                        });
+                    }
+                }
+
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+
+                if (failed === 0) {
+                    vscode.window.showInformationMessage(`Successfully consolidated ${successful} packages`);
+                } else if (successful === 0) {
+                    vscode.window.showErrorMessage(`Failed to consolidate all ${failed} packages`);
+                } else {
+                    vscode.window.showWarningMessage(`Consolidated ${successful} packages, ${failed} failed`);
+                }
+            });
+
+            // Refresh the consolidate tab by refreshing all data
+            await this._updateWebview(webview, context);
+
+            // Send completion message to frontend
+            webview.postMessage({
+                command: 'bulkConsolidateComplete',
+                success: true
+            });
+
+        } catch (error) {
+            log.error('Error performing bulk package consolidation:', error);
+            vscode.window.showErrorMessage(`Error consolidating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+            // Send failure completion message
+            webview.postMessage({
+                command: 'bulkConsolidateComplete',
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error'
             });

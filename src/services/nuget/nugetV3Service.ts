@@ -26,6 +26,7 @@ export class NuGetV3Service {
 
     // UI notification callbacks
     private static uiNotificationCallbacks: Array<(url: string) => void> = [];
+    private static lastUINotification = 0;
 
     /**
      * Initialize the caching system
@@ -56,10 +57,14 @@ export class NuGetV3Service {
                     });
                     this.persistentCache?.set(cacheKey, data, url);
 
-                    // Notify UI with delay to avoid spam
-                    setTimeout(() => {
-                        this.notifyUI(url);
-                    }, 500);
+                    // Notify UI with delay and rate limiting to avoid spam
+                    const now = Date.now();
+                    if (now - this.lastUINotification > 2000) { // Max 1 notification per 2 seconds
+                        this.lastUINotification = now;
+                        setTimeout(() => {
+                            this.notifyUI(url);
+                        }, 500);
+                    }
                 }
             }
         });
@@ -384,8 +389,13 @@ export class NuGetV3Service {
             this.initializeCache();
         }
 
-        // Mark activity for background queue
-        this.refreshQueue?.markActivity();
+        // Mark activity for background queue (only if cache system is working properly)
+        try {
+            this.refreshQueue?.markActivity();
+        } catch (error) {
+            log.warn('Background refresh queue error, disabling:', error);
+            this.refreshQueue = null; // Disable on error
+        }
 
         const cacheKey = this.getCacheKey(url, accessToken);
         const allowedCacheTime = 5 * 60 * 1000; // 5 minutes for fresh cache
@@ -411,7 +421,11 @@ export class NuGetV3Service {
             } else {
                 // Stale persistent cache - use it but queue a refresh
                 log.debug(`Using stale persistent cache for ${url}, queuing refresh`);
-                this.refreshQueue?.enqueue(url, accessToken, 'normal');
+                try {
+                    this.refreshQueue?.enqueue(url, accessToken, 'normal');
+                } catch (error) {
+                    log.warn('Failed to enqueue background refresh:', error);
+                }
 
                 // Update memory cache with stale data
                 const promise = Promise.resolve(persistentEntry.data);

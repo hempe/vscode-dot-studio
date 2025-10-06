@@ -8,7 +8,8 @@ import {
     PackageSearchOptions,
     PackageInstallOptions,
     PackageOperationResult,
-    ProjectInfo
+    ProjectInfo,
+    ConsolidationInfo
 } from './types';
 
 const log = logger('NuGetManagerService');
@@ -43,6 +44,9 @@ export class NuGetManagerService {
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);
 
+            // Transform consolidation info to package format for UI
+            const consolidatePackages = this.transformConsolidationInfoToPackages(consolidationInfo, allProjects);
+
             return {
                 context: 'solution',
                 solutionPath,
@@ -50,7 +54,8 @@ export class NuGetManagerService {
                 totalPackages: installedPackages.length,
                 installedPackages,
                 outdatedPackages,
-                consolidationInfo,
+                consolidationInfo, // Keep original for backend use
+                consolidatePackages, // UI-ready format
                 updateStats,
                 lastUpdated: new Date().toISOString()
             };
@@ -217,6 +222,13 @@ export class NuGetManagerService {
     }
 
     /**
+     * Consolidate a specific package across solution to a target version
+     */
+    static async consolidatePackage(solutionPath: string, packageId: string, targetVersion: string) {
+        return PackageConsolidationService.consolidatePackageToVersion(solutionPath, packageId, targetVersion);
+    }
+
+    /**
      * Update all outdated packages in solution
      */
     static async updateAllPackagesInSolution(solutionPath: string) {
@@ -362,6 +374,48 @@ export class NuGetManagerService {
     }
 
     // ============ HELPER METHODS ============
+
+    /**
+     * Transform ConsolidationInfo to LocalNuGetPackage format for UI
+     */
+    private static transformConsolidationInfoToPackages(consolidationInfo: ConsolidationInfo[], allProjects: ProjectInfo[]) {
+        const consolidatePackages: any[] = [];
+
+        for (const info of consolidationInfo) {
+            // Create a package entry for consolidation
+            const versionInfo = info.versions.map(v => `${v.version} (${v.projects.length} projects)`).join(', ');
+
+            // Find the latest version being used
+            const latestUsedVersion = info.versions.reduce((latest, current) => {
+                return !latest || current.version > latest.version ? current : latest;
+            }).version;
+
+            const consolidatePackage = {
+                id: info.packageId,
+                version: latestUsedVersion,
+                description: `Package used with different versions across projects: ${versionInfo}`,
+                authors: [],
+                projectUrl: '',
+                licenseUrl: '',
+                iconUrl: '',
+                tags: [],
+                totalDownloads: 0,
+                latestVersion: info.latestVersion || latestUsedVersion,
+                allVersions: info.versions.map(v => v.version),
+                source: '',
+                // Add consolidation-specific info
+                needsConsolidation: true,
+                currentVersions: info.versions,
+                projects: allProjects.filter(p =>
+                    info.versions.some(v => v.projects.includes(p.path))
+                )
+            };
+
+            consolidatePackages.push(consolidatePackage);
+        }
+
+        return consolidatePackages;
+    }
 
     /**
      * Determine if a path is a solution or project file
