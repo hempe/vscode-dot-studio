@@ -467,7 +467,7 @@ export class PackageBrowseService {
 
         for (const pkg of packages) {
             const existing = packageMap.get(pkg.id.toLowerCase());
-            if (!existing || this.compareVersions(pkg.version, existing.version) > 0) {
+            if (!existing || this.compareVersions(pkg.currentVersion, existing.currentVersion) > 0) {
                 packageMap.set(pkg.id.toLowerCase(), pkg);
             }
         }

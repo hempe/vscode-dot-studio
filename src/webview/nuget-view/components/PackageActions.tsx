@@ -58,7 +58,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     Version:
                 </div>
                 <Dropdown
-                    value={selectedVersion || selectedPackage.version}
+                    value={selectedVersion || selectedPackage.currentVersion}
                     onChange={onVersionChange}
                     options={getVersionOptions(selectedPackage)}
                     disabled={initializing || loading}
@@ -71,7 +71,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     onClick={() => {
                         if (!initializing && !loading) {
                             const projectsList = Array.from(selectedProjects);
-                            const versionToInstall = selectedVersion || selectedPackage.version;
+                            const versionToInstall = selectedVersion || selectedPackage.currentVersion;
                             log.info('Install/Update action:', {
                                 package: selectedPackage.id,
                                 version: versionToInstall,

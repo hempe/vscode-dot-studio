@@ -524,7 +524,7 @@ export class NuGetV3Service {
 
                 packages.push({
                     id: item.id || '',
-                    version: displayVersion,
+                    currentVersion: displayVersion,
                     description: item.description || '',
                     authors: item.authors || [],
                     projectUrl: item.projectUrl,
@@ -563,7 +563,7 @@ export class NuGetV3Service {
             // Process packages in batches to avoid overwhelming the API
             for (const pkg of packages.slice(0, 5)) { // Limit to first 5 packages for performance
                 try {
-                    log.info(`Getting versions for ${pkg.id} (current: ${pkg.version})`);
+                    log.info(`Getting versions for ${pkg.id} (current: ${pkg.currentVersion})`);
                     const versions = await this.getPackageVersions(
                         `https://api.nuget.org/v3/index.json`, // Use source URL
                         pkg.id,
@@ -575,11 +575,11 @@ export class NuGetV3Service {
                     if (versions.length > 0) {
                         // Find the actual latest version (including prereleases)
                         const latestVersion = this.findLatestVersion(versions, true);
-                        log.info(`Latest version for ${pkg.id}: ${latestVersion} (current: ${pkg.version})`);
+                        log.info(`Latest version for ${pkg.id}: ${latestVersion} (current: ${pkg.currentVersion})`);
 
-                        if (latestVersion && latestVersion !== pkg.version) {
-                            log.info(`Enhanced ${pkg.id}: ${pkg.version} -> ${latestVersion}`);
-                            pkg.version = latestVersion;
+                        if (latestVersion && latestVersion !== pkg.currentVersion) {
+                            log.info(`Enhanced ${pkg.id}: ${pkg.currentVersion} -> ${latestVersion}`);
+                            pkg.latestVersion = latestVersion;
                         }
                         // Update all versions list
                         pkg.allVersions = versions;
@@ -694,7 +694,7 @@ export class NuGetV3Service {
 
             return {
                 id: entry.id ?? "",
-                version: entry.version ?? "",
+                currentVersion: entry.version ?? "",
                 description: entry.description ?? "",
                 authors,
                 projectUrl: entry.projectUrl ?? "",

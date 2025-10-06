@@ -659,7 +659,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                     try {
                         // For consolidation, we need to find the target version and affected projects
-                        const targetVersion = pkg.latestVersion || pkg.version;
+                        const targetVersion = pkg.latestVersion || pkg.currentVersion;
 
                         if (context.type === 'solution') {
                             // Use the consolidation service to consolidate this specific package

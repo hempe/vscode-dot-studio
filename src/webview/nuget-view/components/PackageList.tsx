@@ -70,7 +70,7 @@ export const PackageList: React.FC<PackageListProps> = ({
             ) : (
                 uniquePackages.map((pkg, index) => (
                     <div
-                        key={`${pkg.id}-${pkg.version}`}
+                        key={`${pkg.id}-${pkg.currentVersion}`}
                         ref={selectedIndex === index ? selectedItemRef : null}
                         style={{
                             padding: '12px',
@@ -204,7 +204,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         fontWeight: 500,
                                         color: 'var(--vscode-foreground)'
                                     }}>
-                                        v{pkg.version}
+                                        v{pkg.currentVersion}
                                     </div>
                                     {/* Max installed version - only show if different from current and package has projects */}
                                     {pkg.projects && pkg.projects.length > 0 && (() => {

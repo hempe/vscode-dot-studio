@@ -12,7 +12,9 @@ import {
     ProjectInfo,
     ConsolidationInfo,
     BasicInstalledPackage,
-    BasicConsolidationPackage
+    BasicConsolidationPackage,
+    InstalledPackage,
+    UpdateablePackage
 } from './types';
 
 const log = logger('NuGetManagerService');
@@ -75,7 +77,7 @@ export class NuGetManagerService {
      * Returns the final UI structure directly
      */
     static async getGroupedInstalledPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
-        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[] })[]> {
+        : Promise<(InstalledPackage & { projects: ProjectInfo[] })[]> {
         try {
             // Get enriched installed packages (individual entries per project)
             const installedPackages = isProject
@@ -83,7 +85,7 @@ export class NuGetManagerService {
                 : await PackageInstalledService.getInstalledPackagesWithMetadata(targetPath);
 
             // Group by package ID and create projects array
-            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[] })>();
+            const packageMap = new Map<string, (InstalledPackage & { projects: ProjectInfo[] })>();
 
             log.info(`Grouping ${installedPackages.length} packages for UI`);
 
@@ -96,9 +98,8 @@ export class NuGetManagerService {
                 if (packageMap.size === 0) {
                     log.debug('Sample package structure:', {
                         id: pkg.id,
-                        version: pkg.version,
+                        currentVersion: pkg.currentVersion,
                         latestVersion: (pkg as any).latestVersion,
-                        installedVersion: (pkg as any).installedVersion,
                         description: (pkg as any).description,
                         authors: (pkg as any).authors,
                         projectName: (pkg as any).projectName,
@@ -119,11 +120,10 @@ export class NuGetManagerService {
                     }
                 } else {
                     // First time seeing this package
-                    const installedVersion = (pkg as any).installedVersion || pkg.version;
                     const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
-                        version: installedVersion, // Keep installed version as main version
+                        // currentVersion is already correct from pkg.currentVersion
                         projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
@@ -142,7 +142,7 @@ export class NuGetManagerService {
      * Returns the final UI structure directly
      */
     static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
-        : Promise<(BasicInstalledPackage & { projects: ProjectInfo[]; latestVersion?: string })[]> {
+        : Promise<(UpdateablePackage & { projects: ProjectInfo[] })[]> {
         try {
             // Get enriched outdated packages (individual entries per project)
             const outdatedPackages = isProject
@@ -150,7 +150,7 @@ export class NuGetManagerService {
                 : await PackageUpdateService.getOutdatedPackagesWithMetadata(targetPath);
 
             // Group by package ID and create projects array
-            const packageMap = new Map<string, (BasicInstalledPackage & { projects: ProjectInfo[]; latestVersion?: string })>();
+            const packageMap = new Map<string, (UpdateablePackage & { projects: ProjectInfo[] })>();
 
             log.info(`Found ${outdatedPackages.length} enriched outdated packages`);
 
@@ -159,8 +159,7 @@ export class NuGetManagerService {
                 if (packageMap.size === 0) {
                     log.debug('Sample outdated package structure:', {
                         id: pkg.id,
-                        version: pkg.version,
-                        currentVersion: (pkg as any).currentVersion,
+                        currentVersion: pkg.currentVersion,
                         latestVersion: (pkg as any).latestVersion,
                         hasMetadata: !!(pkg as any).description
                     });
@@ -182,7 +181,7 @@ export class NuGetManagerService {
                     const fullProjectInfo = pkg.projectName ? allProjects?.find(proj => proj.name === pkg.projectName) : null;
                     packageMap.set(pkg.id, {
                         ...pkg,
-                        version: (pkg as any).currentVersion || pkg.version, // Use current/installed version
+                        // currentVersion and latestVersion are already correct from enrichment
                         projects: fullProjectInfo ? [fullProjectInfo] : []
                     });
                 }
@@ -408,7 +407,7 @@ export class NuGetManagerService {
 
             const consolidatePackage: BasicConsolidationPackage = {
                 id: info.packageId,
-                version: latestUsedVersion,
+                currentVersion: latestUsedVersion,
                 latestVersion: info.latestVersion,
                 allVersions: info.versions.map(v => v.version),
                 needsConsolidation: true,

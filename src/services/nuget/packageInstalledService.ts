@@ -232,7 +232,7 @@ export class PackageInstalledService {
 
                                     packages.push({
                                         id: pkg.id,
-                                        version: pkg.requestedVersion || pkg.resolvedVersion || '',
+                                        currentVersion: pkg.requestedVersion || pkg.resolvedVersion || '',
                                         projectPath,
                                         projectName,
                                         resolved: pkg.resolvedVersion,
@@ -246,7 +246,7 @@ export class PackageInstalledService {
                                 for (const pkg of framework.transitivePackages) {
                                     packages.push({
                                         id: pkg.id,
-                                        version: pkg.resolvedVersion || '',
+                                        currentVersion: pkg.resolvedVersion || '',
                                         projectPath,
                                         projectName,
                                         resolved: pkg.resolvedVersion,

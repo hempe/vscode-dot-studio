@@ -7,7 +7,7 @@
 
 export interface BasicInstalledPackage {
     id: string;
-    version: string;
+    currentVersion: string;  // Currently installed version
     projectPath: string;
     projectName: string;
     resolved?: string;  // Actual resolved version
@@ -25,7 +25,7 @@ export interface BasicUpdateablePackage {
 
 export interface BasicConsolidationPackage {
     id: string;
-    version: string;
+    currentVersion: string;  // Currently used version (highest across projects)
     latestVersion?: string;
     allVersions: string[];
     needsConsolidation: true;
@@ -38,7 +38,7 @@ export interface BasicConsolidationPackage {
 
 export interface NuGetPackage {
     id: string;
-    version: string;
+    currentVersion: string;  // Version being referenced (for context)
     description?: string;
     authors?: string[];
     projectUrl?: string;
@@ -52,8 +52,8 @@ export interface NuGetPackage {
 }
 
 // Full enriched types (these include NuGet API metadata)
-export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage, 'id' | 'version'>> & {
-    // Keep the basic id/version, add optional NuGet metadata
+export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion'>> & {
+    // Keep the basic id/currentVersion, add optional NuGet metadata
     description?: string;
     authors?: string[];
     projectUrl?: string;
@@ -66,7 +66,7 @@ export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage
     source?: string;
 };
 
-export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPackage, 'id' | 'version' | 'latestVersion'>> & {
+export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion' | 'latestVersion'>> & {
     // Keep the basic fields, add optional NuGet metadata
     description?: string;
     authors?: string[];

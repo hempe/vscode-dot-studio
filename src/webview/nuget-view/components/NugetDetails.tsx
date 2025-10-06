@@ -71,7 +71,7 @@ export default function NugetDetails({ selectedPackage, packageReadmes }: NugetD
             {detailsTab === 'readme' && (
                 <NugetReadme
                     packageId={selectedPackage.id}
-                    version={selectedPackage.version}
+                    version={selectedPackage.currentVersion}
                     readmeUrl={packageReadmes.get(selectedPackage.id.toLowerCase())}
                 />
             )}

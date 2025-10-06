@@ -85,7 +85,7 @@ export default function NugetDetail({ selectedPackage }: NugetDetailProps) {
                             padding: '8px 12px',
                             color: 'var(--vscode-foreground)'
                         }}>
-                            {selectedPackage.version}
+                            {selectedPackage.currentVersion}
                         </div>
                     </div>
 

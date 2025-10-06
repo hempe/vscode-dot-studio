@@ -45,7 +45,7 @@ export class PackageConsolidationService {
 
                 // Group by version
                 for (const pkg of packages) {
-                    const version = pkg.version;
+                    const version = pkg.currentVersion;
                     const existingProjects = versionGroups.get(version) || [];
                     existingProjects.push(pkg.projectPath);
                     versionGroups.set(version, existingProjects);
@@ -319,7 +319,7 @@ export class PackageConsolidationService {
             // Group by project and find projects that need updating
             const projectsToUpdate = new Map<string, InstalledPackage>();
             for (const pkg of packagesWithThisId) {
-                if (pkg.version !== targetVersion) {
+                if (pkg.currentVersion !== targetVersion) {
                     projectsToUpdate.set(pkg.projectPath, pkg);
                 }
             }
@@ -339,7 +339,7 @@ export class PackageConsolidationService {
             // Update each project to the target version
             for (const [projectPath, pkg] of projectsToUpdate) {
                 try {
-                    log.info(`Updating ${packageId} from ${pkg.version} to ${targetVersion} in ${path.basename(projectPath)}`);
+                    log.info(`Updating ${packageId} from ${pkg.currentVersion} to ${targetVersion} in ${path.basename(projectPath)}`);
 
                     const updateResult = await PackageUpdateService.updatePackage(
                         projectPath,

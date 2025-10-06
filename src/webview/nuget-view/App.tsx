@@ -107,7 +107,7 @@ export const App: React.FC = () => {
 
     // Helper function to get version change text for Updates tab
     const getVersionChangeText = (pkg: LocalNuGetPackage): string => {
-        return formatVersionDisplay(pkg.version, pkg.latestVersion);
+        return formatVersionDisplay(pkg.currentVersion, pkg.latestVersion);
     };
 
     // Compute filtered package lists
@@ -162,8 +162,8 @@ export const App: React.FC = () => {
                         if (updatedPackage) {
                             log.info('NuGet React: Preserving selection after data refresh:', {
                                 packageId: updatedPackage.id,
-                                oldVersion: selectedPackageRef.current.version,
-                                newVersion: updatedPackage.version
+                                oldVersion: selectedPackageRef.current.currentVersion,
+                                newVersion: updatedPackage.currentVersion
                             });
                             setSelectedPackage(updatedPackage);
                         } else {
@@ -198,7 +198,7 @@ export const App: React.FC = () => {
                         message.packages.slice(0, 3).forEach((pkg: any, idx: number) => {
                             log.debug(`Sample update package ${idx}:`, {
                                 id: pkg.id,
-                                version: pkg.version,
+                                version: pkg.currentVersion,
                                 latestVersion: pkg.latestVersion,
                                 projectName: pkg.projectName
                             });
@@ -398,7 +398,7 @@ export const App: React.FC = () => {
             type: 'getPackageIcon',
             payload: {
                 packageId: pkg.id,
-                version: pkg.version
+                version: pkg.currentVersion
             }
         });
     };
@@ -421,7 +421,7 @@ export const App: React.FC = () => {
             type: 'getPackageReadme',
             payload: {
                 packageId: pkg.id,
-                version: pkg.version
+                version: pkg.currentVersion
             }
         });
     };
@@ -497,7 +497,7 @@ export const App: React.FC = () => {
     // Helper function to get version options for dropdown
     const getVersionOptions = (pkg: LocalNuGetPackage) => {
         if (!pkg.allVersions || pkg.allVersions.length === 0) {
-            return [{ label: pkg.version, value: pkg.version }];
+            return [{ label: pkg.currentVersion, value: pkg.currentVersion }];
         }
 
         // Filter versions based on prerelease setting
