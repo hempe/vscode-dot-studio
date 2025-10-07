@@ -3,19 +3,13 @@ import Markdown from "markdown-to-jsx";
 import { ensureArray, formatAuthors, LocalNuGetPackage } from "../shared";
 import { Checkbox } from "vscrui";
 import { logger } from "../../shared/logger";
+import { ProjectInfo as BackendProjectInfo } from "../../../services/nuget/types";
 
 const log = logger('ProjectList');
 
-interface ProjectInfo {
-    name: string;
-    path: string;
-    framework: string;
-    packages: any[];
-}
-
 interface ProjectListProps {
     selectedPackage: LocalNuGetPackage;
-    projects?: ProjectInfo[];
+    projects?: BackendProjectInfo[];
     installedPackages?: LocalNuGetPackage[];
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
@@ -108,8 +102,8 @@ export default function ProjectList({
                                 flexShrink: 0
                             }}>
                                 {(() => {
-                                    const installedPackage = project.packages?.find((pkg: any) => pkg.id === selectedPackage.id);
-                                    return installedPackage ? `v${installedPackage.version}` : 'Not installed';
+                                    const installedPackage = project.packages?.find(pkg => pkg.id === selectedPackage.id);
+                                    return installedPackage ? `v${installedPackage.currentVersion}` : 'Not installed';
                                 })()}
                             </div>
                         </div>

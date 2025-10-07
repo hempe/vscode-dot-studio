@@ -17,7 +17,7 @@ export class PackageSharedService {
      * Enrich packages with metadata using the browse API
      * This method is used by both installed and updatable package services
      */
-    static async enrichWithBrowseMetadata<T extends { id: string }>(
+    static async enrichWithBrowseMetadata<T extends { id: string; latestVersion?: string }>(
         basicPackages: T[]
     ): Promise<(T & Partial<NuGetPackage>)[]> {
         if (basicPackages.length === 0) {
@@ -63,7 +63,8 @@ export class PackageSharedService {
                     licenseUrl: metadata.licenseUrl,
                     tags: metadata.tags,
                     totalDownloads: metadata.totalDownloads,
-                    latestVersion: metadata.latestVersion,
+                    // Preserve existing version fields from basic package data, only use metadata if missing
+                    latestVersion: pkg.latestVersion || metadata.latestVersion,
                     allVersions: metadata.allVersions,
                     source: metadata.source
                 };

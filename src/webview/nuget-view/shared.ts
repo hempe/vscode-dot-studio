@@ -1,4 +1,4 @@
-import { NuGetPackage } from "../../services/nuget/types";
+import { NuGetPackage, InstalledPackage } from "../../services/nuget/types";
 import { logger } from "../shared/logger";
 const log = logger('NuGetReact');
 
@@ -10,7 +10,7 @@ export interface LocalNuGetPackage extends NuGetPackage {
         name: string;
         path: string;
         framework: string;
-        packages: any[];
+        packages: InstalledPackage[];
     }[];
 }
 

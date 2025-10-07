@@ -11,6 +11,7 @@ import NugetHeader from './components/NugetHeader';
 import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
+import { ProjectInfo } from '../../services/nuget/types';
 import * as semver from 'semver';
 
 const log = logger('NuGetReact');
@@ -37,12 +38,7 @@ interface NuGetViewData {
     searchResults: LocalNuGetPackage[];
     updatesAvailable: LocalNuGetPackage[];
     consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality
-    projects?: {
-        name: string;
-        path: string;
-        framework: string;
-        packages: any[];
-    }[];
+    projects?: ProjectInfo[];
     projectPath?: string;
 }
 
@@ -195,7 +191,7 @@ export const App: React.FC = () => {
                     log.debug('NuGet React: Raw updatesAvailable packages:', message.packages);
                     // Log a few sample packages to debug version issues
                     if (Array.isArray(message.packages) && message.packages.length > 0) {
-                        message.packages.slice(0, 3).forEach((pkg: any, idx: number) => {
+                        message.packages.slice(0, 3).forEach((pkg: LocalNuGetPackage, idx: number) => {
                             log.debug(`Sample update package ${idx}:`, {
                                 id: pkg.id,
                                 version: pkg.currentVersion,
@@ -451,7 +447,7 @@ export const App: React.FC = () => {
     const enhanceWithInstalledInfo = (searchResults: LocalNuGetPackage[], installedPackages: LocalNuGetPackage[]): LocalNuGetPackage[] => {
         // Group installed packages by ID and extract their projects array
         const installedMap = new Map<string, LocalNuGetPackage>();
-        const projectsMap = new Map<string, {name: string, path: string, framework: string, packages: any[]}[]>();
+        const projectsMap = new Map<string, ProjectInfo[]>();
 
         ensureArray(installedPackages).forEach(pkg => {
             const key = pkg.id.toLowerCase();
@@ -517,7 +513,7 @@ export const App: React.FC = () => {
     };
 
     // Helper function to handle dropdown version selection
-    const handleVersionChange = (value: string | any) => {
+    const handleVersionChange = (value: string | unknown) => {
         if (typeof value === 'string') {
             setSelectedVersion(value);
         } else if (value && typeof value.value === 'string') {
