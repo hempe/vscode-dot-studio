@@ -57,6 +57,8 @@ export const App: React.FC = () => {
     const [initializing, setInitializing] = useState(true);
     const [includePrerelease, setIncludePrerelease] = useState(false);
     const [activeTab, setActiveTab] = useState('installed');
+    const [consolidateLoading, setConsolidateLoading] = useState(false);
+    const [consolidateLoaded, setConsolidateLoaded] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState<LocalNuGetPackage | null>(null);
     const selectedPackageRef = useRef<LocalNuGetPackage | null>(null);
 
@@ -286,13 +288,20 @@ export const App: React.FC = () => {
                     // Refresh data and clear selections after successful bulk consolidate
                     if (message.success) {
                         log.info(`NuGet React: Refreshing data after successful bulk consolidate`);
-                        vscode.postMessage({ type: 'getNuGetData' });
+                        // Reset consolidate loaded state to trigger a fresh reload
+                        setConsolidateLoaded(false);
                         // Clear all selections after successful consolidation
                         setData(prevData => ({
                             ...prevData,
                             consolidatePackages: prevData.consolidatePackages?.map(p => ({ ...p, selected: false })) || []
                         }));
                     }
+                    break;
+                case 'consolidatePackages':
+                    log.info('NuGet React: Received consolidate packages:', message.data);
+                    setData(prev => ({ ...prev, consolidatePackages: ensureArray(message.data) }));
+                    setConsolidateLoading(false);
+                    setConsolidateLoaded(true);
                     break;
             }
         };
@@ -516,8 +525,8 @@ export const App: React.FC = () => {
     const handleVersionChange = (value: string | unknown) => {
         if (typeof value === 'string') {
             setSelectedVersion(value);
-        } else if (value && typeof value.value === 'string') {
-            setSelectedVersion(value.value);
+        } else if (value && typeof value === 'object' && 'value' in value && typeof (value as any).value === 'string') {
+            setSelectedVersion((value as any).value);
         }
     };
 
@@ -1112,6 +1121,14 @@ export const App: React.FC = () => {
         }
     }, [activeTab, shouldShowConsolidate]);
 
+    // Load consolidate data when consolidate tab is accessed
+    React.useEffect(() => {
+        if (activeTab === 'consolidate' && shouldShowConsolidate && !consolidateLoaded && !consolidateLoading) {
+            setConsolidateLoading(true);
+            vscode.postMessage({ type: 'getConsolidatePackages' });
+        }
+    }, [activeTab, shouldShowConsolidate, consolidateLoaded, consolidateLoading]);
+
     const rightSidePanel = (
         <div style={{
             flex: 1,
@@ -1195,6 +1212,7 @@ export const App: React.FC = () => {
                         disabled={
                             initializing ||
                             loading ||
+                            consolidateLoading ||
                             !ensureArray(data.consolidatePackages).some(pkg => pkg.selected)
                         }
                         appearance="primary"
@@ -1207,13 +1225,13 @@ export const App: React.FC = () => {
                         <Checkbox
                             checked={getSelectAllConsolidateState()}
                             onChange={handleSelectAllConsolidate}
-                            disabled={initializing || filteredConsolidate.length === 0}
+                            disabled={initializing || consolidateLoading || filteredConsolidate.length === 0}
                         />
                         <label style={{
                             fontSize: '13px',
                             color: 'var(--vscode-foreground)',
-                            cursor: (initializing || filteredConsolidate.length === 0) ? 'default' : 'pointer'
-                        }} onClick={() => !initializing && filteredConsolidate.length > 0 && handleSelectAllConsolidate(!getSelectAllConsolidateState())}>
+                            cursor: (initializing || consolidateLoading || filteredConsolidate.length === 0) ? 'default' : 'pointer'
+                        }} onClick={() => !initializing && !consolidateLoading && filteredConsolidate.length > 0 && handleSelectAllConsolidate(!getSelectAllConsolidateState())}>
                             Select all
                         </label>
                     </div>
@@ -1239,8 +1257,9 @@ export const App: React.FC = () => {
                 >
                     <PackageList
                         packages={filteredConsolidate}
-                        loading={false}
-                        emptyMessage="No packages need consolidation"
+                        loading={consolidateLoading}
+                        emptyMessage={consolidateLoaded ? "No packages need consolidation" : "Loading consolidation data..."}
+                        loadingMessage="Loading consolidation data..."
                         selectedIndex={selectedIndex}
                         selectedPackage={selectedPackage}
                         selectedItemRef={selectedItemRef}
@@ -1267,7 +1286,7 @@ export const App: React.FC = () => {
         { id: 'consolidate', content: consolidateView }
     ];
 
-    const shouldShowLoadingBar = loading || initializing;
+    const shouldShowLoadingBar = loading || initializing || consolidateLoading;
 
     return (
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>

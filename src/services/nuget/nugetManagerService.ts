@@ -28,6 +28,38 @@ export class NuGetManagerService {
     // ============ SOLUTION-LEVEL OPERATIONS ============
 
     /**
+     * Get consolidation data for the Package Manager UI
+     * This is called lazily when the Consolidate tab is accessed to improve initial load performance
+     */
+    static async getConsolidationData(solutionPath: string) {
+        try {
+            log.info(`Getting consolidation data for: ${solutionPath}`);
+
+            // Get all projects info
+            const allProjects = await PackageInstalledService.getAllProjectsInfo(solutionPath);
+
+            // Get consolidation info
+            const consolidationInfo = await PackageConsolidationService.getPackagesNeedingConsolidation(solutionPath);
+
+            // Transform consolidation info to package format for UI and enrich with metadata
+            const basicConsolidatePackages = this.transformConsolidationInfoToPackages(consolidationInfo, allProjects);
+            const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(basicConsolidatePackages);
+
+            return {
+                consolidationInfo,
+                consolidatePackages
+            };
+
+        } catch (error) {
+            log.error('Error getting consolidation data:', error);
+            return {
+                consolidationInfo: [],
+                consolidatePackages: []
+            };
+        }
+    }
+
+    /**
      * Get comprehensive solution-wide NuGet data for the Package Manager UI
      */
     static async getSolutionNuGetData(solutionPath: string) {
@@ -40,18 +72,16 @@ export class NuGetManagerService {
             const [
                 installedPackages,
                 outdatedPackages,
-                consolidationInfo,
                 updateStats
             ] = await Promise.all([
                 this.getGroupedInstalledPackages(solutionPath, false, allProjects),
                 this.getGroupedOutdatedPackages(solutionPath, false, allProjects),
-                PackageConsolidationService.getPackagesNeedingConsolidation(solutionPath),
                 PackageUpdateService.getUpdateStatistics(solutionPath)
             ]);
 
-            // Transform consolidation info to package format for UI and enrich with metadata
-            const basicConsolidatePackages = this.transformConsolidationInfoToPackages(consolidationInfo, allProjects);
-            const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(basicConsolidatePackages);
+            // Consolidation packages will be loaded lazily when Consolidate tab is accessed
+            const consolidationInfo: any[] = [];
+            const consolidatePackages: any[] = [];
 
             return {
                 context: 'solution',

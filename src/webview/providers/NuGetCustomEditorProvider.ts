@@ -321,10 +321,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     private async _handleGetConsolidatePackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             if (context.type === 'solution') {
-                const data = await this._getNuGetData(context);
+                // Lazy load consolidation data
+                const consolidationData = await NuGetManagerService.getConsolidationData(context.target);
                 webview.postMessage({
                     command: 'consolidatePackages',
-                    data: (data as any).consolidationInfo || []
+                    data: consolidationData.consolidatePackages
                 });
             } else {
                 webview.postMessage({
@@ -334,6 +335,10 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             }
         } catch (error) {
             log.error('Error getting consolidate packages:', error);
+            webview.postMessage({
+                command: 'consolidatePackages',
+                data: []
+            });
         }
     }
 
@@ -700,8 +705,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 }
             });
 
-            // Refresh the consolidate tab by refreshing all data
-            await this._updateWebview(webview, context);
+            // Refresh the consolidate tab data
+            await this._handleGetConsolidatePackages(webview, context);
 
             // Send completion message to frontend
             webview.postMessage({

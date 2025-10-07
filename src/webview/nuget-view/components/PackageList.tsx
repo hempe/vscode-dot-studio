@@ -211,11 +211,11 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         // Find the highest installed version across all projects
                                         const installedVersions = pkg.projects.map(p => {
                                             const installedPkg = p.packages?.find(installedPkg => installedPkg.id === pkg.id);
-                                            return installedPkg?.version;
+                                            return installedPkg?.currentVersion;
                                         }).filter(Boolean);
                                         if (installedVersions.length > 0) {
                                             const maxInstalledVersion = installedVersions.sort((a, b) =>
-                                                semver.rcompare(a, b) // rcompare for descending order
+                                                semver.rcompare(a!, b!) // rcompare for descending order (filter(Boolean) ensures no undefined)
                                             )[0];
 
                                             // Always show the max installed version when package is installed

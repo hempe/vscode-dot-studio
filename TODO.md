@@ -1,11 +1,5 @@
 # Solution Tree Context Menu & Functionality TODO
 
-**TOP PRIORITY**: Verify that version field unification is working correctly:
-- Updates tab should show correct installed version → latest version (e.g., "v1.2.3 → v2.0.0") instead of "vUnknown → vUnknown"
-- Installed tab should show correct max version from NuGet API (not just max installed version)
-- Browse tab should continue working correctly (was already working)
-- Test with multiple packages that have updates available
-
 **NEXT PRIORITY**: Package and Project dependency category nodes still collapse when removing dependencies - need to investigate why the expansion state restoration isn't working for these specific node types.
 
 This document tracks the missing functionality and improvements needed for the Solution Tree context menus and interactions to match Visual Studio behavior.
