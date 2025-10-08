@@ -146,12 +146,15 @@ export class PackageInstalledService {
             for (const project of projects) {
                 try {
                     // Convert Project dependencies to BasicInstalledPackage format
-                    const packages: BasicInstalledPackage[] = project.dependencies.map(dep => ({
-                        id: dep.name,
-                        currentVersion: dep.version || 'Unknown',
-                        projectPath: project.projectPath,
-                        projectName: project.name
-                    }));
+                    // Filter out ProjectReferences - only include actual NuGet packages (PackageReference)
+                    const packages: BasicInstalledPackage[] = project.dependencies
+                        .filter(dep => dep.type === 'PackageReference') // Only include NuGet packages, not project references
+                        .map(dep => ({
+                            id: dep.name,
+                            currentVersion: dep.version || 'Unknown',
+                            projectPath: project.projectPath,
+                            projectName: project.name
+                        }));
 
                     const projectInfo: ProjectInfo = {
                         name: project.name,
