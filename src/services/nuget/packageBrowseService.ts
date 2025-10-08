@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource } from './types';
 import { NuGetV3Service } from './nugetV3Service';
-import * as semver from 'semver';
+import { VersionUtils } from '../versionUtils';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -53,6 +53,12 @@ export class PackageBrowseService {
                     if (packageDetails) {
                         // Get all versions
                         packageDetails.allVersions = await this.getPackageVersions(packageId, packageSource.url);
+
+                        // Calculate latest version from all available versions
+                        if (packageDetails.allVersions && packageDetails.allVersions.length > 0) {
+                            packageDetails.latestVersion = VersionUtils.findLatest(packageDetails.allVersions) || undefined;
+                        }
+
                         return packageDetails;
                     }
                 } catch (error) {
@@ -140,10 +146,24 @@ export class PackageBrowseService {
         }
     }
 
+    private static pending: Promise<PackageSource[]> | null = null;
+    private static async getSourcesFromDotnetCli(): Promise<PackageSource[]> {
+        if (this.pending) {
+            return this.pending;
+        }
+        this.pending = this._getSourcesFromDotnetCli();
+        try {
+            const result = await this.pending;
+            return result;
+        } finally {
+            this.pending = null;
+        }
+    }
+
     /**
      * Get sources using dotnet CLI (recommended method)
      */
-    private static async getSourcesFromDotnetCli(): Promise<PackageSource[]> {
+    private static async _getSourcesFromDotnetCli(): Promise<PackageSource[]> {
         try {
             const { stdout } = await execAsync('dotnet nuget list source --format detailed', { timeout: 10000 });
 
@@ -467,7 +487,7 @@ export class PackageBrowseService {
 
         for (const pkg of packages) {
             const existing = packageMap.get(pkg.id.toLowerCase());
-            if (!existing || this.compareVersions(pkg.currentVersion, existing.currentVersion) > 0) {
+            if (!existing || VersionUtils.compare(pkg.currentVersion, existing.currentVersion) > 0) {
                 packageMap.set(pkg.id.toLowerCase(), pkg);
             }
         }
@@ -475,10 +495,4 @@ export class PackageBrowseService {
         return Array.from(packageMap.values());
     }
 
-    /**
-     * Version comparison using semver library (returns 1 if a > b, -1 if a < b, 0 if equal)
-     */
-    private static compareVersions(a: string, b: string): number {
-        return semver.compare(a, b);
-    }
 }

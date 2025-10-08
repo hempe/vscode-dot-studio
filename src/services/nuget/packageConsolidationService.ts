@@ -6,7 +6,7 @@ import { ConsolidationInfo, InstalledPackage, PackageOperationResult } from './t
 import { PackageInstalledService } from './packageInstalledService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageUpdateService } from './packageUpdateService';
-import * as semver from 'semver';
+import { VersionUtils } from '../versionUtils';
 
 const execAsync = promisify(exec);
 const log = logger('PackageConsolidationService');
@@ -23,7 +23,9 @@ export class PackageConsolidationService {
      */
     static async getPackagesNeedingConsolidation(solutionPath?: string): Promise<ConsolidationInfo[]> {
         try {
-            const allPackages = await PackageInstalledService.getInstalledPackages(solutionPath);
+            // Use active solution for much better performance
+            const allProjects = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
+            const allPackages = allProjects.flatMap(project => project.packages);
 
             // Group packages by ID
             const packageGroups = new Map<string, InstalledPackage[]>();
@@ -304,8 +306,9 @@ export class PackageConsolidationService {
         try {
             log.info(`Consolidating package ${packageId} to version ${targetVersion} across solution`);
 
-            // Get all projects that have this package
-            const allPackages = await PackageInstalledService.getInstalledPackages(solutionPath);
+            // Get all projects that have this package using active solution
+            const allProjects = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
+            const allPackages = allProjects.flatMap(project => project.packages);
             const packagesWithThisId = allPackages.filter(pkg => pkg.id.toLowerCase() === packageId.toLowerCase());
 
             if (packagesWithThisId.length === 0) {
@@ -383,7 +386,7 @@ export class PackageConsolidationService {
     private static getHighestVersion(versions: string[]): string | undefined {
         if (versions.length === 0) return undefined;
 
-        // Use semver for proper version comparison
-        return versions.sort((a, b) => semver.rcompare(a, b))[0]; // rcompare for descending order
+        // Use version utilities for proper version comparison
+        return versions.sort((a, b) => VersionUtils.rcompare(a, b))[0]; // rcompare for descending order
     }
 }

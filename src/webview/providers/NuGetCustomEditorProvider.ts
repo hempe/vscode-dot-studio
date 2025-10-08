@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
+import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 import { LocalNuGetPackage } from '../nuget-view/shared';
@@ -178,6 +179,36 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
      */
     public static async openNuGetManager(context: vscode.ExtensionContext, projectPath?: string): Promise<void> {
         try {
+            // Debug: Check solution state before opening NuGet manager
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const existingActiveSolution = SolutionService.getActiveSolution();
+
+            log.info(`=== NuGet Manager (Project) Opening Debug ===`);
+            log.info(`Project path: ${projectPath}`);
+            log.info(`Workspace root: ${workspaceRoot}`);
+            log.info(`Existing active solution: ${existingActiveSolution ? 'EXISTS' : 'NULL'}`);
+            if (existingActiveSolution) {
+                log.info(`Solution path: ${existingActiveSolution.solutionPath}`);
+                log.info(`Solution initialized: ${existingActiveSolution.isInitialized}`);
+                log.info(`Projects count: ${existingActiveSolution.projects.size}`);
+            }
+
+            // Ensure active solution is initialized before opening NuGet manager
+            if (workspaceRoot && !existingActiveSolution) {
+                log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
+                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                if (solution) {
+                    log.info(`Active solution initialized: ${solution.solutionPath}`);
+                } else {
+                    log.warn('Failed to initialize active solution');
+                }
+            } else if (existingActiveSolution) {
+                log.info(`Active solution already available: ${existingActiveSolution.solutionPath}`);
+            } else {
+                log.warn('No workspace root available for solution initialization');
+            }
+            log.info(`=== End Debug ===`);
+
             // Create a virtual document for the NuGet Package Manager
             const fileName = projectPath
                 ? `NuGet Package Manager - ${path.basename(projectPath, path.extname(projectPath))}.nuget`
@@ -198,6 +229,35 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
      */
     public static async openNuGetManagerForSolution(context: vscode.ExtensionContext, solutionPath?: string): Promise<void> {
         try {
+            // Debug: Check solution state before opening NuGet manager
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const existingActiveSolution = SolutionService.getActiveSolution();
+
+            log.info(`=== NuGet Manager Opening Debug ===`);
+            log.info(`Workspace root: ${workspaceRoot}`);
+            log.info(`Existing active solution: ${existingActiveSolution ? 'EXISTS' : 'NULL'}`);
+            if (existingActiveSolution) {
+                log.info(`Solution path: ${existingActiveSolution.solutionPath}`);
+                log.info(`Solution initialized: ${existingActiveSolution.isInitialized}`);
+                log.info(`Projects count: ${existingActiveSolution.projects.size}`);
+            }
+
+            // Ensure active solution is initialized before opening NuGet manager
+            if (workspaceRoot && !existingActiveSolution) {
+                log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
+                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                if (solution) {
+                    log.info(`Active solution initialized: ${solution.solutionPath}`);
+                } else {
+                    log.warn('Failed to initialize active solution');
+                }
+            } else if (existingActiveSolution) {
+                log.info(`Active solution already available: ${existingActiveSolution.solutionPath}`);
+            } else {
+                log.warn('No workspace root available for solution initialization');
+            }
+            log.info(`=== End Debug ===`);
+
             // Create a virtual document for the Solution NuGet Package Manager
             const fileName = solutionPath
                 ? `NuGet Package Manager - ${path.basename(solutionPath, path.extname(solutionPath))} Solution.nuget`
@@ -241,6 +301,27 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
 
         try {
+            // Ensure active solution is initialized before getting NuGet data
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const existingActiveSolution = SolutionService.getActiveSolution();
+
+            log.info(`=== _getNuGetData called ===`);
+            log.info(`Context: ${context.type}, Target: ${context.target}`);
+            log.info(`Workspace root: ${workspaceRoot}`);
+            log.info(`Existing active solution: ${existingActiveSolution ? 'EXISTS' : 'NULL'}`);
+
+            if (workspaceRoot && !existingActiveSolution) {
+                log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
+                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                if (solution) {
+                    log.info(`Active solution initialized: ${solution.solutionPath}`);
+                } else {
+                    log.warn('Failed to initialize active solution');
+                }
+            } else if (existingActiveSolution) {
+                log.info(`Active solution already available: ${existingActiveSolution.solutionPath}`);
+            }
+
             if (context.type === 'solution') {
                 // Return solution-wide NuGet data
                 const solutionData = await NuGetManagerService.getSolutionNuGetData(context.target);
@@ -322,7 +403,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         try {
             if (context.type === 'solution') {
                 // Lazy load consolidation data
-                const consolidationData = await NuGetManagerService.getConsolidationData(context.target);
+                const consolidationData = await NuGetManagerService.getSolutionNuGetData(context.target);
                 webview.postMessage({
                     command: 'consolidatePackages',
                     data: consolidationData.consolidatePackages

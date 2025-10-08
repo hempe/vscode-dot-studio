@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { logger } from '../../core/logger';
 import { BasicInstalledPackage, InstalledPackage, ProjectInfo, NuGetPackage } from './types';
 import { PackageSharedService } from './packageSharedService';
+import { SolutionService } from '../solutionService';
 
 const execAsync = promisify(exec);
 const log = logger('PackageInstalledService');
@@ -15,41 +16,16 @@ const log = logger('PackageInstalledService');
  */
 export class PackageInstalledService {
 
-    /**
-     * Get all installed packages across all projects in a solution
-     */
-    static async getInstalledPackages(solutionPath?: string): Promise<BasicInstalledPackage[]> {
-        try {
-            const workingDir = solutionPath ? path.dirname(solutionPath) : process.cwd();
-
-            // Use dotnet list package to get all installed packages
-            const command = 'dotnet list package --format json';
-            log.info(`Getting installed packages: ${command}`);
-
-            const { stdout, stderr } = await execAsync(command, {
-                cwd: workingDir,
-                timeout: 30000,
-                encoding: 'utf8'
-            });
-
-            if (stderr && !stderr.includes('warn')) {
-                log.warn('dotnet list package stderr:', stderr);
-            }
-
-            return this.parseInstalledPackages(stdout);
-
-        } catch (error) {
-            log.error('Error getting installed packages:', error);
-            return [];
-        }
-    }
 
     /**
      * Get installed packages with rich metadata for UI display
      * This uses the same metadata enrichment as browse packages
+     * @deprecated Use getAllProjectsInfoFromActiveSolution() instead for better performance
      */
     static async getInstalledPackagesWithMetadata(solutionPath?: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
-        const basicPackages = await this.getInstalledPackages(solutionPath);
+        // Use active solution for much better performance
+        const allProjects = await this.getAllProjectsInfoFromActiveSolution();
+        const basicPackages = allProjects.flatMap(project => project.packages);
         return await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
     }
 
@@ -102,18 +78,17 @@ export class PackageInstalledService {
                 log.error(`Working directory: ${path.dirname(projectPath)}`);
             }
 
-            // Fallback: try to get packages from solution-wide listing
+            // Fallback: try to get packages from active solution
             try {
-                log.info(`Attempting fallback: getting packages from solution-wide listing for ${projectPath}`);
-                const solutionPath = this.findSolutionFile(path.dirname(projectPath));
-                if (solutionPath) {
-                    const allPackages = await this.getInstalledPackages(solutionPath);
-                    const projectPackages = allPackages.filter(pkg =>
-                        pkg.projectPath === projectPath ||
-                        path.resolve(pkg.projectPath) === path.resolve(projectPath)
-                    );
-                    log.info(`Fallback found ${projectPackages.length} packages for project`);
-                    return projectPackages;
+                log.info(`Attempting fallback: getting packages from active solution for ${projectPath}`);
+                const allProjects = await this.getAllProjectsInfoFromActiveSolution();
+                const project = allProjects.find(p =>
+                    p.path === projectPath ||
+                    path.resolve(p.path) === path.resolve(projectPath)
+                );
+                if (project) {
+                    log.info(`Fallback found ${project.packages.length} packages for project`);
+                    return project.packages;
                 }
             } catch (fallbackError) {
                 log.warn('Fallback also failed:', fallbackError);
@@ -130,6 +105,78 @@ export class PackageInstalledService {
     static async getProjectPackagesWithMetadata(projectPath: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
         const basicPackages = await this.getProjectPackages(projectPath);
         return PackageSharedService.enrichWithBrowseMetadata(basicPackages);
+    }
+
+    /**
+     * Get all projects info using active solution (faster alternative to dotnet list commands)
+     * Waits indefinitely for active solution to be available (no timeout due to VS Code startup overhead)
+     */
+    static async getAllProjectsInfoFromActiveSolution(): Promise<ProjectInfo[]> {
+        const startTime = Date.now();
+
+        try {
+            // Wait for active solution to be available (no timeout - VS Code startup can be slow)
+            let activeSolution = SolutionService.getActiveSolution();
+            let waitTime = 0;
+            const pollInterval = 500; // Increased to 500ms to reduce CPU usage
+
+            // Debug: Log initial state
+            log.info(`Initial check - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
+            if (activeSolution) {
+                log.info(`Solution path: ${activeSolution.solutionPath}, projects count: ${activeSolution.projects.size}`);
+            }
+
+            while (!activeSolution || !activeSolution.isInitialized) {
+                if (waitTime % 5000 === 0) { // Log every 5 seconds instead of every poll
+                    log.info(`Waiting for active solution to initialize... (${waitTime}ms elapsed)`);
+                    log.info(`Current state - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
+                }
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                waitTime += pollInterval;
+                activeSolution = SolutionService.getActiveSolution();
+            }
+
+            log.info('Getting project info from active solution...');
+
+            const projectInfos: ProjectInfo[] = [];
+            const projects = Array.from(activeSolution.projects.values());
+
+            log.info(`Processing ${projects.length} projects from active solution...`);
+
+            for (const project of projects) {
+                try {
+                    // Convert Project dependencies to BasicInstalledPackage format
+                    const packages: BasicInstalledPackage[] = project.dependencies.map(dep => ({
+                        id: dep.name,
+                        currentVersion: dep.version || 'Unknown',
+                        projectPath: project.projectPath,
+                        projectName: project.name
+                    }));
+
+                    const projectInfo: ProjectInfo = {
+                        name: project.name,
+                        path: project.projectPath,
+                        framework: project.frameworks[0] || 'Unknown',
+                        packages
+                    };
+
+                    projectInfos.push(projectInfo);
+                    log.debug(`✓ ${project.name}: ${packages.length} packages`);
+
+                } catch (error) {
+                    log.error(`Error processing project ${project.name}:`, error);
+                }
+            }
+
+            const duration = Date.now() - startTime;
+            log.info(`Completed processing ${projects.length} projects from active solution in ${duration}ms (${projectInfos.length} successful)`);
+
+            return projectInfos;
+
+        } catch (error) {
+            log.error('Error getting projects from active solution:', error);
+            return [];
+        }
     }
 
     /**
@@ -166,13 +213,42 @@ export class PackageInstalledService {
             // First get all projects in the solution
             const projectPaths = await this.getSolutionProjects(workingDir);
 
-            // Get package info for each project
-            const projectInfoPromises = projectPaths.map(projectPath =>
-                this.getProjectInfo(projectPath)
-            );
+            // Get package info for each project in parallel with timing
+            const totalStartTime = Date.now();
+
+            log.info(`Processing ${projectPaths.length} projects in parallel...`);
+
+            const projectInfoPromises = projectPaths.map(async (projectPath, index) => {
+                const projectName = path.basename(projectPath);
+                const startTime = Date.now();
+
+                log.info(`[${index + 1}/${projectPaths.length}] Starting project: ${projectName}`);
+
+                try {
+                    const projectInfo = await this.getProjectInfo(projectPath);
+                    const duration = Date.now() - startTime;
+
+                    if (projectInfo) {
+                        log.info(`[${index + 1}/${projectPaths.length}] ✓ ${projectName} completed in ${duration}ms (${projectInfo.packages.length} packages)`);
+                    } else {
+                        log.warn(`[${index + 1}/${projectPaths.length}] ✗ ${projectName} failed in ${duration}ms`);
+                    }
+
+                    return projectInfo;
+                } catch (error) {
+                    const duration = Date.now() - startTime;
+                    log.error(`[${index + 1}/${projectPaths.length}] ✗ ${projectName} error in ${duration}ms:`, error);
+                    return null;
+                }
+            });
 
             const results = await Promise.all(projectInfoPromises);
-            return results.filter((info): info is ProjectInfo => info !== null);
+            const totalDuration = Date.now() - totalStartTime;
+            const validResults = results.filter((info): info is ProjectInfo => info !== null);
+
+            log.info(`Completed processing ${projectPaths.length} projects in parallel in ${totalDuration}ms (${validResults.length} successful)`);
+
+            return validResults;
 
         } catch (error) {
             log.error('Error getting all projects info:', error);

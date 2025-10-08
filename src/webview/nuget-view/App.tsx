@@ -12,7 +12,7 @@ import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 import { ProjectInfo } from '../../services/nuget/types';
-import * as semver from 'semver';
+import { VersionUtils } from '../../services/versionUtils';
 
 const log = logger('NuGetReact');
 
@@ -490,13 +490,7 @@ export const App: React.FC = () => {
 
     // Helper function to determine if a version is prerelease using semver
     const isPrerelease = (version: string): boolean => {
-        try {
-            const parsed = semver.parse(version);
-            return parsed !== null && parsed.prerelease.length > 0;
-        } catch {
-            // If semver parsing fails, fall back to simple pattern matching
-            return /-(alpha|beta|rc|preview|pre|dev|nightly|canary|snapshot)/i.test(version);
-        }
+        return VersionUtils.isPrerelease(version);
     };
 
     // Helper function to get version options for dropdown
@@ -514,7 +508,7 @@ export const App: React.FC = () => {
         // Sort versions in descending order (newest first) using semver
         return filteredVersions
             .slice()
-            .sort((a, b) => semver.rcompare(a, b)) // rcompare for descending order
+            .sort((a, b) => VersionUtils.rcompare(a, b)) // rcompare for descending order
             .map(version => ({
                 label: version,
                 value: version

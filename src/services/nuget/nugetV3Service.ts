@@ -2,7 +2,7 @@ import { sign } from 'crypto';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
 import * as https from 'https';
-import semver, { rsort } from "semver";
+import { VersionUtils } from '../versionUtils';
 import { PersistentCache, CacheEntry } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
@@ -203,10 +203,10 @@ export class NuGetV3Service {
                     return null;
                 }
 
-                // Compare versions using semver if available
+                // Compare versions using version utilities
                 const latestPage = pages.reduce((best: any, cur: any) => {
                     try {
-                        return semver.gt(cur.upper, best.upper) ? cur : best;
+                        return VersionUtils.compare(cur.upper, best.upper) > 0 ? cur : best;
                     } catch {
                         return cur.upper > best.upper ? cur : best;
                     }
@@ -614,10 +614,10 @@ export class NuGetV3Service {
     }
 
     /**
-     * Compare two semantic versions (returns > 0 if a > b, < 0 if a < b, 0 if equal)
+     * Compare two versions (returns > 0 if a > b, < 0 if a < b, 0 if equal)
      */
     private static compareVersions(a: string, b: string): number {
-        return semver.compare(a, b);
+        return VersionUtils.compare(a, b);
     }
 
     /**
@@ -662,14 +662,14 @@ export class NuGetV3Service {
                 return null;
             }
 
-            // Pick the highest version (using semver if available)
+            // Pick the highest version (using version utilities)
             const latestEntry = validEntries.reduce((best: any, current: any) => {
                 const vBest = best?.version ?? "0.0.0";
                 const vCur = current.version ?? "0.0.0";
                 try {
-                    return semver.gt(vCur, vBest) ? current : best;
+                    return VersionUtils.compare(vCur, vBest) > 0 ? current : best;
                 } catch {
-                    // fallback if version not semver-parsable
+                    // fallback if version comparison fails
                     return vCur > vBest ? current : best;
                 }
             }, validEntries[0]);

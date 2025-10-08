@@ -4,17 +4,17 @@ const log = logger('BackgroundRefreshQueue');
 
 
 interface RefreshTask {
-    url: string;
-    accessToken?: string;
+    readonly url: string;
+    readonly accessToken?: string;
 }
 
 type TimeoutID = ReturnType<typeof setTimeout>; // number
-const DELAY = 5000; // 5 second delay between refreshes
+const DELAY = 60_000; // 5 second delay between refreshes
 
 export class BackgroundRefreshQueue {
-    private tasks = new Map<string, RefreshTask>(); // Simple list of things to refresh
+    private readonly tasks = new Map<string, RefreshTask>(); // Simple list of things to refresh
+    private readonly pending = new Map<string, TimeoutID>();
     private isRunning = false; // Is the run loop currently active?
-    private pending = new Map<string, TimeoutID>();
 
     constructor(private readonly refreshFunction?: (url: string, accessToken?: string) => Promise<any>) {
     }
@@ -23,7 +23,7 @@ export class BackgroundRefreshQueue {
      * Add a URL to refresh. If already in list, do nothing.
      */
     enqueue(url: string, accessToken?: string): void {
-        log.warn(`Request to enqueue background refresh for: ${url}`);
+        log.debug(`Request to enqueue background refresh for: ${url}`);
         const key = `${url}|${accessToken || ''}`;
         if (this.pending.has(key)) {
             // Already pending, reset the timer
@@ -46,7 +46,7 @@ export class BackgroundRefreshQueue {
                 return;
             }
 
-            log.error(`Enqueuing background refresh for: ${url}`);
+            log.info(`Enqueuing background refresh for: ${url}`);
             // Add to list
             this.tasks.set(key, {
                 url,

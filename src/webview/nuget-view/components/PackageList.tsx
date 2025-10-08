@@ -3,7 +3,7 @@ import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { logger } from '../../shared/logger';
 import { Checkbox } from 'vscrui';
-import * as semver from 'semver';
+import { VersionUtils } from '../../../services/versionUtils';
 
 const log = logger('PackageList');
 
@@ -204,7 +204,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         fontWeight: 500,
                                         color: 'var(--vscode-foreground)'
                                     }}>
-                                        v{pkg.currentVersion}
+                                        v{pkg.latestVersion || pkg.currentVersion}
                                     </div>
                                     {/* Max installed version - only show if different from current and package has projects */}
                                     {pkg.projects && pkg.projects.length > 0 && (() => {
@@ -214,9 +214,9 @@ export const PackageList: React.FC<PackageListProps> = ({
                                             return installedPkg?.currentVersion;
                                         }).filter(Boolean);
                                         if (installedVersions.length > 0) {
-                                            const maxInstalledVersion = installedVersions.sort((a, b) =>
-                                                semver.rcompare(a!, b!) // rcompare for descending order (filter(Boolean) ensures no undefined)
-                                            )[0];
+                                            const maxInstalledVersion = installedVersions.sort((a, b) => {
+                                                return VersionUtils.rcompare(a!, b!); // rcompare for descending order
+                                            })[0];
 
                                             // Always show the max installed version when package is installed
                                             return (

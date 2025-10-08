@@ -63,8 +63,8 @@ export class PackageSharedService {
                     licenseUrl: metadata.licenseUrl,
                     tags: metadata.tags,
                     totalDownloads: metadata.totalDownloads,
-                    // Preserve existing version fields from basic package data, only use metadata if missing
-                    latestVersion: pkg.latestVersion || metadata.latestVersion,
+                    // Use metadata latestVersion as the authoritative source for the latest available version
+                    latestVersion: metadata.latestVersion,
                     allVersions: metadata.allVersions,
                     source: metadata.source
                 };

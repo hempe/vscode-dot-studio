@@ -15,63 +15,15 @@ const log = logger('PackageUpdateService');
  */
 export class PackageUpdateService {
 
-    /**
-     * Get all packages that have available updates across all projects
-     */
-    static async getOutdatedPackages(solutionPath?: string): Promise<BasicUpdateablePackage[]> {
-        try {
-            const workingDir = solutionPath ? path.dirname(solutionPath) : process.cwd();
-
-            // Use dotnet list package --outdated to find packages with updates
-            const command = 'dotnet list package --outdated --format json';
-            log.info(`Getting outdated packages: ${command}`);
-
-            const { stdout, stderr } = await execAsync(command, {
-                cwd: workingDir,
-                timeout: 45000, // Longer timeout as this command can be slow
-                encoding: 'utf8'
-            });
-
-            if (stderr && !stderr.includes('warn')) {
-                log.warn('dotnet list package --outdated stderr:', stderr);
-            }
-
-            return this.parseOutdatedPackages(stdout);
-
-        } catch (error) {
-            log.error('Error getting outdated packages:', error);
-            return [];
-        }
-    }
 
     /**
      * Get outdated packages with rich metadata for UI display
      * This enhances basic update data with NuGet API metadata
+     * @deprecated Use NuGetManagerService.getGroupedOutdatedPackages() for better performance
      */
     static async getOutdatedPackagesWithMetadata(solutionPath?: string): Promise<(UpdateablePackage & Partial<NuGetPackage>)[]> {
-        try {
-            // Get basic outdated package data from dotnet CLI
-            const basicPackages = await this.getOutdatedPackages(solutionPath);
-
-            if (basicPackages.length === 0) {
-                return [];
-            }
-
-            // Enrich packages with metadata using the same method as browse packages
-            const enrichedPackages = await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
-
-            // Set version field to current version for UI consistency
-            return enrichedPackages.map(pkg => ({
-                ...pkg,
-                version: pkg.currentVersion
-            }));
-
-        } catch (error) {
-            log.error('Error enriching outdated packages with metadata:', error);
-            // Return basic packages if enrichment fails
-            const basicPackages = await this.getOutdatedPackages(solutionPath);
-            return basicPackages.map(pkg => ({ ...pkg, version: pkg.currentVersion }));
-        }
+        log.warn('getOutdatedPackagesWithMetadata() is deprecated - use NuGetManagerService.getGroupedOutdatedPackages() for better performance');
+        return [];
     }
 
     /**
@@ -249,6 +201,7 @@ export class PackageUpdateService {
 
     /**
      * Get update statistics for a solution
+     * @deprecated This method uses slow dotnet CLI calls. Use NuGetManagerService methods instead.
      */
     static async getUpdateStatistics(solutionPath?: string): Promise<{
         totalPackages: number;
@@ -257,28 +210,15 @@ export class PackageUpdateService {
         criticalUpdates: number;
     }> {
         try {
-            const outdatedPackages = await this.getOutdatedPackages(solutionPath);
-
-            const projectsWithUpdates = new Set(outdatedPackages.map(pkg => pkg.projectPath)).size;
-
-            // Consider packages as "critical" if they have major version updates
-            // This is a simple heuristic - in reality you'd want more sophisticated analysis
-            const criticalUpdates = outdatedPackages.filter(pkg => {
-                try {
-                    const currentMajor = semver.major(pkg.currentVersion);
-                    const latestMajor = semver.major(pkg.latestVersion);
-                    return latestMajor > currentMajor;
-                } catch {
-                    // If semver parsing fails, fall back to false (not critical)
-                    return false;
-                }
-            }).length;
+            // Note: This method is deprecated as it's slow
+            // For better performance, the caller should use NuGetManagerService.getGroupedOutdatedPackages()
+            log.warn('getUpdateStatistics() is deprecated - use NuGetManagerService methods for better performance');
 
             return {
-                totalPackages: outdatedPackages.length,
-                outdatedPackages: outdatedPackages.length,
-                projectsWithUpdates,
-                criticalUpdates
+                totalPackages: 0,
+                outdatedPackages: 0,
+                projectsWithUpdates: 0,
+                criticalUpdates: 0
             };
 
         } catch (error) {
