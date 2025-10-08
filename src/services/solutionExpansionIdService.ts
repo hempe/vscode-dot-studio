@@ -49,9 +49,37 @@ export class SolutionExpansionIdService {
     /**
      * Generates a unique expansion ID for a solution folder node
      */
-    static generateSolutionFolderId(guid: string, solutionPath: string): string {
-        // Use GUID for solution folders as they have unique GUIDs
-        return `${this.PREFIXES.solutionFolder}${solutionPath}:${guid}`;
+    static generateSolutionFolderId(guid: string, solutionPath: string, parentExpansionId?: string): string {
+        // Include parent hierarchy for nested solution folders
+        if (parentExpansionId && parentExpansionId !== '') {
+            // Extract just the GUID portion from the parent expansion ID
+            // Parent ID format: "solfld:/path/solution.sln:{PARENT-GUID}" or "sol:/path/solution.sln"
+            let parentGuidPortion = '';
+
+            if (parentExpansionId.startsWith(this.PREFIXES.solutionFolder)) {
+                // Extract GUID from solution folder ID: "solfld:/path/solution.sln:{GUID}"
+                const pathPortion = this.getPathFromId(parentExpansionId);
+                if (pathPortion) {
+                    const colonIndex = pathPortion.indexOf(':');
+                    if (colonIndex > 0) {
+                        parentGuidPortion = pathPortion.substring(colonIndex + 1);
+                    }
+                }
+            } else if (parentExpansionId.startsWith(this.PREFIXES.solution)) {
+                // Parent is the solution itself, use empty string for hierarchy
+                parentGuidPortion = '';
+            }
+
+            const hierarchicalId = parentGuidPortion
+                ? `${this.PREFIXES.solutionFolder}${solutionPath}:${parentGuidPortion}:${guid}`
+                : `${this.PREFIXES.solutionFolder}${solutionPath}:${guid}`;
+            console.log(`🔫 SHOTGUN [SolutionExpansionIdService]: Generated NESTED solution folder ID: ${hierarchicalId} (parent: ${parentExpansionId}, parentGuid: ${parentGuidPortion})`);
+            return hierarchicalId;
+        }
+        // Root level solution folder
+        const rootId = `${this.PREFIXES.solutionFolder}${solutionPath}:${guid}`;
+        console.log(`🔫 SHOTGUN [SolutionExpansionIdService]: Generated ROOT solution folder ID: ${rootId}`);
+        return rootId;
     }
 
     /**

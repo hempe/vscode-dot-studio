@@ -256,13 +256,19 @@ export class SolutionExpansionService {
                     expandedIds.push(nodeId);
 
                     log.info(`Saving expanded state for ${node.type}: ${node.name} (${nodeId})`);
+
+                    // Traverse children of expanded nodes
+                    if (node.children) {
+                        traverse(node.children, level + 1);
+                    }
                 } else if (level === 0 && node.type === 'solution') {
-                    // Always log solution node state for debugging
+                    // Always log solution node state for debugging and traverse children even if not expanded
                     log.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
                     if (node.children) {
                         traverse(node.children, level + 1);
                     }
                 }
+                // Note: Non-expanded, non-solution nodes are ignored (no traversal of their children)
             }
         };
 
@@ -275,7 +281,9 @@ export class SolutionExpansionService {
      * Saves expansion state to workspace storage
      */
     static saveExpansionState(expandedNodes: string[], context: vscode.ExtensionContext): void {
-        log.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
+        log.shotgun('SAVING EXPANSION STATE');
+        log.shotgun(`Saving ${expandedNodes.length} expanded nodes to workspace`);
+        log.shotgun('Expanded nodes:', expandedNodes);
         context.workspaceState.update('solutionTreeExpanded', expandedNodes);
     }
 
@@ -284,7 +292,9 @@ export class SolutionExpansionService {
      */
     static getExpansionState(context: vscode.ExtensionContext): string[] {
         const state = context.workspaceState.get<string[]>('solutionTreeExpanded', []);
-        log.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
+        log.shotgun('GETTING EXPANSION STATE');
+        log.shotgun(`Retrieved ${state.length} expanded nodes from workspace`);
+        log.shotgun('Retrieved nodes:', state);
 
         return state;
     }
@@ -300,11 +310,29 @@ export class SolutionExpansionService {
     ): Promise<void> {
 
         try {
+            log.shotgun('RESTORE EXPANSION STATES CALLED');
+            log.shotgun(`parentPath: ${parentPath || 'undefined'}`);
+            log.shotgun(`treeData length: ${treeData?.length || 0}`);
+            log.shotgun(`options:`, options);
+
+            // Log current tree structure for debugging
+            const logTreeStructure = (nodes: any[], indent = 0) => {
+                for (const node of nodes) {
+                    const prefix = '  '.repeat(indent);
+                    log.shotgun(`${prefix}Node: ${node.type}:${node.name} (ID: ${node.nodeId}) expanded: ${node.expanded || false}`);
+                    if (node.children && node.children.length > 0) {
+                        logTreeStructure(node.children, indent + 1);
+                    }
+                }
+            };
+            log.shotgun('CURRENT TREE STRUCTURE:');
+            logTreeStructure(treeData);
+
             // Get saved expansion paths from workspace state
             const expansionPaths = this.getExpansionState(context);
 
             if (!expansionPaths || expansionPaths.length === 0) {
-                log.info('No expansion state to restore');
+                log.shotgun('No expansion state to restore - EARLY RETURN');
                 return;
             }
 
@@ -348,8 +376,14 @@ export class SolutionExpansionService {
                 }
             }
 
+            // Log final tree structure after restoration
+            log.shotgun('FINAL TREE STRUCTURE AFTER RESTORATION:');
+            logTreeStructure(treeData);
+            log.shotgun('RESTORE EXPANSION STATES COMPLETED');
+
         } catch (error) {
             log.error('Error restoring expansion states:', error);
+            log.shotgun('RESTORE EXPANSION STATES FAILED:', error);
         }
     }
 

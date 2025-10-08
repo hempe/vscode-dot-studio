@@ -11,6 +11,91 @@ declare global {
 const vscode = window.acquireVsCodeApi();
 
 // Helper function to update a node in the tree structure
+/**
+ * Smart merge of tree data that preserves React component instances where possible
+ * This prevents unnecessary re-renders and maintains expansion visual state
+ */
+const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData): SolutionData => {
+    if (!currentData || !currentData.projects) {
+        // No current data, use new data as-is
+        return newData;
+    }
+
+    // Create a map of current nodes by nodeId for fast lookup
+    const currentNodesMap = new Map<string, any>();
+
+    const buildNodeMap = (nodes: any[]) => {
+        for (const node of nodes) {
+            if (node.nodeId) {
+                currentNodesMap.set(node.nodeId, node);
+            }
+            if (node.children) {
+                buildNodeMap(node.children);
+            }
+        }
+    };
+
+    buildNodeMap(currentData.projects);
+
+    // Recursively merge nodes, preserving object references where possible
+    const mergeNodes = (newNodes: any[]): any[] => {
+        return newNodes.map(newNode => {
+            const currentNode = currentNodesMap.get(newNode.nodeId);
+
+            if (currentNode) {
+                // Node exists in current tree - check if we can preserve the reference
+                const nodeChanged = JSON.stringify({
+                    type: currentNode.type,
+                    name: currentNode.name,
+                    path: currentNode.path,
+                    expanded: currentNode.expanded,
+                    isLoading: currentNode.isLoading,
+                    hasChildren: currentNode.hasChildren
+                }) !== JSON.stringify({
+                    type: newNode.type,
+                    name: newNode.name,
+                    path: newNode.path,
+                    expanded: newNode.expanded,
+                    isLoading: newNode.isLoading,
+                    hasChildren: newNode.hasChildren
+                });
+
+                if (!nodeChanged) {
+                    // Node hasn't changed - preserve the current object reference
+                    // But still merge children in case they changed
+                    if (newNode.children) {
+                        return {
+                            ...currentNode,
+                            children: mergeNodes(newNode.children)
+                        };
+                    }
+                    return currentNode;
+                } else {
+                    // Node changed - create new object but merge children
+                    return {
+                        ...newNode,
+                        children: newNode.children ? mergeNodes(newNode.children) : undefined
+                    };
+                }
+            } else {
+                // New node - create it but merge any children
+                return {
+                    ...newNode,
+                    children: newNode.children ? mergeNodes(newNode.children) : undefined
+                };
+            }
+        });
+    };
+
+    // Merge the tree structure
+    const mergedProjects = mergeNodes(newData.projects);
+
+    return {
+        ...newData,
+        projects: mergedProjects
+    };
+};
+
 const updateNodeInTree = (solutionData: SolutionData, oldPath: string, newPath: string, newName: string): SolutionData => {
     const updateNode = (node: any): any => {
         if (node.path === oldPath) {
@@ -171,16 +256,16 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    log.shotgun('📦 FULL SOLUTION DATA RECEIVED - This will cause full re-render!');
-                    setSolutionData(message.data);
+                    log.shotgun('📦 FULL SOLUTION DATA RECEIVED - Using smart merge to preserve React components!');
+                    setSolutionData(prev => mergeTreeData(prev, message.data));
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionDataUpdate':
-                    log.shotgun('🔄 SOLUTION DATA UPDATE - This will cause full re-render!');
+                    log.shotgun('🔄 SOLUTION DATA UPDATE - Using smart merge to preserve React components!');
                     // For updates triggered by file changes, we preserve tree state
-                    // by updating data but not resetting component state
-                    setSolutionData(message.data);
+                    // by smart merging instead of replacing
+                    setSolutionData(prev => mergeTreeData(prev, message.data));
                     setRefreshing(false);
                     break;
                 case 'frameworkChanged':

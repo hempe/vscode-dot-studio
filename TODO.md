@@ -1,6 +1,8 @@
 # Solution Tree Context Menu & Functionality TODO
 
-**NEXT PRIORITY**: Package and Project dependency category nodes still collapse when removing dependencies - need to investigate why the expansion state restoration isn't working for these specific node types.
+**FIXED**: ✅ Expansion state collapse issue - Solution folders and dependency categories now properly maintain expansion state during all operations. Root cause was in getExpandedNodePaths() not traversing children of expanded nodes, so expansion states were never saved to workspace storage.
+
+**CURRENT PRIORITY**: Solution folder add/remove operations don't immediately update the tree - file change detection appears to be missing some .sln file modifications. Adding one folder shows nothing, adding a second folder shows the first one.
 
 This document tracks the missing functionality and improvements needed for the Solution Tree context menus and interactions to match Visual Studio behavior.
 
