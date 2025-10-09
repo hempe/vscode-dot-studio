@@ -144,8 +144,6 @@ export class FrameworkDropdownService {
             // Ignore errors saving framework
         }
     }
-
-
     public async getAvailableFrameworks(workspaceRoot?: string): Promise<string[]> {
         if (!this.solutionPath) {
             // Try to get the active solution from SolutionService

@@ -233,8 +233,6 @@ export const useVsCodeApi = () => {
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-
-
             switch (message.command) {
                 case 'loading':
                     log.info('Setting refreshing state');

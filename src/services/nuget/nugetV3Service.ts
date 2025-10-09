@@ -709,8 +709,6 @@ export class NuGetV3Service {
             return null;
         }
     }
-
-
     /**
      * Extract all versions from package registration data
      */

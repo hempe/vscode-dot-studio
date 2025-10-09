@@ -495,17 +495,41 @@ export class Solution {
             const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
             const lines = solutionContent.split('\n');
 
-            // Remove the solution folder Project/EndProject block
-            let newLines = this.removeSolutionFolderProject(lines, folderName, folderGuid);
+            // Find all child items (projects and folders) that need to be removed recursively
+            const allItemsToRemove = this.findAllChildItemsRecursively(folderGuid);
+            log.info(`Found ${allItemsToRemove.length} child items to remove recursively`);
 
-            // Remove all NestedProjects entries that reference this folder (as parent or child)
+            // Remove all child projects and folders recursively
+            let newLines = lines;
+            for (const itemGuid of allItemsToRemove) {
+                const itemProject = this._solutionFile?.projects.find(p => p.guid === itemGuid);
+                if (itemProject) {
+                    if (SolutionFileParser.isSolutionFolder(itemProject)) {
+                        // Remove child solution folder
+                        newLines = this.removeSolutionFolderProject(newLines, itemProject.name, itemGuid);
+                        log.info(`Removed child solution folder: ${itemProject.name}`);
+                    } else if (SolutionFileParser.isDotNetProject(itemProject)) {
+                        // Remove child project
+                        newLines = this.removeProjectByGuid(newLines, itemGuid);
+                        log.info(`Removed child project: ${itemProject.name}`);
+                    }
+                }
+            }
+
+            // Remove the solution folder Project/EndProject block
+            newLines = this.removeSolutionFolderProject(newLines, folderName, folderGuid);
+
+            // Remove all NestedProjects entries that reference this folder or any of its children
             newLines = this.removeNestedProjectEntries(newLines, folderGuid);
+            for (const itemGuid of allItemsToRemove) {
+                newLines = this.removeNestedProjectEntries(newLines, itemGuid);
+            }
 
             // Write the updated solution file
             const updatedContent = newLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            log.info(`Successfully removed solution folder "${folderName}" from solution`);
+            log.info(`Successfully removed solution folder "${folderName}" and ${allItemsToRemove.length} child items from solution`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -657,6 +681,64 @@ export class Solution {
             if (line.includes(`Project("${solutionFolderTypeGuid}")`) &&
                 line.includes(`"${folderName}"`) &&
                 line.includes(folderGuid)) {
+                startIndex = i;
+            }
+
+            // Look for the corresponding EndProject line
+            if (startIndex !== -1 && line === 'EndProject') {
+                endIndex = i;
+                break;
+            }
+        }
+
+        if (startIndex !== -1 && endIndex !== -1) {
+            // Remove the Project/EndProject block
+            return [
+                ...lines.slice(0, startIndex),
+                ...lines.slice(endIndex + 1)
+            ];
+        }
+
+        return lines;
+    }
+
+    /**
+     * Finds all child items (projects and folders) recursively for a given parent folder GUID
+     */
+    private findAllChildItemsRecursively(parentGuid: string): string[] {
+        if (!this._solutionFile) return [];
+
+        const childGuids: string[] = [];
+        const hierarchy = SolutionFileParser.buildProjectHierarchy(this._solutionFile);
+
+        // Get direct children
+        const directChildren = hierarchy.get(parentGuid) || [];
+
+        for (const child of directChildren) {
+            childGuids.push(child.guid);
+
+            // If this child is a solution folder, recursively find its children
+            if (SolutionFileParser.isSolutionFolder(child)) {
+                const grandchildren = this.findAllChildItemsRecursively(child.guid);
+                childGuids.push(...grandchildren);
+            }
+        }
+
+        return childGuids;
+    }
+
+    /**
+     * Removes a project by its GUID from the solution file lines
+     */
+    private removeProjectByGuid(lines: string[], projectGuid: string): string[] {
+        let startIndex = -1;
+        let endIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Look for the Project line that contains this GUID
+            if (line.startsWith('Project(') && line.includes(projectGuid)) {
                 startIndex = i;
             }
 

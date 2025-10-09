@@ -14,8 +14,6 @@ const log = logger('PackageUpdateService');
  * Handles finding outdated packages and updating them
  */
 export class PackageUpdateService {
-
-
     /**
      * Get outdated packages with rich metadata for UI display
      * This enhances basic update data with NuGet API metadata
@@ -286,6 +284,4 @@ export class PackageUpdateService {
             return [];
         }
     }
-
-
 }

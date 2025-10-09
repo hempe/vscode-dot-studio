@@ -26,8 +26,6 @@ export function activate(context: vscode.ExtensionContext) {
         solutionWebviewProvider.handleFileChange(filePath, changeType);
     };
 
-
-
     // Set context for when workspace has .NET files
     vscode.commands.executeCommand('setContext', 'workspaceHasDotnetFiles', true);
 
@@ -82,8 +80,6 @@ export function activate(context: vscode.ExtensionContext) {
         logger.info(`Active framework changed to: ${framework || 'Auto'}`);
         // The framework will be used when F5/debugging is triggered
     });
-
-
     // Watch only .NET solution and project files to reduce load
     const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
     const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.{csproj,vbproj,fsproj}');

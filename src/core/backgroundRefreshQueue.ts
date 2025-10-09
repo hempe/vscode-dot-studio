@@ -1,8 +1,6 @@
 import { logger } from './logger';
 
 const log = logger('BackgroundRefreshQueue');
-
-
 interface RefreshTask {
     readonly url: string;
     readonly accessToken?: string;

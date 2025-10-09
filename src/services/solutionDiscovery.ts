@@ -11,8 +11,6 @@ export interface SolutionDiscoveryResult {
     solutionPath?: string;
     availableSolutions?: string[];
 }
-
-
 export class SolutionDiscovery {
     /**
      * Discovers solution files in the workspace root

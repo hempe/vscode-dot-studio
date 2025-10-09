@@ -57,8 +57,6 @@ class BackendConsoleLogger implements Logger {
         console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
     }
 }
-
-
 /**
  * Creates a logger instance for backend (Node.js extension host) code
  */

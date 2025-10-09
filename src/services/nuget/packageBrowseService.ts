@@ -477,8 +477,6 @@ export class PackageBrowseService {
             return undefined;
         }
     }
-
-
     /**
      * Remove duplicate packages based on ID, keeping the one with highest version
      */

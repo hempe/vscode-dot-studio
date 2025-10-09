@@ -10,8 +10,6 @@ describe('ProjectFileParser', () => {
     // Use the test fixture directory as workspace root
     parser = new ProjectFileParser(testFixturePath);
   });
-
-
   describe('parseProjectFiles', () => {
     it('should parse WebApp project file structure', async () => {
       const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');

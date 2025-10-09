@@ -884,8 +884,6 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
-
-
     /**
      * Get a package icon and send it to the webview
      */

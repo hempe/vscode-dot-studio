@@ -268,14 +268,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             vscode.window.showErrorMessage(`Error renaming solution folder: ${error}`);
         }
     }
-
-
-
-
-
-
-
-
     /**
      * Recursively updates a node in the tree
      */
@@ -355,10 +347,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Merges expansion and loading states from cached tree into fresh tree
      */
-
-
-
-
     /**
      * Finds a specific node in the tree by path
      */
@@ -434,8 +422,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Gets all valid paths from the tree structure
      */
-
-
     /**
      * Gets the node type for a given path from the tree
      */
@@ -739,12 +725,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         log.info('Cache cleared');
     }
 
-
-
-
-
-
-
     public refresh() {
         log.debug('Refresh called');
 
@@ -753,21 +733,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.debug('Skipping refresh during rename operation');
             return;
         }
-
-
         // Use incremental update instead of full refresh
         this._updateWebview();
     }
-
-
     /**
      * Dispose method to clean up resources
      */
     dispose(): void {
         // No cleanup needed currently
     }
-
-
     /**
      * Sends cached data to webview without reloading solution - used for node expansion
      */
@@ -849,8 +823,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
-
-
         // Check if we already have a event for this file to avoid duplicates
         const existingEventIndex = this._fileChangeQueue.findIndex(event =>
             event.filePath === filePath &&
@@ -1000,8 +972,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         if (!this._view) {
             return;
         }
-
-
         if (command === 'solutionData') {
             this._view.webview.postMessage({
                 command: 'solutionData',

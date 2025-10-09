@@ -109,7 +109,7 @@ export const removeSolutionFolderAction: MenuAction = {
 };
 
 export const addSolutionItemAction: MenuAction = {
-    name: "Add Existing Item...",
+    name: "Add Solution Item...",
     action: "addSolutionItem",
     kind: "action"
 };
@@ -121,7 +121,7 @@ export const manageNuGetPackagesAction: MenuAction = {
 };
 
 export const manageNuGetPackagesForSolutionAction: MenuAction = {
-    name: "Manage NuGet Packages for Solution...",
+    name: "Manage NuGet Packages...",
     action: "manageNuGetPackagesForSolution",
     kind: "action"
 };
@@ -166,6 +166,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         addNewProjectAction,
         addExistingProjectAction,
         addSolutionFolderAction,
+        addSolutionItemAction,
         separator,
         manageNuGetPackagesForSolutionAction,
         separator,

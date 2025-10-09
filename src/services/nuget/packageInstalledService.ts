@@ -15,8 +15,6 @@ const log = logger('PackageInstalledService');
  * Handles listing, analyzing, and getting details about installed packages
  */
 export class PackageInstalledService {
-
-
     /**
      * Get installed packages with rich metadata for UI display
      * This uses the same metadata enrichment as browse packages
@@ -394,8 +392,6 @@ export class PackageInstalledService {
         }
         return null;
     }
-
-
     /**
      * Get all project paths in a solution
      */

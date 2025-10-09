@@ -400,13 +400,33 @@ export class SolutionActionService {
             });
 
             if (fileUri && fileUri[0]) {
-                // Try to get folder name from data first (safer), then fall back to path parsing
-                const folderName = data?.name || path.basename(folderPath);
+                // Check if we're adding to the solution root or to a specific folder
+                const isSolutionRoot = folderPath.endsWith('.sln');
+                let targetFolderName: string;
+
+                if (isSolutionRoot) {
+                    // Adding to solution root - ensure "Solution Items" folder exists
+                    const solutionItemsFolderName = 'Solution Items';
+                    targetFolderName = solutionItemsFolderName;
+
+                    // Check if "Solution Items" folder already exists
+                    const existingFolders = solution.getSolutionFolders();
+                    const solutionItemsExists = existingFolders.some(folder => folder.name === solutionItemsFolderName);
+
+                    if (!solutionItemsExists) {
+                        log.info(`Creating "${solutionItemsFolderName}" folder for solution items`);
+                        await solution.addSolutionFolder(solutionItemsFolderName);
+                        vscode.window.showInformationMessage(`Created "${solutionItemsFolderName}" folder`);
+                    }
+                } else {
+                    // Adding to an existing solution folder
+                    targetFolderName = data?.name || path.basename(folderPath);
+                }
+
                 const folderGuid = data?.guid;
+                log.info(`Adding solution item to folder: name="${targetFolderName}", guid="${folderGuid}"`);
 
-                log.info(`Adding solution item to folder: name="${folderName}", guid="${folderGuid}"`);
-
-                await solution.addSolutionItem(folderName, fileUri[0].fsPath);
+                await solution.addSolutionItem(targetFolderName, fileUri[0].fsPath);
                 log.info(`Solution item added: ${fileUri[0].fsPath}`);
                 vscode.window.showInformationMessage(`Solution item added: ${path.basename(fileUri[0].fsPath)}`);
             }
