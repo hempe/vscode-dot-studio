@@ -246,9 +246,19 @@ export class SolutionActionService {
                 return;
             }
 
-            await solution.removeSolutionItem(itemPath);
-            log.info(`Solution item removed: ${itemPath}`);
-            vscode.window.showInformationMessage(`Solution item removed: ${path.basename(itemPath)}`);
+            const itemName = path.basename(itemPath);
+
+            const answer = await vscode.window.showWarningMessage(
+                `Are you sure you want to remove solution item '${itemName}' from the solution?\n\nNote: The file will not be deleted from disk.`,
+                { modal: true },
+                'Remove'
+            );
+
+            if (answer === 'Remove') {
+                await solution.removeSolutionItem(itemPath);
+                log.info(`Solution item removed: ${itemPath}`);
+                vscode.window.showInformationMessage(`Solution item '${itemName}' removed from solution`);
+            }
         } catch (error) {
             log.error('Error removing solution item:', error);
             vscode.window.showErrorMessage(`Error removing solution item: ${error}`);

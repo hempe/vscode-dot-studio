@@ -30,7 +30,8 @@ export const openAction: MenuAction = {
 export const deleteAction: MenuAction = {
     name: "Delete",
     action: "deleteFile",
-    kind: "action"
+    kind: "action",
+    shortcut: "Del"
 };
 
 export const revealInExplorerAction: MenuAction = {
@@ -48,7 +49,8 @@ export const removeFromSolutionAction: MenuAction = {
 export const removeSolutionItemAction: MenuAction = {
     name: "Remove from Solution",
     action: "removeSolutionItem",
-    kind: "action"
+    kind: "action",
+    shortcut: "Del"
 };
 
 export const deleteProjectAction: MenuAction = {
@@ -102,7 +104,8 @@ export const addSolutionFolderAction: MenuAction = {
 export const removeSolutionFolderAction: MenuAction = {
     name: "Remove",
     action: "removeSolutionFolder",
-    kind: "action"
+    kind: "action",
+    shortcut: "Del"
 };
 
 export const addSolutionItemAction: MenuAction = {

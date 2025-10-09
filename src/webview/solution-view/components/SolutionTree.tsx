@@ -299,13 +299,43 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 case 'Delete':
                     e.preventDefault();
                     const focusedNodeForDelete = flatNodes[currentIndex].node;
-                    // Check if delete action is available for this node type
-                    const deleteMenuItems = contextMenus[focusedNodeForDelete.type] || [];
-                    const deleteMenuItem = deleteMenuItems.find(item =>
-                        item.kind === 'action' && (item as MenuAction).action === 'deleteFile'
-                    );
-                    if (deleteMenuItem) {
-                        onProjectAction('deleteFile', focusedNodeForDelete.path, { type: focusedNodeForDelete.type });
+
+                    // Handle different node types appropriately
+                    if (focusedNodeForDelete.type === 'solutionFolder') {
+                        // For solution folders, confirm before removing from .sln file
+                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
+                        const removeAction = menuItems.find(item =>
+                            item.kind === 'action' && (item as MenuAction).action === 'removeSolutionFolder'
+                        );
+                        if (removeAction) {
+                            // Let backend handle the confirmation dialog - it already has one
+                            onProjectAction('removeSolutionFolder', focusedNodeForDelete.path, {
+                                type: focusedNodeForDelete.type,
+                                guid: focusedNodeForDelete.guid,
+                                name: focusedNodeForDelete.name
+                            });
+                        }
+                    } else if (focusedNodeForDelete.type === 'solutionItem') {
+                        // For solution items, remove from .sln file only
+                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
+                        const removeAction = menuItems.find(item =>
+                            item.kind === 'action' && (item as MenuAction).action === 'removeSolutionItem'
+                        );
+                        if (removeAction) {
+                            // Let backend handle the confirmation dialog for consistency with solution folders
+                            onProjectAction('removeSolutionItem', focusedNodeForDelete.path, {
+                                type: focusedNodeForDelete.type
+                            });
+                        }
+                    } else {
+                        // For other types (files, folders), use the existing delete logic
+                        const deleteMenuItems = contextMenus[focusedNodeForDelete.type] || [];
+                        const deleteMenuItem = deleteMenuItems.find(item =>
+                            item.kind === 'action' && (item as MenuAction).action === 'deleteFile'
+                        );
+                        if (deleteMenuItem) {
+                            onProjectAction('deleteFile', focusedNodeForDelete.path, { type: focusedNodeForDelete.type });
+                        }
                     }
                     break;
             }
