@@ -97,12 +97,6 @@ export class SolutionActionService {
             case 'addProjectReference':
                 await this._handleAddProjectReference(projectPath);
                 break;
-            case 'addAssemblyReference':
-                await this._handleAddAssemblyReference(projectPath);
-                break;
-            case 'addFrameworkReference':
-                await this._handleAddFrameworkReference(projectPath);
-                break;
 
             case 'restoreDependencies':
                 await this._handleRestoreDependencies(projectPath);
@@ -581,48 +575,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddAssemblyReference(dependenciesPath: string): Promise<void> {
-        try {
-            // Extract project path from dependencies path
-            const projectPath = dependenciesPath.replace('/dependencies', '');
-            log.info(`Adding assembly reference for project: ${projectPath}`);
 
-            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
-            const terminal = vscode.window.createTerminal(`Add Assembly Reference: ${projectName}`);
-            terminal.show();
-
-            terminal.sendText('# Add Assembly Reference:');
-            terminal.sendText('# dotnet add reference <path-to-assembly.dll>');
-            terminal.sendText(`# Current project: ${projectPath}`);
-
-            log.info(`Opened assembly reference management for: ${projectPath}`);
-        } catch (error) {
-            log.error('Error adding assembly reference:', error);
-            vscode.window.showErrorMessage(`Error adding assembly reference: ${error}`);
-        }
-    }
-
-    private static async _handleAddFrameworkReference(dependenciesPath: string): Promise<void> {
-        try {
-            // Extract project path from dependencies path
-            const projectPath = dependenciesPath.replace('/dependencies', '');
-            log.info(`Adding framework reference for project: ${projectPath}`);
-
-            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
-            const terminal = vscode.window.createTerminal(`Add Framework Reference: ${projectName}`);
-            terminal.show();
-
-            terminal.sendText('# Add Framework Reference:');
-            terminal.sendText('# dotnet add package <FrameworkPackage>');
-            terminal.sendText('# Example: dotnet add package Microsoft.AspNetCore.App');
-            terminal.sendText(`# Current project: ${projectPath}`);
-
-            log.info(`Opened framework reference management for: ${projectPath}`);
-        } catch (error) {
-            log.error('Error adding framework reference:', error);
-            vscode.window.showErrorMessage(`Error adding framework reference: ${error}`);
-        }
-    }
 
     /**
      * Handles restoring dependencies for a project

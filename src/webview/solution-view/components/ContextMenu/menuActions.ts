@@ -132,17 +132,7 @@ export const addProjectReferenceAction: MenuAction = {
     kind: "action"
 };
 
-export const addAssemblyReferenceAction: MenuAction = {
-    name: "Add Assembly Reference...",
-    action: "addAssemblyReference",
-    kind: "action"
-};
 
-export const addFrameworkReferenceAction: MenuAction = {
-    name: "Add Framework Reference...",
-    action: "addFrameworkReference",
-    kind: "action"
-};
 
 export const restoreDependenciesAction: MenuAction = {
     name: "Restore Dependencies",
@@ -247,7 +237,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
     ],
 
     assemblyDependencies: [
-        addAssemblyReferenceAction
+        // No actions available for assembly references
     ],
 
     solutionItem: [

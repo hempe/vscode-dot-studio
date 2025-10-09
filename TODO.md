@@ -1,11 +1,5 @@
 # Solution Tree Context Menu & Functionality TODO
 
-**FIXED**: ✅ Expansion state collapse issue - Solution folders and dependency categories now properly maintain expansion state during all operations. Root cause was in getExpandedNodePaths() not traversing children of expanded nodes, so expansion states were never saved to workspace storage.
-
-**CURRENT PRIORITY**: Solution folder add/remove operations don't immediately update the tree - file change detection appears to be missing some .sln file modifications. Adding one folder shows nothing, adding a second folder shows the first one.
-
-This document tracks the missing functionality and improvements needed for the Solution Tree context menus and interactions to match Visual Studio behavior.
-
 ```
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -20,88 +14,6 @@ This document tracks the missing functionality and improvements needed for the S
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ```
-
-## 🚨 Critical Issues (Priority 1)
-
-### Tree
-
-- [x] **File watcher architecture** - Fixed! Now uses lazy folder watchers created only when folders are expanded
-  - [x] Solution/project files watched globally with flat watchers (`**/*.sln`, `**/*.{csproj,vbproj,fsproj}`)
-  - [x] Individual project files watched per project
-  - [x] Folder watchers created lazily when folders are expanded, removed when collapsed
-- [x] **Dependencies node re-enabled** - Collapse bug was due to other issues, now fixed
-
-### Context Menu Fixes
-
-- [x] **Dependencies node** should NOT have Rename, Delete, or Reveal in Explorer options
-- [x] **Solution folders** should NOT have "Open" action (they're virtual folders)
-- [x] **Solution node** should have Rename option
-- [x] **Project nodes** (.csproj) should have Delete/Remove options
-- [x] **Enter key on solution folders** should trigger expand/collapse (not try to open)
-- [x] **Solution node** rename functionality implemented
-- [x] **Dependencies node** "Reveal in Explorer" option removed
-
-### Node Type Detection Issues
-
-- [x] **Distinguish solution folders from regular folders** - currently both are type 'folder'
-- [x] **Add 'solution' node type** handling in context menus
-- [x] **Fix Dependencies node** to be properly identified (currently shows regular folder menu)
-
-### Tree Navigation Issues
-
-- [x] **Solution folders** cannot expand/collapse properly
-- [x] **Left clicking on files** should collapse the tree node (currently doesn't work)
-- [x] **Left arrow key on files** should collapse the tree node (currently doesn't work)
-- [x] **Context menu focus** - opening context menu should focus it for keyboard navigation (up/down arrows)
-
-## ✅ Architectural Refactoring - COMPLETED!
-
-### ✅ Major Services Successfully Extracted
-
-**Result**: SolutionWebviewProvider reduced from ~1600 lines to ~1100 lines (30% reduction achieved)
-
-**Services Created**:
-
-- ✅ **SolutionTreeService** (~378 lines) - Tree building and hierarchy management
-
-  - ✅ `buildSolutionTree()` - Build complete tree from Solution data
-  - ✅ `mergeTreeStates()` - Merge fresh data with cached expansion states
-  - ✅ `updateNodeInTree()` - Update specific nodes in tree structure
-  - ✅ `findNodeByPath()` - Tree traversal utilities
-  - ✅ `getAllValidPathsFromTree()` - Path validation utilities
-  - ✅ `convertProjectChildrenToProjectNodes()` - Type conversion utilities
-
-- ✅ **SolutionActionService** (~350+ lines) - Handle all project/solution operations
-
-  - ✅ Project operations (build, clean, rebuild, restore)
-  - ✅ Solution folder operations (add, remove with GUID-based safety)
-  - ✅ File operations (delete, reveal, open with binary file handling)
-  - ✅ Solution item operations (add, remove)
-  - ✅ Project management (add existing, remove, delete)
-
-- ✅ **SolutionExpansionService** (~350+ lines) - Expansion logic and state management
-  - ✅ `handleExpandNode()` - Node expansion with lazy loading
-  - ✅ `handleCollapseNode()` - Node collapse with cleanup
-  - ✅ `restoreExpansionStates()` - State restoration on startup
-  - ✅ `saveExpansionState()` / `getExpansionState()` - Workspace persistence
-  - ✅ `getExpandedNodePaths()` - Path collection utilities
-
-### ✅ Critical Fixes Included
-
-- ✅ **Fixed folder expansion bug** - Folders now show expand arrows and children properly
-- ✅ **GUID-based solution folder operations** - Much safer than name-based parsing
-- ✅ **Improved error handling** - Better error messages and fallback behavior
-- ✅ **Enhanced logging** - Better debugging information throughout
-
-### ✅ Benefits Achieved
-
-- **Separation of Concerns**: Each service has single responsibility
-- **Maintainability**: Much easier to understand, test, and modify individual services
-- **Reusability**: Services can be used by other extension components
-- **Performance**: Fixed critical folder expansion issue
-- **Robustness**: GUID-based operations for solution folders
-
-**Ready for Priority 2 Features**: The codebase is now well-structured to handle Dependencies, NuGet, Add Reference, etc.
 
 ## 📋 Missing Context Menu Actions (Priority 2)
 
@@ -132,8 +44,8 @@ This document tracks the missing functionality and improvements needed for the S
 
 Note: Solution folders in Visual Studio are virtual organizational containers. They typically don't have "Add New Project" or "Add Existing Project" - those operations happen at the solution level. Solution folders can contain sub-folders and can have projects moved into them.
 
-- [] Get rid of add framework reference
-- [] Get rid of add assembly reference.
+- [x] Get rid of add framework reference
+- [x] Get rid of add assembly reference.
 
 ### Project Node Context Menu
 
@@ -152,24 +64,21 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 ### Project node context menu
 
 - [ ] Set as Startup project [startup project should be "bold" in the tree ]
-- [ ] Properties (Properties are a folder so I think this part can wait until we do the ui for it)
 
 ### Project and File Node Context Menu
 
 - [ ] Add File (can we add a temp node in the tree where the file name is in edit mode and when I finish the "rename" like action it creates an empty file)?
 - [ ] Add Folder (same idea as above)
 
-### File Context Menu
+### File and Folder Context Menu
 
-- [ ] Copy/Cut/Paste
-
-### Folder Context Menu
-
-- [ ] Add Class/Item
-- [ ] Add Folder
 - [ ] Copy/Cut/Paste
 
 ## 🔧 Functionality Gaps (Priority 3)
+
+### Project node context menu
+
+- [ ] Properties (Properties are a folder so I think this part can wait until we do the ui for it)
 
 ### Drag & Drop Support
 
