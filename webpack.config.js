@@ -24,7 +24,15 @@ module.exports = [
                 {
                     test: /\.ts$/,
                     exclude: [/node_modules/, /src\/test/],
-                    use: 'ts-loader'
+                    use: {
+                        loader: 'ts-loader',
+                        options: {
+                            transpileOnly: false,
+                            compilerOptions: {
+                                noEmitOnError: true
+                            }
+                        }
+                    }
                 }
             ]
         },
@@ -53,7 +61,11 @@ module.exports = [
                     use: {
                         loader: 'ts-loader',
                         options: {
-                            configFile: path.resolve(__dirname, 'src/webview/tsconfig.json')
+                            configFile: path.resolve(__dirname, 'src/webview/tsconfig.json'),
+                            transpileOnly: false,
+                            compilerOptions: {
+                                noEmitOnError: true
+                            }
                         }
                     }
                 },

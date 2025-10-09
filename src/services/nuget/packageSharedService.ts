@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { NuGetPackage, BasicInstalledPackage, BasicUpdateablePackage, InstalledPackage, UpdateablePackage } from './types';
+import { NuGetPackage } from './types';
 import { PackageBrowseService } from './packageBrowseService';
 import { RequestQueue } from '../../core/requestQueue';
 

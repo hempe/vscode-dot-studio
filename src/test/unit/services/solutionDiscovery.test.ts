@@ -1,4 +1,4 @@
-import { SolutionDiscovery, SolutionDiscoveryResult } from '../../../services/solutionDiscovery';
+import { SolutionDiscovery } from '../../../services/solutionDiscovery';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';

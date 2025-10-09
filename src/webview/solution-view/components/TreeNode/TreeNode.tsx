@@ -304,7 +304,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             </div>
             {node.expanded && node.children && (
                 <div className="tree-children">
-                    {node.children.map((child, index) => (
+                    {node.children.map((child) => (
                         <TreeNode
                             key={child.nodeId}
                             node={child}

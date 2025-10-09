@@ -5,16 +5,13 @@ import { PackageUpdateService } from './packageUpdateService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageConsolidationService } from './packageConsolidationService';
 import { PackageSharedService } from './packageSharedService';
-import { SolutionService } from '../solutionService';
 import { VersionUtils } from '../versionUtils';
 import {
     PackageSearchOptions,
     PackageInstallOptions,
     PackageOperationResult,
     ProjectInfo,
-    ConsolidationInfo,
     BasicInstalledPackage,
-    BasicConsolidationPackage,
     InstalledPackage,
     UpdateablePackage
 } from './types';
@@ -307,7 +304,7 @@ export class NuGetManagerService {
             // Get enriched installed packages (individual entries per project)
             const installedPackages = isProject
                 ? await PackageInstalledService.getProjectPackagesWithMetadata(targetPath!)
-                : await PackageInstalledService.getInstalledPackagesWithMetadata(targetPath);
+                : await PackageInstalledService.getInstalledPackagesWithMetadata();
 
             // Group by package ID and create projects array
             const packageMap = new Map<string, (InstalledPackage & { projects: ProjectInfo[] })>();
@@ -431,7 +428,7 @@ export class NuGetManagerService {
     /**
      * Search packages for solution-wide installation
      */
-    static async searchPackagesForSolution(query: string, options?: Partial<PackageSearchOptions>) {
+    static async searchPackages(query: string, options?: Partial<PackageSearchOptions>) {
         return PackageBrowseService.searchPackages({
             query,
             includePrerelease: options?.includePrerelease || false,
@@ -468,8 +465,8 @@ export class NuGetManagerService {
     /**
      * Consolidate packages across solution
      */
-    static async consolidatePackages(solutionPath: string) {
-        return PackageConsolidationService.consolidateAllToLatest(solutionPath);
+    static async consolidatePackages() {
+        return PackageConsolidationService.consolidateAllToLatest();
     }
 
     /**
@@ -531,20 +528,6 @@ export class NuGetManagerService {
             log.error('Error getting project NuGet data:', error);
             throw error;
         }
-    }
-
-    /**
-     * Search packages for project installation
-     */
-    static async searchPackagesForProject(projectPath: string, query: string, options?: Partial<PackageSearchOptions>) {
-        // For project-level search, we might want to filter based on project framework in the future
-        return PackageBrowseService.searchPackages({
-            query,
-            includePrerelease: options?.includePrerelease || false,
-            take: options?.take || 20,
-            skip: options?.skip || 0,
-            source: options?.source
-        });
     }
 
     /**
@@ -625,37 +608,6 @@ export class NuGetManagerService {
     }
 
     // ============ HELPER METHODS ============
-
-    /**
-     * Transform ConsolidationInfo to BasicConsolidationPackage format for enrichment
-     */
-    private static transformConsolidationInfoToPackages(consolidationInfo: ConsolidationInfo[], allProjects: ProjectInfo[]): BasicConsolidationPackage[] {
-        const consolidatePackages: BasicConsolidationPackage[] = [];
-
-        for (const info of consolidationInfo) {
-            // Find the latest version being used
-            const latestUsedVersion = info.versions.reduce((latest, current) => {
-                return !latest || current.version > latest.version ? current : latest;
-            }).version;
-
-            const consolidatePackage: BasicConsolidationPackage = {
-                id: info.packageId,
-                currentVersion: latestUsedVersion,
-                latestVersion: info.latestVersion,
-                allVersions: info.versions.map(v => v.version),
-                needsConsolidation: true,
-                currentVersions: info.versions,
-                projects: allProjects.filter(p =>
-                    info.versions.some(v => v.projects.includes(p.path))
-                )
-            };
-
-            consolidatePackages.push(consolidatePackage);
-        }
-
-        return consolidatePackages;
-    }
-
     /**
      * Determine if a path is a solution or project file
      */
@@ -694,7 +646,8 @@ export class NuGetManagerService {
         hasOutdated: boolean;
     } {
         try {
-            const projectsWithUpdates = new Set(outdatedPackages.flatMap(pkg =>
+            // Track projects with updates for potential future use
+            new Set(outdatedPackages.flatMap(pkg =>
                 pkg.projects?.map((p: any) => p.path) || []
             )).size;
 

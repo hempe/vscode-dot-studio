@@ -1,9 +1,8 @@
-import { sign } from 'crypto';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions } from './types';
 import * as https from 'https';
 import { VersionUtils } from '../versionUtils';
-import { PersistentCache, CacheEntry } from '../../core/persistentCache';
+import { PersistentCache } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
 import * as os from 'os';
@@ -249,7 +248,7 @@ export class NuGetV3Service {
      * Get all versions for a package using flat container API
      */
     static async getPackageVersions(
-        sourceUrl: string,
+        _sourceUrl: string,
         packageId: string,
         accessToken?: string
     ): Promise<string[]> {

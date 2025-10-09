@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import Markdown from "markdown-to-jsx";
+// import React, { useEffect, useState } from "react";
 import { formatAuthors, LocalNuGetPackage } from "../shared";
 
 interface NugetHeaderProps {

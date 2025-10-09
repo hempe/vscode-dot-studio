@@ -112,16 +112,16 @@ This document tracks the missing functionality and improvements needed for the S
 - [x] Add Solution Folder
 - [x] Restore Nugets
 - [x] Build commands (Clean, Build, Rebuild) like on project node.
-- [ ] Double click on solution node should open the solution file, doesn nothing right now.
+- [x] Double click on solution node should open the solution file, doesn nothing right now.
 
 ### Solution Folder Context Menu
 
-- [ ] Add Solution Folder (sub-folder)
+- [x] Add Solution Folder (sub-folder)
       --> Regression this does not work anymore.
       --> all solution folders collapse.
       --> They get added at root so it seems we don't update (GlobalSection(NestedProjects))
 - [x] Remove
-- [ ] Add Existing Item...
+- [x] Add Existing Item...
       --> Regression this does not work anymore gets added but in the right place but tree does not update.
       --> all solution folders collapse.
 - [x] Rename
@@ -145,14 +145,19 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 
 ### Project Depencency Node Context Menu
 
-- [ ] Add Project Reference should open file selection. (also on "Projects" child node)
+- [x] Add Project Reference should open file selection. (also on "Projects" child node)
 - [x] Manage NuGet Packages (also on "Packges" child node)
-- [ ] Add Class/Item (with templates)
-- [ ] Add Folder
+- [ ] DEL should trigger the remove (on the child nodes where we already have the remove action)
+
+### Project node context menu
+
 - [ ] Set as Startup project [startup project should be "bold" in the tree ]
 - [ ] Properties (Properties are a folder so I think this part can wait until we do the ui for it)
-- [ ] Remove from Solution (different from Delete)
-- [ ] Delete (filesystem deletion)
+
+### Project and File Node Context Menu
+
+- [ ] Add File (can we add a temp node in the tree where the file name is in edit mode and when I finish the "rename" like action it creates an empty file)?
+- [ ] Add Folder (same idea as above)
 
 ### File Context Menu
 

@@ -1,4 +1,4 @@
-import { SolutionFileParser, SolutionFile, SolutionProject } from './solutionFileParser';
+import { SolutionFileParser, SolutionProject } from './solutionFileParser';
 import * as fs from 'fs';
 import * as path from 'path';
 

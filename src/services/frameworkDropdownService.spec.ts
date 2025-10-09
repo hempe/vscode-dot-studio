@@ -1,5 +1,4 @@
 import { FrameworkDropdownService } from './frameworkDropdownService';
-import { FrameworkOption } from '../types/framework';
 import { SolutionService } from './solutionService';
 
 // Mock SolutionService

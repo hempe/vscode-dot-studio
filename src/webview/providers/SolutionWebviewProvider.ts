@@ -4,9 +4,8 @@ import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
-import { SolutionExpansionIdService } from '../../services/solutionExpansionIdService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
-import { NodeType, ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
+import { ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
 import { Solution } from '../../core/Solution';
 import { ProjectFileNode } from '../../core/Project';
 import { logger } from '../../core/logger';
@@ -43,7 +42,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;
-    private _currentSolutionPath?: string;
+    // Track current solution path for potential future use
     private _isInitialized: boolean = false;
     private _fileChangeQueue: FileChangeEvent[] = [];
     private _isProcessingQueue: boolean = false;
@@ -68,7 +67,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
+        _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
@@ -180,98 +179,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _handleRename(oldPath: string, newName: string, oldName: string, nodeType: NodeType) {
-        try {
-            log.info(`Attempting to rename ${nodeType} from "${oldName}" to "${newName}"`);
-
-            // Set flag to prevent file watcher from triggering refresh
-            this._isRenaming = true;
-
-            if (nodeType === 'solutionFolder') {
-                // Solution folders are virtual - rename in the .sln file, not filesystem
-                await this._handleSolutionFolderRename(oldName, newName);
-                return;
-            }
-
-            const path = require('path');
-            const fs = require('fs').promises;
-
-            // Calculate new path
-            const directory = path.dirname(oldPath);
-            const originalExtension = path.extname(oldPath);
-
-            // For files and solutions, check if user included extension in newName
-            let finalNewName = newName;
-            if (nodeType === 'file' || nodeType === 'solution') {
-                const userProvidedExtension = path.extname(newName);
-                if (!userProvidedExtension && originalExtension) {
-                    // User didn't provide extension, add the original one
-                    finalNewName = newName + originalExtension;
-                }
-                // If user provided extension, use newName as-is
-            }
-
-            const newPath = path.join(directory, finalNewName);
-
-            log.info(`Renaming path: ${oldPath} -> ${newPath}`);
-
-            // Use VS Code's workspace API to rename the file/folder
-            const oldUri = vscode.Uri.file(oldPath);
-            const newUri = vscode.Uri.file(newPath);
-
-            const edit = new vscode.WorkspaceEdit();
-            edit.renameFile(oldUri, newUri);
-
-            const success = await vscode.workspace.applyEdit(edit);
-
-            if (success) {
-                log.info(`Successfully renamed ${oldName} to ${newName}`);
-                // Send a targeted update instead of full refresh to preserve tree state
-                this._view?.webview.postMessage({
-                    command: 'nodeRenamed',
-                    oldPath: oldPath,
-                    newPath: newPath,
-                    newName: path.basename(finalNewName)
-                });
-            } else {
-                log.error(`Failed to rename ${oldName} to ${newName}`);
-                vscode.window.showErrorMessage(`Failed to rename ${oldName} to ${newName}`);
-            }
-        } catch (error) {
-            log.error(`Error during rename:`, error);
-            vscode.window.showErrorMessage(`Error renaming file: ${error}`);
-        } finally {
-            // Clear the flag and allow refreshes again after a short delay
-            setTimeout(() => {
-                this._isRenaming = false;
-                log.info('Rename operation completed, refreshes allowed again');
-            }, 1000); // 1 second delay to allow file system events to settle
-        }
-    }
-
-    private async _handleSolutionFolderRename(oldName: string, newName: string) {
-        try {
-            log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
-
-            // Get the active solution
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                throw new Error('No active solution loaded');
-            }
-
-            // Rename the solution folder - file watcher will handle UI updates
-            await solution.renameSolutionFolder(oldName, newName);
-            vscode.window.showInformationMessage(`Renamed solution folder "${oldName}" to "${newName}"`);
-
-        } catch (error) {
-            log.error(`Error renaming solution folder:`, error);
-            vscode.window.showErrorMessage(`Error renaming solution folder: ${error}`);
-        }
-    }
-    /**
-     * Recursively updates a node in the tree
-     */
-
     /**
      * Gets all expanded node paths from the tree
      */
@@ -344,179 +251,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    /**
-     * Merges expansion and loading states from cached tree into fresh tree
-     */
-    /**
-     * Finds a specific node in the tree by path
-     */
-    private _findNodeInTree(nodes: ProjectNode[], targetPath: string): ProjectNode | undefined {
-        for (const node of nodes) {
-            if (node.path === targetPath) {
-                return node;
-            }
-            if (node.children) {
-                const found = this._findNodeInTree(node.children, targetPath);
-                if (found) return found;
-            }
-        }
-        return undefined;
-    }
-
-    /**
-     * Refreshes expanded folders to catch file system changes while preserving expansion state
-     */
-    private async _refreshExpandedFolders(children: ProjectNode[], project: any): Promise<void> {
-        for (const child of children) {
-            if (child.type === 'folder' && child.expanded && child.children) {
-                log.info(`Refreshing expanded folder: ${child.path}`);
-                try {
-                    // Get fresh folder contents
-                    const folderChildren = await project.getFolderChildren(child.path);
-                    const freshChildren = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
-
-                    // Merge with existing children to preserve nested expansion states
-                    child.children = this._mergeChildrenArrays(child.children, freshChildren);
-
-                    // Recursively refresh nested expanded folders
-                    await this._refreshExpandedFolders(child.children, project);
-                } catch (error) {
-                    log.warn(`Error refreshing folder ${child.path}:`, error);
-                }
-            }
-        }
-    }
-
-    /**
-     * Merges existing children with fresh children, preserving expansion states
-     */
-    private _mergeChildrenArrays(existingChildren: ProjectNode[], freshChildren: ProjectNode[]): ProjectNode[] {
-        const result: ProjectNode[] = [];
-        const existingMap = new Map<string, ProjectNode>();
-
-        // Build map of existing children by path
-        for (const child of existingChildren) {
-            existingMap.set(child.path, child);
-        }
-
-        // Merge fresh children with existing expansion states
-        for (const freshChild of freshChildren) {
-            const existing = existingMap.get(freshChild.path);
-            if (existing) {
-                // Keep expansion state and children from existing node
-                result.push({
-                    ...freshChild,
-                    expanded: existing.expanded,
-                    children: existing.children,
-                    isLoaded: existing.isLoaded
-                });
-            } else {
-                // New child, use fresh data
-                result.push(freshChild);
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Gets all valid paths from the tree structure
-     */
-    /**
-     * Gets the node type for a given path from the tree
-     */
-
-    /**
-     * Loads children for a specific node during restoration
-     */
-    private async _loadChildrenForNode(nodeId: string, nodeType: string, treeData: ProjectNode[]): Promise<void> {
-        try {
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                return;
-            }
-
-            let children: ProjectNode[] = [];
-
-            if (nodeType === 'solution') {
-                // Solution children are already loaded in the initial tree
-                return;
-            } else if (nodeType === 'project') {
-                // Extract actual project path from nodeId
-                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
-                if (projectPath) {
-                    const project = solution.getProject(projectPath);
-                    if (project) {
-                        const rootChildren = await project.getRootChildren();
-                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(rootChildren);
-                    }
-                }
-            } else if (nodeType === 'dependencies') {
-                // Extract project path from dependencies nodeId
-                const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
-                if (projectPath) {
-                    const project = solution.getProject(projectPath);
-                    if (project) {
-                        const dependencies = project.getDependencies();
-                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
-                    }
-                }
-            } else if (nodeType === 'folder') {
-                // Extract actual folder path from nodeId
-                const folderPath = SolutionExpansionIdService.nodeIdToPath(nodeId);
-                if (folderPath) {
-                    const projectPath = SolutionTreeService.findProjectPathForFolder(folderPath);
-                    if (projectPath) {
-                        const project = solution.getProject(projectPath);
-                        if (project) {
-                            const folderChildren = await project.getFolderChildren(folderPath);
-                            children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
-                        }
-                    }
-                }
-            }
-
-            if (children.length > 0) {
-                // Update the node in the tree with its children
-                SolutionTreeService.updateNodeInTree(treeData, nodeId, {
-                    children,
-                    hasChildren: true,
-                    isLoaded: true
-                });
-
-                // Create folder watcher for restored expanded folders
-                if (nodeType === 'folder') {
-                    const solution = SolutionService.getActiveSolution();
-                    const folderPath = SolutionExpansionIdService.nodeIdToPath(nodeId);
-                    if (solution && folderPath) {
-                        const projectPath = SolutionTreeService.findProjectPathForFolder(folderPath);
-                        if (projectPath) {
-                            const project = solution.getProject(projectPath);
-                            if (project) {
-                                log.info(`Creating folder watcher for restored folder: ${folderPath}`);
-                                project.createFolderWatcher(folderPath);
-                            }
-                        }
-                    }
-                } else if (nodeType === 'project') {
-                    const solution = SolutionService.getActiveSolution();
-                    const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
-                    if (solution && projectPath) {
-                        const project = solution.getProject(projectPath);
-                        if (project) {
-                            const projectDir = require('path').dirname(projectPath);
-                            log.info(`Creating folder watcher for restored project: ${projectDir}`);
-                            project.createFolderWatcher(projectDir);
-                        }
-                    }
-                }
-            }
-
-        } catch (error) {
-            log.error(`Error loading children for ${nodeId}:`, error);
-        }
-    }
-
     private _convertProjectFileNodesToProjectNodes(fileNodes: ProjectFileNode[]): ProjectNode[] {
         return fileNodes.map(fileNode => ({
             type: fileNode.type === 'folder' ? 'folder' : 'file',
@@ -527,28 +261,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             isLoaded: fileNode.isLoaded,
             hasChildren: fileNode.type === 'folder' && !fileNode.isLoaded
         }));
-    }
-
-    /**
-     * Converts Project class output format to ProjectNode format for the webview
-     */
-
-    /**
-     * Helper method to remove project from solution using dotnet CLI
-     * TODO: Move this to SolutionManager class
-     */
-    private async _removeProjectFromSolution(solutionPath: string, projectPath: string): Promise<boolean> {
-        try {
-            const { exec } = require('child_process');
-            const { promisify } = require('util');
-            const execAsync = promisify(exec);
-
-            await execAsync(`dotnet sln "${solutionPath}" remove "${projectPath}"`);
-            return true;
-        } catch (error) {
-            log.error('Error removing project from solution:', error);
-            return false;
-        }
     }
 
     private async _updateWebview() {
@@ -664,8 +376,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return [];
         }
 
-        // Store the current solution path for later use
-        this._currentSolutionPath = solution.solutionPath;
+        // Solution path available for potential future use
 
         // Get solution file data
         const solutionData = solution.solutionFile;

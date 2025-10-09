@@ -440,7 +440,7 @@ export class PackageBrowseService {
         try {
             // For Azure DevOps feeds, check if credential provider is available
             if (source.url.includes('dev.azure.com') || source.url.includes('visualstudio.com')) {
-                return await this.getAzureDevOpsToken(source.url);
+                return await this.getAzureDevOpsToken();
             }
 
             // For other private feeds, return undefined (no auth)
@@ -455,7 +455,7 @@ export class PackageBrowseService {
     /**
      * Get Azure DevOps authentication token using credential provider
      */
-    private static async getAzureDevOpsToken(sourceUrl: string): Promise<string | undefined> {
+    private static async getAzureDevOpsToken(): Promise<string | undefined> {
         try {
             // Try to get token from Azure Artifacts Credential Provider
             // This is installed when users set up Azure DevOps feeds

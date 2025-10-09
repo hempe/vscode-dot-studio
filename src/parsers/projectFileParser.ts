@@ -30,7 +30,7 @@ const log = logger('ProjectFileParser');
 
 export class ProjectFileParser {
 
-    constructor(private workspaceRoot: string) { }
+    constructor() { }
 
     async parseProjectFiles(projectPath: string): Promise<ProjectFileStructure> {
         try {
@@ -65,7 +65,6 @@ export class ProjectFileParser {
             const allFiles: string[] = [];
 
             // Check if project is within workspace
-            const relativePath = path.relative(this.workspaceRoot, projectDir);
 
             if (isSystemPath(projectDir)) {
                 log.warn(`Skipping system directory project: ${projectDir}`);
@@ -138,44 +137,6 @@ export class ProjectFileParser {
         }
     }
 
-    private buildFileStructure(includedFiles: Map<string, string>, projectDir: string): ProjectFileStructure {
-        const files: ProjectFile[] = [];
-        const directories = new Set<string>();
-
-        for (const [filePath, itemType] of includedFiles) {
-            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
-
-            files.push({
-                path: filePath,
-                relativePath,
-                isDirectory: false,
-                itemType
-            });
-
-            // Add parent directories
-            const dirPath = path.dirname(relativePath);
-            if (dirPath !== '.') {
-                const parts = dirPath.split('/');
-                let currentPath = '';
-
-                for (const part of parts) {
-                    currentPath = currentPath ? `${currentPath}/${part}` : part;
-                    directories.add(currentPath);
-                }
-            }
-        }
-
-        // Add directory entries
-        for (const dir of directories) {
-            files.push({
-                path: path.resolve(projectDir, dir),
-                relativePath: dir,
-                isDirectory: true
-            });
-        }
-
-        return { files, directories, dependencies: [] };
-    }
 
     private buildSimpleFileStructure(files: string[], projectDir: string): ProjectFileStructure {
         const result: ProjectFile[] = [];

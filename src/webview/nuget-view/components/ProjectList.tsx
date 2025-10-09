@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import Markdown from "markdown-to-jsx";
-import { ensureArray, formatAuthors, LocalNuGetPackage } from "../shared";
+import { useEffect } from "react";
+import { ensureArray, LocalNuGetPackage } from "../shared";
 import { Checkbox } from "vscrui";
 import { logger } from "../../shared/logger";
 import { ProjectInfo as BackendProjectInfo } from "../../../services/nuget/types";
@@ -10,7 +9,6 @@ const log = logger('ProjectList');
 interface ProjectListProps {
     selectedPackage: LocalNuGetPackage;
     projects?: BackendProjectInfo[];
-    installedPackages?: LocalNuGetPackage[];
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
     initializing?: boolean;
@@ -20,7 +18,6 @@ interface ProjectListProps {
 export default function ProjectList({
     selectedPackage,
     projects,
-    installedPackages = [],
     selectedProjects,
     setSelectedProjects,
     initializing = false,

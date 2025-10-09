@@ -1,8 +1,7 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+// import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ContextMenu } from '../../../../../webview/solution-view/components/ContextMenu/ContextMenu';
-import { NodeType } from '../../../../../webview/solution-view/types';
 
 describe('ContextMenu Tests', () => {
   const mockOnClose = jest.fn();

@@ -1,4 +1,4 @@
-import { ProjectFileParser, ProjectFile, Dependency, ProjectFileStructure } from './projectFileParser';
+import { ProjectFileParser } from './projectFileParser';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -7,8 +7,7 @@ describe('ProjectFileParser', () => {
   const testFixturePath = path.join(__dirname, '..', '__fixtures__', 'test-solution');
 
   beforeEach(() => {
-    // Use the test fixture directory as workspace root
-    parser = new ProjectFileParser(testFixturePath);
+    parser = new ProjectFileParser();
   });
   describe('parseProjectFiles', () => {
     it('should parse WebApp project file structure', async () => {

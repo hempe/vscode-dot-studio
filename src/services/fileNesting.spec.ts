@@ -1,4 +1,4 @@
-import { FileNestingService, NestedFile } from './fileNesting';
+import { FileNestingService } from './fileNesting';
 
 describe('FileNestingService', () => {
   describe('nestFiles', () => {

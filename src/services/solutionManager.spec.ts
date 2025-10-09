@@ -1,7 +1,6 @@
-import { SolutionManager, ProjectInfo } from './solutionManager';
+import { SolutionManager } from './solutionManager';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import * as path from 'path';
 
 jest.mock('child_process');
 jest.mock('vscode', () => ({}), { virtual: true });

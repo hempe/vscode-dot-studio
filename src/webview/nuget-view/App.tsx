@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Panels, TextField, Button, Table, TableRow, TableCell, Checkbox, Icon, Dropdown } from 'vscrui';
+import { Panels, TextField, Button, Checkbox, Icon } from 'vscrui';
 import { VSCodeAPI, WebviewApi } from '../shared/vscode-api';
 import { logger } from '../shared/logger';
-import { LoadingBar, LoadingMessage } from '../shared/LoadingBar';
-import NugetReadme from './components/NugetReadme';
-import NugetDetail from './components/NugetDetail';
+import { LoadingBar } from '../shared/LoadingBar';
 import { ensureArray, formatAuthors, LocalNuGetPackage } from './shared';
 import NugetDetails from './components/NugetDetails';
 import NugetHeader from './components/NugetHeader';
@@ -766,8 +764,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                installedPackages={data.installedPackages || []}
-                                selectedProjects={selectedProjects}
+                                                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                 projectPath={data.projectPath}
@@ -897,8 +894,7 @@ export const App: React.FC = () => {
                         <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                installedPackages={data.installedPackages || []}
-                                selectedProjects={selectedProjects}
+                                                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                  />
@@ -1045,8 +1041,7 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                installedPackages={data.installedPackages || []}
-                                selectedProjects={selectedProjects}
+                                                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                 projectPath={data.projectPath}
@@ -1135,8 +1130,7 @@ export const App: React.FC = () => {
                     <ProjectList
                         selectedPackage={selectedPackage}
                         projects={data.projects || []}
-                        installedPackages={data.installedPackages || []}
-                        selectedProjects={selectedProjects}
+                                                selectedProjects={selectedProjects}
                         setSelectedProjects={setSelectedProjects}
                         initializing={initializing}
                         projectPath={data.projectPath}

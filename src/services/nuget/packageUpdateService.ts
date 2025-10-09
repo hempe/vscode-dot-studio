@@ -1,10 +1,8 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
-import semver from 'semver';
 import { logger } from '../../core/logger';
-import { BasicUpdateablePackage, UpdateablePackage, PackageOperationResult, NuGetPackage } from './types';
-import { PackageSharedService } from './packageSharedService';
+import { BasicUpdateablePackage, PackageOperationResult } from './types';
 
 const execAsync = promisify(exec);
 const log = logger('PackageUpdateService');
@@ -14,71 +12,6 @@ const log = logger('PackageUpdateService');
  * Handles finding outdated packages and updating them
  */
 export class PackageUpdateService {
-    /**
-     * Get outdated packages with rich metadata for UI display
-     * This enhances basic update data with NuGet API metadata
-     * @deprecated Use NuGetManagerService.getGroupedOutdatedPackages() for better performance
-     */
-    static async getOutdatedPackagesWithMetadata(solutionPath?: string): Promise<(UpdateablePackage & Partial<NuGetPackage>)[]> {
-        log.warn('getOutdatedPackagesWithMetadata() is deprecated - use NuGetManagerService.getGroupedOutdatedPackages() for better performance');
-        return [];
-    }
-
-    /**
-     * Get outdated packages for a specific project
-     */
-    static async getProjectOutdatedPackages(projectPath: string): Promise<BasicUpdateablePackage[]> {
-        try {
-            const command = `dotnet list "${projectPath}" package --outdated --format json`;
-            log.info(`Getting outdated packages for project: ${command}`);
-
-            const { stdout, stderr } = await execAsync(command, {
-                timeout: 30000,
-                encoding: 'utf8'
-            });
-
-            if (stderr && !stderr.includes('warn')) {
-                log.warn('dotnet list package --outdated stderr:', stderr);
-            }
-
-            const allOutdated = this.parseOutdatedPackages(stdout);
-            return allOutdated.filter(pkg => pkg.projectPath === projectPath);
-
-        } catch (error) {
-            log.error(`Error getting outdated packages for project ${projectPath}:`, error);
-            return [];
-        }
-    }
-
-    /**
-     * Get outdated packages for a specific project with rich metadata for UI display
-     * This enhances basic update data with NuGet API metadata
-     */
-    static async getProjectOutdatedPackagesWithMetadata(projectPath: string): Promise<(UpdateablePackage & Partial<NuGetPackage>)[]> {
-        try {
-            // Get basic outdated package data from dotnet CLI
-            const basicPackages = await this.getProjectOutdatedPackages(projectPath);
-
-            if (basicPackages.length === 0) {
-                return [];
-            }
-
-            // Enrich packages with metadata using the same method as browse packages
-            const enrichedPackages = await PackageSharedService.enrichWithBrowseMetadata(basicPackages);
-
-            // Set version field to current version for UI consistency
-            return enrichedPackages.map(pkg => ({
-                ...pkg,
-                version: pkg.currentVersion
-            }));
-
-        } catch (error) {
-            log.error(`Error enriching project outdated packages with metadata for ${projectPath}:`, error);
-            // Return basic packages if enrichment fails
-            const basicPackages = await this.getProjectOutdatedPackages(projectPath);
-            return basicPackages.map(pkg => ({ ...pkg, version: pkg.currentVersion }));
-        }
-    }
 
     /**
      * Update a specific package in a project to the latest version
@@ -179,58 +112,6 @@ export class PackageUpdateService {
     }
 
     /**
-     * Check if a specific package has an available update
-     */
-    static async checkPackageUpdate(
-        projectPath: string,
-        packageId: string
-    ): Promise<UpdateablePackage | null> {
-        try {
-            const outdatedPackages = await this.getProjectOutdatedPackages(projectPath);
-            return outdatedPackages.find(pkg =>
-                pkg.id.toLowerCase() === packageId.toLowerCase()
-            ) || null;
-
-        } catch (error) {
-            log.error(`Error checking update for ${packageId}:`, error);
-            return null;
-        }
-    }
-
-    /**
-     * Get update statistics for a solution
-     * @deprecated This method uses slow dotnet CLI calls. Use NuGetManagerService methods instead.
-     */
-    static async getUpdateStatistics(solutionPath?: string): Promise<{
-        totalPackages: number;
-        outdatedPackages: number;
-        projectsWithUpdates: number;
-        criticalUpdates: number;
-    }> {
-        try {
-            // Note: This method is deprecated as it's slow
-            // For better performance, the caller should use NuGetManagerService.getGroupedOutdatedPackages()
-            log.warn('getUpdateStatistics() is deprecated - use NuGetManagerService methods for better performance');
-
-            return {
-                totalPackages: 0,
-                outdatedPackages: 0,
-                projectsWithUpdates: 0,
-                criticalUpdates: 0
-            };
-
-        } catch (error) {
-            log.error('Error getting update statistics:', error);
-            return {
-                totalPackages: 0,
-                outdatedPackages: 0,
-                projectsWithUpdates: 0,
-                criticalUpdates: 0
-            };
-        }
-    }
-
-    /**
      * Parse the JSON output from dotnet list package --outdated command
      */
     private static parseOutdatedPackages(stdout: string): BasicUpdateablePackage[] {
@@ -281,6 +162,32 @@ export class PackageUpdateService {
 
         } catch (error) {
             log.error('Error parsing outdated packages:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get outdated packages for a specific project
+     */
+    private static async getProjectOutdatedPackages(projectPath: string): Promise<BasicUpdateablePackage[]> {
+        try {
+            const command = `dotnet list "${projectPath}" package --outdated --format json`;
+            log.info(`Getting outdated packages for project: ${command}`);
+
+            const { stdout, stderr } = await execAsync(command, {
+                timeout: 30000,
+                encoding: 'utf8'
+            });
+
+            if (stderr && !stderr.includes('warn')) {
+                log.warn('dotnet list package --outdated stderr:', stderr);
+            }
+
+            const allOutdated = this.parseOutdatedPackages(stdout);
+            return allOutdated.filter(pkg => pkg.projectPath === projectPath);
+
+        } catch (error) {
+            log.error(`Error getting outdated packages for project ${projectPath}:`, error);
             return [];
         }
     }

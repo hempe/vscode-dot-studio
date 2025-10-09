@@ -21,7 +21,7 @@ export class PackageConsolidationService {
      * Get all packages that need consolidation across projects
      * These are packages that exist in multiple projects but with different versions
      */
-    static async getPackagesNeedingConsolidation(solutionPath?: string): Promise<ConsolidationInfo[]> {
+    static async getPackagesNeedingConsolidation(): Promise<ConsolidationInfo[]> {
         try {
             // Use active solution for much better performance
             const allProjects = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
@@ -158,9 +158,9 @@ export class PackageConsolidationService {
     /**
      * Consolidate all packages to their latest versions
      */
-    static async consolidateAllToLatest(solutionPath?: string): Promise<PackageOperationResult[]> {
+    static async consolidateAllToLatest(): Promise<PackageOperationResult[]> {
         try {
-            const packagesNeedingConsolidation = await this.getPackagesNeedingConsolidation(solutionPath);
+            const packagesNeedingConsolidation = await this.getPackagesNeedingConsolidation();
 
             if (packagesNeedingConsolidation.length === 0) {
                 return [{
@@ -201,70 +201,6 @@ export class PackageConsolidationService {
     }
 
     /**
-     * Get consolidation recommendations for a solution
-     */
-    static async getConsolidationRecommendations(solutionPath?: string): Promise<{
-        packageId: string;
-        recommendedVersion: string;
-        currentVersions: Array<{ version: string; projectCount: number }>;
-        reasoning: string;
-    }[]> {
-        try {
-            const packagesNeedingConsolidation = await this.getPackagesNeedingConsolidation(solutionPath);
-
-            return packagesNeedingConsolidation.map(info => {
-                const currentVersions = info.versions.map(v => ({
-                    version: v.version,
-                    projectCount: v.projects.length
-                }));
-
-                // Recommend the latest version if available, otherwise the most common version
-                let recommendedVersion = info.latestVersion;
-                let reasoning = 'Latest version available';
-
-                if (!recommendedVersion) {
-                    // Find the most common version
-                    const mostCommonVersion = currentVersions.reduce((prev, current) =>
-                        prev.projectCount > current.projectCount ? prev : current
-                    );
-                    recommendedVersion = mostCommonVersion.version;
-                    reasoning = `Most commonly used version (${mostCommonVersion.projectCount} projects)`;
-                }
-
-                return {
-                    packageId: info.packageId,
-                    recommendedVersion: recommendedVersion!,
-                    currentVersions,
-                    reasoning
-                };
-            });
-
-        } catch (error) {
-            log.error('Error getting consolidation recommendations:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Check if a specific package needs consolidation
-     */
-    static async doesPackageNeedConsolidation(
-        packageId: string,
-        solutionPath?: string
-    ): Promise<ConsolidationInfo | null> {
-        try {
-            const packagesNeedingConsolidation = await this.getPackagesNeedingConsolidation(solutionPath);
-            return packagesNeedingConsolidation.find(info =>
-                info.packageId.toLowerCase() === packageId.toLowerCase()
-            ) || null;
-
-        } catch (error) {
-            log.error(`Error checking consolidation for ${packageId}:`, error);
-            return null;
-        }
-    }
-
-    /**
      * Get the latest version of a package (simplified implementation)
      */
     private static async getLatestVersion(packageId: string): Promise<string | undefined> {
@@ -299,7 +235,7 @@ export class PackageConsolidationService {
      * Consolidate a specific package to a target version across all projects in solution
      */
     static async consolidatePackageToVersion(
-        solutionPath: string,
+        _solutionPath: string,
         packageId: string,
         targetVersion: string
     ): Promise<PackageOperationResult[]> {

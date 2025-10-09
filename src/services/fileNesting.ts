@@ -71,9 +71,7 @@ export class FileNestingService {
     ): { name: string; path: string } | null {
         
         const fileName = file.name;
-        const filePath = file.path;
         const fileExt = path.extname(fileName);
-        const baseName = path.basename(fileName, fileExt);
         
         // Pattern 1: File.ext.cs (e.g., EditUser.cshtml.cs)
         if (this.isCodeBehindFile(fileName)) {

@@ -204,8 +204,7 @@ export class Project {
 
     private async parseProjectFile(): Promise<void> {
         try {
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
-            const parser = new ProjectFileParser(workspaceRoot);
+            const parser = new ProjectFileParser();
 
             this._projectStructure = await parser.parseProjectFiles(this._projectPath);
             this._dependencies = this._projectStructure.dependencies || [];

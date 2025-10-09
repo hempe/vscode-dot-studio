@@ -1,6 +1,5 @@
 import { Solution } from '../../../core/Solution';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Mock dependencies
 jest.mock('vscode', () => ({}), { virtual: true });

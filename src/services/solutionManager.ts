@@ -3,7 +3,6 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Solution } from '../core/Solution';
-import { Project } from '../core/Project';
 import { logger } from '../core/logger';
 
 const execAsync = promisify(exec);

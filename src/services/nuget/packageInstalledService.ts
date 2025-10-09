@@ -20,7 +20,7 @@ export class PackageInstalledService {
      * This uses the same metadata enrichment as browse packages
      * @deprecated Use getAllProjectsInfoFromActiveSolution() instead for better performance
      */
-    static async getInstalledPackagesWithMetadata(solutionPath?: string): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
+    static async getInstalledPackagesWithMetadata(): Promise<(InstalledPackage & Partial<NuGetPackage>)[]> {
         // Use active solution for much better performance
         const allProjects = await this.getAllProjectsInfoFromActiveSolution();
         const basicPackages = allProjects.flatMap(project => project.packages);
@@ -372,26 +372,6 @@ export class PackageInstalledService {
         }
     }
 
-    /**
-     * Find solution file in directory or parent directories
-     */
-    private static findSolutionFile(startDir: string): string | null {
-        let currentDir = startDir;
-
-        while (currentDir !== path.dirname(currentDir)) {
-            try {
-                const files = fs.readdirSync(currentDir);
-                const solutionFile = files.find((file: string) => file.endsWith('.sln'));
-                if (solutionFile) {
-                    return path.join(currentDir, solutionFile);
-                }
-            } catch (error) {
-                // Continue searching in parent directory
-            }
-            currentDir = path.dirname(currentDir);
-        }
-        return null;
-    }
     /**
      * Get all project paths in a solution
      */

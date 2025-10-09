@@ -132,15 +132,7 @@ describe('SolutionExpansionService Integration', () => {
             const projectNode = solutionNode.children![0];
             const dependenciesNode = projectNode.children![0];
 
-            // Log for debugging
-            const dependenciesNodeState = {
-                type: dependenciesNode.type,
-                name: dependenciesNode.name,
-                expanded: dependenciesNode.expanded,
-                isLoaded: dependenciesNode.isLoaded,
-                hasChildren: dependenciesNode.hasChildren,
-                childrenCount: dependenciesNode.children?.length || 0
-            };
+            // Log for debugging - dependenciesNode state tracked for potential use
 
             // The dependencies node itself might have been force-refreshed
             expect(dependenciesNode.expanded).toBe(true);
@@ -174,45 +166,6 @@ describe('SolutionExpansionService Integration', () => {
             ];
 
             mockContext.workspaceState.get.mockReturnValue(savedExpandedPaths);
-
-            // Fresh tree data (no cached data scenario)
-            const freshData: ProjectNode[] = [
-                {
-                    type: 'solution',
-                    name: 'MySolution',
-                    path: testSolutionPath,
-                    nodeId: SolutionExpansionIdService.generateSolutionId(testSolutionPath),
-                    expanded: false,
-                    children: [
-                        {
-                            type: 'project',
-                            name: 'MyProject',
-                            path: testProjectPath,
-                            nodeId: SolutionExpansionIdService.generateProjectId(testProjectPath),
-                            expanded: false,
-                            children: [
-                                {
-                                    type: 'dependencies',
-                                    name: 'Dependencies',
-                                    path: testProjectPath + '/dependencies',
-                                    nodeId: SolutionExpansionIdService.generateDependenciesId(testProjectPath),
-                                    expanded: false,
-                                    children: [
-                                        {
-                                            type: 'packageDependencies',
-                                            name: 'Packages',
-                                            path: testProjectPath + '/dependencies/packages',
-                                            nodeId: packageCategoryId,
-                                            expanded: false,
-                                            hasChildren: false
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ];
 
             // This simulates the scenario when cache is cleared and we restore from workspace storage
             // The issue might be here - if restoreExpansionStates doesn't handle hasChildren:false correctly

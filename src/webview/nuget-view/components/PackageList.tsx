@@ -1,11 +1,9 @@
 import React from 'react';
 import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
-import { logger } from '../../shared/logger';
 import { Checkbox } from 'vscrui';
 import { VersionUtils } from '../../../services/versionUtils';
 
-const log = logger('PackageList');
 
 
 interface PackageListProps {

@@ -88,7 +88,6 @@ export class Solution {
         log.info('Solution file changed, reparsing...');
 
         try {
-            const oldSolutionFile = this._solutionFile;
             await this.parseSolutionFile();
 
             // Notify UI that solution has changed
@@ -123,7 +122,6 @@ export class Solution {
         if (!this._solutionFile) return;
 
         this._fileTree = {};
-        const hierarchy = SolutionFileParser.buildProjectHierarchy(this._solutionFile);
 
         // Build tree structure from solution folders
         for (const project of this._solutionFile.projects) {
@@ -200,55 +198,6 @@ export class Solution {
         } else {
             log.warn(`Project ${projectName} initialization timed out`);
         }
-    }
-
-    private async detectAndNotifyChanges(oldSolution: SolutionFile, newSolution: SolutionFile): Promise<void> {
-        const oldProjects = new Map(oldSolution.projects.map(p => [p.path, p]));
-        const newProjects = new Map(newSolution.projects.map(p => [p.path, p]));
-
-        // Detect added projects
-        for (const [projectPath, project] of newProjects) {
-            if (!oldProjects.has(projectPath)) {
-                if (SolutionFileParser.isDotNetProject(project)) {
-                    log.info(`Project added: ${project.name}`);
-
-                    // Initialize new project
-                    const absolutePath = path.resolve(path.dirname(this._solutionPath), project.path);
-                    try {
-                        const newProject = new Project(absolutePath, project);
-                        this._projects.set(absolutePath, newProject);
-
-                    } catch (error) {
-                        log.error(`Failed to initialize new project ${project.name}:`, error);
-                    }
-                } else if (SolutionFileParser.isSolutionFolder(project)) {
-                    log.info(`Solution folder added: ${project.name}`);
-                }
-            }
-        }
-
-        // Detect removed projects
-        for (const [projectPath, project] of oldProjects) {
-            if (!newProjects.has(projectPath)) {
-                if (SolutionFileParser.isDotNetProject(project)) {
-                    log.info(`Project removed: ${project.name}`);
-
-                    // Dispose removed project
-                    const absolutePath = path.resolve(path.dirname(this._solutionPath), project.path);
-                    const removedProject = this._projects.get(absolutePath);
-                    if (removedProject) {
-                        removedProject.dispose();
-                        this._projects.delete(absolutePath);
-                    }
-
-                } else if (SolutionFileParser.isSolutionFolder(project)) {
-                    log.info(`Solution folder removed: ${project.name}`);
-                }
-            }
-        }
-
-        // Rebuild file tree for solution folders
-        this.buildSolutionFileTree();
     }
 
     /**
@@ -487,9 +436,7 @@ export class Solution {
                 throw new Error(`Solution folder "${folderName}" not found`);
             }
 
-            // Capture the folder info before removal for event firing
-            const folderToRemove = this._solutionFile?.projects.find(p =>
-                p.name === folderName && p.typeGuid === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}');
+            // Note: folder info captured but not currently used for event firing
 
             // Read the current solution file
             const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');

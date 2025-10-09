@@ -69,11 +69,11 @@ export class SolutionActionService {
                 break;
 
             case 'addExistingProject':
-                await this._handleAddExistingProject(projectPath);
+                await this._handleAddExistingProject();
                 break;
 
             case 'addNewProject':
-                await this._handleAddNewProject(projectPath);
+                await this._handleAddNewProject();
                 break;
 
             case 'startRename':
@@ -109,11 +109,11 @@ export class SolutionActionService {
                 break;
 
             case 'removeDependency':
-                await this._handleRemoveDependency(projectPath, data);
+                await this._handleRemoveDependency(projectPath);
                 break;
 
             case 'addSolutionFolder':
-                await this._handleAddSolutionFolder(projectPath, data);
+                await this._handleAddSolutionFolder(data);
                 break;
 
             case 'removeSolutionFolder':
@@ -275,7 +275,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddExistingProject(solutionPath: string): Promise<void> {
+    private static async _handleAddExistingProject(): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -304,7 +304,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddNewProject(solutionPath: string): Promise<void> {
+    private static async _handleAddNewProject(): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -321,7 +321,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddSolutionFolder(solutionPath: string, data?: MessageData): Promise<void> {
+    private static async _handleAddSolutionFolder(data?: MessageData): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -651,7 +651,7 @@ export class SolutionActionService {
     /**
      * Handles removing a dependency from a project
      */
-    private static async _handleRemoveDependency(dependencyPath: string, data?: MessageData): Promise<void> {
+    private static async _handleRemoveDependency(dependencyPath: string): Promise<void> {
         try {
             log.info(`Removing dependency: ${dependencyPath}`);
 

@@ -8,7 +8,7 @@ const log = logger('RequestQueueExample');
  */
 
 // Example 1: Basic usage with default settings (max 10 concurrent)
-async function basicExample() {
+export async function basicExample() {
     const requestQueue = new RequestQueue(10);
 
     // Simulate an API call
@@ -20,7 +20,7 @@ async function basicExample() {
 }
 
 // Example 2: Configure max concurrent requests
-async function configuredExample() {
+export async function configuredExample() {
     // Create queue with max 5 concurrent requests
     const limitedQueue = new RequestQueue(5);
 
@@ -36,7 +36,7 @@ async function configuredExample() {
 }
 
 // Example 3: Monitor queue by tracking promises
-async function monitoringExample() {
+export async function monitoringExample() {
     const requestQueue = new RequestQueue(5);
 
     // Queue up multiple requests
@@ -55,11 +55,11 @@ async function monitoringExample() {
 }
 
 // Example 4: Error handling
-async function errorHandlingExample() {
+export async function errorHandlingExample() {
     const requestQueue = new RequestQueue(3);
 
     try {
-        const result = await requestQueue.next(async () => {
+        await requestQueue.next(async () => {
             // This will throw an error
             throw new Error('API call failed');
         });
@@ -69,7 +69,7 @@ async function errorHandlingExample() {
 }
 
 // Example 5: Real-world usage - batch file processing
-async function batchFileProcessing(filePaths: string[]) {
+export async function batchFileProcessing(filePaths: string[]) {
     const fileQueue = new RequestQueue(3); // Limit to 3 concurrent file operations
 
     const results = await Promise.all(
@@ -94,7 +94,7 @@ async function simulateApiCall(id: string): Promise<string> {
 }
 
 // Example 6: Clear queue if needed
-async function clearQueueExample() {
+export async function clearQueueExample() {
     const requestQueue = new RequestQueue(5);
 
     // Queue up some requests

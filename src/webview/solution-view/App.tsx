@@ -3,9 +3,7 @@ import { FrameworkSelector } from './components/FrameworkSelector/FrameworkSelec
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
-import { logger } from '../shared/logger';
 
-const log = logger('App');
 
 export const App: React.FC = React.memo(() => {
     const { solutionData, loading, refreshing, handleFrameworkChange, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();

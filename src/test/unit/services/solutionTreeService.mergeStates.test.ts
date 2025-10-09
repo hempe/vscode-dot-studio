@@ -7,7 +7,6 @@ jest.mock('vscode', () => ({}), { virtual: true });
 
 describe('SolutionTreeService.mergeTreeStates', () => {
     const testProjectPath = '/path/to/MyProject.csproj';
-    const testSolutionPath = '/path/to/MySolution.sln';
 
     describe('Dependency node state merging', () => {
         it('should force refresh expanded packageDependencies nodes', () => {

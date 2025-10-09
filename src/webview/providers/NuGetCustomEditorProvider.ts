@@ -53,7 +53,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
         // Handle messages from the webview
         webviewPanel.webview.onDidReceiveMessage(
-            message => this._handleMessage(message, document, context, webviewPanel.webview),
+            message => this._handleMessage(message, context, webviewPanel.webview),
             undefined,
             []
         );
@@ -62,7 +62,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         this._updateWebview(webviewPanel.webview, context);
     }
 
-    private async _handleMessage(message: any, document: vscode.TextDocument, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
+    private async _handleMessage(message: any, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
 
         try {
             // Add debug logging to see if messages are reaching the provider
@@ -81,7 +81,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     break;
 
                 case 'searchPackages':
-                    await this._handleSearchPackages(message, webview, context);
+                    await this._handleSearchPackages(message, webview);
                     break;
 
                 case 'getInstalledPackages':
@@ -121,7 +121,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     break;
 
                 case 'updateAllPackages':
-                    await this._handleUpdateAllPackages(message, webview, context);
+                    await this._handleUpdateAllPackages(webview, context);
                     break;
 
                 case 'getPackageIcon':
@@ -177,7 +177,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     /**
      * Static method to open the NuGet Package Manager in the editor for a specific project
      */
-    public static async openNuGetManager(context: vscode.ExtensionContext, projectPath?: string): Promise<void> {
+    public static async openNuGetManager(projectPath?: string): Promise<void> {
         try {
             // Debug: Check solution state before opening NuGet manager
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -227,7 +227,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     /**
      * Static method to open the NuGet Package Manager in the editor for an entire solution
      */
-    public static async openNuGetManagerForSolution(context: vscode.ExtensionContext, solutionPath?: string): Promise<void> {
+    public static async openNuGetManagerForSolution(solutionPath?: string): Promise<void> {
         try {
             // Debug: Check solution state before opening NuGet manager
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -351,15 +351,13 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _handleSearchPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleSearchPackages(message: any, webview: vscode.Webview) {
         try {
             // Extract query from both message formats
             const query = message.query || message.payload?.query;
             const includePrerelease = message.includePrerelease || message.payload?.includePrerelease || false;
 
-            const results = context.type === 'solution'
-                ? await NuGetManagerService.searchPackagesForSolution(query, { includePrerelease })
-                : await NuGetManagerService.searchPackagesForProject(context.target, query, { includePrerelease });
+            const results = await NuGetManagerService.searchPackages(query, { includePrerelease });
 
             webview.postMessage({
                 command: 'searchResults',
@@ -597,7 +595,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             if (context.type === 'solution') {
                 // For now, consolidate to latest version across all projects
                 // In a full implementation, you'd show a dialog to select target version
-                const result = await NuGetManagerService.consolidatePackages(context.target);
+                const result = await NuGetManagerService.consolidatePackages();
 
                 const successful = result.filter(r => r.success).length;
                 const failed = result.length - successful;
@@ -632,7 +630,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Show progress notification
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Updating ${packages.length} packages...`,
+                title: `Updating`,
                 cancellable: false
             }, async (progress) => {
                 const results = [];
@@ -640,7 +638,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 for (const pkg of packages) {
                     progress.report({
                         increment: (100 / packages.length),
-                        message: `Updating ${pkg.id}...`
+                        message: `: ${pkg.id}`
                     });
 
                     try {
@@ -732,7 +730,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Show progress notification
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Consolidating ${packages.length} packages...`,
+                title: `Consolidating`,
                 cancellable: false
             }, async (progress) => {
                 const results = [];
@@ -740,7 +738,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 for (const pkg of packages) {
                     progress.report({
                         increment: (100 / packages.length),
-                        message: `Consolidating ${pkg.id}...`
+                        message: `: ${pkg.id}`
                     });
 
                     try {
@@ -808,7 +806,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _handleUpdateAllPackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleUpdateAllPackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             log.info('Updating all packages');
 
@@ -828,12 +826,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 cancellable: false
             }, async (progress) => {
                 const results = [];
-                let completed = 0;
 
                 for (const pkg of outdatedPackages) {
                     progress.report({
                         increment: (100 / outdatedPackages.length),
-                        message: `: ${pkg.id}...`
+                        message: `: ${pkg.id}`
                     });
 
                     try {
@@ -853,7 +850,6 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                             );
                         }
                         results.push(result);
-                        completed++;
                     } catch (error) {
                         log.error(`Error updating ${pkg.id}:`, error);
                         results.push({
@@ -884,6 +880,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
+
+
     /**
      * Get a package icon and send it to the webview
      */

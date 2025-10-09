@@ -298,9 +298,7 @@ export class SolutionExpansionService {
      */
     static async restoreExpansionStates(
         treeData: ProjectNode[],
-        context: vscode.ExtensionContext,
-        parentPath?: string,
-        options: { updateCache?: boolean } = {}
+        context: vscode.ExtensionContext
     ): Promise<void> {
 
         try {
@@ -308,7 +306,6 @@ export class SolutionExpansionService {
             // Log current tree structure for debugging
             const logTreeStructure = (nodes: any[], indent = 0) => {
                 for (const node of nodes) {
-                    const prefix = '  '.repeat(indent);
                     if (node.children && node.children.length > 0) {
                         logTreeStructure(node.children, indent + 1);
                     }
@@ -325,11 +322,6 @@ export class SolutionExpansionService {
 
             // Filter by parent path if specified
             let cleanedExpandedNodes = expansionPaths;
-            if (parentPath) {
-                cleanedExpandedNodes = expansionPaths.filter(path =>
-                    path.startsWith(parentPath)
-                );
-            }
 
             // CONSERVATIVE APPROACH: Preserve ALL expansion state
             // Only remove expansion state on explicit user collapse, never on reload

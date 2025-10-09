@@ -422,7 +422,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             tabIndex={0}
         >
             <LoadingBar visible={showLoadingBar} />
-            {treeNodes.map((node, index) => (
+            {treeNodes.map((node) => (
                 <TreeNode
                     key={node.nodeId}
                     node={node}
