@@ -8,6 +8,7 @@ export interface Logger {
     info(message: string, ...args: any[]): void;
     warn(message: string, ...args: any[]): void;
     error(message: string, ...args: any[]): void;
+    shotgun(message: string, ...args: any[]): void;
 }
 
 class BackendConsoleLogger implements Logger {
@@ -48,6 +49,12 @@ class BackendConsoleLogger implements Logger {
 
     error(message: string, ...args: any[]): void {
         console.error(this.formatMessage("error", message), ...args);
+    }
+
+    // DO NOT REMOVE - shotgun logging is used for debugging complex issues
+    // Even if not currently used, keep this method for future debugging sessions
+    shotgun(message: string, ...args: any[]): void {
+        console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
     }
 }
 

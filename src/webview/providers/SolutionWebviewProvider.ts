@@ -122,6 +122,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         data: message.data
                     });
                     await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
+
+                    // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
+                    const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
+                    if (solutionFileOperations.includes(message.action)) {
+                        const solution = SolutionService.getActiveSolution();
+                        if (solution) {
+                            log.info(`Triggering immediate file change handling after ${message.action} operation`);
+                            this.handleFileChange(solution.solutionPath, 'changed');
+                        }
+                    }
                 }
                 break;
 
@@ -329,8 +339,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const activeFramework = this._frameworkService.getActiveFramework();
 
             log.info('Sending solutionDataUpdate message with', freshSolutionData?.length || 0, 'projects');
-            this._view.webview.postMessage({
-                command: 'solutionDataUpdate',
+            this._sendSolutionDataWithExpansionStates('solutionDataUpdate', {
                 data: {
                     projects: freshSolutionData || [],
                     frameworks: frameworks,
@@ -349,74 +358,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
 
 
-    /**
-     * Unified method to restore expansion states with flexible options
-     */
-    private async _restoreExpansionStates(
-        treeData: ProjectNode[],
-        options: {
-            expansionPaths?: string[]; // Use specific paths instead of workspace storage
-            parentPath?: string;       // Filter to children of this parent only
-            updateCache?: boolean;     // Whether to update cache (default true)
-        } = {}
-    ): Promise<void> {
-        try {
-            // Determine source of expansion paths
-            let expansionPaths: string[];
-            if (options.expansionPaths) {
-                expansionPaths = options.expansionPaths;
-                log.debug('Restoring specific expansion states:', expansionPaths.length, 'paths');
-            } else {
-                expansionPaths = this.getExpansionState();
-                log.debug('Restoring expansion states:', expansionPaths.length, 'paths');
-            }
-
-            if (!expansionPaths || expansionPaths.length === 0) {
-                log.info('No expansion paths to restore');
-                return;
-            }
-
-            // Filter by parent path if specified
-            if (options.parentPath) {
-                expansionPaths = expansionPaths.filter(path =>
-                    path.startsWith(options.parentPath!) && path !== options.parentPath
-                );
-                log.info(`Filtered to ${expansionPaths.length} nested paths under: ${options.parentPath}`);
-            }
-
-            // CONSERVATIVE APPROACH: Preserve ALL expansion state
-            // Only remove expansion state on explicit user collapse, never on reload
-            // Dependencies nodes are virtual and lazy-loaded, so they won't exist in initial tree
-            const cleanedExpandedNodes = expansionPaths;
-
-            // Restore expansion states and load children
-            for (const expandedPath of cleanedExpandedNodes) {
-                const nodeType = SolutionTreeService.getNodeTypeById(expandedPath, treeData);
-                if (nodeType) {
-                    log.info(`Restoring expansion for: ${expandedPath} (${nodeType})`);
-
-                    // Set expanded = true in the tree
-                    SolutionTreeService.updateNodeInTree(treeData, expandedPath, { expanded: true });
-
-                    // Load children for the expanded node
-                    await this._loadChildrenForNode(expandedPath, nodeType, treeData);
-                } else {
-                    // Node doesn't exist in current tree (like Dependencies nodes - they're lazy-loaded)
-                    // This is expected for virtual nodes, preserve their expansion state
-                    log.debug(`Node not found in current tree: ${expandedPath} - expansion state preserved for future restoration`);
-                }
-            }
-
-            // Update cache if requested (default true)
-            if (options.updateCache !== false) {
-                this._cachedSolutionData = treeData;
-                this._cacheTimestamp = Date.now();
-            }
-
-        } catch (error) {
-            log.error('Error restoring expansion states:', error);
-        }
-    }
 
     /**
      * Finds a specific node in the tree by path
@@ -626,7 +567,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _updateWebview() {
         if (!this._view) {
-            log.info('No webview available, skipping update');
             return;
         }
 
@@ -663,6 +603,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 this._frameworkService.getAvailableFrameworks()
             ]);
 
+            // CRITICAL FIX: Restore expansion states after getting fresh solution data
+            if (this._cachedSolutionData && this._cachedSolutionData.length > 0) {
+                SolutionTreeService.mergeTreeStates(solutionData, this._cachedSolutionData);
+            }
+
+            await SolutionExpansionService.restoreExpansionStates(solutionData, this._context);
+
             const activeFramework = this._frameworkService.getActiveFramework();
 
             log.info('Loaded data:', {
@@ -678,11 +625,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework
             }
 
-            log.info('Sending solutionData message with', data.projects?.length || 0, 'projects');
-            this._view?.webview.postMessage({
-                command: 'solutionData',
-                data
-            });
+            // Send data with expansion states already applied
+            this._sendSolutionDataWithExpansionStates('solutionData', data);
 
             // Hide loading bar
             this._view?.webview.postMessage({
@@ -754,13 +698,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Check if we should use protected expansion state due to rapid updates
         if (this._protectedExpansionState) {
             log.info('Using PROTECTED expansion state due to rapid updates');
-            await this._restoreExpansionStates(treeStructure, { expansionPaths: this._protectedExpansionState });
-            // Clear the protected state after one use
+            // Temporarily save protected state to workspace and restore
+            const originalState = SolutionExpansionService.getExpansionState(this._context);
+            SolutionExpansionService.saveExpansionState(this._protectedExpansionState, this._context);
+            await SolutionExpansionService.restoreExpansionStates(treeStructure, this._context);
+            // Restore original state and clear protected state
+            SolutionExpansionService.saveExpansionState(originalState, this._context);
             this._protectedExpansionState = undefined;
         } else {
             // Restore expansion states if this is initial load (this modifies solutionData in place)
             log.info('About to restore expansion states...');
-            await this._restoreExpansionStates(treeStructure);
+            await SolutionExpansionService.restoreExpansionStates(treeStructure, this._context);
             log.info('Finished restoring expansion states');
         }
 
@@ -768,7 +716,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _convertToTreeStructureWithLazyLoading(solution: Solution): Promise<ProjectNode[]> {
-        if (!solution.solutionFile) return [];
+        if (!solution.solutionFile) {
+            return [];
+        }
 
         // Use the tree service to build the solution tree
         const result = await SolutionTreeService.buildSolutionTree(solution);
@@ -776,7 +726,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Cache the result for faster subsequent calls
         this._cachedSolutionData = result;
         this._cacheTimestamp = Date.now();
-        log.info('Cached solution data');
 
         return result;
     }
@@ -810,12 +759,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this._updateWebview();
     }
 
-    private saveExpansionState(expandedNodes: string[]) {
-        log.debug('Saving expansion state to workspace:', expandedNodes.length, 'nodes');
-        log.debug('Expansion paths:', expandedNodes);
-        this._context.workspaceState.update('solutionTreeExpanded', expandedNodes);
-    }
-
 
     /**
      * Dispose method to clean up resources
@@ -824,14 +767,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // No cleanup needed currently
     }
 
-    private getExpansionState(): string[] {
-        const state = this._context.workspaceState.get('solutionTreeExpanded', []);
-        log.debug('Retrieved expansion state from workspace:', state.length, 'nodes');
-        if (state.length > 0) {
-            log.debug('Restored expansion paths:', state);
-        }
-        return state;
-    }
 
     /**
      * Sends cached data to webview without reloading solution - used for node expansion
@@ -859,11 +794,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeFramework
             };
 
-            log.info('Sending cached solutionData with', data.projects?.length || 0, 'projects');
-            this._view.webview.postMessage({
-                command: 'solutionData',
-                data
-            });
+            // Send cached data with expansion states already applied
+            this._sendSolutionDataWithExpansionStates('solutionData', data);
 
             // Hide loading bar
             this._view.webview.postMessage({
@@ -897,10 +829,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             };
 
             log.info('Sending solutionData to reconnected webview with', data.projects?.length || 0, 'projects');
-            this._view.webview.postMessage({
-                command: 'solutionData',
-                data: data
-            });
+            this._sendSolutionDataWithExpansionStates('solutionData', data);
 
         } catch (error) {
             log.error('Error sending current data:', error);
@@ -920,7 +849,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     public handleFileChange(filePath: string, changeType: 'created' | 'changed' | 'deleted') {
-        log.debug(`Queueing file ${changeType}: ${filePath}`);
 
 
         // Check if we already have a event for this file to avoid duplicates
@@ -973,7 +901,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Handle different types of file changes
         if (fileName.endsWith('.sln')) {
-            log.debug(`Solution file ${changeType}: ${filePath}`);
             if (changeType === 'deleted') {
                 // Solution file was deleted - clear everything
                 this._view?.webview.postMessage({
@@ -983,7 +910,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 });
             } else {
                 this._clearCache(); // Clear cached data so fresh data is loaded
-                this._updateWebview(); // Simple full refresh
+                this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) {
             // Project file changes
@@ -1062,5 +989,29 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         };
 
         await processNodes(treeData);
+    }
+
+    /**
+     * Centralized method to send solution data with expansion states already applied
+     * This ensures expansion states are always restored before sending data to UI
+     */
+    private _sendSolutionDataWithExpansionStates(command: 'solutionData' | 'solutionDataUpdate', data: SolutionData | any): void {
+
+        if (!this._view) {
+            return;
+        }
+
+
+        if (command === 'solutionData') {
+            this._view.webview.postMessage({
+                command: 'solutionData',
+                data
+            });
+        } else {
+            this._view.webview.postMessage({
+                command: 'solutionDataUpdate',
+                ...data
+            });
+        }
     }
 }

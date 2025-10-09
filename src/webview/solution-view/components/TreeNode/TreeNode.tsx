@@ -45,10 +45,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         const timeout = setTimeout(() => {
             log.info(`Executing single click action for: ${node.name}`);
 
-            // If has children, just expand/collapse - don't change selection
+            // If has children, expand/collapse AND focus the item
             if (node.children?.length || node.hasChildren) {
                 log.info(`Toggling expansion for: ${node.name}`);
                 onToggleExpand(nodeIdentifier, node.type);
+                // Also focus the item so it gets the blue border
+                log.info(`Focusing expanded node: ${node.name}`);
+                onNodeClick(nodeIdentifier);
             } else {
                 // If no children, select and focus the item
                 log.info(`Node ${node.name} has no children, selecting it`);
@@ -76,8 +79,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             setClickTimeout(null);
         }
 
-        // Double click opens file for file types and project files
-        if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project') {
+        // Double click opens file for file types, project files, and solution files
+        if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
             log.info(`Opening file: ${node.path}`);
             onProjectAction('openFile', node.path);
         } else {

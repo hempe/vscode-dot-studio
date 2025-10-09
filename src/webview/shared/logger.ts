@@ -51,6 +51,8 @@ class WebviewConsoleLogger implements Logger {
         console.error(this.formatMessage("error", message), ...args);
     }
 
+    // DO NOT REMOVE - shotgun logging is used for debugging complex issues
+    // Even if not currently used, keep this method for future debugging sessions
     shotgun(message: string, ...args: any[]): void {
         console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
     }

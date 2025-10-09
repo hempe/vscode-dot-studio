@@ -325,9 +325,12 @@ export class SolutionActionService {
             });
 
             if (folderName) {
-                await solution.addSolutionFolder(folderName);
-                log.info(`Solution folder added: ${folderName}`);
-                vscode.window.showInformationMessage(`Solution folder '${folderName}' added`);
+                // If data contains parent folder info (from solution folder context menu), use it
+                const parentFolderName = data?.name;
+                await solution.addSolutionFolder(folderName, parentFolderName);
+                const parentInfo = parentFolderName ? ` under '${parentFolderName}'` : '';
+                log.info(`Solution folder added: ${folderName}${parentInfo}`);
+                vscode.window.showInformationMessage(`Solution folder '${folderName}' added${parentInfo}`);
             }
         } catch (error) {
             log.error('Error adding solution folder:', error);
@@ -517,15 +520,31 @@ export class SolutionActionService {
             const projectPath = dependenciesPath.replace('/dependencies', '');
             log.info(`Adding project reference for project: ${projectPath}`);
 
-            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
-            const terminal = vscode.window.createTerminal(`Add Project Reference: ${projectName}`);
-            terminal.show();
+            // Open file picker to select project file
+            const projectUri = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                canSelectFiles: true,
+                canSelectFolders: false,
+                openLabel: 'Add Project Reference',
+                filters: {
+                    'Project Files': ['csproj', 'vbproj', 'fsproj']
+                }
+            });
 
-            terminal.sendText('# Add Project Reference:');
-            terminal.sendText('# dotnet add reference <path-to-project.csproj>');
-            terminal.sendText(`# Current project: ${projectPath}`);
+            if (projectUri && projectUri[0]) {
+                const referencePath = projectUri[0].fsPath;
+                const projectName = path.basename(projectPath, path.extname(projectPath));
+                const referenceName = path.basename(referencePath, path.extname(referencePath));
 
-            log.info(`Opened project reference management for: ${projectPath}`);
+                log.info(`Adding reference from ${projectName} to ${referenceName}`);
+
+                // Use dotnet CLI to add the project reference
+                const terminal = vscode.window.createTerminal(`Add Project Reference: ${projectName}`);
+                terminal.show();
+                terminal.sendText(`dotnet add "${projectPath}" reference "${referencePath}"`);
+
+                vscode.window.showInformationMessage(`Adding project reference from ${projectName} to ${referenceName}`);
+            }
         } catch (error) {
             log.error('Error adding project reference:', error);
             vscode.window.showErrorMessage(`Error adding project reference: ${error}`);

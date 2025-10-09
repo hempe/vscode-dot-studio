@@ -24,13 +24,6 @@ export default function NugetHeader({ selectedPackage }: NugetHeaderProps) {
         }}>
             by {formatAuthors(selectedPackage.authors)}
         </div>
-        <div style={{
-            fontSize: '12px',
-            color: 'var(--vscode-descriptionForeground)',
-            lineHeight: '1.4'
-        }}>
-            {selectedPackage.description || 'No description available'}
-        </div>
     </div>
     );
 }

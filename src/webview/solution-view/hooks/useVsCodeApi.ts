@@ -233,7 +233,6 @@ export const useVsCodeApi = () => {
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            log.shotgun('🔄 BACKEND MESSAGE:', message.command, message);
 
 
             switch (message.command) {
@@ -247,22 +246,18 @@ export const useVsCodeApi = () => {
                     }
                     break;
                 case 'showLoading':
-                    log.shotgun('⏳ showLoading received - ignoring to prevent flicker');
                     // Skip showing loading for quick operations
                     break;
                 case 'hideLoading':
-                    log.shotgun('✅ hideLoading received');
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    log.shotgun('📦 FULL SOLUTION DATA RECEIVED - Using smart merge to preserve React components!');
                     setSolutionData(prev => mergeTreeData(prev, message.data));
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionDataUpdate':
-                    log.shotgun('🔄 SOLUTION DATA UPDATE - Using smart merge to preserve React components!');
                     // For updates triggered by file changes, we preserve tree state
                     // by smart merging instead of replacing
                     setSolutionData(prev => mergeTreeData(prev, message.data));

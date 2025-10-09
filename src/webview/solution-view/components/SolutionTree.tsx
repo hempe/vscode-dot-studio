@@ -418,7 +418,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     onAction={(action, data) => {
                         // For solution folder actions, pass GUID and name for safer operations
                         if (contextMenu.node.type === 'solutionFolder' &&
-                            (action === 'removeSolutionFolder' || action === 'addSolutionItem')) {
+                            (action === 'removeSolutionFolder' || action === 'addSolutionItem' || action === 'addSolutionFolder')) {
                             const enhancedData = {
                                 ...data,
                                 guid: contextMenu.node.guid,

@@ -19,11 +19,9 @@ export class SolutionTreeService {
      */
     static async buildSolutionTree(solution: Solution): Promise<ProjectNode[]> {
         const solutionPath = solution.solutionPath;
-        log.info(`Building solution tree for: ${solutionPath}`);
 
         const solutionFile = solution.solutionFile;
         if (!solutionFile) {
-            log.error('No solution file available');
             return [];
         }
 
@@ -107,9 +105,11 @@ export class SolutionTreeService {
             if (itemType === 'project') {
                 nodeId = SolutionExpansionIdService.generateProjectId(absolutePath);
             } else if (itemType === 'solutionFolder') {
+                // Include parent hierarchy in solution folder ID for proper nesting support
                 nodeId = SolutionExpansionIdService.generateSolutionFolderId(
                     project.guid || project.name,
-                    solution.solutionPath
+                    solution.solutionPath,
+                    parentExpansionId
                 );
             } else {
                 // Fallback for other types
@@ -219,6 +219,7 @@ export class SolutionTreeService {
      * Merges fresh tree data with cached expansion states
      */
     static mergeTreeStates(freshNodes: ProjectNode[], cachedNodes: ProjectNode[]): void {
+
         if (!cachedNodes || cachedNodes.length === 0) {
             return;
         }

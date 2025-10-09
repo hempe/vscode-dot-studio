@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
-import Markdown from "markdown-to-jsx";
-import { formatAuthors, LocalNuGetPackage } from "../shared";
+import { useState } from "react";
+import { LocalNuGetPackage } from "../shared";
 import NugetReadme from "./NugetReadme";
 import NugetDetail from "./NugetDetail";
 

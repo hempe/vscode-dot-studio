@@ -222,8 +222,6 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         manageNuGetPackagesAction,
         separator,
         addProjectReferenceAction,
-        addAssemblyReferenceAction,
-        addFrameworkReferenceAction,
         separator,
         restoreDependenciesAction
     ],
