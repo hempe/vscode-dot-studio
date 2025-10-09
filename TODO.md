@@ -63,7 +63,7 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 
 ### Project node context menu
 
-- [ ] Set as Startup project [startup project should be "bold" in the tree ] (setStartupProject)
+- [x] Set as Startup project [startup project should be "bold" in the tree ] (setStartupProject)
 
 ### Project and File Node Context Menu
 

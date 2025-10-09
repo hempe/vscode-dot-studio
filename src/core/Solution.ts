@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
+import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { Project } from './Project';
 import { logger } from './logger';
 
@@ -27,11 +28,13 @@ export class Solution {
     private _solutionFile?: SolutionFile;
     private _projects: Map<string, Project> = new Map();
     private _fileTree: Record<string, SolutionFileTreeNode> = {}; // Solution files tree structure
+    private _userFile: SolutionUserFile;
     private _isInitialized = false;
 
     public readonly onDidChange = this._changeEmitter.event;
 
     constructor(private readonly _solutionPath: string) {
+        this._userFile = new SolutionUserFile(_solutionPath);
         this.initialize();
     }
 
@@ -977,5 +980,41 @@ export class Solution {
         this._disposables = [];
 
         this._isInitialized = false;
+    }
+
+    /**
+     * Sets the startup project for the solution
+     */
+    async setStartupProject(projectPath: string): Promise<void> {
+        try {
+            // Find the project by path to get its GUID
+            const project = this._solutionFile?.projects.find(p => p.path === projectPath);
+            if (!project) {
+                throw new Error(`Project not found: ${projectPath}`);
+            }
+
+            // Use the SolutionUserFile to set the startup project
+            await this._userFile.setStartupProject(project.guid);
+
+            // Emit change event to refresh the UI
+            this._changeEmitter.fire();
+
+            log.info(`Set startup project: ${projectPath} (${project.guid})`);
+        } catch (error) {
+            log.error('Error setting startup project:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Gets the current startup project GUID
+     */
+    async getStartupProject(): Promise<string | null> {
+        try {
+            return await this._userFile.getStartupProject();
+        } catch (error) {
+            log.error('Error getting startup project:', error);
+            return null;
+        }
     }
 }

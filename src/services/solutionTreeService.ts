@@ -25,6 +25,9 @@ export class SolutionTreeService {
             return [];
         }
 
+        // Get the startup project GUID
+        const startupProjectGuid = await solution.getStartupProject();
+
         // Create project hierarchy map
         const hierarchy = new Map<string, SolutionProject[]>();
         hierarchy.set('ROOT', []);
@@ -56,7 +59,7 @@ export class SolutionTreeService {
         log.info(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
-        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId);
+        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId, startupProjectGuid);
 
         // Sort solution-level items (projects and solution folders)
         solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
@@ -87,7 +90,8 @@ export class SolutionTreeService {
         projects: SolutionProject[],
         hierarchy: Map<string, SolutionProject[]>,
         solution: Solution,
-        parentExpansionId: string = ''
+        parentExpansionId: string = '',
+        startupProjectGuid?: string | null
     ): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
 
@@ -129,7 +133,9 @@ export class SolutionTreeService {
                 // Store GUID for hierarchy lookup
                 guid: project.guid,
                 // Mark as not loaded for lazy loading
-                isLoaded: false
+                isLoaded: false,
+                // Mark if this is the startup project (only for actual projects)
+                isStartupProject: itemType === 'project' && project.guid === startupProjectGuid
             };
 
             // Check if project nodes actually have children (optimized check)
@@ -159,7 +165,7 @@ export class SolutionTreeService {
                 log.info(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
-                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId);
+                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId, startupProjectGuid);
                 }
 
                 // Add solution items (files directly in the solution folder)

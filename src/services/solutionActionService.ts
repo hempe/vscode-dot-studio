@@ -126,6 +126,10 @@ export class SolutionActionService {
                 await this._handleDeleteProject(projectPath);
                 break;
 
+            case 'setStartupProject':
+                await this._handleSetStartupProject(projectPath);
+                break;
+
             default:
                 log.warn(`Unknown project action: ${action}`);
                 break;
@@ -825,6 +829,32 @@ export class SolutionActionService {
         } catch (error) {
             log.error('Error editing .csproj file:', error);
             return false;
+        }
+    }
+
+    /**
+     * Handles setting a project as the startup project
+     */
+    private static async _handleSetStartupProject(projectPath: string): Promise<void> {
+        try {
+            log.info(`Setting startup project: ${projectPath}`);
+
+            const solution = SolutionService.getActiveSolution();
+            if (!solution) {
+                vscode.window.showErrorMessage('No solution is currently open');
+                return;
+            }
+
+            // Set the startup project in the solution
+            await solution.setStartupProject(projectPath);
+
+            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
+            vscode.window.showInformationMessage(`Set ${projectName} as startup project`);
+
+            log.info(`Successfully set startup project: ${projectPath}`);
+        } catch (error) {
+            log.error('Error setting startup project:', error);
+            vscode.window.showErrorMessage(`Error setting startup project: ${error}`);
         }
     }
 }

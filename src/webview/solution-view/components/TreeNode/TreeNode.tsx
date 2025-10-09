@@ -299,7 +299,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                         onCancel={handleRenameCancelLocal}
                     />
                 ) : (
-                    <span className="node-name">{node.name}</span>
+                    <span className={`node-name ${node.isStartupProject ? 'startup-project' : ''}`}>{node.name}</span>
                 )}
             </div>
             {node.expanded && node.children && (

@@ -134,6 +134,10 @@ export class SolutionWebView {
                         .node-name {
                             font-size: 12px;
                         }
+
+                        .node-name.startup-project {
+                            font-weight: bold;
+                        }
     
                         .expand-icon {
                             margin-right: 4px;
