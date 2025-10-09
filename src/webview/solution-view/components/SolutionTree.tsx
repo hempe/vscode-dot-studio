@@ -327,6 +327,18 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                                 type: focusedNodeForDelete.type
                             });
                         }
+                    } else if (focusedNodeForDelete.type === 'dependency') {
+                        // For dependency nodes, use the remove dependency action
+                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
+                        const removeAction = menuItems.find(item =>
+                            item.kind === 'action' && (item as MenuAction).action === 'removeDependency'
+                        );
+                        if (removeAction) {
+                            onProjectAction('removeDependency', focusedNodeForDelete.path, {
+                                type: focusedNodeForDelete.type,
+                                name: focusedNodeForDelete.name
+                            });
+                        }
                     } else {
                         // For other types (files, folders), use the existing delete logic
                         const deleteMenuItems = contextMenus[focusedNodeForDelete.type] || [];

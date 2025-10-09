@@ -143,7 +143,8 @@ export const restoreDependenciesAction: MenuAction = {
 export const removeDependencyAction: MenuAction = {
     name: "Remove",
     action: "removeDependency",
-    kind: "action"
+    kind: "action",
+    shortcut: "Del"
 };
 
 export const separator: MenuSeparator = {
