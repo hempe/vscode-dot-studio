@@ -785,6 +785,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Trigger immediate tree refresh
             await this._triggerImmediateTreeRefresh(`file creation: ${fileName}`);
+
+            // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
+            const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
+            if (!currentExpanded.includes(parentPath)) {
+                currentExpanded.push(parentPath);
+                SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
+
+                // Force another tree update to apply the expansion state
+                await this._sendCompleteTreeUpdate();
+            }
         } catch (error) {
             log.error('Error creating file:', error);
             vscode.window.showErrorMessage(`Error creating file: ${error}`);
@@ -812,6 +822,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Trigger immediate tree refresh
             await this._triggerImmediateTreeRefresh(`folder creation: ${folderName}`);
+
+            // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
+            const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
+            if (!currentExpanded.includes(parentPath)) {
+                currentExpanded.push(parentPath);
+                SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
+
+                // Force another tree update to apply the expansion state
+                await this._sendCompleteTreeUpdate();
+            }
         } catch (error) {
             log.error('Error creating folder:', error);
             vscode.window.showErrorMessage(`Error creating folder: ${error}`);

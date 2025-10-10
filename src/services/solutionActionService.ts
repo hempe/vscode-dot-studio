@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { ProjectActionType } from '../webview/solution-view/types';
@@ -220,21 +221,27 @@ export class SolutionActionService {
 
     private static async _handleDeleteFile(filePath: string): Promise<void> {
         try {
+            // Check if it's a directory
+            const stats = await fs.promises.stat(filePath);
+            const isDirectory = stats.isDirectory();
+            const itemType = isDirectory ? 'folder' : 'file';
+
             const answer = await vscode.window.showWarningMessage(
-                `Are you sure you want to delete '${path.basename(filePath)}'?`,
+                `Are you sure you want to delete this ${itemType} '${path.basename(filePath)}'?${isDirectory ? ' This will delete all its contents.' : ''}`,
                 { modal: true },
                 'Delete'
             );
 
             if (answer === 'Delete') {
                 const uri = vscode.Uri.file(filePath);
-                await vscode.workspace.fs.delete(uri);
-                log.info(`File deleted: ${filePath}`);
-                vscode.window.showInformationMessage(`File deleted: ${path.basename(filePath)}`);
+                // Use recursive delete for directories, regular delete for files
+                await vscode.workspace.fs.delete(uri, { recursive: isDirectory });
+                log.info(`${itemType} deleted: ${filePath}`);
+                vscode.window.showInformationMessage(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted: ${path.basename(filePath)}`);
             }
         } catch (error) {
-            log.error('Error deleting file:', error);
-            vscode.window.showErrorMessage(`Error deleting file: ${error}`);
+            log.error('Error deleting file/folder:', error);
+            vscode.window.showErrorMessage(`Error deleting: ${error}`);
         }
     }
 

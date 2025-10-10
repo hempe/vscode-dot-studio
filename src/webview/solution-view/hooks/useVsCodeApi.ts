@@ -236,10 +236,28 @@ const addTemporaryNodeToTree = (solutionData: SolutionData, parentPath: string, 
     const addTempNodeToParent = (nodes: any[]): any[] => {
         return nodes.map(node => {
             if (node.path === parentPath) {
-                // Found the parent, add the temporary node to its children
+                // Found the parent, add the temporary node to its children in proper order
+                let newChildren: any[];
+
+                if (!node.children || node.children.length === 0) {
+                    // Empty parent, just add the temp node
+                    newChildren = [tempNode];
+                } else {
+                    // Insert temp node in proper position based on type
+                    if (nodeType === 'folder') {
+                        // Folders should go after existing folders but before files
+                        const folders = node.children.filter((child: any) => child.type === 'folder');
+                        const files = node.children.filter((child: any) => child.type !== 'folder');
+                        newChildren = [...folders, tempNode, ...files];
+                    } else {
+                        // Files go at the end
+                        newChildren = [...node.children, tempNode];
+                    }
+                }
+
                 return {
                     ...node,
-                    children: node.children ? [...node.children, tempNode] : [tempNode],
+                    children: newChildren,
                     expanded: true // Ensure parent is expanded to show the new temp node
                 };
             }
