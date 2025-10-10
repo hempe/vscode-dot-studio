@@ -120,15 +120,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         projectPath: message.projectPath,
                         data: message.data
                     });
-                    await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
 
-                    // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
-                    const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
-                    if (solutionFileOperations.includes(message.action)) {
-                        const solution = SolutionService.getActiveSolution();
-                        if (solution) {
-                            log.info(`Triggering immediate file change handling after ${message.action} operation`);
-                            this.handleFileChange(solution.solutionPath, 'changed');
+                    // Handle addFile specially - create temporary node in edit mode
+                    if (message.action === 'addFile') {
+                        await this._handleAddFileAction(message.projectPath);
+                    } else {
+                        await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
+
+                        // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
+                        const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
+                        if (solutionFileOperations.includes(message.action)) {
+                            const solution = SolutionService.getActiveSolution();
+                            if (solution) {
+                                log.info(`Triggering immediate file change handling after ${message.action} operation`);
+                                this.handleFileChange(solution.solutionPath, 'changed');
+                            }
                         }
                     }
                 }
@@ -693,6 +699,28 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 command: 'solutionDataUpdate',
                 ...data
             });
+        }
+    }
+
+    /**
+     * Handles the addFile action by creating a temporary node in edit mode
+     */
+    private async _handleAddFileAction(parentPath: string): Promise<void> {
+        try {
+            log.info(`Creating temporary file node for parent: ${parentPath}`);
+
+            // Send a message to the webview to create a temporary node in edit mode
+            this._view?.webview.postMessage({
+                command: 'addTemporaryNode',
+                parentPath: parentPath,
+                nodeType: 'file',
+                defaultName: 'newfile.cs'
+            });
+
+            log.info(`Sent addTemporaryNode message to webview`);
+        } catch (error) {
+            log.error('Error handling add file action:', error);
+            vscode.window.showErrorMessage(`Error adding file: ${error}`);
         }
     }
 }

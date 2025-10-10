@@ -857,4 +857,5 @@ export class SolutionActionService {
             vscode.window.showErrorMessage(`Error setting startup project: ${error}`);
         }
     }
+
 }

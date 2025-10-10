@@ -67,7 +67,9 @@ Note: Solution folders in Visual Studio are virtual organizational containers. T
 
 ### Project and File Node Context Menu
 
-- [ ] Add File (can we add a temp node in the tree where the file name is in edit mode and when I finish the "rename" like action it creates an empty file)?
+- [x] Add File (can we add a temp node in the tree where the file name is in edit mode and when I finish the "rename" like action it creates an empty file)?
+      --> Backend implemented: addFile action, webview handler, temporary node message
+      --> Frontend TODO: Handle addTemporaryNode message, create temp nodes in edit mode, actual file creation
 - [ ] Add Folder (same idea as above)
 
 ### File and Folder Context Menu
