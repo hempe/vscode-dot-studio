@@ -121,9 +121,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         data: message.data
                     });
 
-                    // Handle addFile specially - create temporary node in edit mode
+                    // Handle addFile and addFolder specially - create temporary node in edit mode
                     if (message.action === 'addFile') {
                         await this._handleAddFileAction(message.projectPath);
+                    } else if (message.action === 'addFolder') {
+                        await this._handleAddFolderAction(message.projectPath);
                     } else {
                         await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
 
@@ -721,6 +723,28 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             log.error('Error handling add file action:', error);
             vscode.window.showErrorMessage(`Error adding file: ${error}`);
+        }
+    }
+
+    /**
+     * Handles the addFolder action by creating a temporary node in edit mode
+     */
+    private async _handleAddFolderAction(parentPath: string): Promise<void> {
+        try {
+            log.info(`Creating temporary folder node for parent: ${parentPath}`);
+
+            // Send a message to the webview to create a temporary node in edit mode
+            this._view?.webview.postMessage({
+                command: 'addTemporaryNode',
+                parentPath: parentPath,
+                nodeType: 'folder',
+                defaultName: 'NewFolder'
+            });
+
+            log.info(`Sent addTemporaryNode message to webview for folder`);
+        } catch (error) {
+            log.error('Error handling add folder action:', error);
+            vscode.window.showErrorMessage(`Error adding folder: ${error}`);
         }
     }
 }

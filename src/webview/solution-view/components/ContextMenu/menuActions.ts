@@ -89,6 +89,12 @@ export const addFileAction: MenuAction = {
     kind: "action"
 };
 
+export const addFolderAction: MenuAction = {
+    name: "Add Folder...",
+    action: "addFolder",
+    kind: "action"
+};
+
 export const restoreNugetsAction: MenuAction = {
     name: "Restore NuGet Packages",
     action: "restoreNugets",
@@ -197,6 +203,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         openAction,
         separator,
         addFileAction,
+        addFolderAction,
         separator,
         setStartupProjectAction,
         separator,
@@ -215,6 +222,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
 
     folder: [
         addFileAction,
+        addFolderAction,
         separator,
         renameAction,
         deleteAction,
