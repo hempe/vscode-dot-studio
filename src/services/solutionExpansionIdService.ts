@@ -14,7 +14,8 @@ export class SolutionExpansionIdService {
         solutionItem: 'solitem:',
         dependencies: 'deps:',
         dependencyCategory: 'depcat:',
-        dependency: 'dep:'
+        dependency: 'dep:',
+        temporary: 'temp:'
     };
 
     /**
@@ -264,5 +265,14 @@ export class SolutionExpansionIdService {
         }
 
         return null;
+    }
+
+    /**
+     * Generates a unique expansion ID for a temporary node
+     */
+    static generateTemporaryId(parentPath: string, nodeType: string): string {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        return `${this.PREFIXES.temporary}${nodeType}:${parentPath}:${timestamp}_${random}`;
     }
 }

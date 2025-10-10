@@ -22,16 +22,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
     const nodeIdentifier = node.nodeId;
-    const isRenaming = renamingNodeId === nodeIdentifier;
+    const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
 
 
 
     const handleClick = () => {
         log.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
 
-        // Don't handle clicks if node is loading
-        if (node.isLoading) {
-            log.info(`Node ${node.name} is loading, ignoring click`);
+        // Don't handle clicks if node is loading or is temporary
+        if (node.isLoading || node.isTemporary) {
+            log.info(`Node ${node.name} is loading or temporary, ignoring click`);
             return;
         }
 
@@ -67,9 +67,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const handleDoubleClick = () => {
         log.info(`Double click on ${node.type}: ${node.name} (path: ${node.path})`);
 
-        // Don't handle clicks if node is loading
-        if (node.isLoading) {
-            log.info(`Node ${node.name} is loading, ignoring double click`);
+        // Don't handle clicks if node is loading or is temporary
+        if (node.isLoading || node.isTemporary) {
+            log.info(`Node ${node.name} is loading or temporary, ignoring double click`);
             return;
         }
 
@@ -90,6 +90,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
+
+        // Don't show context menu for temporary nodes
+        if (node.isTemporary) {
+            log.info(`Context menu blocked for temporary node: ${node.name}`);
+            return;
+        }
+
         log.info(`RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
         log.info(`Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
         onContextMenu(e.clientX, e.clientY, node);
@@ -97,13 +104,30 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleRenameConfirmLocal = (newName: string) => {
-        log.info(`Renaming ${node.name} to ${newName}`);
-        onRenameConfirm(newName, node.path, node.type, node.name);
+        if (node.isTemporary) {
+            log.info(`Creating new ${node.type}: ${newName}`);
+            // For temporary nodes, trigger creation instead of rename
+            const parentPath = node.path.replace(`/${node.name}`, '');
+            if (node.type === 'file') {
+                onProjectAction('addFile', parentPath, { name: newName, isConfirmed: true });
+            } else if (node.type === 'folder') {
+                onProjectAction('addFolder', parentPath, { name: newName, isConfirmed: true });
+            }
+        } else {
+            log.info(`Renaming ${node.name} to ${newName}`);
+            onRenameConfirm(newName, node.path, node.type, node.name);
+        }
     };
 
     const handleRenameCancelLocal = () => {
-        log.info(`Cancelling rename for: ${node.name}`);
-        onRenameCancel();
+        if (node.isTemporary) {
+            log.info(`Cancelling creation of temporary ${node.type}: ${node.name}`);
+            // For temporary nodes, trigger removal action
+            onProjectAction('cancelTemporaryNode', node.nodeId);
+        } else {
+            log.info(`Cancelling rename for: ${node.name}`);
+            onRenameCancel();
+        }
     };
 
 

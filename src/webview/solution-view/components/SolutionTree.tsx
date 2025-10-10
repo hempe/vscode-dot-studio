@@ -157,6 +157,15 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     }, [focusedNodeId, flatNodes]);
 
+    // Auto-focus newly created temporary nodes
+    useEffect(() => {
+        const tempNode = flatNodes.find(item => item.node.isTemporary && item.node.isEditing);
+        if (tempNode) {
+            setFocusedNodeId(tempNode.node.nodeId);
+            setRenamingNodeId(tempNode.node.nodeId);
+        }
+    }, [flatNodes, setFocusedNodeId]);
+
     const handleProjectActionWrapper = useCallback((action: string, path: string, data?: any) => {
         if (action === 'startRename') {
             setRenamingNodeId(path);

@@ -218,6 +218,94 @@ const removeFileFromTree = (solutionData: SolutionData, filePath: string): Solut
     };
 };
 
+// Helper function to add a temporary node for creation
+const addTemporaryNodeToTree = (solutionData: SolutionData, parentPath: string, nodeType: string, defaultName: string): SolutionData => {
+    // Generate proper temporary node ID with prefix - import would be needed at top of file
+    const tempNodeId = `temp:${nodeType}:${parentPath}:${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const tempNode = {
+        nodeId: tempNodeId,
+        type: nodeType,
+        name: defaultName,
+        path: `${parentPath}/${defaultName}`,
+        isTemporary: true,
+        isEditing: true,
+        hasChildren: false,
+        expanded: false
+    };
+
+    const addTempNodeToParent = (nodes: any[]): any[] => {
+        return nodes.map(node => {
+            if (node.path === parentPath) {
+                // Found the parent, add the temporary node to its children
+                return {
+                    ...node,
+                    children: node.children ? [...node.children, tempNode] : [tempNode],
+                    expanded: true // Ensure parent is expanded to show the new temp node
+                };
+            }
+            if (node.children) {
+                return {
+                    ...node,
+                    children: addTempNodeToParent(node.children)
+                };
+            }
+            return node;
+        });
+    };
+
+    return {
+        ...solutionData,
+        projects: addTempNodeToParent(solutionData.projects)
+    };
+};
+
+// Helper function to remove a temporary node from the tree
+const removeTemporaryNodeFromTree = (solutionData: SolutionData, nodeId: string): SolutionData => {
+    const removeNodeById = (nodes: any[]): any[] => {
+        return nodes.filter(node => {
+            if (node.nodeId === nodeId && node.isTemporary) {
+                return false; // Remove this temporary node
+            }
+            if (node.children) {
+                node.children = removeNodeById(node.children);
+            }
+            return true;
+        });
+    };
+
+    return {
+        ...solutionData,
+        projects: removeNodeById(solutionData.projects)
+    };
+};
+
+// Helper function to remove all temporary nodes from a specific parent
+const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentPath: string): SolutionData => {
+    const removeTemporaryFromNode = (nodes: any[]): any[] => {
+        return nodes.map(node => {
+            if (node.path === parentPath && node.children) {
+                // Remove all temporary children from this parent
+                return {
+                    ...node,
+                    children: node.children.filter((child: any) => !child.isTemporary)
+                };
+            }
+            if (node.children) {
+                return {
+                    ...node,
+                    children: removeTemporaryFromNode(node.children)
+                };
+            }
+            return node;
+        });
+    };
+
+    return {
+        ...solutionData,
+        projects: removeTemporaryFromNode(solutionData.projects)
+    };
+};
+
 const log = logger('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
@@ -319,6 +407,20 @@ export const useVsCodeApi = () => {
                     setLoading(false);
                     setRefreshing(false);
                     break;
+                case 'addTemporaryNode':
+                    log.info('Adding temporary node:', message);
+                    setSolutionData(prev => {
+                        if (!prev) return prev;
+                        return addTemporaryNodeToTree(prev, message.parentPath, message.nodeType, message.defaultName);
+                    });
+                    break;
+                case 'removeTemporaryNodes':
+                    log.info('Removing temporary nodes from parent:', message.parentPath);
+                    setSolutionData(prev => {
+                        if (!prev) return prev;
+                        return removeTemporaryNodesFromParent(prev, message.parentPath);
+                    });
+                    break;
                 default:
                     log.info('Unknown message command:', message.command);
             }
@@ -338,7 +440,16 @@ export const useVsCodeApi = () => {
 
     const handleProjectAction = useCallback((action: ProjectActionType, projectPath: string, data?: any) => {
         log.info('Project action requested:', { action, projectPath, data });
-        vscode.postMessage({ command: 'projectAction', action, projectPath, data });
+
+        if (action === 'cancelTemporaryNode') {
+            // Handle temporary node cancellation locally
+            setSolutionData(prev => {
+                if (!prev) return prev;
+                return removeTemporaryNodeFromTree(prev, projectPath); // projectPath is actually nodeId in this case
+            });
+        } else {
+            vscode.postMessage({ command: 'projectAction', action, projectPath, data });
+        }
     }, []);
 
     const expandNode = useCallback((nodeId: string, nodeType: string) => {

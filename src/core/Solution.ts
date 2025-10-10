@@ -1017,4 +1017,19 @@ export class Solution {
             return null;
         }
     }
+
+    /**
+     * Forces a refresh of all project file trees
+     */
+    async forceRefreshAllProjects(): Promise<void> {
+        log.info('Forcing refresh of all project file trees');
+
+        const refreshPromises: Promise<void>[] = [];
+        for (const project of this._projects.values()) {
+            refreshPromises.push(project.refresh());
+        }
+
+        await Promise.all(refreshPromises);
+        log.info('All project file trees refreshed');
+    }
 }

@@ -9,6 +9,8 @@ const log = logger('SolutionActionService');
 export interface MessageData {
     type?: string;
     newName?: string;
+    name?: string;
+    isConfirmed?: boolean;
     [key: string]: any;
 }
 
@@ -855,6 +857,49 @@ export class SolutionActionService {
         } catch (error) {
             log.error('Error setting startup project:', error);
             vscode.window.showErrorMessage(`Error setting startup project: ${error}`);
+        }
+    }
+
+    /**
+     * Creates a new file at the specified path
+     */
+    static async createFile(filePath: string): Promise<void> {
+        try {
+            log.info(`Creating file: ${filePath}`);
+
+            const fs = require('fs').promises;
+            const pathModule = require('path');
+
+            // Ensure the directory exists
+            const dirPath = pathModule.dirname(filePath);
+            await fs.mkdir(dirPath, { recursive: true });
+
+            // Create the file with empty content
+            await fs.writeFile(filePath, '', 'utf8');
+
+            log.info(`File created successfully: ${filePath}`);
+        } catch (error) {
+            log.error('Error creating file:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Creates a new folder at the specified path
+     */
+    static async createFolder(folderPath: string): Promise<void> {
+        try {
+            log.info(`Creating folder: ${folderPath}`);
+
+            const fs = require('fs').promises;
+
+            // Create the directory recursively
+            await fs.mkdir(folderPath, { recursive: true });
+
+            log.info(`Folder created successfully: ${folderPath}`);
+        } catch (error) {
+            log.error('Error creating folder:', error);
+            throw error;
         }
     }
 

@@ -6,7 +6,7 @@ export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'f
 export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem' | 'manageNuGetPackages' | 'manageNuGetPackagesForSolution' | 'addProjectReference' | 'restoreDependencies' | 'removeDependency' | 'setStartupProject' | 'addFile' | 'addFolder';
 
 // All project actions (includes menu actions + internal actions)
-export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent';
+export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent' | 'cancelTemporaryNode';
 
 export interface ProjectNode {
     type: NodeType;
@@ -24,6 +24,8 @@ export interface ProjectNode {
     isLoading?: boolean; // Show loading state while backend processes expand/collapse
     isStartupProject?: boolean; // Indicates if this project is the startup project
     nodeId: string; // Unique node identifier for all operations
+    isTemporary?: boolean; // Indicates if this is a temporary node for creation
+    isEditing?: boolean; // Indicates if this node should be in editing mode
 }
 
 export interface SolutionData {

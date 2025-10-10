@@ -35,6 +35,7 @@ interface MessageData {
     oldName?: string;
     newName?: string;
     name?: string;
+    isConfirmed?: boolean;
 }
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
@@ -121,11 +122,19 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         data: message.data
                     });
 
-                    // Handle addFile and addFolder specially - create temporary node in edit mode
+                    // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
                     if (message.action === 'addFile') {
-                        await this._handleAddFileAction(message.projectPath);
+                        if (message.data?.isConfirmed && message.data?.name) {
+                            await this._handleCreateFileAction(message.projectPath, message.data.name);
+                        } else {
+                            await this._handleAddFileAction(message.projectPath);
+                        }
                     } else if (message.action === 'addFolder') {
-                        await this._handleAddFolderAction(message.projectPath);
+                        if (message.data?.isConfirmed && message.data?.name) {
+                            await this._handleCreateFolderAction(message.projectPath, message.data.name);
+                        } else {
+                            await this._handleAddFolderAction(message.projectPath);
+                        }
                     } else {
                         await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
 
@@ -137,6 +146,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                                 log.info(`Triggering immediate file change handling after ${message.action} operation`);
                                 this.handleFileChange(solution.solutionPath, 'changed');
                             }
+                        }
+
+                        // Trigger immediate tree refresh for file/folder operations that affect the filesystem
+                        const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
+                        if (operationsThatAffectTree.includes(message.action)) {
+                            const fileName = path.basename(message.projectPath);
+                            await this._triggerImmediateTreeRefresh(`${message.action} operation: ${fileName}`);
                         }
                     }
                 }
@@ -745,6 +761,83 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             log.error('Error handling add folder action:', error);
             vscode.window.showErrorMessage(`Error adding folder: ${error}`);
+        }
+    }
+
+    /**
+     * Handles actual file creation when a temporary node is confirmed
+     */
+    private async _handleCreateFileAction(parentPath: string, fileName: string): Promise<void> {
+        try {
+            log.info(`Creating actual file: ${fileName} in ${parentPath}`);
+
+            const fullPath = path.join(parentPath, fileName);
+            await SolutionActionService.createFile(fullPath);
+
+            log.info(`File created successfully: ${fullPath}`);
+            vscode.window.showInformationMessage(`File created: ${fileName}`);
+
+            // Send message to remove all temporary nodes for this parent
+            this._view?.webview.postMessage({
+                command: 'removeTemporaryNodes',
+                parentPath: parentPath
+            });
+
+            // Trigger immediate tree refresh
+            await this._triggerImmediateTreeRefresh(`file creation: ${fileName}`);
+        } catch (error) {
+            log.error('Error creating file:', error);
+            vscode.window.showErrorMessage(`Error creating file: ${error}`);
+        }
+    }
+
+    /**
+     * Handles actual folder creation when a temporary node is confirmed
+     */
+    private async _handleCreateFolderAction(parentPath: string, folderName: string): Promise<void> {
+        try {
+            log.info(`Creating actual folder: ${folderName} in ${parentPath}`);
+
+            const fullPath = path.join(parentPath, folderName);
+            await SolutionActionService.createFolder(fullPath);
+
+            log.info(`Folder created successfully: ${fullPath}`);
+            vscode.window.showInformationMessage(`Folder created: ${folderName}`);
+
+            // Send message to remove all temporary nodes for this parent
+            this._view?.webview.postMessage({
+                command: 'removeTemporaryNodes',
+                parentPath: parentPath
+            });
+
+            // Trigger immediate tree refresh
+            await this._triggerImmediateTreeRefresh(`folder creation: ${folderName}`);
+        } catch (error) {
+            log.error('Error creating folder:', error);
+            vscode.window.showErrorMessage(`Error creating folder: ${error}`);
+        }
+    }
+
+    /**
+     * Triggers an immediate refresh of the tree after a file operation
+     */
+    private async _triggerImmediateTreeRefresh(reason: string): Promise<void> {
+        try {
+            log.info(`Triggering immediate tree refresh: ${reason}`);
+
+            // Clear cache to ensure fresh data is loaded
+            this._clearCache();
+
+            // Force all projects to refresh their file trees (this will reload folder contents)
+            const solution = SolutionService.getActiveSolution();
+            if (solution) {
+                await solution.forceRefreshAllProjects();
+            }
+
+            // Force a complete tree update with expansion state preservation
+            await this._sendCompleteTreeUpdate();
+        } catch (error) {
+            log.error('Error triggering immediate tree refresh:', error);
         }
     }
 }

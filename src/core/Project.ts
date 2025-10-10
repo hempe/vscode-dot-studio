@@ -173,6 +173,16 @@ export class Project {
 
         if (this.isPathInLoadedArea(relativePath)) {
             log.debug(`File ${changeType} in loaded area: ${relativePath}`);
+
+            // Invalidate the cache for the parent folder so it will be reloaded
+            const parentDir = path.dirname(filePath);
+            const parentNode = this.findNodeById(parentDir);
+            if (parentNode) {
+                log.info(`Invalidating cache for folder: ${parentDir}`);
+                parentNode.isLoaded = false;
+                parentNode.children = [];
+            }
+
             this._changeEmitter.fire(); // Simple event - just notify change
         }
     }
