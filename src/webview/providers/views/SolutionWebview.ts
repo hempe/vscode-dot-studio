@@ -35,12 +35,13 @@ export class SolutionWebView {
                             font-family: var(--vscode-font-family);
                             font-size: var(--vscode-font-size);
                             color: var(--vscode-foreground);
-                            background-color: var(--vscode-editor-background);
+                            background-color: var(--vscode-sideBarTitle-background);
                             margin: 0;
                             padding: 8px;
-                            height: calc(100vh - 16px);
+                            padding-top: 0;
+                            height: calc(100vh - 8px);
                             width: calc(100vw - 16px);
-                            overflow: auto;
+                            overflow: hidden;
                         }
 
                         .solution-explorer {

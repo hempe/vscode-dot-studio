@@ -275,8 +275,15 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveSolutionItem(itemPath: string): Promise<void> {
+    private static async _handleRemoveSolutionItem(nodeId: string): Promise<void> {
         try {
+            const itemPath = NodeIdService.getSolutionPathFromNodeId(nodeId);
+            if (!itemPath) {
+                log.error('Cannot extract path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine path to remove solution item');
+                return;
+            }
+
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 vscode.window.showErrorMessage('No active solution found');
@@ -302,8 +309,15 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRevealInExplorer(itemPath: string): Promise<void> {
+    private static async _handleRevealInExplorer(nodeId: string): Promise<void> {
         try {
+            const itemPath = NodeIdService.nodeIdToPath(nodeId);
+            if (!itemPath) {
+                log.error('Cannot extract path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine path to reveal in explorer');
+                return;
+            }
+
             const uri = vscode.Uri.file(itemPath);
             await vscode.commands.executeCommand('revealFileInOS', uri);
         } catch (error) {
@@ -385,8 +399,15 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveSolutionFolder(folderPath: string, data?: MessageData): Promise<void> {
+    private static async _handleRemoveSolutionFolder(nodeId: string, data?: MessageData): Promise<void> {
         try {
+            const folderPath = NodeIdService.getSolutionPathFromNodeId(nodeId);
+            if (!folderPath) {
+                log.error('Cannot extract solution folder path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine solution folder path for removal');
+                return;
+            }
+
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 vscode.window.showErrorMessage('No active solution found');
@@ -421,8 +442,14 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddSolutionItem(folderPath: string, data?: MessageData): Promise<void> {
+    private static async _handleAddSolutionItem(nodeId: string, data?: MessageData): Promise<void> {
         try {
+            const folderPath = NodeIdService.getSolutionPathFromNodeId(nodeId);
+            if (!folderPath) {
+                log.error('Cannot extract folder path from nodeId:', nodeId);
+                return
+            }
+
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 vscode.window.showErrorMessage('No active solution found');
@@ -473,8 +500,15 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveProject(projectPath: string): Promise<void> {
+    private static async _handleRemoveProject(nodeId: string): Promise<void> {
         try {
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
+
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 vscode.window.showErrorMessage('No active solution found');
@@ -499,8 +533,14 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleDeleteProject(projectPath: string): Promise<void> {
+    private static async _handleDeleteProject(nodeId: string): Promise<void> {
         try {
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path for deletion');
+                return;
+            }
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 vscode.window.showErrorMessage('No active solution found');
@@ -887,8 +927,15 @@ export class SolutionActionService {
     /**
      * Handles setting a project as the startup project
      */
-    private static async _handleSetStartupProject(projectPath: string): Promise<void> {
+    private static async _handleSetStartupProject(nodeId: string): Promise<void> {
         try {
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
+
             log.info(`Setting startup project: ${projectPath}`);
 
             const solution = SolutionService.getActiveSolution();

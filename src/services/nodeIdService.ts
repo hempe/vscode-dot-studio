@@ -268,12 +268,12 @@ export class NodeIdService {
             return this.getPathFromId(nodeId);
         }
 
-        if (nodeId.startsWith(this.PREFIXES.solutionFolder) ||
-            nodeId.startsWith(this.PREFIXES.solutionItem)) {
-            // For solution-level nodes, we need the solution path
-            // This might need to be implemented based on your specific requirements
-            // For now, return null and handle this case specifically
-            return null;
+        if (nodeId.startsWith(this.PREFIXES.solutionItem)) {
+            return this.getPathFromId(nodeId)?.split(':')[1] || null;
+        }
+
+        if (nodeId.startsWith(this.PREFIXES.solutionFolder)) {
+            return this.getPathFromId(nodeId);
         }
 
         return null;
