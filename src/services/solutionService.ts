@@ -3,8 +3,8 @@ import * as path from 'path';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
-import { SettingsService } from './settingsService';
 import { logger } from '../core/logger';
+import { DebugConfigService } from './debugConfigService';
 
 const log = logger('SolutionService');
 
@@ -99,27 +99,6 @@ export class SolutionService {
     }
 
     /**
-     * Gets the current startup project from settings
-     */
-    static async getCurrentStartupProject(): Promise<string | null> {
-        return SettingsService.getStartupProject() || null;
-    }
-
-    /**
-     * Sets the startup project in settings
-     */
-    static async setStartupProject(projectPath: string): Promise<void> {
-        await SettingsService.setStartupProject(projectPath);
-    }
-
-    /**
-     * Clears the startup project from settings
-     */
-    static async clearStartupProject(): Promise<void> {
-        await SettingsService.setStartupProject(undefined);
-    }
-
-    /**
      * Discovers and selects the solution to use based on workspace contents
      * Implements the new discovery logic: single solution auto-selected,
      * multiple solutions prompt user selection, no solution offers creation
@@ -210,7 +189,7 @@ export class SolutionService {
         startupProject: string | null;
     }> {
         const solutionFile = await this.parseSolutionFile(solutionPath);
-        const startupProject = await this.getCurrentStartupProject();
+        const startupProject = await DebugConfigService.getStartupProjectFromLaunchJson();
 
         return {
             totalProjects: solutionFile.projects.length,

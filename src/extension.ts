@@ -7,6 +7,17 @@ import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
 
 const logger = loggerFn('Extensions');
+
+async function startDebugWithStartupProject(): Promise<void> {
+    try {
+        // Just use the standard debug start command - launch.json should be configured
+        await vscode.commands.executeCommand('workbench.action.debug.start');
+    } catch (error) {
+        logger.error('Error starting debug:', error);
+        vscode.window.showErrorMessage(`Error starting debug: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
 export function activate(context: vscode.ExtensionContext) {
     logger.info('.NET Extension is now active!');
 
@@ -94,8 +105,8 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Framework changed to: ${selection.label}`);
             }
         }),
-        vscode.commands.registerCommand('dotnet.solution.debug', () => {
-            vscode.commands.executeCommand('workbench.action.debug.start');
+        vscode.commands.registerCommand('dotnet.solution.debug', async () => {
+            await startDebugWithStartupProject();
         }),
         vscode.commands.registerCommand('dotnet.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)
@@ -113,6 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Watch only .NET solution and project files to reduce load
     const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
     const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.{csproj,vbproj,fsproj}');
+    const launchJsonWatcher = vscode.workspace.createFileSystemWatcher('**/.vscode/launch.json');
 
     // Set up handlers for both watchers
     solutionWatcher.onDidCreate((uri) => handleFileChange(uri, 'created'));
@@ -123,9 +135,21 @@ export function activate(context: vscode.ExtensionContext) {
     projectWatcher.onDidChange((uri) => handleFileChange(uri, 'changed'));
     projectWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
 
+    // Handle launch.json changes to refresh startup project
+    const handleLaunchJsonChange = () => {
+        logger.info('launch.json changed - refreshing solution tree');
+        solutionWebviewProvider.clearCache();
+        solutionWebviewProvider.refresh();
+    };
+
+    launchJsonWatcher.onDidCreate(handleLaunchJsonChange);
+    launchJsonWatcher.onDidChange(handleLaunchJsonChange);
+    launchJsonWatcher.onDidDelete(handleLaunchJsonChange);
+
     // Add watchers to subscriptions
     context.subscriptions.push(solutionWatcher);
     context.subscriptions.push(projectWatcher);
+    context.subscriptions.push(launchJsonWatcher);
 
     logger.info('.NET Extension activation complete!');
 

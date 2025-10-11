@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
-import { SettingsService } from '../services/settingsService';
+import { DebugConfigService } from '../services/debugConfigService';
 import { Project } from './Project';
 import { logger } from './logger';
 
@@ -1005,8 +1005,10 @@ export class Solution {
                 throw new Error(`Project not found: ${projectPath}`);
             }
 
-            // Use settings service to set the startup project
-            await SettingsService.setStartupProject(projectPath);
+            // Update launch.json with the new startup project (this is now the source of truth)
+            log.info(`About to update launch.json with startup project: ${projectPath}`);
+            await DebugConfigService.updateStartupConfiguration(projectPath);
+            log.info(`Finished updating launch.json`);
 
             // Emit change event to refresh the UI
             this._changeEmitter.fire();
@@ -1023,7 +1025,7 @@ export class Solution {
      */
     async getStartupProject(): Promise<string | null> {
         try {
-            return SettingsService.getStartupProject() || null;
+            return DebugConfigService.getStartupProjectFromLaunchJson();
         } catch (error) {
             log.error('Error getting startup project:', error);
             return null;

@@ -88,11 +88,6 @@
           "type": "string",
           "description": "Active target framework for debugging",
           "default": null
-        },
-        "dotnet.solution.startupProject": {
-          "type": "string",
-          "description": "Path to the startup project",
-          "default": null
         }
       }
     }

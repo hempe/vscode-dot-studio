@@ -35,31 +35,6 @@ export class SettingsService {
         }
     }
 
-    /**
-     * Gets the startup project setting
-     */
-    static getStartupProject(): string | undefined {
-        try {
-            const config = vscode.workspace.getConfiguration(this.SECTION);
-            return config.get<string>('startupProject') || undefined;
-        } catch (error) {
-            log.error('Error getting startup project setting:', error);
-            return undefined;
-        }
-    }
-
-    /**
-     * Sets the startup project setting
-     */
-    static async setStartupProject(projectPath: string | undefined): Promise<void> {
-        try {
-            const config = vscode.workspace.getConfiguration(this.SECTION);
-            await config.update('startupProject', projectPath || null, vscode.ConfigurationTarget.Workspace);
-        } catch (error) {
-            log.error('Error setting startup project:', error);
-            throw error;
-        }
-    }
 
     /**
      * Clears all solution settings
@@ -67,7 +42,6 @@ export class SettingsService {
     static async clearSettings(): Promise<void> {
         try {
             await this.setActiveFramework(undefined);
-            await this.setStartupProject(undefined);
         } catch (error) {
             log.error('Error clearing settings:', error);
             throw error;
