@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
-import { SolutionExpansionIdService } from './solutionExpansionIdService';
+import { NodeIdService } from './nodeIdService';
 import { ProjectNode } from '../webview/solution-view/types';
 import { Project } from '../core/Project';
 
@@ -56,7 +56,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'project') {
                 // Expanding a project - extract actual project path from expansion ID
-                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.getPathFromId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
@@ -84,7 +84,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'dependencies') {
                 // Expanding a Dependencies node - extract project path from expansion ID
-                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.getPathFromId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
@@ -99,7 +99,7 @@ export class SolutionExpansionService {
                 nodeType === 'projectDependencies' ||
                 nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - extract project path from expansion ID
-                const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
+                const projectPath = NodeIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;
@@ -112,7 +112,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'folder') {
                 // Expanding a folder within a project - extract paths from expansion ID
-                const pathPortion = SolutionExpansionIdService.getPathFromId(nodeId);
+                const pathPortion = NodeIdService.getPathFromId(nodeId);
                 if (!pathPortion) {
                     log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
@@ -183,9 +183,9 @@ export class SolutionExpansionService {
             }
 
             // For folder nodes, find the project and collapse the folder
-            const nodeType = SolutionExpansionIdService.getNodeTypeFromId(nodeId);
+            const nodeType = NodeIdService.getNodeTypeFromId(nodeId);
             if (nodeType === 'folder') {
-                const pathPortion = SolutionExpansionIdService.getPathFromId(nodeId);
+                const pathPortion = NodeIdService.getPathFromId(nodeId);
                 if (pathPortion) {
                     const colonIndex = pathPortion.indexOf(':');
                     if (colonIndex !== -1) {
@@ -407,7 +407,7 @@ export class SolutionExpansionService {
                 // Solution children are already loaded in the initial tree
                 return;
             } else if (nodeType === 'project') {
-                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.getPathFromId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
@@ -420,7 +420,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'dependencies') {
                 // Expanding a Dependencies node - get the project and load its dependencies
-                const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.getPathFromId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
@@ -439,7 +439,7 @@ export class SolutionExpansionService {
                 nodeType === 'projectDependencies' ||
                 nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - get dependencies for that specific category
-                const projectPath = SolutionExpansionIdService.getProjectPathFromDependencyId(nodeId);
+                const projectPath = NodeIdService.getProjectPathFromDependencyId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;
@@ -455,7 +455,7 @@ export class SolutionExpansionService {
                     log.warn(`Could not find project for dependency category: ${projectPath}`);
                 }
             } else if (nodeType === 'folder') {
-                const pathPortion = SolutionExpansionIdService.getPathFromId(nodeId);
+                const pathPortion = NodeIdService.getPathFromId(nodeId);
                 if (!pathPortion) {
                     log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
@@ -487,7 +487,7 @@ export class SolutionExpansionService {
 
                 // Recursively restore expansion states for project-specific nodes
                 if (nodeType === 'project') {
-                    const projectPath = SolutionExpansionIdService.getPathFromId(nodeId);
+                    const projectPath = NodeIdService.getPathFromId(nodeId);
                     if (projectPath) {
                         const project = solution.getProject(projectPath);
                         if (project) {

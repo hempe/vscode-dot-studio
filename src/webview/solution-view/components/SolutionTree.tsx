@@ -113,10 +113,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     };
 
-    const handleRenameConfirm = (newName: string, filePath: string, nodeType: string, oldName: string) => {
+    const handleRenameConfirm = (newName: string, nodeId:string, nodeType: string, oldName: string) => {
         log.info(`Rename confirmed: ${oldName} -> ${newName}`);
         setRenamingNodeId(undefined);
-        onProjectAction('rename', filePath, { newName, oldName, type: nodeType });
+        onProjectAction('rename', nodeId,  { newName, oldName, type: nodeType });
     };
 
     const handleRenameCancel = () => {
@@ -166,13 +166,13 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     }, [flatNodes, setFocusedNodeId]);
 
-    const handleProjectActionWrapper = useCallback((action: string, path: string, data?: any) => {
+    const handleProjectActionWrapper = useCallback((action: ProjectActionType, nodeId: string, data: any | undefined) => {
         if (action === 'startRename') {
-            setRenamingNodeId(path);
+            setRenamingNodeId(nodeId);
         } else if (action === 'collapseParent') {
             // Find the parent of the clicked file and collapse it
             const allNodes = flattenNodes(treeNodes);
-            const nodeIndex = allNodes.findIndex(item => item.node.path === path);
+            const nodeIndex = allNodes.findIndex(item => item.node.nodeId === nodeId);
             if (nodeIndex >= 0) {
                 const currentLevel = allNodes[nodeIndex].level;
                 if (currentLevel > 0) {
@@ -190,7 +190,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 }
             }
         } else {
-            onProjectAction(action as ProjectActionType, path, data);
+            onProjectAction(action, nodeId, data);
         }
     }, [treeNodes, flattenNodes, handleToggleExpand, onProjectAction]);
 
@@ -238,7 +238,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     const focusedNode = flatNodes[currentIndex].node;
                     if (focusedNode.type === 'file') {
                         // Open file like double-click
-                        onProjectAction('openFile', focusedNode.path);
+                        onProjectAction('openFile', focusedNode.nodeId, undefined);
                     } else if (focusedNode.type === 'solutionFolder') {
                         // Solution folders should only expand/collapse, never open
                         if (focusedNode.children) {
@@ -318,7 +318,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                         );
                         if (removeAction) {
                             // Let backend handle the confirmation dialog - it already has one
-                            onProjectAction('removeSolutionFolder', focusedNodeForDelete.path, {
+                            onProjectAction('removeSolutionFolder', focusedNodeForDelete.nodeId,{
                                 type: focusedNodeForDelete.type,
                                 guid: focusedNodeForDelete.guid,
                                 name: focusedNodeForDelete.name
@@ -332,7 +332,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                         );
                         if (removeAction) {
                             // Let backend handle the confirmation dialog for consistency with solution folders
-                            onProjectAction('removeSolutionItem', focusedNodeForDelete.path, {
+                            onProjectAction('removeSolutionItem', focusedNodeForDelete.nodeId, {
                                 type: focusedNodeForDelete.type
                             });
                         }
@@ -343,7 +343,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                             item.kind === 'action' && (item as MenuAction).action === 'removeDependency'
                         );
                         if (removeAction) {
-                            onProjectAction('removeDependency', focusedNodeForDelete.path, {
+                            onProjectAction('removeDependency', focusedNodeForDelete.nodeId,{
                                 type: focusedNodeForDelete.type,
                                 name: focusedNodeForDelete.name
                             });
@@ -355,7 +355,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                             item.kind === 'action' && (item as MenuAction).action === 'deleteFile'
                         );
                         if (deleteMenuItem) {
-                            onProjectAction('deleteFile', focusedNodeForDelete.path, { type: focusedNodeForDelete.type });
+                            onProjectAction('deleteFile', focusedNodeForDelete.nodeId, { type: focusedNodeForDelete.type });
                         }
                     }
                     break;
@@ -475,9 +475,9 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                                 guid: contextMenu.node.guid,
                                 name: contextMenu.node.name
                             };
-                            onProjectAction(action, contextMenu.node.path, enhancedData);
+                            onProjectAction(action, contextMenu.node.nodeId, enhancedData);
                         } else {
-                            onProjectAction(action, contextMenu.node.path, data);
+                            onProjectAction(action, contextMenu.node.nodeId, data);
                         }
                     }}
                     nodeType={contextMenu.node.type}

@@ -5,7 +5,7 @@ import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileP
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
-import { SolutionExpansionIdService } from '../services/solutionExpansionIdService';
+import { NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../webview/solution-view/types';
 
@@ -497,7 +497,7 @@ export class Project {
                     type: 'dependencies',
                     name: 'Dependencies',
                     path: this._projectPath + '/dependencies', // Keep legacy path for compatibility
-                    nodeId: SolutionExpansionIdService.generateDependenciesId(this._projectPath),
+                    nodeId: NodeIdService.generateDependenciesId(this._projectPath),
                     hasChildren: true
                 });
             }
@@ -524,7 +524,7 @@ export class Project {
                         name: propertiesFolder.name,
                         path: propertiesFolder.path,
                         hasChildren: propertiesFolder.hasChildren,
-                        nodeId: SolutionExpansionIdService.generateFolderId(propertiesFolder.path, this._projectPath)
+                        nodeId: NodeIdService.generateFolderId(propertiesFolder.path, this._projectPath)
                     });
                 }
 
@@ -546,8 +546,8 @@ export class Project {
                     }
 
                     const nodeId = child.type === 'folder'
-                        ? SolutionExpansionIdService.generateFolderId(child.path, this._projectPath)
-                        : SolutionExpansionIdService.generateFileId(child.path);
+                        ? NodeIdService.generateFolderId(child.path, this._projectPath)
+                        : NodeIdService.generateFileId(child.path);
 
                     items.push({
                         type: child.type as 'folder' | 'file',
@@ -580,7 +580,7 @@ export class Project {
                 type: 'packageDependencies',
                 name: 'Packages',
                 path: this._projectPath + '/dependencies/packages', // Keep legacy path for compatibility
-                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
+                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
                 children: this.getDependenciesByCategory(':packages'),
                 isLoaded: true,
             },
@@ -588,7 +588,7 @@ export class Project {
                 type: 'projectDependencies',
                 name: 'Projects',
                 path: this._projectPath + '/dependencies/projects', // Keep legacy path for compatibility
-                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
+                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
                 children: this.getDependenciesByCategory(':projects'),
                 isLoaded: true,
             },
@@ -596,7 +596,7 @@ export class Project {
                 type: 'assemblyDependencies',
                 name: 'Assemblies',
                 path: this._projectPath + '/dependencies/assemblies', // Keep legacy path for compatibility
-                nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
+                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
                 children: this.getDependenciesByCategory(':assemblies'),
                 isLoaded: true,
             }
@@ -646,7 +646,7 @@ export class Project {
                 : `${this._projectPath}/dependencies/${categoryName}/${dep.name}`;
 
             // Generate expansion ID
-            const nodeId = SolutionExpansionIdService.generateDependencyId(
+            const nodeId = NodeIdService.generateDependencyId(
                 this._projectPath,
                 categoryName,
                 dep.name,
@@ -679,8 +679,8 @@ export class Project {
 
             for (const child of children) {
                 const nodeId = child.type === 'folder'
-                    ? SolutionExpansionIdService.generateFolderId(child.path, this._projectPath)
-                    : SolutionExpansionIdService.generateFileId(child.path);
+                    ? NodeIdService.generateFolderId(child.path, this._projectPath)
+                    : NodeIdService.generateFileId(child.path);
 
                 items.push({
                     type: child.type as 'folder' | 'file',

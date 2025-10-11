@@ -1,9 +1,8 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
 import { ProjectChild, ProjectNode } from '../webview/solution-view/types';
-import { SolutionExpansionIdService } from './solutionExpansionIdService';
+import { NodeIdService } from './nodeIdService';
 import { logger } from '../core/logger';
 
 const log = logger('SolutionTreeService');
@@ -51,7 +50,7 @@ export class SolutionTreeService {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
             path: solutionPath,
-            nodeId: SolutionExpansionIdService.generateSolutionId(solutionPath),
+            nodeId: NodeIdService.generateSolutionId(solutionPath),
             children: []
         };
 
@@ -108,10 +107,10 @@ export class SolutionTreeService {
             // Generate expansion ID based on node type
             let nodeId: string;
             if (itemType === 'project') {
-                nodeId = SolutionExpansionIdService.generateProjectId(absolutePath);
+                nodeId = NodeIdService.generateProjectId(absolutePath);
             } else if (itemType === 'solutionFolder') {
                 // Include parent hierarchy in solution folder ID for proper nesting support
-                nodeId = SolutionExpansionIdService.generateSolutionFolderId(
+                nodeId = NodeIdService.generateSolutionFolderId(
                     project.guid || project.name,
                     solution.solutionPath,
                     parentExpansionId
@@ -184,7 +183,7 @@ export class SolutionTreeService {
                         type: 'solutionItem',
                         name: itemName,
                         path: absoluteItemPath,
-                        nodeId: SolutionExpansionIdService.generateSolutionItemId(
+                        nodeId: NodeIdService.generateSolutionItemId(
                             absoluteItemPath,
                             project.guid || project.name
                         )
@@ -267,25 +266,6 @@ export class SolutionTreeService {
     }
 
     /**
-     * Gets all valid expansion IDs from the tree structure
-     */
-    static getAllValidIdsFromTree(nodes: ProjectNode[]): Set<string> {
-        const nodeIds = new Set<string>();
-
-        const traverse = (nodeList: ProjectNode[]) => {
-            for (const node of nodeList) {
-                nodeIds.add(node.nodeId);
-                if (node.children) {
-                    traverse(node.children);
-                }
-            }
-        };
-
-        traverse(nodes);
-        return nodeIds;
-    }
-
-    /**
      * Gets the node type for a given expansion ID from the tree
      */
     static getNodeTypeById(nodeId: string, nodes: ProjectNode[]): string | null {
@@ -333,36 +313,6 @@ export class SolutionTreeService {
         });
     }
 
-    /**
-     * Finds the project path for a given folder path
-     */
-    static findProjectPathForFolder(folderPath: string): string | undefined {
-        // We need to find which project contains this folder by traversing up the directory tree
-        let currentPath = folderPath;
-
-        // Keep going up until we find a directory that contains a project file
-        while (currentPath && currentPath !== path.dirname(currentPath)) {
-            try {
-                // Check if current directory contains any project files
-                const files = fs.readdirSync(currentPath);
-                const projectFile = files.find((file: string) =>
-                    file.endsWith('.csproj') || file.endsWith('.vbproj') || file.endsWith('.fsproj')
-                );
-
-                if (projectFile) {
-                    return path.join(currentPath, projectFile);
-                }
-
-                // Move up one directory
-                currentPath = path.dirname(currentPath);
-            } catch (error) {
-                // If we can't read the directory, move up
-                currentPath = path.dirname(currentPath);
-            }
-        }
-
-        return undefined;
-    }
 
     // Private helper methods
 

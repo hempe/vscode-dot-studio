@@ -62,15 +62,6 @@ export class VersionUtils {
     }
 
     /**
-     * Check if a version string is valid semver
-     * @param version Version string to validate
-     * @returns true if valid semver, false otherwise
-     */
-    static isValidSemver(version: string): boolean {
-        return !!semver.valid(version);
-    }
-
-    /**
      * Extract major version number from a version string
      * @param version Version string
      * @returns Major version number or 0 if cannot be determined

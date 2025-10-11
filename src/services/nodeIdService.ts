@@ -1,8 +1,8 @@
 /**
- * Service for generating and managing unique expansion IDs for solution tree nodes
+ * Service for generating and managing unique node IDs for solution tree nodes
  * This prevents ID collisions between different node types (e.g. real folders vs virtual nodes)
  */
-export class SolutionExpansionIdService {
+export class NodeIdService {
 
     // Prefixes for different node types to prevent collisions
     private static readonly PREFIXES = {
@@ -203,9 +203,9 @@ export class SolutionExpansionIdService {
                 // folder:/project/path:/folder/path → /folder/path
                 const pathPortion = this.getPathFromId(nodeId);
                 if (pathPortion) {
-                    const colonIndex = pathPortion.indexOf(':');
-                    if (colonIndex > 0) {
-                        return pathPortion.substring(colonIndex + 1);
+                    const lastColonIndex = pathPortion.lastIndexOf(':');
+                    if (lastColonIndex > 0) {
+                        return pathPortion.substring(lastColonIndex + 1);
                     }
                 }
                 return pathPortion;
@@ -228,5 +228,129 @@ export class SolutionExpansionIdService {
         const timestamp = Date.now();
         const random = Math.random().toString(36).substr(2, 9);
         return `${this.PREFIXES.temporary}${nodeType}:${parentPath}:${timestamp}_${random}`;
+    }
+
+    /**
+     * Extracts project path from various node types that belong to a project
+     */
+    static getProjectPathFromNodeId(nodeId: string): string | null {
+        if (nodeId.startsWith(this.PREFIXES.project)) {
+            return this.getPathFromId(nodeId);
+        }
+
+        if (nodeId.startsWith(this.PREFIXES.dependencies)) {
+            return this.getPathFromId(nodeId);
+        }
+
+        if (nodeId.startsWith(this.PREFIXES.dependencyCategory) ||
+            nodeId.startsWith(this.PREFIXES.dependency)) {
+            return this.getProjectPathFromDependencyId(nodeId);
+        }
+
+        if (nodeId.startsWith(this.PREFIXES.folder) ||
+            nodeId.startsWith(this.PREFIXES.file)) {
+            const pathPortion = this.getPathFromId(nodeId);
+            if (pathPortion && pathPortion.includes(':')) {
+                // For folder/file IDs with format "projectPath:itemPath", extract project path
+                return pathPortion.split(':')[0];
+            }
+            return pathPortion;
+        }
+
+        return null;
+    }
+
+    /**
+     * Extracts solution path from solution-related node types
+     */
+    static getSolutionPathFromNodeId(nodeId: string): string | null {
+        if (nodeId.startsWith(this.PREFIXES.solution)) {
+            return this.getPathFromId(nodeId);
+        }
+
+        if (nodeId.startsWith(this.PREFIXES.solutionFolder) ||
+            nodeId.startsWith(this.PREFIXES.solutionItem)) {
+            // For solution-level nodes, we need the solution path
+            // This might need to be implemented based on your specific requirements
+            // For now, return null and handle this case specifically
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if a nodeId represents a temporary node
+     */
+    static isTemporaryNode(nodeId: string): boolean {
+        return nodeId.startsWith(this.PREFIXES.temporary);
+    }
+
+    /**
+     * Checks if a nodeId represents a folder node
+     */
+    static isFolderNode(nodeId: string): boolean {
+        return nodeId.startsWith(this.PREFIXES.folder);
+    }
+
+    /**
+     * Checks if a nodeId represents a project node
+     */
+    static isProjectNode(nodeId: string): boolean {
+        return nodeId.startsWith(this.PREFIXES.project);
+    }
+
+    /**
+     * Extracts temporary node information from temporary node IDs
+     * Format: temp:nodeType:parentPath:timestamp_random
+     */
+    static getTemporaryNodeInfo(nodeId: string): { nodeType: string; parentPath: string } | null {
+        if (!this.isTemporaryNode(nodeId)) {
+            return null;
+        }
+
+        const pathPortion = this.getPathFromId(nodeId);
+        if (!pathPortion) return null;
+
+        const parts = pathPortion.split(':');
+        if (parts.length >= 3) {
+            return {
+                nodeType: parts[0],
+                parentPath: parts[1]
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Extracts dependency information from dependency node IDs
+     */
+    static getDependencyInfoFromNodeId(nodeId: string): { projectPath: string; dependencyName: string; dependencyType: string } | null {
+        if (!nodeId.startsWith(this.PREFIXES.dependency)) {
+            return null;
+        }
+
+        const pathPortion = this.getPathFromId(nodeId);
+        if (!pathPortion) return null;
+
+        // Parse dependency path format: "projectPath:dependencyType:dependencyName"
+        const parts = pathPortion.split(':');
+        if (parts.length < 3) return null;
+
+        const projectPath = parts[0];
+        const dependencyType = parts[1]; // e.g., "packages" or "projects"
+        const dependencyNameWithVersion = parts.slice(2).join(':'); // In case dependency name contains colons
+
+        // Extract dependency name (remove version for packages)
+        const dependencyName = dependencyNameWithVersion.includes('@')
+            ? dependencyNameWithVersion.split('@')[0]
+            : dependencyNameWithVersion;
+
+        return {
+            projectPath,
+            dependencyName,
+            dependencyType
+        };
     }
 }

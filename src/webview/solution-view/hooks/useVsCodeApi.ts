@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
+import { NodeIdService } from '../../../services/nodeIdService';
 
 declare global {
     interface Window {
@@ -96,14 +97,14 @@ const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData):
     };
 };
 
-const updateNodeInTree = (solutionData: SolutionData, oldPath: string, newPath: string, newName: string): SolutionData => {
+const updateNodeInTree = (solutionData: SolutionData, oldNodeId: string, newName: string, newPath?: string): SolutionData => {
     const updateNode = (node: any): any => {
-        if (node.path === oldPath) {
+        if (node.nodeId === oldNodeId) {
             // This is the node we want to update
             return {
                 ...node,
                 name: newName,
-                path: newPath
+                path: newPath || node.path // Keep existing path if not provided
             };
         }
 
@@ -152,10 +153,10 @@ const addProjectToTree = (solutionData: SolutionData, newProject: any): Solution
 };
 
 // Helper function to remove a project from the tree structure
-const removeProjectFromTree = (solutionData: SolutionData, projectPath: string): SolutionData => {
+const removeProjectFromTree = (solutionData: SolutionData, projectNodeId: string): SolutionData => {
     const removeNode = (nodes: any[]): any[] => {
         return nodes.filter(node => {
-            if (node.path === projectPath) {
+            if (node.nodeId === projectNodeId) {
                 return false; // Remove this node
             }
             if (node.children) {
@@ -172,10 +173,10 @@ const removeProjectFromTree = (solutionData: SolutionData, projectPath: string):
 };
 
 // Helper function to add a file to the tree structure
-const addFileToTree = (solutionData: SolutionData, file: any, parentPath: string): SolutionData => {
+const addFileToTree = (solutionData: SolutionData, file: any, parentNodeId: string): SolutionData => {
     const addFileToNode = (nodes: any[]): any[] => {
         return nodes.map(node => {
-            if (node.path === parentPath) {
+            if (node.nodeId === parentNodeId) {
                 // Found the parent, add the file to its children
                 return {
                     ...node,
@@ -199,10 +200,10 @@ const addFileToTree = (solutionData: SolutionData, file: any, parentPath: string
 };
 
 // Helper function to remove a file from the tree structure
-const removeFileFromTree = (solutionData: SolutionData, filePath: string): SolutionData => {
+const removeFileFromTree = (solutionData: SolutionData, fileNodeId: string): SolutionData => {
     const removeFileFromNode = (nodes: any[]): any[] => {
         return nodes.filter(node => {
-            if (node.path === filePath) {
+            if (node.nodeId === fileNodeId) {
                 return false; // Remove this file
             }
             if (node.children) {
@@ -219,14 +220,16 @@ const removeFileFromTree = (solutionData: SolutionData, filePath: string): Solut
 };
 
 // Helper function to add a temporary node for creation
-const addTemporaryNodeToTree = (solutionData: SolutionData, parentPath: string, nodeType: string, defaultName: string): SolutionData => {
-    // Generate proper temporary node ID with prefix - import would be needed at top of file
-    const tempNodeId = `temp:${nodeType}:${parentPath}:${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: string, nodeType: string, defaultName: string): SolutionData => {
+    // Extract the actual file system path from the parentNodeId using the service
+    const parentPath = NodeIdService.nodeIdToPath(parentNodeId) || parentNodeId;
+    // Generate proper temporary node ID using the service
+    const tempNodeId = NodeIdService.generateTemporaryId(parentPath, nodeType);
     const tempNode = {
         nodeId: tempNodeId,
         type: nodeType,
         name: defaultName,
-        path: `${parentPath}/${defaultName}`,
+        path: `${parentPath}/${defaultName}`, // Keep path for display purposes
         isTemporary: true,
         isEditing: true,
         hasChildren: false,
@@ -235,7 +238,7 @@ const addTemporaryNodeToTree = (solutionData: SolutionData, parentPath: string, 
 
     const addTempNodeToParent = (nodes: any[]): any[] => {
         return nodes.map(node => {
-            if (node.path === parentPath) {
+            if (node.nodeId === parentNodeId) {
                 // Found the parent, add the temporary node to its children in proper order
                 let newChildren: any[];
 
@@ -298,10 +301,10 @@ const removeTemporaryNodeFromTree = (solutionData: SolutionData, nodeId: string)
 };
 
 // Helper function to remove all temporary nodes from a specific parent
-const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentPath: string): SolutionData => {
+const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentNodeId: string): SolutionData => {
     const removeTemporaryFromNode = (nodes: any[]): any[] => {
         return nodes.map(node => {
-            if (node.path === parentPath && node.children) {
+            if (node.nodeId === parentNodeId && node.children) {
                 // Remove all temporary children from this parent
                 return {
                     ...node,
@@ -322,6 +325,20 @@ const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentPath: 
         ...solutionData,
         projects: removeTemporaryFromNode(solutionData.projects)
     };
+};
+
+// Helper function to find nodeId from path in tree
+const findNodeIdFromPath = (nodes: any[], targetPath: string): string | null => {
+    for (const node of nodes) {
+        if (node.path === targetPath) {
+            return node.nodeId;
+        }
+        if (node.children) {
+            const found = findNodeIdFromPath(node.children, targetPath);
+            if (found) return found;
+        }
+    }
+    return null;
 };
 
 const log = logger('useVsCodeApi');
@@ -374,7 +391,11 @@ export const useVsCodeApi = () => {
                     log.info('Node renamed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return updateNodeInTree(prev, message.oldPath, message.newPath, message.newName);
+                        const nodeId = findNodeIdFromPath(prev.projects, message.oldPath);
+                        if (nodeId) {
+                            return updateNodeInTree(prev, nodeId, message.newName, message.newPath);
+                        }
+                        return prev;
                     });
                     break;
                 case 'projectAdded':
@@ -388,7 +409,11 @@ export const useVsCodeApi = () => {
                     log.info('Project removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return removeProjectFromTree(prev, message.projectPath);
+                        const nodeId = findNodeIdFromPath(prev.projects, message.projectPath);
+                        if (nodeId) {
+                            return removeProjectFromTree(prev, nodeId);
+                        }
+                        return prev;
                     });
                     break;
                 case 'fileChanged':
@@ -400,14 +425,22 @@ export const useVsCodeApi = () => {
                     log.info('File added:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return addFileToTree(prev, message.file, message.parentPath);
+                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
+                        if (parentNodeId) {
+                            return addFileToTree(prev, message.file, parentNodeId);
+                        }
+                        return prev;
                     });
                     break;
                 case 'fileRemoved':
                     log.info('File removed:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return removeFileFromTree(prev, message.filePath);
+                        const nodeId = findNodeIdFromPath(prev.projects, message.filePath);
+                        if (nodeId) {
+                            return removeFileFromTree(prev, nodeId);
+                        }
+                        return prev;
                     });
                     break;
                 case 'updateSolution':
@@ -424,14 +457,25 @@ export const useVsCodeApi = () => {
                     log.info('Adding temporary node:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return addTemporaryNodeToTree(prev, message.parentPath, message.nodeType, message.defaultName);
+                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
+                        log.info('findNodeIdFromPath result for path:', message.parentPath, 'nodeId:', parentNodeId);
+                        if (parentNodeId) {
+                            return addTemporaryNodeToTree(prev, parentNodeId, message.nodeType, message.defaultName);
+                        } else {
+                            log.error('Could not find nodeId for parentPath:', message.parentPath);
+                        }
+                        return prev;
                     });
                     break;
                 case 'removeTemporaryNodes':
                     log.info('Removing temporary nodes from parent:', message.parentPath);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        return removeTemporaryNodesFromParent(prev, message.parentPath);
+                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
+                        if (parentNodeId) {
+                            return removeTemporaryNodesFromParent(prev, parentNodeId);
+                        }
+                        return prev;
                     });
                     break;
                 default:
@@ -451,17 +495,22 @@ export const useVsCodeApi = () => {
         vscode.postMessage({ command: 'setFramework', framework });
     }, []);
 
-    const handleProjectAction = useCallback((action: ProjectActionType, projectPath: string, data?: any) => {
-        log.info('Project action requested:', { action, projectPath, data });
+    const handleProjectAction = useCallback((action: ProjectActionType, nodeId: string, data: any | undefined) => {
+        log.info('Project action requested:', { action, nodeId, data });
 
         if (action === 'cancelTemporaryNode') {
             // Handle temporary node cancellation locally
             setSolutionData(prev => {
                 if (!prev) return prev;
-                return removeTemporaryNodeFromTree(prev, projectPath); // projectPath is actually nodeId in this case
+                return removeTemporaryNodeFromTree(prev, nodeId); // projectPath is actually nodeId in this case
             });
         } else {
-            vscode.postMessage({ command: 'projectAction', action, projectPath, data });
+            vscode.postMessage({
+                command: 'projectAction',
+                action,
+                nodeId,
+                data
+            });
         }
     }, []);
 

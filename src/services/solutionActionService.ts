@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { ProjectActionType } from '../webview/solution-view/types';
+import { NodeIdService } from './nodeIdService';
 
 const log = logger('SolutionActionService');
 
@@ -24,51 +25,51 @@ export class SolutionActionService {
     /**
      * Handles a project action with the specified parameters
      */
-    static async handleProjectAction(action: ProjectActionType, projectPath: string, data?: MessageData): Promise<void> {
-        log.info(`Executing project action: ${action} on ${projectPath}`);
+    static async handleProjectAction(action: ProjectActionType, nodeId: string, data?: MessageData): Promise<void> {
+        log.info(`Executing project action: ${action} on nodeId: ${nodeId}`);
 
         switch (action) {
             case 'openFile':
-                await this._handleOpenFile(projectPath);
+                await this._handleOpenFile(nodeId);
                 break;
 
             case 'contextMenu':
-                log.info(`Context menu action for ${data?.type || 'unknown'} at ${projectPath}`);
+                log.info(`Context menu action for ${data?.type || 'unknown'} on nodeId: ${nodeId}`);
                 // Context menu actions are handled by the UI - this is just logging
                 break;
 
             case 'rename':
                 if (data?.newName) {
-                    await this._handleRename(projectPath, data.newName, data.type, data.oldName);
+                    await this._handleRename(nodeId, data.newName, data.type, data.oldName);
                 }
                 break;
 
             case 'build':
-                await this._handleBuild(projectPath, 'build');
+                await this._handleBuild(nodeId, 'build');
                 break;
 
             case 'rebuild':
-                await this._handleBuild(projectPath, 'rebuild');
+                await this._handleBuild(nodeId, 'rebuild');
                 break;
 
             case 'clean':
-                await this._handleBuild(projectPath, 'clean');
+                await this._handleBuild(nodeId, 'clean');
                 break;
 
             case 'restoreNugets':
-                await this._handleBuild(projectPath, 'restore');
+                await this._handleBuild(nodeId, 'restore');
                 break;
 
             case 'deleteFile':
-                await this._handleDeleteFile(projectPath);
+                await this._handleDeleteFile(nodeId);
                 break;
 
             case 'removeSolutionItem':
-                await this._handleRemoveSolutionItem(projectPath);
+                await this._handleRemoveSolutionItem(nodeId);
                 break;
 
             case 'revealInExplorer':
-                await this._handleRevealInExplorer(projectPath);
+                await this._handleRevealInExplorer(nodeId);
                 break;
 
             case 'addExistingProject':
@@ -81,32 +82,32 @@ export class SolutionActionService {
 
             case 'startRename':
                 // This action is handled by the UI - no backend action needed
-                log.info(`Start rename action for: ${projectPath}`);
+                log.info(`Start rename action for nodeId: ${nodeId}`);
                 break;
 
             case 'collapseParent':
                 // This action is handled by the UI - no backend action needed
-                log.info(`Collapse parent action for: ${projectPath}`);
+                log.info(`Collapse parent action for nodeId: ${nodeId}`);
                 break;
 
             case 'manageNuGetPackages':
-                await this._handleManageNuGetPackages(projectPath);
+                await this._handleManageNuGetPackages(nodeId);
                 break;
 
             case 'manageNuGetPackagesForSolution':
-                await this._handleManageNuGetPackagesForSolution(projectPath);
+                await this._handleManageNuGetPackagesForSolution(nodeId);
                 break;
 
             case 'addProjectReference':
-                await this._handleAddProjectReference(projectPath);
+                await this._handleAddProjectReference(nodeId);
                 break;
 
             case 'restoreDependencies':
-                await this._handleRestoreDependencies(projectPath);
+                await this._handleRestoreDependencies(nodeId);
                 break;
 
             case 'removeDependency':
-                await this._handleRemoveDependency(projectPath);
+                await this._handleRemoveDependency(nodeId);
                 break;
 
             case 'addSolutionFolder':
@@ -114,23 +115,23 @@ export class SolutionActionService {
                 break;
 
             case 'removeSolutionFolder':
-                await this._handleRemoveSolutionFolder(projectPath, data);
+                await this._handleRemoveSolutionFolder(nodeId, data);
                 break;
 
             case 'addSolutionItem':
-                await this._handleAddSolutionItem(projectPath, data);
+                await this._handleAddSolutionItem(nodeId, data);
                 break;
 
             case 'removeProject':
-                await this._handleRemoveProject(projectPath);
+                await this._handleRemoveProject(nodeId);
                 break;
 
             case 'deleteProject':
-                await this._handleDeleteProject(projectPath);
+                await this._handleDeleteProject(nodeId);
                 break;
 
             case 'setStartupProject':
-                await this._handleSetStartupProject(projectPath);
+                await this._handleSetStartupProject(nodeId);
                 break;
 
             default:
@@ -141,8 +142,16 @@ export class SolutionActionService {
 
     // Private action handlers
 
-    private static async _handleOpenFile(filePath: string): Promise<void> {
+    private static async _handleOpenFile(nodeId: string): Promise<void> {
         try {
+            // Extract the file system path from the nodeId
+            const filePath = NodeIdService.nodeIdToPath(nodeId);
+            if (!filePath) {
+                log.error('Cannot extract file path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine file path to open');
+                return;
+            }
+
             const uri = vscode.Uri.file(filePath);
             await vscode.window.showTextDocument(uri);
         } catch (error) {
@@ -151,20 +160,33 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRename(itemPath: string, newName: string, itemType?: string, oldName?: string): Promise<void> {
-        log.info(`Renaming ${itemType || 'item'} from '${oldName}' to '${newName}' at path: ${itemPath}`);
+    private static async _handleRename(nodeId: string, newName: string, itemType?: string, oldName?: string): Promise<void> {
+        log.info(`Renaming ${itemType || 'item'} from '${oldName}' to '${newName}' for nodeId: ${nodeId}`);
 
         try {
             if (itemType === 'solutionFolder') {
-                // Handle solution folder rename
+                // Handle solution folder rename - extract the solution folder path
+                const itemPath = NodeIdService.getPathFromId(nodeId);
+                if (!itemPath) {
+                    log.error('Cannot extract solution folder path from nodeId:', nodeId);
+                    vscode.window.showErrorMessage('Error: Cannot determine solution folder path for rename');
+                    return;
+                }
+
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
                     await solution.renameSolutionFolder(itemPath, newName);
                     log.info(`Solution folder renamed successfully`);
                 }
             } else {
-                // Handle file/folder rename
-                const oldPath = itemPath;
+                // Handle file/folder rename - extract the file system path
+                const oldPath = NodeIdService.nodeIdToPath(nodeId);
+                if (!oldPath) {
+                    log.error('Cannot extract file path from nodeId:', nodeId);
+                    vscode.window.showErrorMessage('Error: Cannot determine file path for rename');
+                    return;
+                }
+
                 const newPath = path.join(path.dirname(oldPath), newName);
 
                 const oldUri = vscode.Uri.file(oldPath);
@@ -219,8 +241,16 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleDeleteFile(filePath: string): Promise<void> {
+    private static async _handleDeleteFile(nodeId: string): Promise<void> {
         try {
+            // Extract the file system path from the nodeId
+            const filePath = NodeIdService.nodeIdToPath(nodeId);
+            if (!filePath) {
+                log.error('Cannot extract file path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine file path for deletion');
+                return;
+            }
+
             // Check if it's a directory
             const stats = await fs.promises.stat(filePath);
             const isDirectory = stats.isDirectory();
@@ -520,10 +550,16 @@ export class SolutionActionService {
     /**
      * Handles managing NuGet packages for a project
      */
-    private static async _handleManageNuGetPackages(dependenciesPath: string): Promise<void> {
+    private static async _handleManageNuGetPackages(nodeId: string): Promise<void> {
         try {
-            // Extract project path from dependencies path (remove '/dependencies' suffix)
-            const projectPath = dependenciesPath.replace('/dependencies', '');
+            // Extract project path from nodeId
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
+
             log.info(`Managing NuGet packages for project: ${projectPath}`);
 
             // Open NuGet Package Manager in the main editor area for this specific project
@@ -535,8 +571,16 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleManageNuGetPackagesForSolution(solutionPath: string): Promise<void> {
+    private static async _handleManageNuGetPackagesForSolution(nodeId: string): Promise<void> {
         try {
+            // Extract solution path from nodeId
+            const solutionPath = NodeIdService.getSolutionPathFromNodeId(nodeId);
+            if (!solutionPath) {
+                log.error('Cannot extract solution path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine solution path');
+                return;
+            }
+
             log.info(`Managing NuGet packages for solution: ${solutionPath}`);
 
             // Open NuGet Package Manager in the main editor area for the entire solution
@@ -551,10 +595,15 @@ export class SolutionActionService {
     /**
      * Handles adding a reference to a project
      */
-    private static async _handleAddProjectReference(dependenciesPath: string): Promise<void> {
+    private static async _handleAddProjectReference(nodeId: string): Promise<void> {
         try {
-            // Extract project path from dependencies path
-            const projectPath = dependenciesPath.replace('/dependencies', '');
+            // Extract project path from nodeId
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
             log.info(`Adding project reference for project: ${projectPath}`);
 
             // Open file picker to select project file
@@ -593,10 +642,15 @@ export class SolutionActionService {
     /**
      * Handles restoring dependencies for a project
      */
-    private static async _handleRestoreDependencies(dependenciesPath: string): Promise<void> {
+    private static async _handleRestoreDependencies(nodeId: string): Promise<void> {
         try {
-            // Extract project path from dependencies path
-            const projectPath = dependenciesPath.replace('/dependencies', '');
+            // Extract project path from nodeId
+            const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
             log.info(`Restoring dependencies for project: ${projectPath}`);
 
             const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
@@ -617,32 +671,21 @@ export class SolutionActionService {
     /**
      * Handles removing a dependency from a project
      */
-    private static async _handleRemoveDependency(dependencyPath: string): Promise<void> {
+    private static async _handleRemoveDependency(nodeId: string): Promise<void> {
         try {
-            log.info(`Removing dependency: ${dependencyPath}`);
+            log.info(`Removing dependency with nodeId: ${nodeId}`);
 
-            // Parse the dependency path to extract information
-            // Path format: /path/to/project.csproj/dependencies/packages/PackageName@Version
-            // or: /path/to/project.csproj/dependencies/projects/ProjectName
-            const pathParts = dependencyPath.split('/dependencies/');
-            if (pathParts.length !== 2) {
-                throw new Error('Invalid dependency path format');
+            // Extract dependency information from nodeId
+            const dependencyInfo = NodeIdService.getDependencyInfoFromNodeId(nodeId);
+            if (!dependencyInfo) {
+                log.error('Cannot extract dependency info from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine dependency information');
+                return;
             }
 
-            const projectPath = pathParts[0];
-            const dependencyInfo = pathParts[1]; // e.g., "packages/PackageName@Version"
+            const { projectPath, dependencyName, dependencyType } = dependencyInfo;
 
-            const [category, dependencyNameWithVersion] = dependencyInfo.split('/');
-            if (!category || !dependencyNameWithVersion) {
-                throw new Error('Could not parse dependency category and name');
-            }
-
-            // Extract dependency name (remove version for packages)
-            const dependencyName = dependencyNameWithVersion.includes('@')
-                ? dependencyNameWithVersion.split('@')[0]
-                : dependencyNameWithVersion;
-
-            log.info(`Parsed dependency - Project: ${projectPath}, Category: ${category}, Name: ${dependencyName}`);
+            log.info(`Parsed dependency - Project: ${projectPath}, Type: ${dependencyType}, Name: ${dependencyName}`);
 
             // Confirm removal with user
             const result = await vscode.window.showWarningMessage(
@@ -658,7 +701,7 @@ export class SolutionActionService {
             const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
 
             // Remove the dependency by editing the .csproj file directly
-            const success = await this._removeDependencyFromCsproj(projectPath, category, dependencyName);
+            const success = await this._removeDependencyFromCsproj(projectPath, dependencyType, dependencyName);
 
             if (success) {
                 log.info(`Successfully removed ${dependencyName} from ${projectName}`);

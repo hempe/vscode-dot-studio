@@ -9,6 +9,7 @@ import { ProjectActionType, ProjectNode, SolutionData } from '../solution-view/t
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
+import { NodeIdService } from '../../services/nodeIdService';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -127,28 +128,28 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'projectAction':
-                if (message.action && message.projectPath) {
+                if (message.action && message.nodeId) {
                     log.info('Handling projectAction:', {
                         action: message.action,
-                        projectPath: message.projectPath,
+                        nodeId: message.nodeId,
                         data: message.data
                     });
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
                     if (message.action === 'addFile') {
                         if (message.data?.isConfirmed && message.data?.name) {
-                            await this._handleCreateFileAction(message.projectPath, message.data.name);
+                            await this._handleCreateFileAction(message.nodeId, message.data.name);
                         } else {
-                            await this._handleAddFileAction(message.projectPath);
+                            await this._handleAddFileAction(message.nodeId);
                         }
                     } else if (message.action === 'addFolder') {
                         if (message.data?.isConfirmed && message.data?.name) {
-                            await this._handleCreateFolderAction(message.projectPath, message.data.name);
+                            await this._handleCreateFolderAction(message.nodeId, message.data.name);
                         } else {
-                            await this._handleAddFolderAction(message.projectPath);
+                            await this._handleAddFolderAction(message.nodeId);
                         }
                     } else {
-                        await SolutionActionService.handleProjectAction(message.action, message.projectPath, message.data);
+                        await SolutionActionService.handleProjectAction(message.action, message.nodeId, message.data);
 
                         // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
                         const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
@@ -163,7 +164,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         // Trigger immediate tree refresh for file/folder operations that affect the filesystem
                         const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
                         if (operationsThatAffectTree.includes(message.action)) {
-                            const fileName = path.basename(message.projectPath);
+                            const projectPath = NodeIdService.getPathFromId(message.nodeId);
+                            if (!projectPath) {
+                                log.error('Invalid node ID, cannot extract path for immediate refresh:', message.nodeId);
+                                return;
+                            }
+                            const fileName = path.basename(projectPath);
                             await this._triggerImmediateTreeRefresh(`${message.action} operation: ${fileName}`);
                         }
                     }
@@ -349,8 +355,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles the addFile action by creating a temporary node in edit mode
      */
-    private async _handleAddFileAction(parentPath: string): Promise<void> {
+    private async _handleAddFileAction(parentNodeId: string): Promise<void> {
         try {
+            const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
+            if (!parentPath) {
+                log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
+                vscode.window.showErrorMessage(`Error adding file: invalid parent path`);
+                return;
+            }
+
             log.info(`Creating temporary file node for parent: ${parentPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
@@ -371,8 +384,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles the addFolder action by creating a temporary node in edit mode
      */
-    private async _handleAddFolderAction(parentPath: string): Promise<void> {
+    private async _handleAddFolderAction(parentNodeId: string): Promise<void> {
         try {
+            const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
+            if (!parentPath) {
+                log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
+                vscode.window.showErrorMessage(`Error adding folder: invalid parent path`);
+                return;
+            }
+
             log.info(`Creating temporary folder node for parent: ${parentPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
@@ -393,34 +413,75 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles actual file creation when a temporary node is confirmed
      */
-    private async _handleCreateFileAction(parentPath: string, fileName: string): Promise<void> {
+    private async _handleCreateFileAction(nodeId: string, fileName: string): Promise<void> {
         try {
-            log.info(`Creating actual file: ${fileName} in ${parentPath}`);
+            let parentPath: string | null = null;
+            let projectPath: string | null = null;
 
+            // Handle temporary node IDs vs regular node IDs
+            if (NodeIdService.isTemporaryNode(nodeId)) {
+                const tempInfo = NodeIdService.getTemporaryNodeInfo(nodeId);
+                if (tempInfo) {
+                    parentPath = tempInfo.parentPath;
+                }
+            } else {
+                // Handle regular node IDs
+                parentPath = NodeIdService.getPathFromId(nodeId);
+            }
+
+            if (!parentPath) {
+                log.error('Invalid node ID, cannot extract parent path:', nodeId);
+                vscode.window.showErrorMessage(`Error creating file: invalid parent path`);
+                return;
+            }
+
+            // Extract project path from the original nodeId if available
+            if (NodeIdService.isTemporaryNode(nodeId)) {
+                // For temporary nodes, we need to find the project path differently
+                // The temp nodeId format is: temp:nodeType:parentPath:timestamp_random
+                // We could enhance this to include project info, but for now find it
+                const solution = SolutionService.getActiveSolution();
+                if (solution) {
+                    for (const [projPath] of solution.projects) {
+                        if (parentPath.startsWith(path.dirname(projPath))) {
+                            projectPath = projPath;
+                            break;
+                        }
+                    }
+                }
+            } else if (NodeIdService.isFolderNode(nodeId)) {
+                // For folder nodeIds, extract project path from nodeId format: folder:projectPath:folderPath
+                projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            }
+
+            log.info(`Creating actual file: ${fileName} in ${parentPath}`);
             const fullPath = path.join(parentPath, fileName);
             await SolutionActionService.createFile(fullPath);
 
             log.info(`File created successfully: ${fullPath}`);
             vscode.window.showInformationMessage(`File created: ${fileName}`);
-
             // Send message to remove all temporary nodes for this parent
             this._view?.webview.postMessage({
                 command: 'removeTemporaryNodes',
                 parentPath: parentPath
             });
 
-            // Trigger immediate tree refresh
-            await this._triggerImmediateTreeRefresh(`file creation: ${fileName}`);
-
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
-            const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
-            if (!currentExpanded.has(parentPath)) {
-                currentExpanded.add(parentPath);
-                SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
-
-                // Force another tree update to apply the expansion state
-                return this._updateViewDebouncer.trigger();
+            if (projectPath) {
+                const parentNodeId = NodeIdService.generateFolderId(parentPath, projectPath);
+                const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
+                if (!currentExpanded.has(parentNodeId)) {
+                    currentExpanded.add(parentNodeId);
+                    SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
+                    log.info(`Added folder to expansion state: ${parentNodeId}`);
+                } else {
+                    log.info(`Folder already in expansion state: ${parentNodeId}`);
+                }
+            } else {
+                log.warn(`Could not find project path for folder: ${parentPath}`);
             }
+
+            return this._triggerImmediateTreeRefresh(`File created: ${fileName}`);
         } catch (error) {
             log.error('Error creating file:', error);
             vscode.window.showErrorMessage(`Error creating file: ${error}`);
@@ -430,8 +491,47 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles actual folder creation when a temporary node is confirmed
      */
-    private async _handleCreateFolderAction(parentPath: string, folderName: string): Promise<void> {
+    private async _handleCreateFolderAction(nodeId: string, folderName: string): Promise<void> {
         try {
+            let parentPath: string | null = null;
+            let projectPath: string | null = null;
+
+            // Handle temporary node IDs vs regular node IDs
+            if (NodeIdService.isTemporaryNode(nodeId)) {
+                const tempInfo = NodeIdService.getTemporaryNodeInfo(nodeId);
+                if (tempInfo) {
+                    parentPath = tempInfo.parentPath;
+                }
+            } else {
+                // Handle regular node IDs
+                parentPath = NodeIdService.getPathFromId(nodeId);
+            }
+
+            if (!parentPath) {
+                log.error('Invalid node ID, cannot extract parent path:', nodeId);
+                vscode.window.showErrorMessage(`Error creating folder: invalid parent path`);
+                return;
+            }
+
+            // Extract project path from the original nodeId if available
+            if (NodeIdService.isTemporaryNode(nodeId)) {
+                // For temporary nodes, we need to find the project path differently
+                // The temp nodeId format is: temp:nodeType:parentPath:timestamp_random
+                // We could enhance this to include project info, but for now find it
+                const solution = SolutionService.getActiveSolution();
+                if (solution) {
+                    for (const [projPath] of solution.projects) {
+                        if (parentPath.startsWith(path.dirname(projPath))) {
+                            projectPath = projPath;
+                            break;
+                        }
+                    }
+                }
+            } else if (NodeIdService.isFolderNode(nodeId)) {
+                // For folder nodeIds, extract project path from nodeId format: folder:projectPath:folderPath
+                projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
+            }
+
             log.info(`Creating actual folder: ${folderName} in ${parentPath}`);
 
             const fullPath = path.join(parentPath, folderName);
@@ -450,13 +550,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             await this._triggerImmediateTreeRefresh(`folder creation: ${folderName}`);
 
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
-            const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
-            if (!currentExpanded.has(parentPath)) {
-                currentExpanded.add(parentPath);
-                SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
+            if (projectPath) {
+                const parentNodeId = NodeIdService.generateFolderId(parentPath, projectPath);
+                const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
+                if (!currentExpanded.has(parentNodeId)) {
+                    currentExpanded.add(parentNodeId);
+                    SolutionExpansionService.saveExpansionState(currentExpanded, this._context);
+                    log.info(`Added folder to expansion state: ${parentNodeId}`);
 
-                // Force another tree update to apply the expansion state
-                await this._updateViewDebouncer.trigger();
+                    // Force another tree update to apply the expansion state
+                    await this._triggerImmediateTreeRefresh(`Folder created: ${folderName}`);
+                } else {
+                    log.info(`Folder already in expansion state: ${parentNodeId}`);
+                }
+            } else {
+                log.warn(`Could not find project path for folder: ${parentPath}`);
             }
         } catch (error) {
             log.error('Error creating folder:', error);

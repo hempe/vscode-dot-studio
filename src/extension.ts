@@ -43,9 +43,6 @@ export function activate(context: vscode.ExtensionContext) {
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();
 
-    // Initialize services
-    const solutionService = new SolutionService();
-
     // Create and register webview providers
     const solutionWebviewProvider = new SolutionWebviewProvider(
         context.extensionUri,
@@ -132,13 +129,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(projectWatcher);
 
     logger.info('.NET Extension activation complete!');
-
-    // Export for testing
-    return {
-        solutionWebviewProvider,
-        solutionService,
-        frameworkDropdownService
-    };
 }
 
 export function deactivate() {

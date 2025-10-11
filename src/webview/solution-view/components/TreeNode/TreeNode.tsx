@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
+import { NodeIdService } from '../../../../services/nodeIdService';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -27,7 +28,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
 
     const handleClick = () => {
-        log.info(`Single click on ${node.type}: ${node.name} (path: ${node.path})`);
+        log.info(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
 
         // Don't handle clicks if node is loading or is temporary
         if (node.isLoading || node.isTemporary) {
@@ -65,7 +66,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleDoubleClick = () => {
-        log.info(`Double click on ${node.type}: ${node.name} (path: ${node.path})`);
+        log.info(`Double click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
 
         // Don't handle clicks if node is loading or is temporary
         if (node.isLoading || node.isTemporary) {
@@ -81,8 +82,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Double click opens file for file types, project files, and solution files
         if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
-            log.info(`Opening file: ${node.path}`);
-            onProjectAction('openFile', node.path);
+            log.info(`Opening file: ${node.name}`);
+            onProjectAction('openFile', nodeIdentifier, undefined);
         } else {
             log.info(`Double click on ${node.type} - no action needed`);
         }
@@ -106,16 +107,14 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const handleRenameConfirmLocal = (newName: string) => {
         if (node.isTemporary) {
             log.info(`Creating new ${node.type}: ${newName}`);
-            // For temporary nodes, trigger creation instead of rename
-            const parentPath = node.path.replace(`/${node.name}`, '');
             if (node.type === 'file') {
-                onProjectAction('addFile', parentPath, { name: newName, isConfirmed: true });
+                onProjectAction('addFile',  nodeIdentifier, { name: newName, isConfirmed: true });
             } else if (node.type === 'folder') {
-                onProjectAction('addFolder', parentPath, { name: newName, isConfirmed: true });
+                onProjectAction('addFolder',  nodeIdentifier, { name: newName, isConfirmed: true });
             }
         } else {
             log.info(`Renaming ${node.name} to ${newName}`);
-            onRenameConfirm(newName, node.path, node.type, node.name);
+            onRenameConfirm(newName, nodeIdentifier, node.type, node.name);
         }
     };
 
@@ -123,7 +122,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         if (node.isTemporary) {
             log.info(`Cancelling creation of temporary ${node.type}: ${node.name}`);
             // For temporary nodes, trigger removal action
-            onProjectAction('cancelTemporaryNode', node.nodeId);
+            onProjectAction('cancelTemporaryNode', node.nodeId, undefined);
         } else {
             log.info(`Cancelling rename for: ${node.name}`);
             onRenameCancel();
@@ -144,19 +143,20 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     color: '#d8ac6a' // Folder color
                 };
             case 'project':
-                // Different icons based on project type - same icon as code files but gray with green border
-                if (node.path.includes('.csproj')) return {
+                // Different icons based on project type - determined from nodeId
+                const projectPath = NodeIdService.getPathFromId(nodeIdentifier) || '';
+                if (projectPath.includes('.csproj')) return {
                     icon: 'mdi:language-csharp',
                     __color: '#82c87e', // Green icon
                     color:'#3BA745',
                     border: true
                 };
-                if (node.path.includes('.vbproj')) return {
+                if (projectPath.includes('.vbproj')) return {
                     icon: 'mdi:file-code',
                     color: '#68217A', // Gray
                     border: true
                 };
-                if (node.path.includes('.fsproj')) return {
+                if (projectPath.includes('.fsproj')) return {
                     icon: 'mdi:file-code',
                     color: '#378BBA', // Gray
                     border: true
@@ -246,7 +246,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isFocused = focusedNodeId === nodeIdentifier;
 
     // Memoize icon configuration to prevent multiple calls during render
-    const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, node.path, node.expanded]);
+    const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, nodeIdentifier, node.expanded]);
 
     return (
         <div>

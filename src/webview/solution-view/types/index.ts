@@ -47,12 +47,12 @@ export interface SolutionData {
 export interface TreeNodeProps {
     node: ProjectNode;
     level: number;
-    onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
+    onProjectAction: (action: ProjectActionType, nodeId: string, data: any | undefined) => void;
     onToggleExpand: (nodeId: string, nodeType: string) => void;
     onNodeClick: (nodeId: string) => void;
     onNodeFocus: (nodeId: string) => void;
     onContextMenu: (x: number, y: number, node: ProjectNode) => void;
-    onRenameConfirm: (newName: string, filePath: string, nodeType: NodeType, oldName: string) => void;
+    onRenameConfirm: (newName: string, nodeId: string, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
     selectedNodeId?: string; // Node ID for selection
     focusedNodeId?: string; // Node ID for focus
@@ -61,7 +61,7 @@ export interface TreeNodeProps {
 
 export interface SolutionTreeProps {
     projects: any[];
-    onProjectAction: (action: ProjectActionType, projectPath: string, data?: any) => void;
+    onProjectAction: (action: ProjectActionType, nodeId: string, data: any | undefined) => void;
     onExpandNode?: (nodeId: string, nodeType: string) => void;
     onCollapseNode?: (nodeId: string) => void;
 }
