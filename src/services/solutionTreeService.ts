@@ -25,8 +25,9 @@ export class SolutionTreeService {
             return [];
         }
 
-        // Get the startup project GUID
-        const startupProjectGuid = await solution.getStartupProject();
+        // Get the startup project path
+        const startupProjectPath = await solution.getStartupProject();
+        log.info(`Startup project path from settings: ${startupProjectPath}`);
 
         // Create project hierarchy map
         const hierarchy = new Map<string, SolutionProject[]>();
@@ -59,7 +60,7 @@ export class SolutionTreeService {
         log.info(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
-        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId, startupProjectGuid);
+        solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId, startupProjectPath);
 
         // Sort solution-level items (projects and solution folders)
         solutionNode.children.sort((a: ProjectNode, b: ProjectNode) => {
@@ -91,7 +92,7 @@ export class SolutionTreeService {
         hierarchy: Map<string, SolutionProject[]>,
         solution: Solution,
         parentExpansionId: string = '',
-        startupProjectGuid?: string | null
+        startupProjectPath?: string | null
     ): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
 
@@ -135,7 +136,13 @@ export class SolutionTreeService {
                 // Mark as not loaded for lazy loading
                 isLoaded: false,
                 // Mark if this is the startup project (only for actual projects)
-                isStartupProject: itemType === 'project' && project.guid === startupProjectGuid
+                isStartupProject: (() => {
+                    const isStartup = itemType === 'project' && absolutePath === startupProjectPath;
+                    if (itemType === 'project') {
+                        log.info(`Checking startup project: ${absolutePath} === ${startupProjectPath} = ${isStartup}`);
+                    }
+                    return isStartup;
+                })()
             };
 
             // Check if project nodes actually have children (optimized check)
@@ -165,7 +172,7 @@ export class SolutionTreeService {
                 log.info(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
-                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId, startupProjectGuid);
+                    itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId, startupProjectPath);
                 }
 
                 // Add solution items (files directly in the solution folder)

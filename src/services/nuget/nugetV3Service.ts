@@ -501,7 +501,7 @@ export class NuGetV3Service {
     }
 
     private static extractETag(result: { body: string, statusCode: number, etag?: string }): string | undefined {
-        return (result as any).etag;
+        return result.etag;
     }
 
     /**

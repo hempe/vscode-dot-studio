@@ -517,8 +517,8 @@ export const App: React.FC = () => {
     const handleVersionChange = (value: string | unknown) => {
         if (typeof value === 'string') {
             setSelectedVersion(value);
-        } else if (value && typeof value === 'object' && 'value' in value && typeof (value as any).value === 'string') {
-            setSelectedVersion((value as any).value);
+        } else if (value && typeof value === 'object' && 'value' in value && typeof value.value === 'string') {
+            setSelectedVersion(value.value);
         }
     };
 

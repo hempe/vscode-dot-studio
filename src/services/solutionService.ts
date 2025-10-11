@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
-import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
+import { SettingsService } from './settingsService';
 import { logger } from '../core/logger';
 
 const log = logger('SolutionService');
@@ -99,27 +99,24 @@ export class SolutionService {
     }
 
     /**
-     * Gets the current startup project from .sln.user file
+     * Gets the current startup project from settings
      */
-    static async getCurrentStartupProject(solutionPath: string): Promise<string | null> {
-        const userFile = new SolutionUserFile(solutionPath);
-        return await userFile.getStartupProject();
+    static async getCurrentStartupProject(): Promise<string | null> {
+        return SettingsService.getStartupProject() || null;
     }
 
     /**
-     * Sets the startup project in .sln.user file
+     * Sets the startup project in settings
      */
-    static async setStartupProject(solutionPath: string, projectGuid: string): Promise<void> {
-        const userFile = new SolutionUserFile(solutionPath);
-        await userFile.setStartupProject(projectGuid);
+    static async setStartupProject(projectPath: string): Promise<void> {
+        await SettingsService.setStartupProject(projectPath);
     }
 
     /**
-     * Clears the startup project from .sln.user file
+     * Clears the startup project from settings
      */
-    static async clearStartupProject(solutionPath: string): Promise<void> {
-        const userFile = new SolutionUserFile(solutionPath);
-        await userFile.clearStartupProject();
+    static async clearStartupProject(): Promise<void> {
+        await SettingsService.setStartupProject(undefined);
     }
 
     /**
@@ -213,7 +210,7 @@ export class SolutionService {
         startupProject: string | null;
     }> {
         const solutionFile = await this.parseSolutionFile(solutionPath);
-        const startupProject = await this.getCurrentStartupProject(solutionPath);
+        const startupProject = await this.getCurrentStartupProject();
 
         return {
             totalProjects: solutionFile.projects.length,

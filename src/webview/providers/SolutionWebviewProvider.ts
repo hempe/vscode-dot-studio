@@ -261,12 +261,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const frameworks = await this._frameworkService.getAvailableFrameworks();
             const activeFramework = this._frameworkService.getActiveFramework();
 
+            // Get startup project for React.memo dependency tracking
+            const activeSolution = SolutionService.getActiveSolution();
+            const startupProject = activeSolution ? (await activeSolution.getStartupProject()) || undefined : undefined;
+
             log.info('Sending solutionDataUpdate message with', freshSolutionData?.length || 0, 'projects');
             this._sendSolutionDataWithExpansionStates('solutionDataUpdate', {
                 data: {
                     projects: freshSolutionData || [],
                     frameworks: frameworks,
-                    activeFramework: activeFramework
+                    activeFramework: activeFramework,
+                    startupProject: startupProject
                 }
             });
 
@@ -334,17 +339,23 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             const activeFramework = this._frameworkService.getActiveFramework();
 
+            // Get startup project for React.memo dependency tracking
+            const activeSolution = SolutionService.getActiveSolution();
+            const startupProject = activeSolution ? (await activeSolution.getStartupProject()) || undefined : undefined;
+
             log.info('Loaded data:', {
                 projectCount: solutionData.length,
                 frameworkCount: frameworks?.length || 0,
-                activeFramework
+                activeFramework,
+                startupProject
             });
 
             log.info('Sending solution data to webview');
             const data: SolutionData = {
                 projects: solutionData,
                 frameworks: frameworks || [],
-                activeFramework
+                activeFramework,
+                startupProject
             }
 
             // Send data with expansion states already applied
@@ -454,7 +465,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Clear cached solution data when solution changes
      */
-    private _clearCache() {
+    public clearCache() {
         this._cachedSolutionData = undefined;
         this._cacheTimestamp = undefined;
         log.info('Cache cleared');
@@ -497,10 +508,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const frameworks = await this._frameworkService.getAvailableFrameworks();
             const activeFramework = this._frameworkService.getActiveFramework();
 
+            // Get startup project for React.memo dependency tracking
+            const activeSolution = SolutionService.getActiveSolution();
+            const startupProject = activeSolution ? (await activeSolution.getStartupProject()) || undefined : undefined;
+
             const data: SolutionData = {
                 projects: this._cachedSolutionData,
                 frameworks: frameworks || [],
-                activeFramework
+                activeFramework,
+                startupProject
             };
 
             // Send cached data with expansion states already applied
@@ -531,10 +547,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const solutionData = await this._getSolutionData();
             const frameworks = await this._frameworkService.getAvailableFrameworks();
 
+            // Get startup project for React.memo dependency tracking
+            const activeSolution = SolutionService.getActiveSolution();
+            const startupProject = activeSolution ? (await activeSolution.getStartupProject()) || undefined : undefined;
+
             const data: SolutionData = {
                 projects: solutionData,
                 frameworks: frameworks,
-                activeFramework: this._frameworkService.getActiveFramework()
+                activeFramework: this._frameworkService.getActiveFramework(),
+                startupProject
             };
 
             log.info('Sending solutionData to reconnected webview with', data.projects?.length || 0, 'projects');
@@ -616,7 +637,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     frameworks: []
                 });
             } else {
-                this._clearCache(); // Clear cached data so fresh data is loaded
+                this.clearCache(); // Clear cached data so fresh data is loaded
                 this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) {
@@ -630,7 +651,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             } else {
                 log.debug(`Project file content changed: ${fileName}`);
                 // Clear cache to ensure fresh dependency data is loaded from disk
-                this._clearCache();
+                this.clearCache();
                 this._sendCompleteTreeUpdate(); // Full refresh with expansion state preservation
             }
         } else {
@@ -846,7 +867,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.info(`Triggering immediate tree refresh: ${reason}`);
 
             // Clear cache to ensure fresh data is loaded
-            this._clearCache();
+            this.clearCache();
 
             // Force all projects to refresh their file trees (this will reload folder contents)
             const solution = SolutionService.getActiveSolution();

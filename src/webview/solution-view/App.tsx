@@ -1,12 +1,11 @@
 import React from 'react';
-import { FrameworkSelector } from './components/FrameworkSelector/FrameworkSelector';
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loading, refreshing, handleFrameworkChange, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loading, refreshing, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Temporarily disable to check if logging causes issues
     // log.shotgun('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData);
@@ -26,13 +25,6 @@ export const App: React.FC = React.memo(() => {
     return (
         <div className="solution-explorer" style={{ position: 'relative' }}>
             <LoadingBar visible={refreshing} />
-            <div className="header">
-                <FrameworkSelector
-                    frameworks={solutionData.frameworks}
-                    activeFramework={solutionData.activeFramework}
-                    onFrameworkChange={handleFrameworkChange}
-                />
-            </div>
             <div className="content">
                 <SolutionTree
                     projects={solutionData.projects}

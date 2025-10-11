@@ -76,7 +76,7 @@ export class NuGetManagerService {
                     }
 
                     // Get latest version from any of the packages (they should all have the same latestVersion)
-                    const latestVersion = (packages[0] as any).latestVersion;
+                    const latestVersion = packages[0].latestVersion;
 
                     // Create consolidation info
                     const versions_array = Array.from(versionGroups.entries()).map(([version, projects]) => ({
@@ -312,7 +312,7 @@ export class NuGetManagerService {
             log.info(`Grouping ${installedPackages.length} packages for UI`);
 
             // Count how many packages have metadata
-            const packagesWithMetadata = installedPackages.filter(pkg => (pkg as any).description);
+            const packagesWithMetadata = installedPackages.filter(pkg => pkg.description);
             log.info(`${packagesWithMetadata.length}/${installedPackages.length} packages have metadata`);
 
             for (const pkg of installedPackages) {
@@ -321,11 +321,11 @@ export class NuGetManagerService {
                     log.debug('Sample package structure:', {
                         id: pkg.id,
                         currentVersion: pkg.currentVersion,
-                        latestVersion: (pkg as any).latestVersion,
-                        description: (pkg as any).description,
-                        authors: (pkg as any).authors,
-                        projectName: (pkg as any).projectName,
-                        hasMetadata: !!(pkg as any).description
+                        latestVersion: pkg.latestVersion,
+                        description: pkg.description,
+                        authors: pkg.authors,
+                        projectName: pkg.projectName,
+                        hasMetadata: !!pkg.description
                     });
                 }
 
@@ -378,7 +378,7 @@ export class NuGetManagerService {
 
             for (const pkg of installedPackages) {
                 const currentVersion = pkg.currentVersion;
-                const latestVersion = (pkg as any).latestVersion;
+                const latestVersion = pkg.latestVersion;
 
                 log.debug(`Package ${pkg.id}: current=${currentVersion}, latest=${latestVersion}, hasLatest=${!!latestVersion}`);
 

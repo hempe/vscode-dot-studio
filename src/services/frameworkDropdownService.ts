@@ -1,7 +1,7 @@
 import { SolutionService } from './solutionService';
-import { SolutionUserFile } from '../parsers/solutionUserFile';
 import { FrameworkOption } from '../types/framework';
 import { SolutionFile } from '../parsers/solutionFileParser';
+import { SettingsService } from './settingsService';
 import { logger } from '../core/logger';
 
 const log = logger('FrameworkDropdownService');
@@ -39,13 +39,10 @@ export class FrameworkDropdownService {
     }
 
     private async loadSavedActiveFramework(): Promise<void> {
-        if (!this.solutionPath) return;
-
         try {
-            const solutionUserFile = new SolutionUserFile(this.solutionPath);
-            const savedFramework = await solutionUserFile.getActiveFramework();
+            const savedFramework = SettingsService.getActiveFramework();
             if (savedFramework) {
-                this.setActiveFramework(savedFramework);
+                this.activeFramework = savedFramework;
             }
         } catch (error) {
             // Ignore errors loading saved framework
@@ -135,11 +132,8 @@ export class FrameworkDropdownService {
     }
 
     private async saveActiveFramework(framework: string | null): Promise<void> {
-        if (!this.solutionPath) return;
-
         try {
-            const solutionUserFile = new SolutionUserFile(this.solutionPath);
-            await solutionUserFile.setActiveFramework(framework);
+            await SettingsService.setActiveFramework(framework || undefined);
         } catch (error) {
             // Ignore errors saving framework
         }

@@ -55,8 +55,47 @@
         "command": "dotnet.openNuGetManagerForSolution",
         "title": "Open NuGet Package Manager for Solution",
         "category": ".NET"
+      },
+      {
+        "command": "dotnet.solution.selectFramework",
+        "title": "Select Framework",
+        "icon": "$(symbol-namespace)"
+      },
+      {
+        "command": "dotnet.solution.debug",
+        "title": "Start Debugging",
+        "icon": "$(debug-start)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "dotnet.solution.selectFramework",
+          "when": "view == dotnet-solution-webview",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dotnet.solution.debug",
+          "when": "view == dotnet-solution-webview",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": ".NET Solution",
+      "properties": {
+        "dotnet.solution.activeFramework": {
+          "type": "string",
+          "description": "Active target framework for debugging",
+          "default": null
+        },
+        "dotnet.solution.startupProject": {
+          "type": "string",
+          "description": "Path to the startup project",
+          "default": null
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

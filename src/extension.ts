@@ -71,6 +71,36 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('dotnet.openNuGetManagerForSolution', (solutionPath?: string) => {
             NuGetCustomEditorProvider.openNuGetManagerForSolution(solutionPath);
+        }),
+        vscode.commands.registerCommand('dotnet.solution.selectFramework', async () => {
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const frameworkOptions = await frameworkDropdownService.getFrameworkOptions(workspaceRoot);
+            const currentFramework = frameworkDropdownService.getActiveFramework();
+
+            const quickPickItems = frameworkOptions.map(option => ({
+                label: option.label,
+                description: option.description,
+                detail: option.detail,
+                picked: option.value === currentFramework || (!currentFramework && option.value === undefined)
+            }));
+
+            const selection = await vscode.window.showQuickPick(quickPickItems, {
+                placeHolder: 'Select target framework'
+            });
+
+            if (selection) {
+                const selectedOption = frameworkOptions.find(option => option.label === selection.label);
+                await frameworkDropdownService.setActiveFramework(selectedOption?.value);
+                vscode.window.showInformationMessage(`Framework changed to: ${selection.label}`);
+            }
+        }),
+        vscode.commands.registerCommand('dotnet.solution.debug', () => {
+            vscode.commands.executeCommand('workbench.action.debug.start');
+        }),
+        vscode.commands.registerCommand('dotnet.internal.refreshSolution', () => {
+            // Clear cache to force fresh data rebuild (needed for startup project changes)
+            solutionWebviewProvider.clearCache();
+            solutionWebviewProvider.refresh();
         })
     );
 

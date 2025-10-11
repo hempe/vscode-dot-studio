@@ -32,6 +32,7 @@ export interface SolutionData {
     projects: any[];
     frameworks: string[];
     activeFramework?: string;
+    startupProject?: string; // Path to the startup project - triggers re-render when changed
 }
 
 export interface TreeNodeProps {

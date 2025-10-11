@@ -296,7 +296,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 context: 'unknown',
                 projects: [],
                 installedPackages: [],
-                availablePackages: []
+                availablePackages: [],
+                outdatedPackages: null,
             };
         }
 
@@ -390,7 +391,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             const data = await this._getNuGetData(context);
             webview.postMessage({
                 command: 'updatesPackages',
-                data: (data as any).outdatedPackages || []
+                data: data.outdatedPackages || []
             });
         } catch (error) {
             log.error('Error getting updates packages:', error);
@@ -812,7 +813,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             // Get all outdated packages first
             const data = await this._getNuGetData(context);
-            const outdatedPackages = (data as any).outdatedPackages || [];
+            const outdatedPackages = data.outdatedPackages || [];
 
             if (outdatedPackages.length === 0) {
                 vscode.window.showInformationMessage('No packages need updating');
