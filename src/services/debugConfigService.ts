@@ -67,8 +67,11 @@ export class DebugConfigService {
             const projectName = dllMatch[1];
             const projectPath = `${projectDir}/${projectName}.csproj`;
 
-            log.info(`Found startup project from launch.json: ${projectPath}`);
-            return projectPath;
+            // Convert to absolute path for comparison
+            const absoluteProjectPath = path.resolve(workspacePath, projectPath);
+
+            log.info(`Found startup project from launch.json: ${projectPath} -> ${absoluteProjectPath}`);
+            return absoluteProjectPath;
         } catch (error) {
             log.error('Error reading startup project from launch.json:', error);
             return null;
