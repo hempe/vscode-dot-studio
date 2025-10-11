@@ -857,8 +857,6 @@ export class SolutionActionService {
             // Set the startup project in the solution
             await solution.setStartupProject(projectPath);
 
-            // Trigger webview refresh with cache clear to update bold styling
-            await vscode.commands.executeCommand('dotnet.internal.refreshSolution');
 
             const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
             vscode.window.showInformationMessage(`Set ${projectName} as startup project`);

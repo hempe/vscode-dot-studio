@@ -4,6 +4,7 @@ import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
 import { SolutionExpansionIdService } from './solutionExpansionIdService';
 import { ProjectNode } from '../webview/solution-view/types';
+import { Project } from '../core/Project';
 
 const log = logger('SolutionExpansionService');
 
@@ -147,16 +148,12 @@ export class SolutionExpansionService {
                 }
             }
 
-            // Update backend state: set expanded = true and attach children
-            // For solution nodes, don't override children since they already have children loaded
-            if (nodeType === 'solution') {
-                await this._updateNodeExpansionState(nodeId, true, undefined, cachedSolutionData, false);
-            } else {
-                await this._updateNodeExpansionState(nodeId, true, children, cachedSolutionData, false);
-            }
+            const expandedIds = this.getExpansionState(context);
+            await this._updateNodeExpansionState(nodeId, true, nodeType === 'solution' ? undefined : children, cachedSolutionData, false, expandedIds);
 
             // Update expansion state in persistent storage
             const expandedNodes = this.getExpandedNodePaths(cachedSolutionData || []);
+
             this.saveExpansionState(expandedNodes, context);
 
             await updateWebviewCallback();
@@ -212,7 +209,10 @@ export class SolutionExpansionService {
             await this._updateNodeExpansionState(nodeId, false, undefined, cachedSolutionData, false);
 
             // Update expansion state in persistent storage
-            const expandedNodes = this.getExpandedNodePaths(cachedSolutionData || []);
+            const expandedNodes = this.getExpansionState(context);
+            if (!expandedNodes.delete(nodeId))
+                return; // Node was not in expanded set, no need to update storage
+
             this.saveExpansionState(expandedNodes, context);
 
             await updateWebviewCallback();
@@ -230,7 +230,8 @@ export class SolutionExpansionService {
         expanded: boolean,
         children?: ProjectNode[],
         cachedSolutionData?: ProjectNode[] | null,
-        isLoading: boolean = false
+        isLoading: boolean = false,
+        expandedIds?: Set<string>,
     ): Promise<void> {
         if (cachedSolutionData) {
             const updates: Partial<ProjectNode> = { expanded, isLoading: isLoading };
@@ -238,37 +239,25 @@ export class SolutionExpansionService {
                 updates.children = children;
                 updates.hasChildren = children.length > 0;
             }
-            SolutionTreeService.updateNodeInTree(cachedSolutionData, nodeId, updates);
+            SolutionTreeService.updateNodeInTree(cachedSolutionData, nodeId, updates, expandedIds);
         }
     }
 
     /**
      * Gets all expanded node IDs from the tree (prioritizes nodeId over path)
      */
-    static getExpandedNodePaths(nodes: ProjectNode[]): string[] {
-        const expandedIds: string[] = [];
+    private static getExpandedNodePaths(nodes: ProjectNode[]): Set<string> {
+
+        const checkedIds = new Set<string>();
+        const expandedIds = new Set<string>();
 
         const traverse = (nodeList: ProjectNode[], level: number = 0) => {
             for (const node of nodeList) {
-                if (node.expanded) {
-                    // Prefer nodeId over path for better collision-free identification
-                    const nodeId = node.nodeId || node.path;
-                    expandedIds.push(nodeId);
-
-                    log.info(`Saving expanded state for ${node.type}: ${node.name} (${nodeId})`);
-
-                    // Traverse children of expanded nodes
-                    if (node.children) {
-                        traverse(node.children, level + 1);
-                    }
-                } else if (level === 0 && node.type === 'solution') {
-                    // Always log solution node state for debugging and traverse children even if not expanded
-                    log.info(`Solution node "${node.name}" is NOT expanded - will not be saved`);
-                    if (node.children) {
-                        traverse(node.children, level + 1);
-                    }
-                }
-                // Note: Non-expanded, non-solution nodes are ignored (no traversal of their children)
+                const nodeId = node.nodeId;
+                if (checkedIds.has(nodeId)) continue;
+                checkedIds.add(nodeId);
+                if (node.expanded) expandedIds.add(nodeId);
+                if (node.children) traverse(node.children, level + 1);
             }
         };
 
@@ -280,17 +269,16 @@ export class SolutionExpansionService {
     /**
      * Saves expansion state to workspace storage
      */
-    static saveExpansionState(expandedNodes: string[], context: vscode.ExtensionContext): void {
-        context.workspaceState.update('solutionTreeExpanded', expandedNodes);
+    static saveExpansionState(expandedNodes: Set<string>, context: vscode.ExtensionContext): void {
+        context.workspaceState.update('solutionTreeExpanded', Array.from(expandedNodes));
     }
 
     /**
      * Gets expansion state from workspace storage
      */
-    static getExpansionState(context: vscode.ExtensionContext): string[] {
+    static getExpansionState(context: vscode.ExtensionContext): Set<string> {
         const state = context.workspaceState.get<string[]>('solutionTreeExpanded', []);
-
-        return state;
+        return new Set<string>(state ?? []);
     }
 
     /**
@@ -316,25 +304,15 @@ export class SolutionExpansionService {
             // Get saved expansion paths from workspace state
             const expansionPaths = this.getExpansionState(context);
 
-            if (!expansionPaths || expansionPaths.length === 0) {
+            if (!expansionPaths || expansionPaths.size === 0) {
                 return;
             }
 
-            // Filter by parent path if specified
-            let cleanedExpandedNodes = expansionPaths;
 
-            // CONSERVATIVE APPROACH: Preserve ALL expansion state
-            // Only remove expansion state on explicit user collapse, never on reload
-            // Dependencies and other lazy-loaded nodes should maintain their expansion state
-
-            // No filtering - preserve all expansion state
-            // Nodes that don't exist yet (like Dependencies) will be handled when they're created
-
-            log.info(`Restoring expansion states for ${cleanedExpandedNodes.length} nodes:`);
-            cleanedExpandedNodes.forEach(id => log.info(`  - ${id}`));
+            log.info(`Restoring expansion states for ${expansionPaths.size} nodes:`);
 
             // Restore expansion states and load children
-            for (const expandedId of cleanedExpandedNodes) {
+            for (const expandedId of expansionPaths) {
                 const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
                 if (nodeType) {
                     log.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
@@ -366,7 +344,7 @@ export class SolutionExpansionService {
     /**
      * Refreshes expanded folders to catch file system changes while preserving expansion state
      */
-    private static async _refreshExpandedFolders(children: ProjectNode[], project: any): Promise<void> {
+    private static async _refreshExpandedFolders(children: ProjectNode[], project: Project): Promise<void> {
         for (const child of children) {
             if (child.type === 'folder' && child.expanded && child.children) {
                 log.info(`Refreshing expanded folder: ${child.path}`);

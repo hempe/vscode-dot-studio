@@ -6,6 +6,7 @@ import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/so
 import { DebugConfigService } from '../services/debugConfigService';
 import { Project } from './Project';
 import { logger } from './logger';
+import { SimpleDebounceManager } from '../services/debounceManager';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -25,14 +26,37 @@ export class Solution {
     private _disposables: vscode.Disposable[] = [];
     private _changeEmitter = new vscode.EventEmitter<void>();
     private _fileWatcher?: vscode.FileSystemWatcher;
+    private _launchJsonWatcher?: vscode.FileSystemWatcher;
     private _solutionFile?: SolutionFile;
     private _projects: Map<string, Project> = new Map();
     private _fileTree: Record<string, SolutionFileTreeNode> = {}; // Solution files tree structure
     private _isInitialized = false;
 
+    // Cached startup project and framework from launch.json
+    private _cachedStartupProject: string | null = null;
+    private _cachedFramework: string | null = null;
+
+    // Debounce manager for launch.json changes
+    private _launchJsonDebouncer: SimpleDebounceManager;
+
     public readonly onDidChange = this._changeEmitter.event;
 
     constructor(private readonly _solutionPath: string) {
+        // Initialize debouncer for launch.json changes
+        this._launchJsonDebouncer = new SimpleDebounceManager(async () => {
+            log.info('launch.json changed, refreshing startup project and framework cache...');
+
+            try {
+                await this.refreshLaunchJsonCache();
+
+                // Notify UI that solution has changed (this will trigger tree refresh)
+                log.debug('Firing solution change event to notify UI...');
+                this._changeEmitter.fire();
+            } catch (error) {
+                log.error('Error handling launch.json change:', error);
+            }
+        }, 100);
+
         this.initialize();
     }
 
@@ -61,11 +85,17 @@ export class Solution {
             // Set up file watcher for the solution file
             this.setupFileWatcher();
 
+            // Set up file watcher for launch.json
+            this.setupLaunchJsonWatcher();
+
             // Parse the solution file initially
             await this.parseSolutionFile();
 
             // Initialize projects
             await this.initializeProjects();
+
+            // Load initial startup project and framework from launch.json
+            await this.refreshLaunchJsonCache();
 
             this._isInitialized = true;
             log.info(`Initialized solution: ${path.basename(this._solutionPath)}`);
@@ -83,6 +113,61 @@ export class Solution {
         this._fileWatcher.onDidDelete(this.handleSolutionFileDeleted, this, this._disposables);
 
         this._disposables.push(this._fileWatcher);
+    }
+
+    private setupLaunchJsonWatcher(): void {
+        // Get workspace folder to watch launch.json
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            log.warn('No workspace folder found, cannot watch launch.json');
+            return;
+        }
+
+        const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
+
+        // Watch the launch.json file for changes
+        this._launchJsonWatcher = vscode.workspace.createFileSystemWatcher(launchJsonPath);
+
+        this._launchJsonWatcher.onDidChange(this.handleLaunchJsonChanged, this, this._disposables);
+        this._launchJsonWatcher.onDidCreate(this.handleLaunchJsonChanged, this, this._disposables);
+        this._launchJsonWatcher.onDidDelete(this.handleLaunchJsonDeleted, this, this._disposables);
+
+        this._disposables.push(this._launchJsonWatcher);
+    }
+
+    private async handleLaunchJsonChanged(): Promise<void> {
+        log.info('launch.json change detected, debouncing...');
+        this._launchJsonDebouncer.trigger();
+    }
+
+    private handleLaunchJsonDeleted(): void {
+        log.info('launch.json deleted, clearing cache');
+        this._cachedStartupProject = null;
+        this._cachedFramework = null;
+
+        // Notify UI that solution has changed
+        this._changeEmitter.fire();
+    }
+
+    private async refreshLaunchJsonCache(): Promise<void> {
+        try {
+            log.debug('Calling DebugConfigService.getStartupProjectFromLaunchJson()...');
+            const startupProject = DebugConfigService.getStartupProjectFromLaunchJson();
+            log.debug(`DebugConfigService returned startup project: ${startupProject}`);
+
+            const framework = DebugConfigService.getActiveFrameworkFromLaunchJson();
+            log.debug(`DebugConfigService returned framework: ${framework}`);
+
+            this._cachedStartupProject = startupProject;
+            this._cachedFramework = framework;
+
+            log.info(`Refreshed launch.json cache - startup project: ${startupProject}, framework: ${framework}`);
+            log.debug(`Cached startup project is now: ${this._cachedStartupProject}`);
+        } catch (error) {
+            log.error('Error refreshing launch.json cache:', error);
+            this._cachedStartupProject = null;
+            this._cachedFramework = null;
+        }
     }
 
     private async handleSolutionFileChanged(): Promise<void> {
@@ -962,6 +1047,9 @@ export class Solution {
     dispose(): void {
         log.info(`Disposing solution: ${path.basename(this._solutionPath)}`);
 
+        // Dispose debounce manager
+        this._launchJsonDebouncer.dispose();
+
         // Dispose all projects
         for (const project of this._projects.values()) {
             project.dispose();
@@ -1010,8 +1098,7 @@ export class Solution {
             await DebugConfigService.updateStartupConfiguration(projectPath);
             log.info(`Finished updating launch.json`);
 
-            // Emit change event to refresh the UI
-            this._changeEmitter.fire();
+            // Note: No need to emit change event here - the launch.json file watcher will handle UI updates
 
             log.info(`Set startup project: ${projectPath} (${project.guid})`);
         } catch (error) {
@@ -1021,15 +1108,27 @@ export class Solution {
     }
 
     /**
-     * Gets the current startup project GUID
+     * Gets the current startup project from cache, refreshing if needed
      */
-    async getStartupProject(): Promise<string | null> {
-        try {
-            return DebugConfigService.getStartupProjectFromLaunchJson();
-        } catch (error) {
-            log.error('Error getting startup project:', error);
-            return null;
+    getStartupProject(): string | null {
+        log.debug(`getStartupProject() called, cached value: ${this._cachedStartupProject}`);
+
+        // Check if we need to refresh the cache synchronously
+        const freshStartupProject = DebugConfigService.getStartupProjectFromLaunchJson();
+        if (freshStartupProject !== this._cachedStartupProject) {
+            log.debug(`Cache is stale (${this._cachedStartupProject} vs ${freshStartupProject}), updating...`);
+            this._cachedStartupProject = freshStartupProject;
         }
+
+        log.debug(`getStartupProject() returning: ${this._cachedStartupProject}`);
+        return this._cachedStartupProject;
+    }
+
+    /**
+     * Gets the current active framework from cache
+     */
+    getActiveFramework(): string | null {
+        return this._cachedFramework;
     }
 
     /**

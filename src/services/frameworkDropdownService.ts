@@ -1,10 +1,9 @@
-import * as path from 'path';
 import { SolutionService } from './solutionService';
 import { FrameworkOption } from '../types/framework';
-import { SolutionFile } from '../parsers/solutionFileParser';
 import { SettingsService } from './settingsService';
 import { DebugConfigService } from './debugConfigService';
 import { logger } from '../core/logger';
+import { Solution } from '../core/Solution';
 
 const log = logger('FrameworkDropdownService');
 
@@ -17,91 +16,27 @@ const log = logger('FrameworkDropdownService');
  * - Framework validation and selection logic
  */
 export class FrameworkDropdownService {
-    private activeFramework?: string;
-    private solutionPath?: string;
-    private solutionFile?: SolutionFile;
-    private onFrameworkChangeCallback?: (framework?: string) => void;
+    private solution?: Solution;
 
-    constructor() {
-        // Pure service constructor - no VS Code dependencies
-    }
-
-    public setSolution(solutionPath: string, solutionFile: SolutionFile): void {
-        this.solutionPath = solutionPath;
-        this.solutionFile = solutionFile;
-        this.loadSavedActiveFramework();
-    }
-
-    public setFrameworkChangeCallback(callback: (framework?: string) => void): void {
-        this.onFrameworkChangeCallback = callback;
+    public setSolution(solution: Solution): void {
+        this.solution = solution;
     }
 
     public getActiveFramework(): string | undefined {
-        return this.activeFramework;
+        return this.solution?.getActiveFramework() ?? undefined;
     }
 
-    private async loadSavedActiveFramework(): Promise<void> {
-        try {
-            // First try to get from launch.json (primary source)
-            const frameworkFromLaunch = DebugConfigService.getActiveFrameworkFromLaunchJson();
-            if (frameworkFromLaunch) {
-                this.activeFramework = frameworkFromLaunch;
-                return;
-            }
-
-            // Fallback to settings for backward compatibility
-            const savedFramework = SettingsService.getActiveFramework();
-            if (savedFramework) {
-                this.activeFramework = savedFramework;
-            }
-        } catch (error) {
-            // Ignore errors loading saved framework
-        }
-    }
-
-    public async getFrameworkOptions(workspaceRoot?: string): Promise<FrameworkOption[]> {
+    public getFrameworkOptions(): FrameworkOption[] {
         try {
             // First, try to get frameworks from the current startup project
-            const startupProjectPath = DebugConfigService.getStartupProjectFromLaunchJson();
-            let frameworks: string[] = [];
-
-            if (startupProjectPath) {
-                log.info(`Getting framework options for startup project: ${startupProjectPath}`);
-
-                // Convert relative path to absolute if needed
-                let absoluteProjectPath = startupProjectPath;
-                if (!path.isAbsolute(startupProjectPath) && workspaceRoot) {
-                    absoluteProjectPath = path.join(workspaceRoot, startupProjectPath);
-                }
-
-                // Get frameworks from the startup project specifically
-                frameworks = await this.getFrameworksFromProject(absoluteProjectPath);
-                log.info(`Found frameworks in startup project: ${frameworks.join(', ')}`);
-            }
-
+            let startupProjectPath = this.solution?.getStartupProject();
+            const project = this.solution?.projects.get(startupProjectPath || '');
+            let frameworks: string[] = project?.frameworks || [];
             // Fallback: if no startup project or no frameworks found, get from solution
             if (frameworks.length === 0) {
                 log.info('No frameworks found in startup project, falling back to solution frameworks');
-
-                if (!this.solutionPath) {
-                    // Try to get the active solution from SolutionService
-                    const solution = SolutionService.getActiveSolution();
-                    if (solution && solution.solutionFile) {
-                        this.solutionPath = solution.solutionPath;
-                        this.solutionFile = solution.solutionFile;
-                    } else if (workspaceRoot) {
-                        // Fallback: try to discover and initialize solution
-                        const newSolution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
-                        if (newSolution && newSolution.solutionFile) {
-                            this.solutionPath = newSolution.solutionPath;
-                            this.solutionFile = newSolution.solutionFile;
-                        }
-                    }
-                }
-
-                if (this.solutionFile) {
-                    // Get all available frameworks from the solution
-                    frameworks = await SolutionService.getAllFrameworks(this.solutionFile);
+                if (this.solution?.solutionFile) {
+                    frameworks = SolutionService.getAllFrameworks(this.solution.solutionFile);
                 }
             }
 
@@ -152,17 +87,12 @@ export class FrameworkDropdownService {
     }
 
     public async setActiveFramework(framework?: string): Promise<void> {
-        this.activeFramework = framework;
-
-        if (this.onFrameworkChangeCallback) {
-            this.onFrameworkChangeCallback(framework);
-        }
-
         // Save the active framework
         await this.saveActiveFramework(framework || null);
 
         // Update the debug configuration with the new framework
-        const currentStartupProject = DebugConfigService.getStartupProjectFromLaunchJson();
+        let currentStartupProject = this.solution?.getStartupProject();
+
         log.info(`Framework changed to: ${framework}, current startup project: ${currentStartupProject}`);
         if (currentStartupProject) {
             log.info(`Updating startup configuration with new framework: ${framework}`);
@@ -184,29 +114,14 @@ export class FrameworkDropdownService {
             // Ignore errors saving framework
         }
     }
-    public async getAvailableFrameworks(workspaceRoot?: string): Promise<string[]> {
-        if (!this.solutionPath) {
-            // Try to get the active solution from SolutionService
-            const solution = SolutionService.getActiveSolution();
-            if (solution) {
-                this.solutionPath = solution.solutionPath;
-                this.solutionFile = solution.solutionFile;
-            } else if (workspaceRoot) {
-                // Fallback: try to discover solution
-                const newSolution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
-                if (newSolution) {
-                    this.solutionPath = newSolution.solutionPath;
-                    this.solutionFile = newSolution.solutionFile;
-                }
-            }
-        }
+    public getAvailableFrameworks(): string[] {
 
-        if (!this.solutionFile) {
+        if (!this.solution?.solutionFile) {
             return [];
         }
 
         try {
-            return await SolutionService.getAllFrameworks(this.solutionFile);
+            return SolutionService.getAllFrameworks(this.solution.solutionFile);
         } catch (error) {
             log.error('Error getting available frameworks:', error);
             return [];
@@ -231,53 +146,5 @@ export class FrameworkDropdownService {
      */
     public getFrameworkDisplayName(framework: string): string {
         return SolutionService.getFrameworkDisplayName(framework);
-    }
-
-    /**
-     * Gets the best framework to use for debugging.
-     * If a specific framework is selected, returns that.
-     * If "Auto" is selected, returns the most suitable framework.
-     */
-    public async getFrameworkForDebugging(): Promise<string | undefined> {
-        if (this.activeFramework) {
-            return this.activeFramework;
-        }
-
-        // Auto mode - select the best framework
-        if (!this.solutionFile) return undefined;
-
-        try {
-            const frameworks = await SolutionService.getAllFrameworks(this.solutionFile);
-            if (frameworks.length === 0) return undefined;
-
-            // Prefer supported frameworks first, then latest version
-            const sortedFrameworks = frameworks.sort((a, b) => {
-                const aSupported = SolutionService.isFrameworkSupported(a);
-                const bSupported = SolutionService.isFrameworkSupported(b);
-
-                if (aSupported && !bSupported) return -1;
-                if (!aSupported && bSupported) return 1;
-
-                return b.localeCompare(a, undefined, { numeric: true });
-            });
-
-            return sortedFrameworks[0];
-        } catch (error) {
-            log.error('Error getting framework for debugging:', error);
-            return undefined;
-        }
-    }
-
-    /**
-     * Gets target frameworks from a specific project file
-     */
-    private async getFrameworksFromProject(projectPath: string): Promise<string[]> {
-        try {
-            // Use the same framework extraction logic as DebugConfigService
-            return await DebugConfigService.extractTargetFrameworks(projectPath);
-        } catch (error) {
-            log.error(`Error getting frameworks from project ${projectPath}:`, error);
-            return [];
-        }
     }
 }

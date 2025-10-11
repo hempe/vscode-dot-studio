@@ -8,6 +8,16 @@ export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExp
 // All project actions (includes menu actions + internal actions)
 export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent' | 'cancelTemporaryNode';
 
+export interface ProjectChild {
+    type: NodeType;
+    name: string;
+    path: string;
+    nodeId: string;
+    hasChildren?: boolean;
+    expanded?: boolean;
+    children?: ProjectChild[];
+    isLoaded?: boolean;
+}
 export interface ProjectNode {
     type: NodeType;
     name: string;
@@ -32,7 +42,6 @@ export interface SolutionData {
     projects: any[];
     frameworks: string[];
     activeFramework?: string;
-    startupProject?: string; // Path to the startup project - triggers re-render when changed
 }
 
 export interface TreeNodeProps {

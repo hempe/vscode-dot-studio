@@ -137,16 +137,6 @@ export class SolutionExpansionIdService {
     }
 
     /**
-     * Checks if an expansion ID represents a virtual node (non-filesystem)
-     */
-    static isVirtualNode(expansionId: string): boolean {
-        return expansionId.startsWith(this.PREFIXES.dependencies) ||
-            expansionId.startsWith(this.PREFIXES.dependencyCategory) ||
-            expansionId.startsWith(this.PREFIXES.dependency) ||
-            expansionId.startsWith(this.PREFIXES.solutionFolder);
-    }
-
-    /**
      * Extracts project path from dependency-related expansion IDs
      */
     static getProjectPathFromDependencyId(expansionId: string): string | null {
@@ -229,42 +219,6 @@ export class SolutionExpansionIdService {
                 // Virtual nodes (dependencies, solution folders) don't have file system paths
                 return null;
         }
-    }
-
-    /**
-     * Generates legacy path for backwards compatibility
-     * This can be used during migration period
-     */
-    static generateLegacyPath(expansionId: string): string | null {
-        const nodeType = this.getNodeTypeFromId(expansionId);
-        const pathPortion = this.getPathFromId(expansionId);
-
-        if (!nodeType || !pathPortion) return null;
-
-        switch (nodeType) {
-            case 'solution':
-            case 'project':
-            case 'folder':
-            case 'file':
-                return pathPortion;
-
-            case 'dependencies':
-                return `${pathPortion}/dependencies`;
-
-            case 'dependencyCategory':
-                const colonIndex = pathPortion.indexOf(':');
-                if (colonIndex > 0) {
-                    const projectPath = pathPortion.substring(0, colonIndex);
-                    const categoryName = pathPortion.substring(colonIndex + 1);
-                    return `${projectPath}/dependencies/${categoryName}`;
-                }
-                break;
-
-            default:
-                return pathPortion;
-        }
-
-        return null;
     }
 
     /**

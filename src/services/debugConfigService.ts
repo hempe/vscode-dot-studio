@@ -71,6 +71,7 @@ export class DebugConfigService {
             const absoluteProjectPath = path.resolve(workspacePath, projectPath);
 
             log.info(`Found startup project from launch.json: ${projectPath} -> ${absoluteProjectPath}`);
+            log.debug(`Program path was: ${programPath}`);
             return absoluteProjectPath;
         } catch (error) {
             log.error('Error reading startup project from launch.json:', error);
@@ -250,10 +251,28 @@ export class DebugConfigService {
             // Add the new "Startup" configuration at the beginning (makes it default)
             launchConfig.configurations.unshift(startupConfig);
 
-            // Write back to launch.json
-            log.info(`Writing to launch.json at: ${launchJsonPath}`);
-            log.info(`Launch config:`, JSON.stringify(launchConfig, null, 2));
-            fs.writeFileSync(launchJsonPath, JSON.stringify(launchConfig, null, 2), 'utf8');
+            // Check if launch.json content actually changed before writing
+            const newLaunchContent = JSON.stringify(launchConfig, null, 2);
+            let shouldWriteLaunch = true;
+
+            if (fs.existsSync(launchJsonPath)) {
+                try {
+                    const existingContent = fs.readFileSync(launchJsonPath, 'utf8');
+                    if (existingContent === newLaunchContent) {
+                        shouldWriteLaunch = false;
+                        log.info('launch.json content unchanged, skipping write');
+                    }
+                } catch (error) {
+                    log.warn('Error reading existing launch.json for comparison:', error);
+                }
+            }
+
+            // Write back to launch.json only if content changed
+            if (shouldWriteLaunch) {
+                log.info(`Writing to launch.json at: ${launchJsonPath}`);
+                log.debug(`Launch config:`, newLaunchContent);
+                fs.writeFileSync(launchJsonPath, newLaunchContent, 'utf8');
+            }
 
             // Create/update tasks.json with the StartupPreBuild task
             await this.updateTasksJson(tasksJsonPath, relativeProjectPath, selectedFramework || undefined);
@@ -427,11 +446,30 @@ export class DebugConfigService {
             // Add the new StartupPreBuild task
             tasksConfig.tasks.push(prebuildTask);
 
-            // Write back to tasks.json
-            log.info(`Writing to tasks.json at: ${tasksJsonPath}`);
-            fs.writeFileSync(tasksJsonPath, JSON.stringify(tasksConfig, null, 2), 'utf8');
+            // Check if tasks.json content actually changed before writing
+            const newTasksContent = JSON.stringify(tasksConfig, null, 2);
+            let shouldWriteTasks = true;
 
-            log.info(`Updated StartupPreBuild task for project: ${projectPath}, framework: ${framework || 'auto'}`);
+            if (fs.existsSync(tasksJsonPath)) {
+                try {
+                    const existingContent = fs.readFileSync(tasksJsonPath, 'utf8');
+                    if (existingContent === newTasksContent) {
+                        shouldWriteTasks = false;
+                        log.info('tasks.json content unchanged, skipping write');
+                    }
+                } catch (error) {
+                    log.warn('Error reading existing tasks.json for comparison:', error);
+                }
+            }
+
+            // Write back to tasks.json only if content changed
+            if (shouldWriteTasks) {
+                log.info(`Writing to tasks.json at: ${tasksJsonPath}`);
+                fs.writeFileSync(tasksJsonPath, newTasksContent, 'utf8');
+                log.info(`Updated StartupPreBuild task for project: ${projectPath}, framework: ${framework || 'auto'}`);
+            } else {
+                log.info(`StartupPreBuild task already up to date for project: ${projectPath}, framework: ${framework || 'auto'}`);
+            }
         } catch (error) {
             log.error('Error updating tasks.json:', error);
         }

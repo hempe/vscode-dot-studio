@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { ProjectNode } from '../webview/solution-view/types';
+import { ProjectChild, ProjectNode } from '../webview/solution-view/types';
 import { SolutionExpansionIdService } from './solutionExpansionIdService';
 import { logger } from '../core/logger';
 
@@ -25,9 +25,9 @@ export class SolutionTreeService {
             return [];
         }
 
-        // Get the startup project path
-        const startupProjectPath = await solution.getStartupProject();
-        log.info(`Startup project path from settings: ${startupProjectPath}`);
+        // Get the startup project path from cache
+        const startupProjectPath = solution.getStartupProject();
+        log.info(`Startup project path from cache: ${startupProjectPath}`);
 
         // Create project hierarchy map
         const hierarchy = new Map<string, SolutionProject[]>();
@@ -136,13 +136,7 @@ export class SolutionTreeService {
                 // Mark as not loaded for lazy loading
                 isLoaded: false,
                 // Mark if this is the startup project (only for actual projects)
-                isStartupProject: (() => {
-                    const isStartup = itemType === 'project' && absolutePath === startupProjectPath;
-                    if (itemType === 'project') {
-                        log.info(`Checking startup project: ${absolutePath} === ${startupProjectPath} = ${isStartup}`);
-                    }
-                    return isStartup;
-                })()
+                isStartupProject: itemType === 'project' && absolutePath === startupProjectPath,
             };
 
             // Check if project nodes actually have children (optimized check)
@@ -228,38 +222,33 @@ export class SolutionTreeService {
         return nodes;
     }
 
-    /**
-     * Merges fresh tree data with cached expansion states
-     */
-    static mergeTreeStates(freshNodes: ProjectNode[], cachedNodes: ProjectNode[]): void {
-
-        if (!cachedNodes || cachedNodes.length === 0) {
-            return;
-        }
-
-        // Create a map of cached nodes by path for efficient lookup
-        const cachedMap = new Map<string, ProjectNode>();
-        this.buildNodeMap(cachedNodes, cachedMap);
-
-        // Merge states recursively
-        this.mergeNodeStates(freshNodes, cachedMap);
-    }
 
     /**
      * Updates a specific node in the tree structure using expansion ID
      */
-    static updateNodeInTree(nodes: ProjectNode[], nodeId: string, updates: Partial<ProjectNode>): boolean {
+    static updateNodeInTree(nodes: ProjectNode[], nodeId: string, updates: Partial<ProjectNode>, expandedIds?: Set<string>): boolean {
+        let changed = false;
         for (const node of nodes) {
             if (node.nodeId === nodeId) {
                 Object.assign(node, updates);
-                return true;
+                if (!expandedIds)
+                    return true
+
+                changed = true;
             }
-            if (node.children && this.updateNodeInTree(node.children, nodeId, updates)) {
-                return true;
+
+            if (expandedIds && !node.expanded && expandedIds.has(node.nodeId)) {
+                node.expanded = true;
+            }
+
+            if (node.children) {
+                changed = this.updateNodeInTree(node.children, nodeId, updates, expandedIds) || changed;
             }
         }
-        return false;
+
+        return changed;
     }
+
 
     /**
      * Finds a node in the tree by expansion ID
@@ -308,7 +297,7 @@ export class SolutionTreeService {
      * Converts Project children to ProjectNode format
      * This method handles the generic project children from Project class methods
      */
-    static convertProjectChildrenToProjectNodes(children: any[]): ProjectNode[] {
+    static convertProjectChildrenToProjectNodes(children: ProjectChild[]): ProjectNode[] {
         return children.map(child => {
             let nodeType: ProjectNode['type'] = 'file';
 
@@ -335,8 +324,9 @@ export class SolutionTreeService {
                 type: nodeType,
                 name: child.name,
                 path: child.path,
-                nodeId: child.nodeId || child.path, // Use expansion ID if provided, fallback to path
-                hasChildren: child.hasChildren,
+                nodeId: child.nodeId,
+                isLoaded: child.isLoaded,
+                hasChildren: child.hasChildren || !!child.children?.length,
                 expanded: child.expanded,
                 children: child.children ? this.convertProjectChildrenToProjectNodes(child.children) : undefined
             };
@@ -396,60 +386,5 @@ export class SolutionTreeService {
         // For solution folders, the path is usually just the folder name
         // For projects, it's a relative path to the .csproj file
         return path.resolve(path.dirname(solutionPath), itemPath);
-    }
-
-    private static buildNodeMap(nodes: ProjectNode[], map: Map<string, ProjectNode>): void {
-        for (const node of nodes) {
-            // Store node by its expansion ID (primary identifier)
-            map.set(node.nodeId, node);
-            if (node.children) {
-                this.buildNodeMap(node.children, map);
-            }
-        }
-    }
-
-    private static mergeNodeStates(freshNodes: ProjectNode[], cachedMap: Map<string, ProjectNode>): void {
-        for (const freshNode of freshNodes) {
-            // Check if this is a dependency category node type (exclude 'dependencies' container)
-            const isDependencyNode = freshNode.type === 'dependencyCategory' ||
-                freshNode.type === 'packageDependencies' ||
-                freshNode.type === 'projectDependencies' ||
-                freshNode.type === 'assemblyDependencies';
-
-            // Find cached state using expansion ID
-            const cached = cachedMap.get(freshNode.nodeId);
-            if (cached) {
-                log.info(`Merging state for ${freshNode.type} node: ${freshNode.name}, nodeId: ${freshNode.nodeId}, expanded: ${cached.expanded}`);
-
-                // Preserve expansion and loading states
-                freshNode.expanded = cached.expanded;
-                freshNode.isLoading = cached.isLoading;
-                freshNode.isLoaded = cached.isLoaded;
-
-                // If node was expanded and had children, merge the children too
-                // BUT skip this for dependency nodes - they should always force refresh
-                if (freshNode.expanded && freshNode.children && cached.children && !isDependencyNode) {
-                    log.debug(`Recursively merging children for expanded node: ${freshNode.path}`);
-                    this.mergeNodeStates(freshNode.children, cachedMap);
-                }
-
-                // For dependency nodes, preserve expansion state but allow children to be updated naturally
-                // The cache clearing already ensures fresh dependency data is loaded
-                if (isDependencyNode && cached.expanded) {
-                    log.info(`${freshNode.type} node ${freshNode.path} was expanded, preserving expansion state with fresh data`);
-                    // Keep the node expanded and preserve any fresh children data
-                    freshNode.expanded = true;
-                    freshNode.isLoaded = true; // Mark as loaded since we have fresh data
-                    // Don't clear children - let the fresh dependency data be preserved
-                }
-            } else if (isDependencyNode) {
-                log.debug(`No cached state found for ${freshNode.type} node: ${freshNode.path}`);
-            }
-
-            // Always recursively process children even if no cached state found
-            if (freshNode.children) {
-                this.mergeNodeStates(freshNode.children, cachedMap);
-            }
-        }
     }
 }

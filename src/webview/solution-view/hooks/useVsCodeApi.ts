@@ -357,14 +357,9 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 case 'solutionData':
+                    console.error('Received full solution data:', message.data);
                     setSolutionData(prev => mergeTreeData(prev, message.data));
                     setLoading(false);
-                    setRefreshing(false);
-                    break;
-                case 'solutionDataUpdate':
-                    // For updates triggered by file changes, we preserve tree state
-                    // by smart merging instead of replacing
-                    setSolutionData(prev => mergeTreeData(prev, message.data));
                     setRefreshing(false);
                     break;
                 case 'frameworkChanged':

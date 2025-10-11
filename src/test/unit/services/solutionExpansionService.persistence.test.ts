@@ -1,5 +1,4 @@
 import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { SolutionExpansionIdService } from '../../../services/solutionExpansionIdService';
 import { ProjectNode } from '../../../webview/solution-view/types';
 
 // Mock vscode and context
@@ -98,37 +97,6 @@ describe('SolutionExpansionService Dependencies Persistence Fix', () => {
 
             expect(persistenceFix.principle).toBe('preserve_all_expansion_state');
             expect(persistenceFix.neverRemoveOn).toContain('reload');
-        });
-
-        it('should confirm Dependencies nodes are virtual and should be preserved', () => {
-            const dependenciesId = SolutionExpansionIdService.generateDependenciesId('/project/test.csproj');
-            const projectCategoryId = SolutionExpansionIdService.generateDependencyCategoryId('/project/test.csproj', 'projects');
-            const packageCategoryId = SolutionExpansionIdService.generateDependencyCategoryId('/project/test.csproj', 'packages');
-
-            // Verify these are correctly identified as virtual nodes
-            expect(SolutionExpansionIdService.isVirtualNode(dependenciesId)).toBe(true);
-            expect(SolutionExpansionIdService.isVirtualNode(projectCategoryId)).toBe(true);
-            expect(SolutionExpansionIdService.isVirtualNode(packageCategoryId)).toBe(true);
-
-            // Regular file/folder nodes should not be virtual
-            const fileId = SolutionExpansionIdService.generateFileId('/project/Program.cs');
-            const folderId = SolutionExpansionIdService.generateFolderId('/project/Controllers', '/project/test.csproj');
-
-            expect(SolutionExpansionIdService.isVirtualNode(fileId)).toBe(false);
-            expect(SolutionExpansionIdService.isVirtualNode(folderId)).toBe(false);
-
-            console.log('✅ Dependencies nodes correctly identified as virtual');
-            console.log('   - Virtual nodes should ALWAYS preserve expansion state');
-            console.log('   - They represent logical groupings, not physical files');
-            console.log('   - Losing their expansion state is purely user experience degradation');
-
-            const virtualNodeTypes = {
-                dependencies: 'always_preserve',
-                dependencyCategories: 'always_preserve',
-                filesAndFolders: 'validate_if_needed'
-            };
-
-            expect(virtualNodeTypes.dependencies).toBe('always_preserve');
         });
     });
 });

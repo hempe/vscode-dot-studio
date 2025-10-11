@@ -7,6 +7,7 @@ import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
 import { SolutionExpansionIdService } from '../services/solutionExpansionIdService';
 import { logger } from './logger';
+import { ProjectChild } from '../webview/solution-view/types';
 
 export interface ProjectFileNode {
     name: string;
@@ -486,8 +487,8 @@ export class Project {
     /**
      * Gets the root-level children for this project (dependencies container + root files/folders)
      */
-    async getRootChildren(): Promise<{ type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean, nodeId?: string }[]> {
-        const items: { type: 'dependencies' | 'folder' | 'file', name: string, path: string, version?: string, dependencyType?: string, hasChildren?: boolean, nodeId?: string }[] = [];
+    async getRootChildren(): Promise<ProjectChild[]> {
+        const items: ProjectChild[] = [];
 
         try {
             // Add Dependencies container if there are dependencies
@@ -570,38 +571,34 @@ export class Project {
     /**
      * Gets dependency categories for this project (used when Dependencies node is expanded)
      */
-    getDependencies(): { type: 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] {
+    getDependencies(): ProjectChild[] {
         log.info(`getDependencies called for ${this.name}, found ${this._dependencies?.length || 0} dependencies`);
 
-        // Group dependencies by type
-        const packageRefs = this._dependencies?.filter(dep => dep.type === 'PackageReference') || [];
-        const projectRefs = this._dependencies?.filter(dep => dep.type === 'ProjectReference') || [];
-        const assemblyRefs = this._dependencies?.filter(dep => dep.type === 'Reference') || [];
-
-        log.info(`Dependency breakdown: Packages=${packageRefs.length}, Projects=${projectRefs.length}, Assemblies=${assemblyRefs.length}`);
-
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
-        const items: { type: 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] = [
+        const items: ProjectChild[] = [
             {
                 type: 'packageDependencies',
                 name: 'Packages',
                 path: this._projectPath + '/dependencies/packages', // Keep legacy path for compatibility
                 nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
-                hasChildren: packageRefs.length > 0
+                children: this.getDependenciesByCategory(':packages'),
+                isLoaded: true,
             },
             {
                 type: 'projectDependencies',
                 name: 'Projects',
                 path: this._projectPath + '/dependencies/projects', // Keep legacy path for compatibility
                 nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
-                hasChildren: projectRefs.length > 0
+                children: this.getDependenciesByCategory(':projects'),
+                isLoaded: true,
             },
             {
                 type: 'assemblyDependencies',
                 name: 'Assemblies',
                 path: this._projectPath + '/dependencies/assemblies', // Keep legacy path for compatibility
                 nodeId: SolutionExpansionIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
-                hasChildren: assemblyRefs.length > 0
+                children: this.getDependenciesByCategory(':assemblies'),
+                isLoaded: true,
             }
         ];
 
@@ -612,8 +609,8 @@ export class Project {
     /**
      * Gets dependencies for a specific category (used when dependency category node is expanded)
      */
-    getDependenciesByCategory(categoryPathOrId: string): { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string, nodeId?: string }[] {
-        const items: { type: 'dependency', name: string, path: string, version?: string, dependencyType?: string, nodeId?: string }[] = [];
+    getDependenciesByCategory(categoryPathOrId: string): ProjectChild[] {
+        const items: ProjectChild[] = [];
 
         if (!this._dependencies) {
             return items;
@@ -659,10 +656,9 @@ export class Project {
             items.push({
                 type: 'dependency',
                 name: dep.version ? `${dep.name} (${dep.version})` : dep.name,
-                path: uniquePath, // Keep legacy path for compatibility
+                path: uniquePath,
                 nodeId: nodeId,
-                version: dep.version,
-                dependencyType: dep.type
+                hasChildren: false
             });
 
             log.debug(`Created dependency node: ${dep.name} with path: ${uniquePath}, nodeId: ${nodeId}`);
@@ -675,8 +671,8 @@ export class Project {
     /**
      * Gets children for a specific folder path within this project
      */
-    async getFolderChildren(folderPath: string): Promise<{ type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean, nodeId?: string }[]> {
-        const items: { type: 'folder' | 'file', name: string, path: string, hasChildren?: boolean, nodeId?: string }[] = [];
+    async getFolderChildren(folderPath: string): Promise<ProjectChild[]> {
+        const items: ProjectChild[] = [];
 
         try {
             const children = await this.expandFolder(folderPath);
