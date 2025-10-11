@@ -18,20 +18,17 @@ describe('TreeNode Focus and Selection States', () => {
   const fileNode: ProjectNode = {
     type: 'file',
     name: 'Program.cs',
-    path: '/test/Program.cs',
     nodeId: 'file:/test/Program.cs'
   };
 
   const folderNode: ProjectNode = {
     type: 'folder',
     name: 'Controllers',
-    path: '/test/Controllers',
     nodeId: 'folder:/test/project:/test/Controllers',
     children: [
       {
         type: 'file',
         name: 'HomeController.cs',
-        path: '/test/Controllers/HomeController.cs',
         nodeId: 'file:/test/Controllers/HomeController.cs'
       }
     ],

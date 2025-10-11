@@ -229,7 +229,6 @@ const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: string
         nodeId: tempNodeId,
         type: nodeType,
         name: defaultName,
-        path: `${parentPath}/${defaultName}`, // Keep path for display purposes
         isTemporary: true,
         isEditing: true,
         hasChildren: false,
@@ -457,12 +456,12 @@ export const useVsCodeApi = () => {
                     log.info('Adding temporary node:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
-                        log.info('findNodeIdFromPath result for path:', message.parentPath, 'nodeId:', parentNodeId);
+                        const parentNodeId = message.parentNodeId;
+                        log.info('findNodeIdFromPath result for path:', message.parentNodeId, 'nodeId:', parentNodeId);
                         if (parentNodeId) {
                             return addTemporaryNodeToTree(prev, parentNodeId, message.nodeType, message.defaultName);
                         } else {
-                            log.error('Could not find nodeId for parentPath:', message.parentPath);
+                            log.error('Could not find nodeId for parentNodeId:', message.parentNodeId);
                         }
                         return prev;
                     });
@@ -471,7 +470,7 @@ export const useVsCodeApi = () => {
                     log.info('Removing temporary nodes from parent:', message.parentPath);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
+                        const parentNodeId = message.parentNodeId;
                         if (parentNodeId) {
                             return removeTemporaryNodesFromParent(prev, parentNodeId);
                         }

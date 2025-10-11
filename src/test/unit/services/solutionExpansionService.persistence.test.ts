@@ -26,14 +26,12 @@ describe('SolutionExpansionService Dependencies Persistence Fix', () => {
                 {
                     type: 'solution',
                     name: 'MySolution',
-                    path: '/workspace/MySolution.sln',
                     nodeId: 'solution:/workspace/MySolution.sln',
                     expanded: false,
                     children: [
                         {
                             type: 'project',
                             name: 'ProjectA',
-                            path: '/workspace/ProjectA.csproj',
                             nodeId: 'project:/workspace/ProjectA.csproj',
                             expanded: false
                             // NO Dependencies children yet (lazy-loaded)
@@ -41,7 +39,6 @@ describe('SolutionExpansionService Dependencies Persistence Fix', () => {
                         {
                             type: 'project',
                             name: 'ProjectB',
-                            path: '/workspace/ProjectB.csproj',
                             nodeId: 'project:/workspace/ProjectB.csproj',
                             expanded: false
                             // NO Dependencies children yet (lazy-loaded)

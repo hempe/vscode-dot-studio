@@ -46,7 +46,12 @@ export class SolutionExpansionService {
                     // Restore expansion states for all projects
                     for (const child of existingNode.children) {
                         if (child.type === 'project' && child.expanded) {
-                            const project = solution.getProject(child.path);
+                            const projectPath = NodeIdService.getPathFromId(child.nodeId);
+                            if (!projectPath) {
+                                log.error(`Could not extract project path from expansion ID: ${child.nodeId}`);
+                                continue;
+                            }
+                            const project = solution.getProject(projectPath);
                             if (project) {
                                 // Refresh any expanded folders to catch file system changes
                                 await this._refreshExpandedFolders(child.children || [], project);
@@ -347,10 +352,16 @@ export class SolutionExpansionService {
     private static async _refreshExpandedFolders(children: ProjectNode[], project: Project): Promise<void> {
         for (const child of children) {
             if (child.type === 'folder' && child.expanded && child.children) {
-                log.info(`Refreshing expanded folder: ${child.path}`);
+                const projectPath = NodeIdService.getPathFromId(child.nodeId);
+                if (!projectPath) {
+                    log.error(`Could not extract project path from expansion ID: ${child.nodeId}`);
+                    continue;
+                }
+
+                log.info(`Refreshing expanded folder: ${projectPath}`);
                 try {
                     // Get fresh folder contents
-                    const folderChildren = await project.getFolderChildren(child.path);
+                    const folderChildren = await project.getFolderChildren(projectPath);
                     const freshChildren = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
 
                     // Merge with existing expansion states
@@ -359,7 +370,7 @@ export class SolutionExpansionService {
                     // Recursively refresh nested expanded folders
                     await this._refreshExpandedFolders(child.children, project);
                 } catch (error) {
-                    log.warn(`Failed to refresh expanded folder: ${child.path}`, error);
+                    log.warn(`Failed to refresh expanded folder: ${projectPath}`, error);
                 }
             }
         }
@@ -372,9 +383,7 @@ export class SolutionExpansionService {
         const result: ProjectNode[] = [];
 
         for (const freshChild of freshChildren) {
-            const existing = existingChildren.find(child =>
-                child.path === freshChild.path && child.name === freshChild.name
-            );
+            const existing = existingChildren.find(child => child.nodeId === freshChild.nodeId);
 
             if (existing) {
                 // Preserve expansion state and children if expanded

@@ -11,7 +11,6 @@ export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' |
 export interface ProjectChild {
     type: NodeType;
     name: string;
-    path: string;
     nodeId: string;
     hasChildren?: boolean;
     expanded?: boolean;
@@ -21,7 +20,6 @@ export interface ProjectChild {
 export interface ProjectNode {
     type: NodeType;
     name: string;
-    path: string; // Keep for display and legacy compatibility - but use expansionId for operations
     children?: ProjectNode[];
     expanded?: boolean;
     isSolutionFolder?: boolean; // Flag to help distinguish virtual vs filesystem folders

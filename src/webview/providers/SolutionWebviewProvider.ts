@@ -369,7 +369,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Send a message to the webview to create a temporary node in edit mode
             this._view?.webview.postMessage({
                 command: 'addTemporaryNode',
-                parentPath: parentPath,
+                parentNodeId,
                 nodeType: 'file',
                 defaultName: 'newfile.cs'
             });
@@ -398,7 +398,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Send a message to the webview to create a temporary node in edit mode
             this._view?.webview.postMessage({
                 command: 'addTemporaryNode',
-                parentPath: parentPath,
+                parentNodeId,
                 nodeType: 'folder',
                 defaultName: 'NewFolder'
             });
@@ -437,9 +437,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Extract project path from the original nodeId if available
             if (NodeIdService.isTemporaryNode(nodeId)) {
-                // For temporary nodes, we need to find the project path differently
-                // The temp nodeId format is: temp:nodeType:parentPath:timestamp_random
-                // We could enhance this to include project info, but for now find it
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
                     for (const [projPath] of solution.projects) {
@@ -515,9 +512,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Extract project path from the original nodeId if available
             if (NodeIdService.isTemporaryNode(nodeId)) {
-                // For temporary nodes, we need to find the project path differently
-                // The temp nodeId format is: temp:nodeType:parentPath:timestamp_random
-                // We could enhance this to include project info, but for now find it
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
                     for (const [projPath] of solution.projects) {

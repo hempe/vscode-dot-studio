@@ -49,7 +49,6 @@ export class SolutionTreeService {
         const solutionNode: ProjectNode = {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
-            path: solutionPath,
             nodeId: NodeIdService.generateSolutionId(solutionPath),
             children: []
         };
@@ -123,7 +122,6 @@ export class SolutionTreeService {
             const itemNode: ProjectNode = {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
-                path: absolutePath,
                 nodeId: nodeId,
                 children: [],
                 // Add framework information if available
@@ -182,7 +180,6 @@ export class SolutionTreeService {
                     itemNode.children.push({
                         type: 'solutionItem',
                         name: itemName,
-                        path: absoluteItemPath,
                         nodeId: NodeIdService.generateSolutionItemId(
                             absoluteItemPath,
                             project.guid || project.name
@@ -303,7 +300,6 @@ export class SolutionTreeService {
             return {
                 type: nodeType,
                 name: child.name,
-                path: child.path,
                 nodeId: child.nodeId,
                 isLoaded: child.isLoaded,
                 hasChildren: child.hasChildren || !!child.children?.length,

@@ -496,7 +496,6 @@ export class Project {
                 items.push({
                     type: 'dependencies',
                     name: 'Dependencies',
-                    path: this._projectPath + '/dependencies', // Keep legacy path for compatibility
                     nodeId: NodeIdService.generateDependenciesId(this._projectPath),
                     hasChildren: true
                 });
@@ -522,7 +521,6 @@ export class Project {
                     items.push({
                         type: 'folder',
                         name: propertiesFolder.name,
-                        path: propertiesFolder.path,
                         hasChildren: propertiesFolder.hasChildren,
                         nodeId: NodeIdService.generateFolderId(propertiesFolder.path, this._projectPath)
                     });
@@ -552,7 +550,6 @@ export class Project {
                     items.push({
                         type: child.type as 'folder' | 'file',
                         name: child.name,
-                        path: child.path,
                         hasChildren: child.hasChildren,
                         nodeId: nodeId
                     });
@@ -579,7 +576,6 @@ export class Project {
             {
                 type: 'packageDependencies',
                 name: 'Packages',
-                path: this._projectPath + '/dependencies/packages', // Keep legacy path for compatibility
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
                 children: this.getDependenciesByCategory(':packages'),
                 isLoaded: true,
@@ -587,7 +583,6 @@ export class Project {
             {
                 type: 'projectDependencies',
                 name: 'Projects',
-                path: this._projectPath + '/dependencies/projects', // Keep legacy path for compatibility
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
                 children: this.getDependenciesByCategory(':projects'),
                 isLoaded: true,
@@ -595,7 +590,6 @@ export class Project {
             {
                 type: 'assemblyDependencies',
                 name: 'Assemblies',
-                path: this._projectPath + '/dependencies/assemblies', // Keep legacy path for compatibility
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
                 children: this.getDependenciesByCategory(':assemblies'),
                 isLoaded: true,
@@ -656,7 +650,6 @@ export class Project {
             items.push({
                 type: 'dependency',
                 name: dep.version ? `${dep.name} (${dep.version})` : dep.name,
-                path: uniquePath,
                 nodeId: nodeId,
                 hasChildren: false
             });
@@ -685,7 +678,6 @@ export class Project {
                 items.push({
                     type: child.type as 'folder' | 'file',
                     name: child.name,
-                    path: child.path,
                     hasChildren: child.hasChildren,
                     nodeId: nodeId
                 });
