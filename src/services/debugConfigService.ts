@@ -36,7 +36,7 @@ export class DebugConfigService {
 
             // Find the "Startup" configuration
             const startupConfig = launchConfig.configurations?.find(
-                (config: any) => config.name === 'Startup' && config.type === 'coreclr'
+                (config: any) => config.name === 'Startup' && (config.type === 'coreclr' || config.type === 'clr' || config.type === 'mono')
             );
 
             if (!startupConfig) {
@@ -106,7 +106,7 @@ export class DebugConfigService {
 
             // Find the "Startup" configuration
             const startupConfig = launchConfig.configurations?.find(
-                (config: any) => config.name === 'Startup' && config.type === 'coreclr'
+                (config: any) => config.name === 'Startup' && (config.type === 'coreclr' || config.type === 'clr' || config.type === 'mono')
             );
 
             if (!startupConfig) {
@@ -181,6 +181,20 @@ export class DebugConfigService {
             const isNetFramework = this.isNetFramework(selectedFramework);
             const programExtension = isNetFramework ? 'exe' : 'dll';
 
+            // Determine debug type based on framework and platform
+            let debugType: string;
+            if (isNetFramework) {
+                if (process.platform === 'win32') {
+                    debugType = 'clr';
+                } else {
+                    // On non-Windows platforms, use the dedicated mono debugger
+                    debugType = 'mono';
+                    log.info(`Using mono debugger for .NET Framework project on ${process.platform}`);
+                }
+            } else {
+                debugType = 'coreclr';
+            }
+
             // Read launch settings to get command line arguments and other settings
             const launchSettings = await this.readLaunchSettings(projectDir);
             log.info(`Launch settings loaded:`, launchSettings);
@@ -188,13 +202,13 @@ export class DebugConfigService {
             // Create the "Startup" configuration
             const startupConfig = {
                 name: 'Startup',
-                type: 'coreclr',
+                type: debugType,
                 request: 'launch',
                 program: `\${workspaceFolder}/${relativeProjectDir}/bin/Debug/${frameworkPath}/${projectName}.${programExtension}`,
                 args: launchSettings.commandLineArgs || [],
                 cwd: `\${workspaceFolder}/${relativeProjectDir}`,
                 console: 'integratedTerminal',
-                stopAtEntry: false,
+                ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
                 preLaunchTask: 'StartupPreBuild',
                 ...(launchSettings.environmentVariables && Object.keys(launchSettings.environmentVariables).length > 0 && {
                     env: launchSettings.environmentVariables
