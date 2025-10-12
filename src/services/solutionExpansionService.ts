@@ -316,8 +316,45 @@ export class SolutionExpansionService {
 
             log.info(`Restoring expansion states for ${expansionPaths.size} nodes:`);
 
-            // Restore expansion states and load children
+            // Filter out broken/old nodeIds and track valid ones
+            const validExpansionPaths = new Set<string>();
+            const brokenNodeIds: string[] = [];
+
             for (const expandedId of expansionPaths) {
+                // Try to parse the nodeId to see if it's valid
+                try {
+                    // First check if it's an old string-based nodeId
+                    if (this._isOldStringNodeId(expandedId)) {
+                        log.debug(`Removing old string-based nodeId: ${expandedId}`);
+                        brokenNodeIds.push(expandedId);
+                        continue;
+                    }
+
+                    // Try to parse as new format
+                    NodeIdService.parse(expandedId);
+
+                    // Check if the node actually exists in the tree
+                    const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
+                    if (nodeType) {
+                        validExpansionPaths.add(expandedId);
+                    } else {
+                        log.debug(`Removing nodeId not found in tree: ${expandedId}`);
+                        brokenNodeIds.push(expandedId);
+                    }
+                } catch (error) {
+                    log.debug(`Removing invalid nodeId: ${expandedId} - ${error}`);
+                    brokenNodeIds.push(expandedId);
+                }
+            }
+
+            // Clean up broken nodeIds from saved state
+            if (brokenNodeIds.length > 0) {
+                log.info(`Cleaning up ${brokenNodeIds.length} broken/outdated nodeIds from expansion state`);
+                this.saveExpansionState(validExpansionPaths, context);
+            }
+
+            // Restore expansion states and load children for valid nodes
+            for (const expandedId of validExpansionPaths) {
                 const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
                 if (nodeType) {
                     log.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
@@ -333,8 +370,6 @@ export class SolutionExpansionService {
                     await this._loadChildrenForNode(expandedId, nodeType, treeData);
 
                     log.info(`Successfully restored and loaded children for: ${expandedId}`);
-                } else {
-                    log.warn(`Could not determine node type for ID: ${expandedId} - node not found in fresh tree`);
                 }
             }
 
@@ -344,6 +379,14 @@ export class SolutionExpansionService {
         } catch (error) {
             log.error('Error restoring expansion states:', error);
         }
+    }
+
+    /**
+     * Checks if a nodeId is using the old string-based format
+     */
+    private static _isOldStringNodeId(nodeId: string): boolean {
+        const oldPrefixes = ['sol:', 'proj:', 'folder:', 'file:', 'solfld:', 'solitem:', 'deps:', 'depcat:', 'dep:', 'temp:'];
+        return oldPrefixes.some(prefix => nodeId.startsWith(prefix));
     }
 
     /**
