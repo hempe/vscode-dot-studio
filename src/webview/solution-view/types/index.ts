@@ -3,7 +3,7 @@ import { Dependency } from "../../../parsers/projectFileParser";
 export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'dependencyCategory' | 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies' | 'solutionItem';
 
 // Context menu actions only
-export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem' | 'manageNuGetPackages' | 'manageNuGetPackagesForSolution' | 'addProjectReference' | 'restoreDependencies' | 'removeDependency' | 'setStartupProject' | 'addFile' | 'addFolder';
+export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem' | 'manageNuGetPackages' | 'manageNuGetPackagesForSolution' | 'addProjectReference' | 'restoreDependencies' | 'removeDependency' | 'setStartupProject' | 'addFile' | 'addFolder' | 'copy' | 'cut' | 'paste';
 
 // All project actions (includes menu actions + internal actions)
 export type ProjectActionType = MenuActionType | 'contextMenu' | 'startRename' | 'collapseParent' | 'cancelTemporaryNode';

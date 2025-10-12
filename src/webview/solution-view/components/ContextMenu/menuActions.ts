@@ -165,6 +165,27 @@ export const removeDependencyAction: MenuAction = {
     shortcut: "Del"
 };
 
+export const copyAction: MenuAction = {
+    name: "Copy",
+    action: "copy",
+    kind: "action",
+    shortcut: "Ctrl+C"
+};
+
+export const cutAction: MenuAction = {
+    name: "Cut",
+    action: "cut",
+    kind: "action",
+    shortcut: "Ctrl+X"
+};
+
+export const pasteAction: MenuAction = {
+    name: "Paste",
+    action: "paste",
+    kind: "action",
+    shortcut: "Ctrl+V"
+};
+
 export const separator: MenuSeparator = {
     kind: 'separator'
 };
@@ -205,6 +226,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         addFileAction,
         addFolderAction,
         separator,
+        pasteAction,
+        separator,
         setStartupProjectAction,
         separator,
         manageNuGetPackagesAction,
@@ -224,6 +247,10 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         addFileAction,
         addFolderAction,
         separator,
+        copyAction,
+        cutAction,
+        pasteAction,
+        separator,
         renameAction,
         deleteAction,
         separator,
@@ -232,6 +259,10 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
 
     file: [
         openAction,
+        separator,
+        copyAction,
+        cutAction,
+        pasteAction,
         separator,
         renameAction,
         deleteAction,

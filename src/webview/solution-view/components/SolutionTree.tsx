@@ -359,6 +359,61 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                         }
                     }
                     break;
+
+                // Handle copy/cut/paste shortcuts
+                case 'c':
+                case 'C':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        const focusedNodeForCopy = flatNodes[currentIndex].node;
+                        // Only allow copy for files and folders
+                        if (focusedNodeForCopy.type === 'file' || focusedNodeForCopy.type === 'folder') {
+                            const copyMenuItems = contextMenus[focusedNodeForCopy.type] || [];
+                            const copyMenuItem = copyMenuItems.find(item =>
+                                item.kind === 'action' && (item as MenuAction).action === 'copy'
+                            );
+                            if (copyMenuItem) {
+                                onProjectAction('copy', focusedNodeForCopy.nodeId, { type: focusedNodeForCopy.type });
+                            }
+                        }
+                    }
+                    break;
+
+                case 'x':
+                case 'X':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        const focusedNodeForCut = flatNodes[currentIndex].node;
+                        // Only allow cut for files and folders
+                        if (focusedNodeForCut.type === 'file' || focusedNodeForCut.type === 'folder') {
+                            const cutMenuItems = contextMenus[focusedNodeForCut.type] || [];
+                            const cutMenuItem = cutMenuItems.find(item =>
+                                item.kind === 'action' && (item as MenuAction).action === 'cut'
+                            );
+                            if (cutMenuItem) {
+                                onProjectAction('cut', focusedNodeForCut.nodeId, { type: focusedNodeForCut.type });
+                            }
+                        }
+                    }
+                    break;
+
+                case 'v':
+                case 'V':
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        const focusedNodeForPaste = flatNodes[currentIndex].node;
+                        // Allow paste into folders, projects, and files (files paste into their parent folder)
+                        if (focusedNodeForPaste.type === 'folder' || focusedNodeForPaste.type === 'project' || focusedNodeForPaste.type === 'file') {
+                            const pasteMenuItems = contextMenus[focusedNodeForPaste.type] || [];
+                            const pasteMenuItem = pasteMenuItems.find(item =>
+                                item.kind === 'action' && (item as MenuAction).action === 'paste'
+                            );
+                            if (pasteMenuItem) {
+                                onProjectAction('paste', focusedNodeForPaste.nodeId, { type: focusedNodeForPaste.type });
+                            }
+                        }
+                    }
+                    break;
             }
         };
 

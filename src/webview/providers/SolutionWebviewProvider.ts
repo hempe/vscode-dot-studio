@@ -44,12 +44,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _cachedSolutionData?: ProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
 
+    public static Instance: SolutionWebviewProvider | null = null;
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
         private readonly _frameworkService: FrameworkDropdownService
     ) {
-
+        SolutionWebviewProvider.Instance = this;
         this._updateViewDebouncer = new SimpleDebounceManager(async () => {
             try {
                 console.error('Debounced updateView triggered');

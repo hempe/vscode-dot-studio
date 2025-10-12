@@ -134,6 +134,18 @@ export class SolutionActionService {
                 await this._handleSetStartupProject(nodeId);
                 break;
 
+            case 'copy':
+                await this._handleCopy(nodeId, data);
+                break;
+
+            case 'cut':
+                await this._handleCut(nodeId, data);
+                break;
+
+            case 'paste':
+                await this._handlePaste(nodeId, data);
+                break;
+
             default:
                 log.warn(`Unknown project action: ${action}`);
                 break;
@@ -166,7 +178,7 @@ export class SolutionActionService {
         try {
             if (itemType === 'solutionFolder') {
                 // Handle solution folder rename - extract the solution folder path
-                const itemPath = NodeIdService.getPathFromId(nodeId);
+                const itemPath = NodeIdService.nodeIdToPath(nodeId);
                 if (!itemPath) {
                     log.error('Cannot extract solution folder path from nodeId:', nodeId);
                     vscode.window.showErrorMessage('Error: Cannot determine solution folder path for rename');
@@ -1000,5 +1012,168 @@ export class SolutionActionService {
             throw error;
         }
     }
+
+    // Static clipboard to store copy/cut operations
+    private static clipboard: {
+        nodeId: string;
+        path: string;
+        operation: 'copy' | 'cut';
+        type: string;
+    } | null = null;
+
+    /**
+     * Handles copying a file or folder to the clipboard
+     */
+    private static async _handleCopy(nodeId: string, data?: MessageData): Promise<void> {
+        try {
+            const itemPath = NodeIdService.nodeIdToPath(nodeId);
+            if (!itemPath) {
+                log.error('Cannot extract path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine item path');
+                return;
+            }
+
+            this.clipboard = {
+                nodeId,
+                path: itemPath,
+                operation: 'copy',
+                type: data?.type || 'unknown'
+            };
+
+            const itemName = path.basename(itemPath);
+            vscode.window.showInformationMessage(`Copied ${itemName}`);
+            log.info(`Copied to clipboard: ${itemPath}`);
+        } catch (error) {
+            log.error('Error copying item:', error);
+            vscode.window.showErrorMessage(`Error copying item: ${error}`);
+        }
+    }
+
+    /**
+     * Handles cutting a file or folder to the clipboard
+     */
+    private static async _handleCut(nodeId: string, data?: MessageData): Promise<void> {
+        try {
+            const itemPath = NodeIdService.nodeIdToPath(nodeId);
+            if (!itemPath) {
+                log.error('Cannot extract path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine item path');
+                return;
+            }
+
+            this.clipboard = {
+                nodeId,
+                path: itemPath,
+                operation: 'cut',
+                type: data?.type || 'unknown'
+            };
+
+            const itemName = path.basename(itemPath);
+            vscode.window.showInformationMessage(`Cut ${itemName}`);
+            log.info(`Cut to clipboard: ${itemPath}`);
+        } catch (error) {
+            log.error('Error cutting item:', error);
+            vscode.window.showErrorMessage(`Error cutting item: ${error}`);
+        }
+    }
+
+    /**
+     * Handles pasting a file or folder from the clipboard
+     */
+    private static async _handlePaste(nodeId: string, _data?: MessageData): Promise<void> {
+        try {
+            if (!this.clipboard) {
+                vscode.window.showWarningMessage('Nothing to paste');
+                return;
+            }
+
+            const targetPath = NodeIdService.nodeIdToPath(nodeId);
+            if (!targetPath) {
+                log.error('Cannot extract target path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine target path');
+                return;
+            }
+
+            // Determine the actual paste target directory
+            let pasteTargetPath = targetPath;
+            const targetUri = vscode.Uri.file(targetPath);
+
+            try {
+                const stat = await vscode.workspace.fs.stat(targetUri);
+                if (stat.type === vscode.FileType.File) {
+                    // If target is a file, paste into its parent directory
+                    pasteTargetPath = path.dirname(targetPath);
+                    log.info(`Target is a file, pasting into parent directory: ${pasteTargetPath}`);
+                } else if (stat.type !== vscode.FileType.Directory) {
+                    vscode.window.showErrorMessage('Cannot paste to this location');
+                    return;
+                }
+            } catch {
+                vscode.window.showErrorMessage('Target path does not exist');
+                return;
+            }
+
+            const sourcePath = this.clipboard.path;
+            const sourceName = path.basename(sourcePath);
+            const destinationPath = path.join(pasteTargetPath, sourceName);
+
+            const sourceUri = vscode.Uri.file(sourcePath);
+            const destinationUri = vscode.Uri.file(destinationPath);
+
+            // Check if source still exists
+            try {
+                await vscode.workspace.fs.stat(sourceUri);
+            } catch {
+                vscode.window.showErrorMessage('Source item no longer exists');
+                this.clipboard = null;
+                return;
+            }
+
+            // Check if destination already exists
+            let destinationExists = false;
+            try {
+                await vscode.workspace.fs.stat(destinationUri);
+                destinationExists = true;
+            } catch {
+                // Destination doesn't exist, which is fine
+            }
+
+            if (destinationExists) {
+                const choice = await vscode.window.showWarningMessage(
+                    `A file or folder with the name '${sourceName}' already exists in the destination folder. Do you want to replace it?`,
+                    { modal: true },
+                    'Replace',
+                    'Cancel'
+                );
+                if (choice !== 'Replace') {
+                    return;
+                }
+            }
+
+            if (this.clipboard.operation === 'copy') {
+                // Copy operation using VS Code's workspace API
+                await vscode.workspace.fs.copy(sourceUri, destinationUri, { overwrite: true });
+                vscode.window.showInformationMessage(`Copied ${sourceName}`);
+                log.info(`Copied ${sourcePath} to ${destinationPath}`);
+            } else {
+                // Cut operation (move) using VS Code's workspace API
+                await vscode.workspace.fs.rename(sourceUri, destinationUri);
+                vscode.window.showInformationMessage(`Moved ${sourceName}`);
+                log.info(`Moved ${sourcePath} to ${destinationPath}`);
+                this.clipboard = null; // Clear clipboard after cut operation
+            }
+
+            // Force refresh the solution tree to ensure UI updates
+            const solution = SolutionService.getActiveSolution();
+            if (solution) {
+                await solution.forceRefreshAllProjects();
+            }
+
+        } catch (error) {
+            log.error('Error pasting item:', error);
+            vscode.window.showErrorMessage(`Error pasting item: ${error}`);
+        }
+    }
+
 
 }
