@@ -229,11 +229,36 @@ export class NamespaceService {
 
     /**
      * Updates namespace using VS Code's rename provider (OmniSharp integration)
+     * Falls back to manual text replacement if OmniSharp fails
      */
     static async updateNamespaceViaRename(filePath: string, oldNamespace: string, newNamespace: string): Promise<boolean> {
         try {
-            // Open the document in VS Code
+            // First try OmniSharp rename provider
+            const omnisharpSuccess = await this._tryOmnisharpRename(filePath, oldNamespace, newNamespace);
+            if (omnisharpSuccess) {
+                return true;
+            }
+
+            // Fallback to manual namespace replacement
+            log.info(`OmniSharp rename failed, falling back to manual namespace update for ${filePath}`);
+            return await this._manualNamespaceUpdate(filePath, oldNamespace, newNamespace);
+
+        } catch (error) {
+            log.error(`Error updating namespace in ${filePath}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Attempts to update namespace using OmniSharp rename provider
+     */
+    private static async _tryOmnisharpRename(filePath: string, oldNamespace: string, newNamespace: string): Promise<boolean> {
+        try {
+            log.debug(`Attempting OmniSharp rename for ${filePath}: ${oldNamespace} -> ${newNamespace}`);
+
+            // Open the document in VS Code and show it in editor
             const document = await vscode.workspace.openTextDocument(filePath);
+            await vscode.window.showTextDocument(document, { preview: false });
 
             // Parse the file to find the namespace position
             const namespaceInfo = this.parseNamespaceFromContent(document.getText());
@@ -241,6 +266,8 @@ export class NamespaceService {
                 log.error(`Namespace mismatch in file ${filePath}. Expected: ${oldNamespace}, Found: ${namespaceInfo?.namespace}`);
                 return false;
             }
+
+            log.debug(`Found namespace at position: line ${namespaceInfo.position.line}, character ${namespaceInfo.position.character}`);
 
             // Execute the rename operation via OmniSharp
             const workspaceEdit = await vscode.commands.executeCommand(
@@ -258,7 +285,7 @@ export class NamespaceService {
             // Apply the workspace edit
             const success = await vscode.workspace.applyEdit(workspaceEdit);
             if (success) {
-                log.info(`Successfully renamed namespace from ${oldNamespace} to ${newNamespace} in ${filePath}`);
+                log.info(`Successfully renamed namespace via OmniSharp from ${oldNamespace} to ${newNamespace} in ${filePath}`);
                 return true;
             } else {
                 log.error(`Failed to apply workspace edit for namespace rename in ${filePath}`);
@@ -266,9 +293,64 @@ export class NamespaceService {
             }
 
         } catch (error) {
-            log.error(`Error updating namespace in ${filePath}:`, error);
+            log.warn(`OmniSharp rename failed for ${filePath}:`, error);
             return false;
         }
+    }
+
+    /**
+     * Manually updates namespace by direct text replacement
+     */
+    private static async _manualNamespaceUpdate(filePath: string, oldNamespace: string, newNamespace: string): Promise<boolean> {
+        try {
+            log.debug(`Performing manual namespace update for ${filePath}: ${oldNamespace} -> ${newNamespace}`);
+
+            // Read the file content
+            const content = await fs.promises.readFile(filePath, 'utf8');
+
+            // Parse to get namespace info
+            const namespaceInfo = this.parseNamespaceFromContent(content);
+            if (!namespaceInfo || namespaceInfo.namespace !== oldNamespace) {
+                log.error(`Namespace mismatch in file ${filePath}. Expected: ${oldNamespace}, Found: ${namespaceInfo?.namespace}`);
+                return false;
+            }
+
+            // Create the replacement patterns
+            let updatedContent: string;
+
+            if (namespaceInfo.isFileScoped) {
+                // File-scoped namespace: "namespace MyProject.Services;"
+                const pattern = new RegExp(`^(\\s*namespace\\s+)${this._escapeRegex(oldNamespace)}(\\s*;)`, 'm');
+                updatedContent = content.replace(pattern, `$1${newNamespace}$2`);
+            } else {
+                // Traditional namespace: "namespace MyProject.Services" (with brace on same or next line)
+                const pattern = new RegExp(`^(\\s*namespace\\s+)${this._escapeRegex(oldNamespace)}(\\s*\\{?)`, 'm');
+                updatedContent = content.replace(pattern, `$1${newNamespace}$2`);
+            }
+
+            // Check if replacement was made
+            if (updatedContent === content) {
+                log.error(`Failed to replace namespace ${oldNamespace} with ${newNamespace} in ${filePath}`);
+                return false;
+            }
+
+            // Write the updated content back to file
+            await fs.promises.writeFile(filePath, updatedContent, 'utf8');
+
+            log.info(`Successfully updated namespace manually from ${oldNamespace} to ${newNamespace} in ${filePath}`);
+            return true;
+
+        } catch (error) {
+            log.error(`Error in manual namespace update for ${filePath}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Escapes special regex characters in a string
+     */
+    private static _escapeRegex(str: string): string {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     /**
