@@ -109,7 +109,7 @@ export class NamespaceService {
     /**
      * Calculates the expected namespace based on folder structure and project settings
      */
-    static async calculateExpectedNamespace(filePath: string): Promise<string | null> {
+    static async calculateExpectedNamespace(filePath: string, projectPath?: string): Promise<string | null> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -117,33 +117,47 @@ export class NamespaceService {
                 return null;
             }
 
-            // Find the project that contains this file
-            const project = await this.findProjectForFile(filePath);
-            if (!project) {
-                log.warn(`No project found for file: ${filePath}`);
-                return null;
+            let resolvedProjectPath = projectPath;
+
+            // If no project path provided, find the project that contains this file
+            if (!resolvedProjectPath) {
+                const project = await this.findProjectForFile(filePath);
+                if (!project) {
+                    log.warn(`No project found for file: ${filePath}`);
+                    return null;
+                }
+                resolvedProjectPath = project.path;
             }
+
+            log.debug(`Using project path: ${resolvedProjectPath} for file: ${filePath}`);
 
             // Get the project's root namespace
-            const rootNamespace = await this.getProjectRootNamespace(project.path);
+            const rootNamespace = await this.getProjectRootNamespace(resolvedProjectPath);
             if (!rootNamespace) {
-                log.warn(`No root namespace found for project: ${project.path}`);
+                log.warn(`No root namespace found for project: ${resolvedProjectPath}`);
                 return null;
             }
 
+            log.debug(`Root namespace: ${rootNamespace}`);
+
             // Calculate relative path from project root to file's directory
-            const projectDir = path.dirname(project.path);
+            const projectDir = path.dirname(resolvedProjectPath);
             const fileDir = path.dirname(filePath);
             const relativePath = path.relative(projectDir, fileDir);
 
+            log.debug(`Project dir: ${projectDir}, File dir: ${fileDir}, Relative path: ${relativePath}`);
+
             if (!relativePath || relativePath === '.') {
                 // File is in project root
+                log.debug(`File is in project root, returning root namespace: ${rootNamespace}`);
                 return rootNamespace;
             }
 
             // Convert path separators to namespace separators
             const namespaceParts = relativePath.split(path.sep).filter(part => part && part !== '.');
-            return rootNamespace + '.' + namespaceParts.join('.');
+            const expectedNamespace = rootNamespace + '.' + namespaceParts.join('.');
+            log.debug(`Expected namespace: ${expectedNamespace}`);
+            return expectedNamespace;
 
         } catch (error) {
             log.error(`Error calculating expected namespace for ${filePath}:`, error);
@@ -158,16 +172,21 @@ export class NamespaceService {
         const solution = SolutionService.getActiveSolution();
         if (!solution) return null;
 
-        // Get all projects from the solution
-        const projectsHierarchy = solution.getProjectHierarchy();
+        // Get all .NET projects from the solution
+        const projects = solution.getDotNetProjects();
+        log.debug(`Found ${projects.length} .NET projects in solution`);
 
-        for (const [projectPath, projects] of projectsHierarchy) {
-            const project = projects[0]; // Get the first project in this hierarchy
+        for (const project of projects) {
+            const projectPath = project.projectPath;
             const projectDir = path.dirname(projectPath);
+            log.debug(`Checking project: ${project.name} at ${projectPath}`);
 
             // Check if file is within this project directory
             const relativePath = path.relative(projectDir, filePath);
+            log.debug(`Relative path from ${projectDir} to ${filePath}: ${relativePath}`);
+
             if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+                log.debug(`File ${filePath} belongs to project: ${project.name}`);
                 return {
                     path: projectPath,
                     name: project.name
@@ -175,6 +194,7 @@ export class NamespaceService {
             }
         }
 
+        log.debug(`No project found for file: ${filePath}`);
         return null;
     }
 
@@ -254,18 +274,18 @@ export class NamespaceService {
     /**
      * Checks if a file move/rename requires namespace updates
      */
-    static async analyzeNamespaceChanges(filePath: string): Promise<{
+    static async analyzeNamespaceChanges(filePath: string, projectPath?: string): Promise<{
         needsUpdate: boolean;
         currentNamespace: string | null;
         expectedNamespace: string | null;
         namespaceInfo: NamespaceInfo | null;
     }> {
-        log.debug(`analyzeNamespaceChanges called for: ${filePath}`);
+        log.debug(`analyzeNamespaceChanges called for: ${filePath} with project: ${projectPath}`);
 
         const namespaceInfo = await this.parseNamespaceFromFile(filePath);
         log.debug(`Parsed namespace info: ${JSON.stringify(namespaceInfo)}`);
 
-        const expectedNamespace = await this.calculateExpectedNamespace(filePath);
+        const expectedNamespace = await this.calculateExpectedNamespace(filePath, projectPath);
         log.debug(`Calculated expected namespace: ${expectedNamespace}`);
 
         const currentNamespace = namespaceInfo?.namespace || null;

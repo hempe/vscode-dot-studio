@@ -1182,7 +1182,13 @@ export class SolutionActionService {
             // Now check namespace updates for moved C# files
             if (wasFileMoved) {
                 log.info(`Triggering namespace check for moved C# file: ${destinationPath}`);
-                await this._checkAndUpdateNamespace(destinationPath, 'File moved');
+
+                // Extract project path from the original clipboard nodeId
+                const originalNodeId = this.clipboard?.nodeId;
+                const projectPath = originalNodeId ? NodeIdService.getProjectPathFromNodeId(originalNodeId) : null;
+                log.debug(`Extracted project path from original nodeId: ${projectPath}`);
+
+                await this._checkAndUpdateNamespace(destinationPath, 'File moved', projectPath);
             } else {
                 log.debug(`Namespace check skipped - not a moved C# file`);
             }
@@ -1196,10 +1202,11 @@ export class SolutionActionService {
     /**
      * Checks and updates namespace for a single C# file
      */
-    private static async _checkAndUpdateNamespace(filePath: string, operationDescription: string): Promise<void> {
+    private static async _checkAndUpdateNamespace(filePath: string, operationDescription: string, projectPath?: string | null): Promise<void> {
         try {
             log.info(`_checkAndUpdateNamespace called for: ${filePath}`);
-            const analysis = await NamespaceService.analyzeNamespaceChanges(filePath);
+            log.debug(`Using project path: ${projectPath}`);
+            const analysis = await NamespaceService.analyzeNamespaceChanges(filePath, projectPath || undefined);
             log.info(`Namespace analysis result: needsUpdate=${analysis.needsUpdate}, current=${analysis.currentNamespace}, expected=${analysis.expectedNamespace}`);
 
             if (!analysis.needsUpdate) {
