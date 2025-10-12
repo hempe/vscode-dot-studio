@@ -1,356 +1,455 @@
 /**
- * Service for generating and managing unique node IDs for solution tree nodes
- * This prevents ID collisions between different node types (e.g. real folders vs virtual nodes)
+ * Next-generation NodeId service using JSON structure with zlib compression
+ * This replaces the string-based prefix system with a structured approach
+ */
+
+import { gzipSync, gunzipSync } from 'zlib';
+
+// Define the structure of a NodeId
+export interface NodeId {
+    type: NodeType;
+    solutionPath?: string;
+    projectPath?: string;
+    filePath?: string;
+    folderPath?: string;
+    guid?: string;
+    parentGuid?: string;
+    categoryName?: string;
+    dependencyName?: string;
+    version?: string;
+    itemPath?: string;
+    timestamp?: number;
+    random?: string;
+}
+
+export type NodeType =
+    | 'solution'
+    | 'project'
+    | 'folder'
+    | 'file'
+    | 'solutionFolder'
+    | 'solutionItem'
+    | 'dependencies'
+    | 'dependencyCategory'
+    | 'dependency'
+    | 'temporary';
+
+/**
+ * Service for generating and managing structured node IDs with compression
  */
 export class NodeIdService {
 
-    // Prefixes for different node types to prevent collisions
-    private static readonly PREFIXES = {
-        solution: 'sol:',
-        project: 'proj:',
-        folder: 'folder:',
-        file: 'file:',
-        solutionFolder: 'solfld:',
-        solutionItem: 'solitem:',
-        dependencies: 'deps:',
-        dependencyCategory: 'depcat:',
-        dependency: 'dep:',
-        temporary: 'temp:'
-    };
+    /**
+     * Compress a NodeId object into a Base64 string using gzip
+     */
+    private static compress(nodeId: NodeId): string {
+        const json = JSON.stringify(nodeId);
+        const compressed = gzipSync(Buffer.from(json, 'utf8'));
+        return compressed.toString('base64');
+    }
 
     /**
-     * Generates a unique expansion ID for a solution node
+     * Decompress a Base64 gzip string back into a NodeId object
+     */
+    static parse(compressedNodeId: string): NodeId {
+        try {
+            const buffer = Buffer.from(compressedNodeId, 'base64');
+            const decompressed = gunzipSync(buffer).toString('utf8');
+            return JSON.parse(decompressed) as NodeId;
+        } catch (error) {
+            throw new Error(`Failed to parse nodeId: ${error}`);
+        }
+    }
+
+    // Alias for backward compatibility
+    static parseNodeId = NodeIdService.parse;
+
+    /**
+     * Generates a unique ID for a solution node
      */
     static generateSolutionId(solutionPath: string): string {
-        return `${this.PREFIXES.solution}${solutionPath}`;
+        return this.compress({
+            type: 'solution',
+            solutionPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a project node
+     * Generates a unique ID for a project node
      */
     static generateProjectId(projectPath: string): string {
-        return `${this.PREFIXES.project}${projectPath}`;
+        return this.compress({
+            type: 'project',
+            projectPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a folder node
+     * Generates a unique ID for a folder node
      */
     static generateFolderId(folderPath: string, projectPath: string): string {
-        // Include project path to make folder IDs unique across projects
-        return `${this.PREFIXES.folder}${projectPath}:${folderPath}`;
+        return this.compress({
+            type: 'folder',
+            folderPath,
+            projectPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a file node
+     * Generates a unique ID for a file node
      */
-    static generateFileId(filePath: string): string {
-        return `${this.PREFIXES.file}${filePath}`;
+    static generateFileId(filePath: string, projectPath?: string): string {
+        return this.compress({
+            type: 'file',
+            filePath,
+            projectPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a solution folder node
+     * Generates a unique ID for a solution folder node
      */
-    static generateSolutionFolderId(guid: string, solutionPath: string, parentExpansionId?: string): string {
-        // Include parent hierarchy for nested solution folders
-        if (parentExpansionId && parentExpansionId !== '') {
-            // Extract just the GUID portion from the parent expansion ID
-            // Parent ID format: "solfld:/path/solution.sln:{PARENT-GUID}" or "sol:/path/solution.sln"
-            let parentGuidPortion = '';
-
-            if (parentExpansionId.startsWith(this.PREFIXES.solutionFolder)) {
-                // Extract GUID from solution folder ID: "solfld:/path/solution.sln:{GUID}"
-                const pathPortion = this.getPathFromId(parentExpansionId);
-                if (pathPortion) {
-                    const colonIndex = pathPortion.indexOf(':');
-                    if (colonIndex > 0) {
-                        parentGuidPortion = pathPortion.substring(colonIndex + 1);
-                    }
-                }
-            } else if (parentExpansionId.startsWith(this.PREFIXES.solution)) {
-                // Parent is the solution itself, use empty string for hierarchy
-                parentGuidPortion = '';
-            }
-
-            const hierarchicalId = parentGuidPortion
-                ? `${this.PREFIXES.solutionFolder}${solutionPath}:${parentGuidPortion}:${guid}`
-                : `${this.PREFIXES.solutionFolder}${solutionPath}:${guid}`;
-            console.log(`🔫 SHOTGUN [SolutionExpansionIdService]: Generated NESTED solution folder ID: ${hierarchicalId} (parent: ${parentExpansionId}, parentGuid: ${parentGuidPortion})`);
-            return hierarchicalId;
-        }
-        // Root level solution folder
-        const rootId = `${this.PREFIXES.solutionFolder}${solutionPath}:${guid}`;
-        console.log(`🔫 SHOTGUN [SolutionExpansionIdService]: Generated ROOT solution folder ID: ${rootId}`);
-        return rootId;
+    static generateSolutionFolderId(solutionPath: string, guid: string, parentGuid?: string): string {
+        return this.compress({
+            type: 'solutionFolder',
+            solutionPath,
+            guid,
+            parentGuid
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a solution item node
+     * Generates a unique ID for a solution item node
      */
-    static generateSolutionItemId(itemPath: string, solutionFolderGuid: string): string {
-        return `${this.PREFIXES.solutionItem}${solutionFolderGuid}:${itemPath}`;
+    static generateSolutionItemId(solutionFolderGuid: string, itemPath: string): string {
+        return this.compress({
+            type: 'solutionItem',
+            guid: solutionFolderGuid,
+            itemPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a dependencies node
+     * Generates a unique ID for a project dependencies container
      */
     static generateDependenciesId(projectPath: string): string {
-        return `${this.PREFIXES.dependencies}${projectPath}`;
+        return this.compress({
+            type: 'dependencies',
+            projectPath
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a dependency category node
+     * Generates a unique ID for a dependency category
      */
     static generateDependencyCategoryId(projectPath: string, categoryName: string): string {
-        return `${this.PREFIXES.dependencyCategory}${projectPath}:${categoryName.toLowerCase()}`;
+        return this.compress({
+            type: 'dependencyCategory',
+            projectPath,
+            categoryName
+        });
     }
 
     /**
-     * Generates a unique expansion ID for a dependency node
+     * Generates a unique ID for a specific dependency
      */
     static generateDependencyId(projectPath: string, categoryName: string, dependencyName: string, version?: string): string {
-        const versionSuffix = version ? `@${version}` : '';
-        return `${this.PREFIXES.dependency}${projectPath}:${categoryName.toLowerCase()}:${dependencyName}${versionSuffix}`;
+        return this.compress({
+            type: 'dependency',
+            projectPath,
+            categoryName,
+            dependencyName,
+            version
+        });
     }
 
     /**
-     * Extracts the node type from an expansion ID
+     * Generates a unique ID for temporary nodes
      */
-    static getNodeTypeFromId(expansionId: string): string | null {
-        for (const [nodeType, prefix] of Object.entries(this.PREFIXES)) {
-            if (expansionId.startsWith(prefix)) {
-                return nodeType;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Extracts the path portion from an expansion ID
-     */
-    static getPathFromId(expansionId: string): string | null {
-        for (const prefix of Object.values(this.PREFIXES)) {
-            if (expansionId.startsWith(prefix)) {
-                return expansionId.substring(prefix.length);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Extracts project path from dependency-related expansion IDs
-     */
-    static getProjectPathFromDependencyId(expansionId: string): string | null {
-        if (expansionId.startsWith(this.PREFIXES.dependencies)) {
-            return expansionId.substring(this.PREFIXES.dependencies.length);
-        }
-
-        if (expansionId.startsWith(this.PREFIXES.dependencyCategory) ||
-            expansionId.startsWith(this.PREFIXES.dependency)) {
-            const pathPortion = this.getPathFromId(expansionId);
-            if (pathPortion) {
-                // Extract project path before the first colon
-                const colonIndex = pathPortion.indexOf(':');
-                if (colonIndex > 0) {
-                    return pathPortion.substring(0, colonIndex);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Extracts category name from dependency category or dependency expansion IDs
-     */
-    static getCategoryFromDependencyId(expansionId: string): string | null {
-        const pathPortion = this.getPathFromId(expansionId);
-        if (!pathPortion) return null;
-
-        if (expansionId.startsWith(this.PREFIXES.dependencyCategory)) {
-            // Format: projectPath:categoryName
-            const colonIndex = pathPortion.indexOf(':');
-            if (colonIndex > 0) {
-                return pathPortion.substring(colonIndex + 1);
-            }
-        }
-
-        if (expansionId.startsWith(this.PREFIXES.dependency)) {
-            // Format: projectPath:categoryName:dependencyName[@version]
-            const parts = pathPortion.split(':');
-            if (parts.length >= 3) {
-                return parts[1];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Converts a nodeId to a file system path for folder and file types
-     * Returns null for virtual nodes (dependencies, solution folders, etc.)
-     */
-    static nodeIdToPath(nodeId: string): string | null {
-        const nodeType = this.getNodeTypeFromId(nodeId);
-
-        if (!nodeType) return null;
-
-        switch (nodeType) {
-            case 'file':
-                // file:/path/to/file.cs → /path/to/file.cs
-                return this.getPathFromId(nodeId);
-
-            case 'folder':
-                // folder:/project/path:/folder/path → /folder/path
-                const pathPortion = this.getPathFromId(nodeId);
-                if (pathPortion) {
-                    const lastColonIndex = pathPortion.lastIndexOf(':');
-                    if (lastColonIndex > 0) {
-                        return pathPortion.substring(lastColonIndex + 1);
-                    }
-                }
-                return pathPortion;
-
-            case 'solution':
-            case 'project':
-                // These also have direct file system paths
-                return this.getPathFromId(nodeId);
-
-            default:
-                // Virtual nodes (dependencies, solution folders) don't have file system paths
-                return null;
-        }
-    }
-
-    /**
-     * Generates a unique expansion ID for a temporary node
-     */
-    static generateTemporaryId(parentPath: string, nodeType: string): string {
+    static generateTemporaryId(nodeType: string, parentPath: string): string {
         const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-        return `${this.PREFIXES.temporary}${nodeType}:${parentPath}:${timestamp}_${random}`;
+        const random = Math.random().toString(36).substring(2, 8);
+
+        return this.compress({
+            type: 'temporary',
+            folderPath: parentPath, // Using folderPath as generic parent path
+            categoryName: nodeType, // Using categoryName as generic node type
+            timestamp,
+            random
+        });
     }
 
+    // Utility methods for extracting information from nodeIds
+
     /**
-     * Extracts project path from various node types that belong to a project
+     * Extracts project path from any nodeId that contains it
      */
     static getProjectPathFromNodeId(nodeId: string): string | null {
-        if (nodeId.startsWith(this.PREFIXES.project)) {
-            return this.getPathFromId(nodeId);
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.projectPath || null;
+        } catch {
+            return null;
         }
-
-        if (nodeId.startsWith(this.PREFIXES.dependencies)) {
-            return this.getPathFromId(nodeId);
-        }
-
-        if (nodeId.startsWith(this.PREFIXES.dependencyCategory) ||
-            nodeId.startsWith(this.PREFIXES.dependency)) {
-            return this.getProjectPathFromDependencyId(nodeId);
-        }
-
-        if (nodeId.startsWith(this.PREFIXES.folder) ||
-            nodeId.startsWith(this.PREFIXES.file)) {
-            const pathPortion = this.getPathFromId(nodeId);
-            if (pathPortion && pathPortion.includes(':')) {
-                // For folder/file IDs with format "projectPath:itemPath", extract project path
-                return pathPortion.split(':')[0];
-            }
-            return pathPortion;
-        }
-
-        return null;
     }
 
     /**
-     * Extracts solution path from solution-related node types
+     * Extracts solution path from any nodeId that contains it
      */
     static getSolutionPathFromNodeId(nodeId: string): string | null {
-        if (nodeId.startsWith(this.PREFIXES.solution)) {
-            return this.getPathFromId(nodeId);
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.solutionPath || null;
+        } catch {
+            return null;
         }
-
-        if (nodeId.startsWith(this.PREFIXES.solutionItem)) {
-            return this.getPathFromId(nodeId)?.split(':')[1] || null;
-        }
-
-        if (nodeId.startsWith(this.PREFIXES.solutionFolder)) {
-            return this.getPathFromId(nodeId);
-        }
-
-        return null;
     }
 
     /**
-     * Checks if a nodeId represents a temporary node
+     * Extracts file path from a file nodeId
+     */
+    static getFilePathFromNodeId(nodeId: string): string | null {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'file' ? parsed.filePath || null : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Extracts folder path from a folder nodeId
+     */
+    static getFolderPathFromNodeId(nodeId: string): string | null {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'folder' ? parsed.folderPath || null : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Extracts dependency information from a dependency nodeId
+     */
+    static getDependencyInfoFromNodeId(nodeId: string): { projectPath: string; dependencyName: string; dependencyType: string; version?: string } | null {
+        try {
+            const parsed = this.parse(nodeId);
+            if (parsed.type === 'dependency' && parsed.projectPath && parsed.categoryName && parsed.dependencyName) {
+                return {
+                    projectPath: parsed.projectPath,
+                    dependencyName: parsed.dependencyName,
+                    dependencyType: parsed.categoryName, // Map categoryName to dependencyType for backward compatibility
+                    version: parsed.version
+                };
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }
+
+    // Type checking methods
+
+    /**
+     * Checks if nodeId represents a temporary node
+     */
+    static isTemporary(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'temporary';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a folder
+     */
+    static isFolder(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'folder';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a project
+     */
+    static isProject(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'project';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a file
+     */
+    static isFile(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'file';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a solution
+     */
+    static isSolution(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'solution';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a solution folder
+     */
+    static isSolutionFolder(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'solutionFolder';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents dependencies container
+     */
+    static isDependencies(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'dependencies';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a dependency category
+     */
+    static isDependencyCategory(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'dependencyCategory';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if nodeId represents a specific dependency
+     */
+    static isDependency(nodeId: string): boolean {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type === 'dependency';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Gets the type of a nodeId
+     */
+    static getNodeType(nodeId: string): NodeType | null {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.type;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to get all available information from a nodeId
+     */
+    static getFullInfo(nodeId: string): NodeId | null {
+        try {
+            return this.parse(nodeId);
+        } catch {
+            return null;
+        }
+    }
+
+    // Backward compatibility methods for existing API
+
+    /**
+     * Extracts the primary path from a nodeId (filePath, folderPath, projectPath, etc.)
+     * @deprecated Use specific path extraction methods instead
+     */
+    static getPathFromId(nodeId: string): string | null {
+        try {
+            const parsed = this.parse(nodeId);
+            return parsed.filePath || parsed.folderPath || parsed.projectPath || parsed.solutionPath || null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Alias for getPathFromId for backward compatibility
+     * @deprecated Use specific path extraction methods instead
+     */
+    static nodeIdToPath(nodeId: string): string | null {
+        return this.getPathFromId(nodeId);
+    }
+
+    /**
+     * Gets the node type from a nodeId
+     * @deprecated Use getNodeType instead
+     */
+    static getNodeTypeFromId(nodeId: string): string | null {
+        return this.getNodeType(nodeId);
+    }
+
+    /**
+     * Alias for isTemporary for backward compatibility
      */
     static isTemporaryNode(nodeId: string): boolean {
-        return nodeId.startsWith(this.PREFIXES.temporary);
+        return this.isTemporary(nodeId);
     }
 
     /**
-     * Checks if a nodeId represents a folder node
+     * Alias for isFolder for backward compatibility
      */
     static isFolderNode(nodeId: string): boolean {
-        return nodeId.startsWith(this.PREFIXES.folder);
+        return this.isFolder(nodeId);
     }
 
     /**
-     * Checks if a nodeId represents a project node
-     */
-    static isProjectNode(nodeId: string): boolean {
-        return nodeId.startsWith(this.PREFIXES.project);
-    }
-
-    /**
-     * Extracts temporary node information from temporary node IDs
-     * Format: temp:nodeType:parentPath:timestamp_random
+     * Gets temporary node information
      */
     static getTemporaryNodeInfo(nodeId: string): { nodeType: string; parentPath: string } | null {
-        if (!this.isTemporaryNode(nodeId)) {
+        try {
+            const parsed = this.parse(nodeId);
+            if (parsed.type === 'temporary') {
+                return {
+                    nodeType: parsed.categoryName || 'unknown',
+                    parentPath: parsed.folderPath || ''
+                };
+            }
+            return null;
+        } catch {
             return null;
         }
-
-        const pathPortion = this.getPathFromId(nodeId);
-        if (!pathPortion) return null;
-
-        const parts = pathPortion.split(':');
-        if (parts.length >= 3) {
-            return {
-                nodeType: parts[0],
-                parentPath: parts[1]
-            };
-        }
-
-        return null;
     }
 
     /**
-     * Extracts dependency information from dependency node IDs
+     * Extracts project path from dependency-related nodeIds
+     * @deprecated Use getProjectPathFromNodeId instead
      */
-    static getDependencyInfoFromNodeId(nodeId: string): { projectPath: string; dependencyName: string; dependencyType: string } | null {
-        if (!nodeId.startsWith(this.PREFIXES.dependency)) {
-            return null;
-        }
-
-        const pathPortion = this.getPathFromId(nodeId);
-        if (!pathPortion) return null;
-
-        // Parse dependency path format: "projectPath:dependencyType:dependencyName"
-        const parts = pathPortion.split(':');
-        if (parts.length < 3) return null;
-
-        const projectPath = parts[0];
-        const dependencyType = parts[1]; // e.g., "packages" or "projects"
-        const dependencyNameWithVersion = parts.slice(2).join(':'); // In case dependency name contains colons
-
-        // Extract dependency name (remove version for packages)
-        const dependencyName = dependencyNameWithVersion.includes('@')
-            ? dependencyNameWithVersion.split('@')[0]
-            : dependencyNameWithVersion;
-
-        return {
-            projectPath,
-            dependencyName,
-            dependencyType
-        };
+    static getProjectPathFromDependencyId(nodeId: string): string | null {
+        return this.getProjectPathFromNodeId(nodeId);
     }
 }

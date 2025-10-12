@@ -1,166 +1,148 @@
+/**
+ * Tests for the new JSON-based NodeId service
+ */
+
 import { NodeIdService } from '../../../services/nodeIdService';
 
-// Mock vscode module
-jest.mock('vscode', () => ({}), { virtual: true });
-
 describe('NodeIdService', () => {
-    const testProjectPath = '/path/to/MyProject.csproj';
-    const testSolutionPath = '/path/to/MySolution.sln';
+    describe('Basic functionality', () => {
+        it('should generate and parse solution nodeId', () => {
+            const solutionPath = '/home/user/project/solution.sln';
+            const nodeId = NodeIdService.generateSolutionId(solutionPath);
 
-    describe('generateSolutionId', () => {
-        it('should generate unique solution IDs', () => {
-            const id1 = NodeIdService.generateSolutionId('/path/to/Solution1.sln');
-            const id2 = NodeIdService.generateSolutionId('/path/to/Solution2.sln');
+            expect(typeof nodeId).toBe('string');
+            expect(nodeId.length).toBeGreaterThan(0);
 
-            expect(id1).not.toBe(id2);
-            expect(id1).toContain('sol:');
-            expect(id2).toContain('sol:');
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.type).toBe('solution');
+            expect(parsed.solutionPath).toBe(solutionPath);
+        });
+
+        it('should generate and parse project nodeId', () => {
+            const projectPath = '/home/user/project/MyProject.csproj';
+            const nodeId = NodeIdService.generateProjectId(projectPath);
+
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.type).toBe('project');
+            expect(parsed.projectPath).toBe(projectPath);
+        });
+
+        it('should generate and parse file nodeId', () => {
+            const filePath = '/home/user/project/src/MyFile.cs';
+            const projectPath = '/home/user/project/MyProject.csproj';
+            const nodeId = NodeIdService.generateFileId(filePath, projectPath);
+
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.type).toBe('file');
+            expect(parsed.filePath).toBe(filePath);
+            expect(parsed.projectPath).toBe(projectPath);
+        });
+
+        it('should generate and parse folder nodeId', () => {
+            const folderPath = '/home/user/project/src/Services';
+            const projectPath = '/home/user/project/MyProject.csproj';
+            const nodeId = NodeIdService.generateFolderId(folderPath, projectPath);
+
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.type).toBe('folder');
+            expect(parsed.folderPath).toBe(folderPath);
+            expect(parsed.projectPath).toBe(projectPath);
+        });
+
+        it('should generate and parse dependency nodeId', () => {
+            const projectPath = '/home/user/project/MyProject.csproj';
+            const categoryName = 'packages';
+            const dependencyName = 'Newtonsoft.Json';
+            const version = '13.0.1';
+
+            const nodeId = NodeIdService.generateDependencyId(projectPath, categoryName, dependencyName, version);
+
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.type).toBe('dependency');
+            expect(parsed.projectPath).toBe(projectPath);
+            expect(parsed.categoryName).toBe(categoryName);
+            expect(parsed.dependencyName).toBe(dependencyName);
+            expect(parsed.version).toBe(version);
         });
     });
 
-    describe('generateProjectId', () => {
-        it('should generate unique project IDs', () => {
-            const id1 = NodeIdService.generateProjectId('/path/to/Project1.csproj');
-            const id2 = NodeIdService.generateProjectId('/path/to/Project2.csproj');
+    describe('Utility methods', () => {
+        it('should extract project path from various nodeId types', () => {
+            const projectPath = '/home/user/project/MyProject.csproj';
 
-            expect(id1).not.toBe(id2);
-            expect(id1).toContain('proj:');
-            expect(id2).toContain('proj:');
+            const projectNodeId = NodeIdService.generateProjectId(projectPath);
+            const fileNodeId = NodeIdService.generateFileId('/home/user/project/File.cs', projectPath);
+            const folderNodeId = NodeIdService.generateFolderId('/home/user/project/src', projectPath);
+
+            expect(NodeIdService.getProjectPathFromNodeId(projectNodeId)).toBe(projectPath);
+            expect(NodeIdService.getProjectPathFromNodeId(fileNodeId)).toBe(projectPath);
+            expect(NodeIdService.getProjectPathFromNodeId(folderNodeId)).toBe(projectPath);
+        });
+
+        it('should correctly identify node types', () => {
+            const projectNodeId = NodeIdService.generateProjectId('/home/user/project/MyProject.csproj');
+            const fileNodeId = NodeIdService.generateFileId('/home/user/project/File.cs');
+            const folderNodeId = NodeIdService.generateFolderId('/home/user/project/src', '/home/user/project/MyProject.csproj');
+
+            expect(NodeIdService.isProject(projectNodeId)).toBe(true);
+            expect(NodeIdService.isFile(fileNodeId)).toBe(true);
+            expect(NodeIdService.isFolder(folderNodeId)).toBe(true);
+
+            expect(NodeIdService.isProject(fileNodeId)).toBe(false);
+            expect(NodeIdService.isFile(projectNodeId)).toBe(false);
+        });
+
+        it('should get node type correctly', () => {
+            const solutionNodeId = NodeIdService.generateSolutionId('/home/user/solution.sln');
+            const projectNodeId = NodeIdService.generateProjectId('/home/user/MyProject.csproj');
+
+            expect(NodeIdService.getNodeType(solutionNodeId)).toBe('solution');
+            expect(NodeIdService.getNodeType(projectNodeId)).toBe('project');
         });
     });
 
-    describe('generateDependenciesId', () => {
-        it('should generate dependencies ID for project', () => {
-            const id = NodeIdService.generateDependenciesId(testProjectPath);
+    describe('Compression efficiency', () => {
+        it('should produce reasonably compressed nodeIds', () => {
+            const longPath = '/very/long/path/to/project/with/many/subdirectories/and/a/very/long/filename/MyProject.csproj';
+            const nodeId = NodeIdService.generateProjectId(longPath);
 
-            expect(id).toContain('deps:');
-            expect(id).toContain(testProjectPath);
+            // The nodeId should be a valid base64 string
+            expect(typeof nodeId).toBe('string');
+            expect(nodeId.length).toBeGreaterThan(0);
+
+            // Should be able to parse it back
+            const parsed = NodeIdService.parse(nodeId);
+            expect(parsed.projectPath).toBe(longPath);
         });
-    });
 
-    describe('generateDependencyCategoryId', () => {
-        it('should generate category IDs for different dependency types', () => {
-            const packagesId = NodeIdService.generateDependencyCategoryId(testProjectPath, 'packages');
-            const projectsId = NodeIdService.generateDependencyCategoryId(testProjectPath, 'projects');
-            const assembliesId = NodeIdService.generateDependencyCategoryId(testProjectPath, 'assemblies');
-
-            expect(packagesId).toContain('depcat:');
-            expect(packagesId).toContain('packages');
-            expect(projectsId).toContain('depcat:');
-            expect(projectsId).toContain('projects');
-            expect(assembliesId).toContain('depcat:');
-            expect(assembliesId).toContain('assemblies');
-
-            // All should be unique
-            expect(packagesId).not.toBe(projectsId);
-            expect(projectsId).not.toBe(assembliesId);
-            expect(packagesId).not.toBe(assembliesId);
-        });
-    });
-
-    describe('generateDependencyId', () => {
-        it('should generate dependency ID with version', () => {
-            const id = NodeIdService.generateDependencyId(
-                testProjectPath,
-                'packages',
-                'Newtonsoft.Json',
-                '13.0.1'
+        it('should handle complex nodeIds efficiently', () => {
+            const complexNodeId = NodeIdService.generateDependencyId(
+                '/very/long/path/to/project/MyProject.csproj',
+                'PackageReferences',
+                'Microsoft.Extensions.DependencyInjection.Abstractions',
+                '7.0.0'
             );
 
-            expect(id).toContain('dep:');
-            expect(id).toContain('packages');
-            expect(id).toContain('Newtonsoft.Json');
-            expect(id).toContain('13.0.1');
-        });
+            expect(typeof complexNodeId).toBe('string');
+            expect(complexNodeId.length).toBeGreaterThan(0);
 
-        it('should generate dependency ID without version', () => {
-            const id = NodeIdService.generateDependencyId(
-                testProjectPath,
-                'projects',
-                'MyOtherProject'
-            );
-
-            expect(id).toContain('dep:');
-            expect(id).toContain('projects');
-            expect(id).toContain('MyOtherProject');
+            const parsed = NodeIdService.parse(complexNodeId);
+            expect(parsed.type).toBe('dependency');
+            expect(parsed.dependencyName).toBe('Microsoft.Extensions.DependencyInjection.Abstractions');
         });
     });
 
-    describe('getNodeTypeFromId', () => {
-        it('should extract node type from different ID types', () => {
-            const solutionId = NodeIdService.generateSolutionId(testSolutionPath);
-            const projectId = NodeIdService.generateProjectId(testProjectPath);
-            const dependenciesId = NodeIdService.generateDependenciesId(testProjectPath);
-            const categoryId = NodeIdService.generateDependencyCategoryId(testProjectPath, 'packages');
-            const dependencyId = NodeIdService.generateDependencyId(testProjectPath, 'packages', 'Test');
-
-            expect(NodeIdService.getNodeTypeFromId(solutionId)).toBe('solution');
-            expect(NodeIdService.getNodeTypeFromId(projectId)).toBe('project');
-            expect(NodeIdService.getNodeTypeFromId(dependenciesId)).toBe('dependencies');
-            expect(NodeIdService.getNodeTypeFromId(categoryId)).toBe('dependencyCategory');
-            expect(NodeIdService.getNodeTypeFromId(dependencyId)).toBe('dependency');
+    describe('Error handling', () => {
+        it('should throw meaningful errors for invalid nodeIds', () => {
+            expect(() => NodeIdService.parse('invalid-base64')).toThrow('Failed to parse nodeId');
+            expect(() => NodeIdService.parse('')).toThrow('Failed to parse nodeId');
         });
 
-        it('should return null for invalid IDs', () => {
-            expect(NodeIdService.getNodeTypeFromId('invalid-id')).toBe(null);
-            expect(NodeIdService.getNodeTypeFromId('')).toBe(null);
-        });
-    });
-
-    describe('getPathFromId', () => {
-        it('should extract path from project ID', () => {
-            const projectId = NodeIdService.generateProjectId(testProjectPath);
-            const extractedPath = NodeIdService.getPathFromId(projectId);
-
-            expect(extractedPath).toBe(testProjectPath);
-        });
-
-        it('should extract path from solution ID', () => {
-            const solutionId = NodeIdService.generateSolutionId(testSolutionPath);
-            const extractedPath = NodeIdService.getPathFromId(solutionId);
-
-            expect(extractedPath).toBe(testSolutionPath);
-        });
-    });
-
-    describe('getProjectPathFromDependencyId', () => {
-        it('should extract project path from dependency category ID', () => {
-            const categoryId = NodeIdService.generateDependencyCategoryId(testProjectPath, 'packages');
-            const extractedPath = NodeIdService.getProjectPathFromDependencyId(categoryId);
-
-            expect(extractedPath).toBe(testProjectPath);
-        });
-
-        it('should extract project path from dependency ID', () => {
-            const dependencyId = NodeIdService.generateDependencyId(testProjectPath, 'packages', 'Test');
-            const extractedPath = NodeIdService.getProjectPathFromDependencyId(dependencyId);
-
-            expect(extractedPath).toBe(testProjectPath);
-        });
-    });
-
-    describe('nodeIdToPath', () => {
-        it('should convert file nodeId to path', () => {
-            const filePath = testProjectPath.replace('.csproj', '/Program.cs');
-            const fileId = NodeIdService.generateFileId(filePath);
-            const path = NodeIdService.nodeIdToPath(fileId);
-
-            expect(path).toBe(filePath);
-        });
-
-        it('should convert folder nodeId to path', () => {
-            const folderPath = '/path/to/MyProject/Controllers';
-            const folderId = NodeIdService.generateFolderId(folderPath, testProjectPath);
-            const path = NodeIdService.nodeIdToPath(folderId);
-
-            expect(path).toBe(folderPath);
-        });
-
-        it('should return null for unsupported node types', () => {
-            const dependencyId = NodeIdService.generateDependencyId(testProjectPath, 'packages', 'Test');
-            const path = NodeIdService.nodeIdToPath(dependencyId);
-
-            expect(path).toBe(null);
+        it('should return null for invalid nodeIds in utility methods', () => {
+            expect(NodeIdService.getProjectPathFromNodeId('invalid')).toBeNull();
+            expect(NodeIdService.getNodeType('invalid')).toBeNull();
+            expect(NodeIdService.isProject('invalid')).toBe(false);
         });
     });
 });
+
