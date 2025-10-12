@@ -5,6 +5,7 @@ import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { ProjectActionType } from '../webview/solution-view/types';
 import { NodeIdService } from './nodeIdService';
+import { NamespaceService } from './namespaceService';
 
 const log = logger('SolutionActionService');
 
@@ -206,6 +207,9 @@ export class SolutionActionService {
 
                 await vscode.workspace.fs.rename(oldUri, newUri);
                 log.info(`File/folder renamed from ${oldPath} to ${newPath}`);
+
+                // Check if namespace updates are needed after rename
+                await this._handleNamespaceUpdatesAfterRename(oldPath, newPath, itemType);
             }
         } catch (error) {
             log.error('Error renaming item:', error);
@@ -1082,6 +1086,8 @@ export class SolutionActionService {
      */
     private static async _handlePaste(nodeId: string, _data?: MessageData): Promise<void> {
         try {
+            log.info(`_handlePaste called: nodeId=${nodeId}, clipboard=${JSON.stringify(this.clipboard)}`);
+
             if (!this.clipboard) {
                 vscode.window.showWarningMessage('Nothing to paste');
                 return;
@@ -1150,6 +1156,10 @@ export class SolutionActionService {
                 }
             }
 
+            // Check if namespace updates are needed for moved C# files BEFORE clearing clipboard
+            const wasFileMoved = this.clipboard.operation === 'cut' && destinationPath.endsWith('.cs');
+            log.debug(`Checking namespace updates: clipboard=${!!this.clipboard}, operation=${this.clipboard?.operation}, destinationPath=${destinationPath}, wasFileMoved=${wasFileMoved}`);
+
             if (this.clipboard.operation === 'copy') {
                 // Copy operation using VS Code's workspace API
                 await vscode.workspace.fs.copy(sourceUri, destinationUri, { overwrite: true });
@@ -1169,11 +1179,173 @@ export class SolutionActionService {
                 await solution.forceRefreshAllProjects();
             }
 
+            // Now check namespace updates for moved C# files
+            if (wasFileMoved) {
+                log.info(`Triggering namespace check for moved C# file: ${destinationPath}`);
+                await this._checkAndUpdateNamespace(destinationPath, 'File moved');
+            } else {
+                log.debug(`Namespace check skipped - not a moved C# file`);
+            }
+
         } catch (error) {
             log.error('Error pasting item:', error);
             vscode.window.showErrorMessage(`Error pasting item: ${error}`);
         }
     }
 
+    /**
+     * Checks and updates namespace for a single C# file
+     */
+    private static async _checkAndUpdateNamespace(filePath: string, operationDescription: string): Promise<void> {
+        try {
+            log.info(`_checkAndUpdateNamespace called for: ${filePath}`);
+            const analysis = await NamespaceService.analyzeNamespaceChanges(filePath);
+            log.info(`Namespace analysis result: needsUpdate=${analysis.needsUpdate}, current=${analysis.currentNamespace}, expected=${analysis.expectedNamespace}`);
+
+            if (!analysis.needsUpdate) {
+                log.debug(`No namespace update needed for ${filePath}`);
+                return;
+            }
+
+            log.info(`${operationDescription}: Namespace update needed for ${filePath}`);
+            log.info(`Current: ${analysis.currentNamespace}, Expected: ${analysis.expectedNamespace}`);
+
+            // Show user consent dialog
+            const fileName = path.basename(filePath);
+            const choice = await vscode.window.showInformationMessage(
+                `${operationDescription}: Update namespace in '${fileName}'?\n\nFrom: ${analysis.currentNamespace || '(global)'}\nTo: ${analysis.expectedNamespace}`,
+                { modal: true },
+                'Update Namespace',
+                'Skip'
+            );
+
+            if (choice === 'Update Namespace' && analysis.currentNamespace && analysis.expectedNamespace) {
+                const success = await NamespaceService.updateNamespaceViaRename(
+                    filePath,
+                    analysis.currentNamespace,
+                    analysis.expectedNamespace
+                );
+
+                if (success) {
+                    vscode.window.showInformationMessage(`Namespace updated in '${fileName}'`);
+                } else {
+                    vscode.window.showWarningMessage(`Failed to update namespace in '${fileName}'`);
+                }
+            }
+
+        } catch (error) {
+            log.error(`Error checking namespace for ${filePath}:`, error);
+        }
+    }
+
+    /**
+     * Handles namespace updates after file/folder rename operations
+     */
+    private static async _handleNamespaceUpdatesAfterRename(oldPath: string, newPath: string, _itemType?: string): Promise<void> {
+        try {
+            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(newPath));
+
+            if (stats.type === vscode.FileType.File && newPath.endsWith('.cs')) {
+                // Single C# file renamed
+                await this._checkAndUpdateNamespace(newPath, 'File renamed');
+            } else if (stats.type === vscode.FileType.Directory) {
+                // Folder renamed - check all C# files in the folder
+                const csharpFiles = await NamespaceService.getCSharpFilesInDirectory(newPath);
+
+                if (csharpFiles.length === 0) {
+                    log.debug(`No C# files found in renamed folder: ${newPath}`);
+                    return;
+                }
+
+                // Ask user if they want to update namespaces for all files in the folder
+                const folderName = path.basename(newPath);
+                const choice = await vscode.window.showInformationMessage(
+                    `Folder '${folderName}' was renamed. Update namespaces for ${csharpFiles.length} C# file(s)?`,
+                    { modal: true },
+                    'Update All',
+                    'Review Each',
+                    'Skip'
+                );
+
+                if (choice === 'Update All') {
+                    await this._updateNamespacesInFiles(csharpFiles, 'Folder renamed', false);
+                } else if (choice === 'Review Each') {
+                    await this._updateNamespacesInFiles(csharpFiles, 'Folder renamed', true);
+                }
+            }
+
+        } catch (error) {
+            log.error(`Error handling namespace updates after rename from ${oldPath} to ${newPath}:`, error);
+        }
+    }
+
+    /**
+     * Updates namespaces in multiple files
+     */
+    private static async _updateNamespacesInFiles(filePaths: string[], operationDescription: string, askForEach: boolean): Promise<void> {
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        for (const filePath of filePaths) {
+            try {
+                const analysis = await NamespaceService.analyzeNamespaceChanges(filePath);
+
+                if (!analysis.needsUpdate) {
+                    continue;
+                }
+
+                let shouldUpdate = !askForEach;
+
+                if (askForEach) {
+                    const fileName = path.basename(filePath);
+                    const choice = await vscode.window.showInformationMessage(
+                        `${operationDescription}: Update namespace in '${fileName}'?\n\nFrom: ${analysis.currentNamespace || '(global)'}\nTo: ${analysis.expectedNamespace}`,
+                        'Update',
+                        'Skip',
+                        'Skip All Remaining'
+                    );
+
+                    if (choice === 'Update') {
+                        shouldUpdate = true;
+                    } else if (choice === 'Skip All Remaining') {
+                        break;
+                    }
+                }
+
+                if (shouldUpdate && analysis.currentNamespace && analysis.expectedNamespace) {
+                    const success = await NamespaceService.updateNamespaceViaRename(
+                        filePath,
+                        analysis.currentNamespace,
+                        analysis.expectedNamespace
+                    );
+
+                    if (success) {
+                        updatedCount++;
+                    } else {
+                        log.warn(`Failed to update namespace in ${filePath}`);
+                    }
+                } else {
+                    skippedCount++;
+                }
+
+            } catch (error) {
+                log.error(`Error updating namespace for ${filePath}:`, error);
+                skippedCount++;
+            }
+        }
+
+        // Show summary message
+        if (updatedCount > 0 || skippedCount > 0) {
+            let message = '';
+            if (updatedCount > 0) {
+                message += `Updated ${updatedCount} file(s)`;
+            }
+            if (skippedCount > 0) {
+                if (message) message += ', ';
+                message += `skipped ${skippedCount} file(s)`;
+            }
+            vscode.window.showInformationMessage(`Namespace updates: ${message}`);
+        }
+    }
 
 }
