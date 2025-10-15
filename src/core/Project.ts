@@ -7,7 +7,7 @@ import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
 import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
-import { ProjectChild } from '../webview/solution-view/types';
+import { ProjectChild } from '../types';
 
 export interface ProjectFileNode {
     name: string;

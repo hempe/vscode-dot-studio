@@ -1,5 +1,5 @@
 import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { ProjectNode } from '../../../webview/solution-view/types';
+import { ProjectNode } from '../../../types';
 import { NodeIdService } from '../../../services/nodeIdService';
 
 // Mock vscode and context

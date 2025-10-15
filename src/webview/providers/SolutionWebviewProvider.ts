@@ -6,7 +6,8 @@ import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { NodeIdService, NodeIdString } from '../../services/nodeIdService';
-import { ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
+import { ProjectActionType, ProjectNode as ExtensionProjectNode } from '../../types';
+import { ProjectNode as WebviewProjectNode, SolutionData as WebviewSolutionData } from '../solution-view/types';
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
@@ -41,7 +42,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _solutionChangeListener?: vscode.Disposable;
 
     // Cache for solution tree data to improve expand performance
-    private _cachedSolutionData?: ProjectNode[];
+    private _cachedSolutionData?: ExtensionProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
 
     public static Instance: SolutionWebviewProvider | null = null;
@@ -215,7 +216,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _getSolutionData(): Promise<ProjectNode[]> {
+    private async _getSolutionData(): Promise<ExtensionProjectNode[]> {
         log.info('Getting solution data...');
 
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
@@ -333,7 +334,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Centralized method to send solution data with expansion states already applied
      * This ensures expansion states are always restored before sending data to UI
      */
-    private async _sendSolutionData(projects: ProjectNode[]): Promise<void> {
+    private async _sendSolutionData(projects: ExtensionProjectNode[]): Promise<void> {
 
         if (!this._view) {
             return;
@@ -342,8 +343,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Get frameworks for complete update
         const frameworks = await this._frameworkService.getAvailableFrameworks();
         const activeFramework = this._frameworkService.getActiveFramework();
-        const data: SolutionData = {
-            projects,
+
+        // Convert extension nodes to webview nodes
+        const webviewProjects = this.extensionToWebviewNodes(projects);
+
+        const data: WebviewSolutionData = {
+            projects: webviewProjects,
             frameworks: frameworks || [],
             activeFramework
         };
@@ -585,6 +590,24 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             log.error('Error triggering immediate tree refresh:', error);
         }
+    }
+
+    /**
+     * Convert extension ProjectNode to webview ProjectNode
+     */
+    private extensionToWebviewNode(node: ExtensionProjectNode): WebviewProjectNode {
+        return {
+            ...node,
+            nodeId: NodeIdService.toKey(node.nodeId), // Convert NodeIdString to string
+            children: node.children ? node.children.map(child => this.extensionToWebviewNode(child)) : undefined
+        };
+    }
+
+    /**
+     * Convert extension ProjectNode array to webview ProjectNode array
+     */
+    private extensionToWebviewNodes(nodes: ExtensionProjectNode[]): WebviewProjectNode[] {
+        return nodes.map(node => this.extensionToWebviewNode(node));
     }
 
     /**

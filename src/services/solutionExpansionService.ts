@@ -3,7 +3,7 @@ import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
 import { NodeId, NodeIdService, NodeIdString } from './nodeIdService';
-import { ProjectNode } from '../webview/solution-view/types';
+import { ProjectNode } from '../types';
 import { Project } from '../core/Project';
 
 const log = logger('SolutionExpansionService');

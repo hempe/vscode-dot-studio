@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TreeNode } from '../../../../../webview/solution-view/components/TreeNode/TreeNode';
 import { ProjectNode } from '../../../../../webview/solution-view/types';
-import { NodeIdService } from '../../../../../services/nodeIdService';
+import { NodeIdString } from '../../../../../webview/shared/nodeIdUtils';
 
 describe('TreeNode Focus and Selection States', () => {
   const mockOnProjectAction = jest.fn();
@@ -19,18 +19,18 @@ describe('TreeNode Focus and Selection States', () => {
   const fileNode: ProjectNode = {
     type: 'file',
     name: 'Program.cs',
-    nodeId: NodeIdService.generateFileId('/test/Program.cs')
+    nodeId: 'file:/test/Program.cs' as NodeIdString
   };
 
   const folderNode: ProjectNode = {
     type: 'folder',
     name: 'Controllers',
-    nodeId: NodeIdService.generateFolderId('/test/Controllers', '/test/project'),
+    nodeId: 'folder:/test/Controllers' as NodeIdString,
     children: [
       {
         type: 'file',
         name: 'HomeController.cs',
-        nodeId: NodeIdService.generateFileId('/test/Controllers/HomeController.cs')
+        nodeId: 'file:/test/Controllers/HomeController.cs' as NodeIdString
       }
     ],
     expanded: false

@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { ProjectChild, ProjectNode } from '../webview/solution-view/types';
+import { ProjectChild, ProjectNode } from '../types';
 import { NodeIdService, NodeIdString } from './nodeIdService';
 import { logger } from '../core/logger';
 
