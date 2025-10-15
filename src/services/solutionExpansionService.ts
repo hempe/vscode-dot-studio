@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
-import { NodeIdService } from './nodeIdService';
+import { NodeId, NodeIdService, NodeIdString } from './nodeIdService';
 import { ProjectNode } from '../webview/solution-view/types';
 import { Project } from '../core/Project';
 
@@ -18,7 +18,7 @@ export class SolutionExpansionService {
      * Handles expanding a node in the solution tree
      */
     static async handleExpandNode(
-        nodeId: string,
+        nodeId: NodeIdString,
         nodeType: string,
         cachedSolutionData: ProjectNode[] | null,
         updateWebviewCallback: () => Promise<void>,
@@ -61,7 +61,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'project') {
                 // Expanding a project - extract actual project path from expansion ID
-                const projectPath = NodeIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
@@ -89,7 +89,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'dependencies') {
                 // Expanding a Dependencies node - extract project path from expansion ID
-                const projectPath = NodeIdService.getPathFromId(nodeId);
+                const projectPath = NodeIdService.parse(nodeId)?.projectPath;
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
@@ -112,12 +112,13 @@ export class SolutionExpansionService {
 
                 const project = solution.getProject(projectPath);
                 if (project) {
-                    const categoryDependencies = project.getDependenciesByCategory(nodeId);
+                    const nodeData = NodeIdService.parse(nodeId);
+                    const categoryDependencies = project.getDependenciesByCategory(nodeData);
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
                 }
             } else if (nodeType === 'folder') {
                 // Expanding a folder within a project - extract paths from expansion ID
-                const pathPortion = NodeIdService.getPathFromId(nodeId);
+                const pathPortion = NodeIdService.getFolderPathFromNodeId(nodeId);
                 if (!pathPortion) {
                     log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
@@ -175,7 +176,7 @@ export class SolutionExpansionService {
      * Handles collapsing a node in the solution tree
      */
     static async handleCollapseNode(
-        nodeId: string,
+        nodeId: NodeIdString,
         cachedSolutionData: ProjectNode[] | null,
         updateWebviewCallback: () => Promise<void>,
         context: vscode.ExtensionContext
@@ -187,8 +188,12 @@ export class SolutionExpansionService {
                 return;
             }
 
-            // For folder nodes, find the project and collapse the folder
-            const nodeType = NodeIdService.getNodeTypeFromId(nodeId);
+            const node = NodeIdService.parse(nodeId);
+            if (!node) {
+                log.error(`Could not parse nodeId for collapse: ${nodeId}`);
+                return;
+            }
+            const nodeType = node.type;
             if (nodeType === 'folder') {
                 const pathPortion = NodeIdService.getPathFromId(nodeId);
                 if (pathPortion) {
@@ -231,12 +236,12 @@ export class SolutionExpansionService {
      * Updates the expansion state of a node in the cached tree
      */
     private static async _updateNodeExpansionState(
-        nodeId: string,
+        nodeId: NodeIdString,
         expanded: boolean,
         children?: ProjectNode[],
         cachedSolutionData?: ProjectNode[] | null,
         isLoading: boolean = false,
-        expandedIds?: Set<string>,
+        expandedIds?: Set<NodeIdString>,
     ): Promise<void> {
         if (cachedSolutionData) {
             const updates: Partial<ProjectNode> = { expanded, isLoading: isLoading };
@@ -251,10 +256,10 @@ export class SolutionExpansionService {
     /**
      * Gets all expanded node IDs from the tree (prioritizes nodeId over path)
      */
-    private static getExpandedNodePaths(nodes: ProjectNode[]): Set<string> {
+    private static getExpandedNodePaths(nodes: ProjectNode[]): Set<NodeIdString> {
 
-        const checkedIds = new Set<string>();
-        const expandedIds = new Set<string>();
+        const checkedIds = new Set<NodeIdString>();
+        const expandedIds = new Set<NodeIdString>();
 
         const traverse = (nodeList: ProjectNode[], level: number = 0) => {
             for (const node of nodeList) {
@@ -274,16 +279,16 @@ export class SolutionExpansionService {
     /**
      * Saves expansion state to workspace storage
      */
-    static saveExpansionState(expandedNodes: Set<string>, context: vscode.ExtensionContext): void {
+    static saveExpansionState(expandedNodes: Set<NodeIdString>, context: vscode.ExtensionContext): void {
         context.workspaceState.update('solutionTreeExpanded', Array.from(expandedNodes));
     }
 
     /**
      * Gets expansion state from workspace storage
      */
-    static getExpansionState(context: vscode.ExtensionContext): Set<string> {
-        const state = context.workspaceState.get<string[]>('solutionTreeExpanded', []);
-        return new Set<string>(state ?? []);
+    static getExpansionState(context: vscode.ExtensionContext): Set<NodeIdString> {
+        const state = context.workspaceState.get<NodeIdString[]>('solutionTreeExpanded', []);
+        return new Set<NodeIdString>(state ?? []);
     }
 
     /**
@@ -317,14 +322,14 @@ export class SolutionExpansionService {
             log.info(`Restoring expansion states for ${expansionPaths.size} nodes:`);
 
             // Filter out broken/old nodeIds and track valid ones
-            const validExpansionPaths = new Set<string>();
-            const brokenNodeIds: string[] = [];
+            const validExpansionPaths = new Set<NodeIdString>();
+            const brokenNodeIds: NodeIdString[] = [];
 
             for (const expandedId of expansionPaths) {
                 // Try to parse the nodeId to see if it's valid
                 try {
                     // First check if it's an old string-based nodeId
-                    if (this._isOldStringNodeId(expandedId)) {
+                    if (!NodeIdService.isValid(expandedId)) {
                         log.debug(`Removing old string-based nodeId: ${expandedId}`);
                         brokenNodeIds.push(expandedId);
                         continue;
@@ -367,7 +372,7 @@ export class SolutionExpansionService {
                     }
 
                     // Load children for the expanded node
-                    await this._loadChildrenForNode(expandedId, nodeType, treeData);
+                    await this._loadChildrenForNode(NodeIdService.parse(expandedId), nodeType, treeData);
 
                     log.info(`Successfully restored and loaded children for: ${expandedId}`);
                 }
@@ -379,14 +384,6 @@ export class SolutionExpansionService {
         } catch (error) {
             log.error('Error restoring expansion states:', error);
         }
-    }
-
-    /**
-     * Checks if a nodeId is using the old string-based format
-     */
-    private static _isOldStringNodeId(nodeId: string): boolean {
-        const oldPrefixes = ['sol:', 'proj:', 'folder:', 'file:', 'solfld:', 'solitem:', 'deps:', 'depcat:', 'dep:', 'temp:'];
-        return oldPrefixes.some(prefix => nodeId.startsWith(prefix));
     }
 
     /**
@@ -446,7 +443,7 @@ export class SolutionExpansionService {
     /**
      * Loads children for a specific node during restoration
      */
-    private static async _loadChildrenForNode(nodeId: string, nodeType: string, treeData: ProjectNode[]): Promise<void> {
+    private static async _loadChildrenForNode(nodeId: NodeId, nodeType: string, treeData: ProjectNode[]): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -459,7 +456,7 @@ export class SolutionExpansionService {
                 // Solution children are already loaded in the initial tree
                 return;
             } else if (nodeType === 'project') {
-                const projectPath = NodeIdService.getPathFromId(nodeId);
+                const projectPath = nodeId.projectPath;
                 if (!projectPath) {
                     log.error(`Could not extract project path from expansion ID: ${nodeId}`);
                     return;
@@ -472,7 +469,7 @@ export class SolutionExpansionService {
                 }
             } else if (nodeType === 'dependencies') {
                 // Expanding a Dependencies node - get the project and load its dependencies
-                const projectPath = NodeIdService.getPathFromId(nodeId);
+                const projectPath = nodeId.projectPath;
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;
@@ -491,7 +488,7 @@ export class SolutionExpansionService {
                 nodeType === 'projectDependencies' ||
                 nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - get dependencies for that specific category
-                const projectPath = NodeIdService.getProjectPathFromDependencyId(nodeId);
+                const projectPath = nodeId.projectPath;
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;
@@ -507,7 +504,7 @@ export class SolutionExpansionService {
                     log.warn(`Could not find project for dependency category: ${projectPath}`);
                 }
             } else if (nodeType === 'folder') {
-                const pathPortion = NodeIdService.getPathFromId(nodeId);
+                const pathPortion = nodeId.folderPath;
                 if (!pathPortion) {
                     log.error(`Could not extract path from folder expansion ID: ${nodeId}`);
                     return;
@@ -531,7 +528,8 @@ export class SolutionExpansionService {
 
             if (children.length > 0) {
                 // Update the node in the tree with its children
-                SolutionTreeService.updateNodeInTree(treeData, nodeId, {
+                const nodeIdString = NodeIdService.composeNodeId(nodeId);
+                SolutionTreeService.updateNodeInTree(treeData, nodeIdString, {
                     children,
                     hasChildren: true,
                     isLoaded: true
@@ -539,7 +537,7 @@ export class SolutionExpansionService {
 
                 // Recursively restore expansion states for project-specific nodes
                 if (nodeType === 'project') {
-                    const projectPath = NodeIdService.getPathFromId(nodeId);
+                    const projectPath = nodeId.projectPath;
                     if (projectPath) {
                         const project = solution.getProject(projectPath);
                         if (project) {

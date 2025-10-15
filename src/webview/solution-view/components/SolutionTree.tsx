@@ -5,20 +5,21 @@ import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 import { LoadingBar } from '../../shared/LoadingBar';
 import { logger } from '../../shared/logger';
+import { NodeIdString, nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
 
 const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
-    const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
-    const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
+    const [selectedNodeId, setSelectedNodeId] = useState<NodeIdString | undefined>();
+    const [focusedNodeId, setFocusedNodeId] = useState<NodeIdString | undefined>();
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
-    const [renamingNodeId, setRenamingNodeId] = useState<string | undefined>();
+    const [renamingNodeId, setRenamingNodeId] = useState<NodeIdString | undefined>();
     const [localLoadingNodes, setLocalLoadingNodes] = useState<Set<string>>(new Set());
 
 
     // Helper function to find node in tree by node ID
-    const findNodeById = useCallback((nodeId: string, nodes: ProjectNode[]): ProjectNode | null => {
+    const findNodeById = useCallback((nodeId: NodeIdString, nodes: ProjectNode[]): ProjectNode | null => {
         for (const node of nodes) {
             if (node.nodeId === nodeId) {
                 return node;
@@ -31,7 +32,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         return null;
     }, []);
 
-    const handleToggleExpand = (nodeId: string, nodeType: string) => {
+    const handleToggleExpand = (nodeId: NodeIdString, nodeType: string) => {
         log.info(`Toggle expand request for nodeId: ${nodeId}, type: ${nodeType}`);
 
         // Find the node to check its current state
@@ -50,13 +51,13 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     };
 
-    const handleNodeClick = (nodeId: string) => {
+    const handleNodeClick = (nodeId: NodeIdString) => {
         log.info(`Node clicked: ${nodeId}`);
         setSelectedNodeId(nodeId);
         setFocusedNodeId(nodeId);
     };
 
-    const handleNodeFocus = (nodeId: string) => {
+    const handleNodeFocus = (nodeId: NodeIdString) => {
         log.info(`Setting focus to: ${nodeId}`);
         setFocusedNodeId(nodeId);
     };
@@ -113,7 +114,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     };
 
-    const handleRenameConfirm = (newName: string, nodeId:string, nodeType: string, oldName: string) => {
+    const handleRenameConfirm = (newName: string, nodeId: NodeIdString, nodeType: string, oldName: string) => {
         log.info(`Rename confirmed: ${oldName} -> ${newName}`);
         setRenamingNodeId(undefined);
         onProjectAction('rename', nodeId,  { newName, oldName, type: nodeType });
@@ -166,7 +167,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
     }, [flatNodes, setFocusedNodeId]);
 
-    const handleProjectActionWrapper = useCallback((action: ProjectActionType, nodeId: string, data: any | undefined) => {
+    const handleProjectActionWrapper = useCallback((action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => {
         if (action === 'startRename') {
             setRenamingNodeId(nodeId);
         } else if (action === 'collapseParent') {
@@ -432,7 +433,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     // Check if any node in the tree is loading (backend state or local frontend state)
     const hasLoadingNode = useCallback((nodes: ProjectNode[]): boolean => {
         for (const node of nodes) {
-            if (node.isLoading || localLoadingNodes.has(node.nodeId)) {
+            if (node.isLoading || localLoadingNodes.has(nodeIdToKey(node.nodeId))) {
                 return true;
             }
             if (node.children && hasLoadingNode(node.children)) {
@@ -476,7 +477,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
 
                 // Remove nodes that are now expanded or have backend loading state
                 for (const path of prev) {
-                    const node = findNodeById(path, treeNodes);
+                    const node = findNodeById(keyToNodeId(path), treeNodes);
                     if (node && (node.expanded || node.isLoading === false)) {
                         newSet.delete(path);
                         hasChanges = true;
@@ -500,7 +501,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             <LoadingBar visible={showLoadingBar} />
             {treeNodes.map((node) => (
                 <TreeNode
-                    key={node.nodeId}
+                    key={nodeIdToKey(node.nodeId)}
                     node={node}
                     level={0}
                     onProjectAction={handleProjectActionWrapper}

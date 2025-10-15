@@ -3,7 +3,7 @@ import { Icon } from '@iconify/react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
-import { NodeIdService } from '../../../../services/nodeIdService';
+import { nodeIdToKey, extractPathFromNodeId } from '../../../shared/nodeIdUtils';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -144,7 +144,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 };
             case 'project':
                 // Different icons based on project type - determined from nodeId
-                const projectPath = NodeIdService.getPathFromId(nodeIdentifier) || '';
+                const projectPath = extractPathFromNodeId(nodeIdentifier) || '';
                 if (projectPath.includes('.csproj')) return {
                     icon: 'mdi:language-csharp',
                     __color: '#82c87e', // Green icon
@@ -330,7 +330,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 <div className="tree-children">
                     {node.children.map((child) => (
                         <TreeNode
-                            key={child.nodeId}
+                            key={nodeIdToKey(child.nodeId)}
                             node={child}
                             level={level + 1}
                             onProjectAction={onProjectAction}

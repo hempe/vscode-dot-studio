@@ -5,11 +5,11 @@ import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
+import { NodeIdService, NodeIdString } from '../../services/nodeIdService';
 import { ProjectActionType, ProjectNode, SolutionData } from '../solution-view/types';
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
-import { NodeIdService } from '../../services/nodeIdService';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -20,7 +20,7 @@ interface WebviewMessage {
     projectPath?: string;
     data?: MessageData;
     expandedNodes?: string[];
-    nodeId?: string;
+    nodeId?: NodeIdString;
     nodeType?: string;
 }
 
@@ -150,7 +150,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                             await this._handleAddFolderAction(message.nodeId);
                         }
                     } else {
-                        await SolutionActionService.handleProjectAction(message.action, message.nodeId, message.data);
+                        await SolutionActionService.handleProjectAction(message.action, message.nodeId!, message.data);
 
                         // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
                         const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
@@ -165,7 +165,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         // Trigger immediate tree refresh for file/folder operations that affect the filesystem
                         const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
                         if (operationsThatAffectTree.includes(message.action)) {
-                            const projectPath = NodeIdService.getPathFromId(message.nodeId);
+                            const projectPath = NodeIdService.getPathFromId(message.nodeId!);
                             if (!projectPath) {
                                 log.error('Invalid node ID, cannot extract path for immediate refresh:', message.nodeId);
                                 return;
@@ -189,7 +189,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 if (message.nodeId && message.nodeType) {
                     log.info('Handling expandNode request:', message.nodeId, message.nodeType);
                     await SolutionExpansionService.handleExpandNode(
-                        message.nodeId,
+                        message.nodeId!,
                         message.nodeType,
                         this._cachedSolutionData || null,
                         () => this._sendCachedData(),
@@ -202,7 +202,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 if (message.nodeId) {
                     log.info('Handling collapseNode request:', message.nodeId);
                     await SolutionExpansionService.handleCollapseNode(
-                        message.nodeId,
+                        message.nodeId!,
                         this._cachedSolutionData || null,
                         () => this._sendCachedData(),
                         this._context
@@ -356,7 +356,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles the addFile action by creating a temporary node in edit mode
      */
-    private async _handleAddFileAction(parentNodeId: string): Promise<void> {
+    private async _handleAddFileAction(parentNodeId: NodeIdString): Promise<void> {
         try {
             const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
             if (!parentPath) {
@@ -385,7 +385,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles the addFolder action by creating a temporary node in edit mode
      */
-    private async _handleAddFolderAction(parentNodeId: string): Promise<void> {
+    private async _handleAddFolderAction(parentNodeId: NodeIdString): Promise<void> {
         try {
             const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
             if (!parentPath) {
@@ -414,7 +414,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles actual file creation when a temporary node is confirmed
      */
-    private async _handleCreateFileAction(nodeId: string, fileName: string): Promise<void> {
+    private async _handleCreateFileAction(nodeId: NodeIdString, fileName: string): Promise<void> {
         try {
             let parentPath: string | null = null;
             let projectPath: string | null = null;
@@ -489,7 +489,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles actual folder creation when a temporary node is confirmed
      */
-    private async _handleCreateFolderAction(nodeId: string, folderName: string): Promise<void> {
+    private async _handleCreateFolderAction(nodeId: NodeIdString, folderName: string): Promise<void> {
         try {
             let parentPath: string | null = null;
             let projectPath: string | null = null;

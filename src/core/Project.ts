@@ -5,7 +5,7 @@ import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileP
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
-import { NodeIdService } from '../services/nodeIdService';
+import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../webview/solution-view/types';
 
@@ -577,22 +577,16 @@ export class Project {
                 type: 'packageDependencies',
                 name: 'Packages',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
-                children: this.getDependenciesByCategory(':packages'),
-                isLoaded: true,
             },
             {
                 type: 'projectDependencies',
                 name: 'Projects',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
-                children: this.getDependenciesByCategory(':projects'),
-                isLoaded: true,
             },
             {
                 type: 'assemblyDependencies',
                 name: 'Assemblies',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
-                children: this.getDependenciesByCategory(':assemblies'),
-                isLoaded: true,
             }
         ];
 
@@ -603,7 +597,7 @@ export class Project {
     /**
      * Gets dependencies for a specific category (used when dependency category node is expanded)
      */
-    getDependenciesByCategory(categoryPathOrId: string): ProjectChild[] {
+    getDependenciesByCategory(nodeId: NodeId): ProjectChild[] {
         const items: ProjectChild[] = [];
 
         if (!this._dependencies) {
@@ -614,20 +608,19 @@ export class Project {
         let categoryName: string = '';
 
         // Determine which category - handle both legacy paths and new expansion IDs
-        if (categoryPathOrId.endsWith('/packages') || categoryPathOrId.includes(':packages')) {
+        if (nodeId.categoryName == 'packages') {
             // Packages: NuGet package references
             dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
             categoryName = 'packages';
-        } else if (categoryPathOrId.endsWith('/projects') || categoryPathOrId.includes(':projects')) {
+        } else if (nodeId.categoryName == 'projects') {
             // Projects: project-to-project references
             dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
             categoryName = 'projects';
-        } else if (categoryPathOrId.endsWith('/assemblies') || categoryPathOrId.includes(':assemblies')) {
+        } else if (nodeId.categoryName == 'assemblies') {
             // Assemblies: binary/assembly references
             dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
             categoryName = 'assemblies';
-        } else if (categoryPathOrId.endsWith('/frameworks') || categoryPathOrId.includes(':frameworks')) {
-            // Frameworks: framework references
+        } else if (nodeId.categoryName == 'frameworks') {            // Frameworks: framework references
             dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
             categoryName = 'frameworks';
         }
@@ -657,7 +650,7 @@ export class Project {
             log.debug(`Created dependency node: ${dep.name} with path: ${uniquePath}, nodeId: ${nodeId}`);
         }
 
-        log.info(`getDependenciesByCategory for ${categoryPathOrId}: ${items.length} dependencies`);
+        log.info(`getDependenciesByCategory for ${nodeId}: ${items.length} dependencies`);
         return items;
     }
 

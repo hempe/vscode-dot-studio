@@ -2,7 +2,7 @@ import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
 import { ProjectChild, ProjectNode } from '../webview/solution-view/types';
-import { NodeIdService } from './nodeIdService';
+import { NodeIdService, NodeIdString } from './nodeIdService';
 import { logger } from '../core/logger';
 
 const log = logger('SolutionTreeService');
@@ -89,7 +89,7 @@ export class SolutionTreeService {
         projects: SolutionProject[],
         hierarchy: Map<string, SolutionProject[]>,
         solution: Solution,
-        parentExpansionId: string = '',
+        parentExpansionId: NodeIdString | undefined,
         startupProjectPath?: string | null
     ): Promise<ProjectNode[]> {
         const nodes: ProjectNode[] = [];
@@ -104,7 +104,7 @@ export class SolutionTreeService {
             log.info(`Path resolution: ${project.path} -> ${absolutePath}`);
 
             // Generate expansion ID based on node type
-            let nodeId: string;
+            let nodeId: NodeIdString;
             if (itemType === 'project') {
                 nodeId = NodeIdService.generateProjectId(absolutePath);
             } else if (itemType === 'solutionFolder') {
@@ -112,11 +112,11 @@ export class SolutionTreeService {
                 nodeId = NodeIdService.generateSolutionFolderId(
                     project.guid || project.name,
                     solution.solutionPath,
-                    parentExpansionId
+                    parentExpansionId ? NodeIdService.parse(parentExpansionId)?.guid : undefined
                 );
             } else {
-                // Fallback for other types
-                nodeId = `${itemType}:${absolutePath}`;
+                // Fallback for other types - use temporary ID
+                nodeId = NodeIdService.generateTemporaryId(itemType, absolutePath);
             }
 
             const itemNode: ProjectNode = {
@@ -222,7 +222,7 @@ export class SolutionTreeService {
     /**
      * Updates a specific node in the tree structure using expansion ID
      */
-    static updateNodeInTree(nodes: ProjectNode[], nodeId: string, updates: Partial<ProjectNode>, expandedIds?: Set<string>): boolean {
+    static updateNodeInTree(nodes: ProjectNode[], nodeId: NodeIdString, updates: Partial<ProjectNode>, expandedIds?: Set<NodeIdString>): boolean {
         let changed = false;
         for (const node of nodes) {
             if (node.nodeId === nodeId) {
@@ -249,7 +249,7 @@ export class SolutionTreeService {
     /**
      * Finds a node in the tree by expansion ID
      */
-    static findNodeById(nodeId: string, nodes: ProjectNode[]): ProjectNode | null {
+    static findNodeById(nodeId: NodeIdString, nodes: ProjectNode[]): ProjectNode | null {
         for (const node of nodes) {
             if (node.nodeId === nodeId) {
                 return node;
@@ -265,7 +265,7 @@ export class SolutionTreeService {
     /**
      * Gets the node type for a given expansion ID from the tree
      */
-    static getNodeTypeById(nodeId: string, nodes: ProjectNode[]): string | null {
+    static getNodeTypeById(nodeId: NodeIdString, nodes: ProjectNode[]): string | null {
         const node = this.findNodeById(nodeId, nodes);
         return node ? node.type : null;
     }

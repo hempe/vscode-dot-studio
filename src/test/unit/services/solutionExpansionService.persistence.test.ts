@@ -1,5 +1,6 @@
 import { SolutionExpansionService } from '../../../services/solutionExpansionService';
 import { ProjectNode } from '../../../webview/solution-view/types';
+import { NodeIdService } from '../../../services/nodeIdService';
 
 // Mock vscode and context
 jest.mock('vscode', () => ({}), { virtual: true });
@@ -26,20 +27,20 @@ describe('SolutionExpansionService Dependencies Persistence Fix', () => {
                 {
                     type: 'solution',
                     name: 'MySolution',
-                    nodeId: 'solution:/workspace/MySolution.sln',
+                    nodeId: NodeIdService.generateSolutionId('/workspace/MySolution.sln'),
                     expanded: false,
                     children: [
                         {
                             type: 'project',
                             name: 'ProjectA',
-                            nodeId: 'project:/workspace/ProjectA.csproj',
+                            nodeId: NodeIdService.generateProjectId('/workspace/ProjectA.csproj'),
                             expanded: false
                             // NO Dependencies children yet (lazy-loaded)
                         },
                         {
                             type: 'project',
                             name: 'ProjectB',
-                            nodeId: 'project:/workspace/ProjectB.csproj',
+                            nodeId: NodeIdService.generateProjectId('/workspace/ProjectB.csproj'),
                             expanded: false
                             // NO Dependencies children yet (lazy-loaded)
                         }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { NodeIdString, parseNodeId, generateTemporaryId } from '../../shared/nodeIdUtils';
 
 declare global {
     interface Window {
@@ -220,11 +220,20 @@ const removeFileFromTree = (solutionData: SolutionData, fileNodeId: string): Sol
 };
 
 // Helper function to add a temporary node for creation
-const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: string, nodeType: string, defaultName: string): SolutionData => {
+const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: NodeIdString, nodeType: string, defaultName: string): SolutionData => {
     // Extract the actual file system path from the parentNodeId using the service
-    const parentPath = NodeIdService.nodeIdToPath(parentNodeId) || parentNodeId;
+    const parentNode = parseNodeId(parentNodeId);
+    if (!parentNode) {
+        // Invalid parent node ID
+        return solutionData;
+    }
+    const parentPath = parentNode.folderPath || parentNode.solutionPath;
+    if (!parentPath) {
+        // Parent node does not have a valid path
+        return solutionData;
+    }
     // Generate proper temporary node ID using the service
-    const tempNodeId = NodeIdService.generateTemporaryId(parentPath, nodeType);
+    const tempNodeId = generateTemporaryId(parentPath, nodeType);
     const tempNode = {
         nodeId: tempNodeId,
         type: nodeType,
@@ -280,10 +289,11 @@ const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: string
 };
 
 // Helper function to remove a temporary node from the tree
-const removeTemporaryNodeFromTree = (solutionData: SolutionData, nodeId: string): SolutionData => {
+const removeTemporaryNodeFromTree = (solutionData: SolutionData, nodeId: NodeIdString): SolutionData => {
+    const nodeIdString = nodeId;
     const removeNodeById = (nodes: any[]): any[] => {
         return nodes.filter(node => {
-            if (node.nodeId === nodeId && node.isTemporary) {
+            if (node.nodeId === nodeIdString && node.isTemporary) {
                 return false; // Remove this temporary node
             }
             if (node.children) {
@@ -494,7 +504,7 @@ export const useVsCodeApi = () => {
         vscode.postMessage({ command: 'setFramework', framework });
     }, []);
 
-    const handleProjectAction = useCallback((action: ProjectActionType, nodeId: string, data: any | undefined) => {
+    const handleProjectAction = useCallback((action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => {
         log.info('Project action requested:', { action, nodeId, data });
 
         if (action === 'cancelTemporaryNode') {
@@ -507,20 +517,20 @@ export const useVsCodeApi = () => {
             vscode.postMessage({
                 command: 'projectAction',
                 action,
-                nodeId,
+                nodeId: nodeId,
                 data
             });
         }
     }, []);
 
-    const expandNode = useCallback((nodeId: string, nodeType: string) => {
+    const expandNode = useCallback((nodeId: NodeIdString, nodeType: string) => {
         log.info('Expanding node:', nodeId, nodeType);
-        vscode.postMessage({ command: 'expandNode', nodeId, nodeType });
+        vscode.postMessage({ command: 'expandNode', nodeId: nodeId, nodeType });
     }, []);
 
-    const collapseNode = useCallback((nodeId: string) => {
+    const collapseNode = useCallback((nodeId: NodeIdString) => {
         log.info('Collapsing node:', nodeId);
-        vscode.postMessage({ command: 'collapseNode', nodeId });
+        vscode.postMessage({ command: 'collapseNode', nodeId: nodeId });
     }, []);
 
     return {

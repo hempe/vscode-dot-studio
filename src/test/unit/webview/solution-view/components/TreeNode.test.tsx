@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TreeNode } from '../../../../../webview/solution-view/components/TreeNode/TreeNode';
 import { ProjectNode } from '../../../../../webview/solution-view/types';
+import { NodeIdService } from '../../../../../services/nodeIdService';
 
 describe('TreeNode Focus and Selection States', () => {
   const mockOnProjectAction = jest.fn();
@@ -18,18 +19,18 @@ describe('TreeNode Focus and Selection States', () => {
   const fileNode: ProjectNode = {
     type: 'file',
     name: 'Program.cs',
-    nodeId: 'file:/test/Program.cs'
+    nodeId: NodeIdService.generateFileId('/test/Program.cs')
   };
 
   const folderNode: ProjectNode = {
     type: 'folder',
     name: 'Controllers',
-    nodeId: 'folder:/test/project:/test/Controllers',
+    nodeId: NodeIdService.generateFolderId('/test/Controllers', '/test/project'),
     children: [
       {
         type: 'file',
         name: 'HomeController.cs',
-        nodeId: 'file:/test/Controllers/HomeController.cs'
+        nodeId: NodeIdService.generateFileId('/test/Controllers/HomeController.cs')
       }
     ],
     expanded: false
@@ -118,7 +119,7 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          selectedNodeId="file:/test/Program.cs"
+          selectedNodeId={fileNode.nodeId}
         />
       );
 
@@ -130,7 +131,7 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          focusedNodeId="file:/test/Program.cs"
+          focusedNodeId={fileNode.nodeId}
         />
       );
 
@@ -142,8 +143,8 @@ describe('TreeNode Focus and Selection States', () => {
       render(
         <TreeNode
           {...defaultProps}
-          selectedNodeId="file:/test/Program.cs"
-          focusedNodeId="file:/test/Program.cs"
+          selectedNodeId={fileNode.nodeId}
+          focusedNodeId={fileNode.nodeId}
         />
       );
 

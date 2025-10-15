@@ -10,8 +10,8 @@ describe('NodeIdService', () => {
             const solutionPath = '/home/user/project/solution.sln';
             const nodeId = NodeIdService.generateSolutionId(solutionPath);
 
-            expect(typeof nodeId).toBe('string');
-            expect(nodeId.length).toBeGreaterThan(0);
+            expect(typeof nodeId).toBe('object');
+            expect(NodeIdService.getLength(nodeId)).toBeGreaterThan(0);
 
             const parsed = NodeIdService.parse(nodeId);
             expect(parsed.type).toBe('solution');
@@ -107,8 +107,8 @@ describe('NodeIdService', () => {
             const nodeId = NodeIdService.generateProjectId(longPath);
 
             // The nodeId should be a valid base64 string
-            expect(typeof nodeId).toBe('string');
-            expect(nodeId.length).toBeGreaterThan(0);
+            expect(typeof nodeId).toBe('object');
+            expect(NodeIdService.getLength(nodeId)).toBeGreaterThan(0);
 
             // Should be able to parse it back
             const parsed = NodeIdService.parse(nodeId);
@@ -123,8 +123,8 @@ describe('NodeIdService', () => {
                 '7.0.0'
             );
 
-            expect(typeof complexNodeId).toBe('string');
-            expect(complexNodeId.length).toBeGreaterThan(0);
+            expect(typeof complexNodeId).toBe('object');
+            expect(NodeIdService.getLength(complexNodeId)).toBeGreaterThan(0);
 
             const parsed = NodeIdService.parse(complexNodeId);
             expect(parsed.type).toBe('dependency');
@@ -134,14 +134,14 @@ describe('NodeIdService', () => {
 
     describe('Error handling', () => {
         it('should throw meaningful errors for invalid nodeIds', () => {
-            expect(() => NodeIdService.parse('invalid-base64')).toThrow('Failed to parse nodeId');
-            expect(() => NodeIdService.parse('')).toThrow('Failed to parse nodeId');
+            expect(() => NodeIdService.parse(NodeIdService.fromString('invalid-base64'))).toThrow('Failed to parse nodeId');
+            expect(() => NodeIdService.parse(NodeIdService.fromString(''))).toThrow('Failed to parse nodeId');
         });
 
         it('should return null for invalid nodeIds in utility methods', () => {
-            expect(NodeIdService.getProjectPathFromNodeId('invalid')).toBeNull();
-            expect(NodeIdService.getNodeType('invalid')).toBeNull();
-            expect(NodeIdService.isProject('invalid')).toBe(false);
+            expect(NodeIdService.getProjectPathFromNodeId(NodeIdService.fromString('invalid'))).toBeNull();
+            expect(NodeIdService.getNodeType(NodeIdService.fromString('invalid'))).toBeNull();
+            expect(NodeIdService.isProject(NodeIdService.fromString('invalid'))).toBe(false);
         });
     });
 });

@@ -1,5 +1,33 @@
 # Solution Tree Context Menu & Functionality TODO
 
+## 🔥 CRITICAL: Tree Features Need Verification
+
+⚠️ **MAJOR CHANGE COMPLETED**: Implemented branded NodeIdString type system with compression
+
+**URGENT TODO for next session:**
+- [ ] **TEST ALL TREE FEATURES** - The NodeId system was completely rewritten
+- [ ] Verify expansion/collapse works correctly
+- [ ] Test context menus on all node types
+- [ ] Check file/folder creation and deletion
+- [ ] Verify rename functionality
+- [ ] Test project references and dependencies
+- [ ] Ensure temporary node creation/cancellation works
+- [ ] Validate all node selection and focus states
+- [ ] Check React key handling and re-rendering
+- [ ] Test lazy loading of Dependencies nodes
+
+**What was changed:**
+- Converted from string-based nodeIds to compressed JSON with branded TypeScript types
+- Added browser-safe webview utilities to avoid zlib dependency conflicts
+- Fixed all TypeScript compilation errors (38+ fixes)
+- Updated all test files to use proper NodeIdService generation methods
+
+**Potential issues to watch for:**
+- NodeId parsing/generation mismatches between extension and webview
+- React component re-rendering due to key changes
+- Temporary node ID conflicts
+- Path extraction in browser context vs extension context
+
 ```
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!
