@@ -3,7 +3,7 @@ import { Icon } from '@iconify/react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
-import { nodeIdToKey, extractPathFromNodeId } from '../../../shared/nodeIdUtils';
+import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -143,23 +143,20 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     color: '#d8ac6a' // Folder color
                 };
             case 'project':
-                // Different icons based on project type - try path extraction first, then fallback to name
-                const projectPath = extractPathFromNodeId(nodeIdentifier) || '';
+                // Different icons based on project type - check node name for project file extension
                 const projectName = node.name || '';
 
-                // Check path first (for backwards compatibility)
-                if (projectPath.includes('.csproj') || projectName.includes('.csproj')) return {
+                if (projectName.includes('.csproj')) return {
                     icon: 'mdi:language-csharp',
-                    __color: '#82c87e', // Green icon
                     color:'#3BA745',
                     border: true
                 };
-                if (projectPath.includes('.vbproj') || projectName.includes('.vbproj')) return {
+                if (projectName.includes('.vbproj')) return {
                     icon: 'mdi:file-code',
                     color: '#68217A', // VB.NET purple
                     border: true
                 };
-                if (projectPath.includes('.fsproj') || projectName.includes('.fsproj')) return {
+                if (projectName.includes('.fsproj')) return {
                     icon: 'mdi:file-code',
                     color: '#378BBA', // F# blue
                     border: true
