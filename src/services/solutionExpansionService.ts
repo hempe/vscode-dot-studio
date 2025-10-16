@@ -112,9 +112,13 @@ export class SolutionExpansionService {
 
                 const project = solution.getProject(projectPath);
                 if (project) {
-                    const nodeData = NodeIdService.parse(nodeId);
-                    const categoryDependencies = project.getDependenciesByCategory(nodeData);
-                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
+                    try {
+                        const nodeData = NodeIdService.parse(nodeId);
+                        const categoryDependencies = project.getDependenciesByCategory(nodeData);
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
+                    } catch (error) {
+                        log.error(`Failed to parse nodeId for dependency category: ${nodeId}`, error);
+                    }
                 }
             } else if (nodeType === 'folder') {
                 // Expanding a folder within a project - extract paths from nodeId
@@ -489,10 +493,14 @@ export class SolutionExpansionService {
                 log.info(`Loading children for dependency category node. ProjectPath: ${projectPath}, CategoryId: ${nodeId}`);
                 const project = solution.getProject(projectPath);
                 if (project) {
-                    const nodeData = NodeIdService.parse(nodeId);
-                    const categoryDependencies = project.getDependenciesByCategory(nodeData);
-                    children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
-                    log.info(`Loaded ${children.length} dependencies for category ${nodeId}`);
+                    try {
+                        const nodeData = NodeIdService.parse(nodeId);
+                        const categoryDependencies = project.getDependenciesByCategory(nodeData);
+                        children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
+                        log.info(`Loaded ${children.length} dependencies for category ${nodeId}`);
+                    } catch (error) {
+                        log.error(`Failed to parse nodeId for dependency category: ${nodeId}`, error);
+                    }
                 } else {
                     log.warn(`Could not find project for dependency category: ${projectPath}`);
                 }
