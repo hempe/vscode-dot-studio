@@ -29,10 +29,13 @@ export function extractPathFromNodeId(nodeId: NodeIdString): string | null {
     // This assumes the nodeId string contains path information
     // TODO: Remove this once all path extraction moves to extension side
     try {
-        // This is a simplified extraction - the extension should handle this
-        if (typeof nodeId === 'string' && nodeId.includes('/')) {
-            return nodeId; // Return as-is for now
+        // Check if it's a simple path-like string (old format)
+        if (typeof nodeId === 'string' && nodeId.includes('/') && !nodeId.includes('H4sI')) {
+            return nodeId; // Return as-is for old format
         }
+
+        // For compressed format, we can't decode it in the browser (no zlib)
+        // Return null and let the component handle it differently
         return null;
     } catch {
         return null;

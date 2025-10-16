@@ -143,25 +143,34 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     color: '#d8ac6a' // Folder color
                 };
             case 'project':
-                // Different icons based on project type - determined from nodeId
+                // Different icons based on project type - try path extraction first, then fallback to name
                 const projectPath = extractPathFromNodeId(nodeIdentifier) || '';
-                if (projectPath.includes('.csproj')) return {
+                const projectName = node.name || '';
+
+                // Check path first (for backwards compatibility)
+                if (projectPath.includes('.csproj') || projectName.includes('.csproj')) return {
                     icon: 'mdi:language-csharp',
                     __color: '#82c87e', // Green icon
                     color:'#3BA745',
                     border: true
                 };
-                if (projectPath.includes('.vbproj')) return {
+                if (projectPath.includes('.vbproj') || projectName.includes('.vbproj')) return {
                     icon: 'mdi:file-code',
-                    color: '#68217A', // Gray
+                    color: '#68217A', // VB.NET purple
                     border: true
                 };
-                if (projectPath.includes('.fsproj')) return {
+                if (projectPath.includes('.fsproj') || projectName.includes('.fsproj')) return {
                     icon: 'mdi:file-code',
-                    color: '#378BBA', // Gray
+                    color: '#378BBA', // F# blue
                     border: true
                 };
-                return { icon: 'mdi:folder', color: '#d8ac6a' };
+
+                // Default C# icon for projects when we can't determine type
+                return {
+                    icon: 'mdi:language-csharp',
+                    color: '#3BA745',
+                    border: true
+                };
             case 'folder':
                 // Special folder names with specific icons
                 if (node.name === 'Dependencies') return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
