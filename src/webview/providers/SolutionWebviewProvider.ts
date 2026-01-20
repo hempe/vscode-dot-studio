@@ -71,10 +71,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await this._sendSolutionData(solutionData);
 
                 this._cachedSolutionData = solutionData;
-                // Hide loading bar
-                this._view?.webview.postMessage({
-                    command: 'hideLoading'
-                });
+                // Note: hideLoading is not needed here - the solutionData message handler
+                // will automatically set loading=false in useVsCodeApi.ts (line 388-389)
             } catch (error) {
                 log.error('Error updating solution webview:', error);
                 this._view?.webview.postMessage({
@@ -295,10 +293,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Send cached data with expansion states already applied
             await this._sendSolutionData(this._cachedSolutionData);
 
-            // Hide loading bar
-            this._view.webview.postMessage({
-                command: 'hideLoading'
-            });
+            // Note: hideLoading is not needed here - the solutionData message handler
+            // will automatically set loading=false in useVsCodeApi.ts (line 388-389)
 
         } catch (error) {
             log.error('Error sending cached data:', error);
