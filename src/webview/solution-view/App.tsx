@@ -7,6 +7,24 @@ import { LoadingBar } from '../shared/LoadingBar';
 export const App: React.FC = React.memo(() => {
     const { solutionData, loading, refreshing, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
+    // Prevent keyboard events from bubbling to VS Code's main UI
+    React.useEffect(() => {
+        const preventKeyboardBubbling = (e: KeyboardEvent) => {
+            // Stop all keyboard events from propagating outside the webview
+            // This prevents VS Code's menu from being triggered (especially Alt key)
+            e.stopPropagation();
+        };
+
+        // Capture keyboard events at the document level
+        document.addEventListener('keydown', preventKeyboardBubbling, true);
+        document.addEventListener('keyup', preventKeyboardBubbling, true);
+
+        return () => {
+            document.removeEventListener('keydown', preventKeyboardBubbling, true);
+            document.removeEventListener('keyup', preventKeyboardBubbling, true);
+        };
+    }, []);
+
     // Temporarily disable to check if logging causes issues
     // log.shotgun('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData);
 
