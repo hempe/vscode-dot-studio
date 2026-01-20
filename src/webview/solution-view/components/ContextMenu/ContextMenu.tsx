@@ -54,13 +54,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Only handle keyboard events if the menu is focused or contains the focused element
-            if (!menuRef.current || (!menuRef.current.contains(document.activeElement) && document.activeElement !== menuRef.current)) {
-                return;
-            }
-
+            // Always handle keyboard events when the context menu is open
+            // This prevents events from bubbling to VS Code's main UI
             if (e.key === 'Escape') {
                 e.preventDefault();
+                e.stopPropagation();
                 e.stopImmediatePropagation();
                 onClose();
                 return;
@@ -71,16 +69,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
+                    e.stopPropagation();
                     e.stopImmediatePropagation();
                     setFocusedItemIndex(prev => (prev + 1) % actionItems.length);
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
+                    e.stopPropagation();
                     e.stopImmediatePropagation();
                     setFocusedItemIndex(prev => (prev - 1 + actionItems.length) % actionItems.length);
                     break;
                 case 'Enter':
                     e.preventDefault();
+                    e.stopPropagation();
                     e.stopImmediatePropagation();
                     const focusedAction = actionItems[focusedItemIndex];
                     if (focusedAction && 'action' in focusedAction) {
