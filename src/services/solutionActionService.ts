@@ -164,7 +164,8 @@ export class SolutionActionService {
     private static async _handleOpenFile(nodeId: NodeId): Promise<void> {
         try {
             // Extract the file system path from the nodeId
-            const filePath = nodeId.filePath;
+            // For solution items, use itemPath instead of filePath
+            const filePath = nodeId.filePath ?? nodeId.itemPath;
             if (!filePath) {
                 log.error('Cannot extract file path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine file path to open');
@@ -306,7 +307,7 @@ export class SolutionActionService {
 
     private static async _handleRemoveSolutionItem(nodeId: NodeId): Promise<void> {
         try {
-            const itemPath = nodeId.solutionPath;
+            const itemPath = nodeId.itemPath;
             if (!itemPath) {
                 log.error('Cannot extract path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine path to remove solution item');
@@ -340,7 +341,7 @@ export class SolutionActionService {
 
     private static async _handleRevealInExplorer(nodeId: NodeId): Promise<void> {
         try {
-            const itemPath = nodeId.filePath ?? nodeId.folderPath;
+            const itemPath = nodeId.filePath ?? nodeId.folderPath ?? nodeId.itemPath;
             if (!itemPath) {
                 log.error('Cannot extract path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine path to reveal in explorer');
