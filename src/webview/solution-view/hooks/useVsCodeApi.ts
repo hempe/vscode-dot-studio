@@ -385,8 +385,12 @@ export const useVsCodeApi = () => {
                 case 'solutionData':
                     console.error('Received full solution data:', message.data);
                     setSolutionData(prev => mergeTreeData(prev, message.data));
-                    setLoading(false);
-                    setRefreshing(false);
+                    // Delay hiding loading bar until after React has rendered the new data
+                    // This prevents showing a blank screen while the tree is rendering
+                    requestAnimationFrame(() => {
+                        setLoading(false);
+                        setRefreshing(false);
+                    });
                     break;
                 case 'frameworkChanged':
                     log.info('Framework changed to:', message.framework);
