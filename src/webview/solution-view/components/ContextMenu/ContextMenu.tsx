@@ -30,6 +30,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     const menuRef = React.useRef<HTMLDivElement>(null);
     const [focusedItemIndex, setFocusedItemIndex] = React.useState(0);
+    const [position, setPosition] = React.useState({ x, y });
 
     // Get the menu configuration for this node type
     log.info(`Looking up contextMenus[${nodeType}] for nodeName: ${nodeName}`);
@@ -40,9 +41,36 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
 
     React.useEffect(() => {
-        // Focus the menu when it opens
+        // Focus the menu when it opens and adjust position to prevent overflow
         if (menuRef.current) {
             menuRef.current.focus();
+
+            // Measure actual menu size and adjust position if needed
+            const rect = menuRef.current.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let adjustedX = x;
+            let adjustedY = y;
+
+            // Check right overflow
+            if (rect.right > viewportWidth) {
+                adjustedX = viewportWidth - rect.width;
+            }
+
+            // Check bottom overflow
+            if (rect.bottom > viewportHeight) {
+                adjustedY = viewportHeight - rect.height;
+            }
+
+            // Ensure menu stays within bounds
+            adjustedX = Math.max(0, adjustedX);
+            adjustedY = Math.max(0, adjustedY);
+
+            // Only update if position changed
+            if (adjustedX !== x || adjustedY !== y) {
+                setPosition({ x: adjustedX, y: adjustedY });
+            }
         }
     }, []);
 
@@ -53,13 +81,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             }
         };
 
+        function stop(e:KeyboardEvent){
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
         const handleKeyDown = (e: KeyboardEvent) => {
             // Always handle keyboard events when the context menu is open
             // This prevents events from bubbling to VS Code's main UI
             if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
+                stop(e);;
                 onClose();
                 return;
             }
@@ -68,21 +99,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
             switch (e.key) {
                 case 'ArrowDown':
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
+                    stop(e);;
                     setFocusedItemIndex(prev => (prev + 1) % actionItems.length);
                     break;
                 case 'ArrowUp':
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
+                    stop(e);;
                     setFocusedItemIndex(prev => (prev - 1 + actionItems.length) % actionItems.length);
                     break;
                 case 'Enter':
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
+                    stop(e);;
                     const focusedAction = actionItems[focusedItemIndex];
                     if (focusedAction && 'action' in focusedAction) {
                         handleActionClick(focusedAction.action);
@@ -145,8 +170,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className="context-menu"
             style={{
                 position: 'fixed',
-                left: x,
-                top: y,
+                left: position.x,
+                top: position.y,
                 zIndex: 1000
             }}
             onClick={(e) => e.stopPropagation()}
