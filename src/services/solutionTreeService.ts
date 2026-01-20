@@ -181,8 +181,8 @@ export class SolutionTreeService {
                         type: 'solutionItem',
                         name: itemName,
                         nodeId: NodeIdService.generateSolutionItemId(
-                            absoluteItemPath,
-                            project.guid || project.name
+                            project.guid || project.name,
+                            absoluteItemPath
                         )
                     });
                 }
