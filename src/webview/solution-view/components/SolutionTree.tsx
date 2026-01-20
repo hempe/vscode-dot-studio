@@ -67,6 +67,13 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         log.info(`Coordinates:`, x, y);
         log.info(`Current contextMenu state:`, contextMenu);
 
+        // Check if this node type has any menu items
+        const menuItems = contextMenus[node.type] || [];
+        if (menuItems.length === 0) {
+            log.info(`No menu items for node type ${node.type}, skipping context menu`);
+            return;
+        }
+
         // Right-click focuses the item but doesn't select it
         setFocusedNodeId(node.nodeId);
 
