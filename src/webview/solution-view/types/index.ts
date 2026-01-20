@@ -46,6 +46,7 @@ export interface SolutionData {
 export interface TreeNodeProps {
     node: ProjectNode;
     level: number;
+    activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => void;
     onToggleExpand: (nodeId: NodeIdString, nodeType: string) => void;
     onNodeClick: (nodeId: NodeIdString) => void;
@@ -60,6 +61,7 @@ export interface TreeNodeProps {
 
 export interface SolutionTreeProps {
     projects: any[];
+    activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => void;
     onExpandNode?: (nodeId: NodeIdString, nodeType: string) => void;
     onCollapseNode?: (nodeId: NodeIdString) => void;

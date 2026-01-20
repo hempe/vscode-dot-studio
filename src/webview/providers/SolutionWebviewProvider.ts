@@ -40,6 +40,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _isRenaming: boolean = false;
 
     private _solutionChangeListener?: vscode.Disposable;
+    private _activeEditorListener?: vscode.Disposable;
 
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ExtensionProjectNode[];
@@ -109,6 +110,26 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             undefined,
             []
         );
+
+        // Track active editor changes to highlight the active file in the tree
+        this._activeEditorListener = vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor && this._view) {
+                const activeFilePath = editor.document.uri.fsPath;
+                this._view.webview.postMessage({
+                    command: 'activeFileChanged',
+                    filePath: activeFilePath
+                });
+            }
+        });
+
+        // Send current active file on initial load
+        if (vscode.window.activeTextEditor && this._view) {
+            const activeFilePath = vscode.window.activeTextEditor.document.uri.fsPath;
+            this._view.webview.postMessage({
+                command: 'activeFileChanged',
+                filePath: activeFilePath
+            });
+        }
 
         this._sendCachedData();
     }
@@ -613,6 +634,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         if (this._solutionChangeListener) {
             this._solutionChangeListener.dispose();
             this._solutionChangeListener = undefined;
+        }
+        if (this._activeEditorListener) {
+            this._activeEditorListener.dispose();
+            this._activeEditorListener = undefined;
         }
     }
 }

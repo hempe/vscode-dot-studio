@@ -8,7 +8,7 @@ import { logger } from '../../shared/logger';
 import { NodeIdString, nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
 
 const log = logger('SolutionTree');
-export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode }) => {
+export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
     const [selectedNodeId, setSelectedNodeId] = useState<NodeIdString | undefined>();
@@ -511,6 +511,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     key={nodeIdToKey(node.nodeId)}
                     node={node}
                     level={0}
+                    activeFilePath={activeFilePath}
                     onProjectAction={handleProjectActionWrapper}
                     onToggleExpand={handleToggleExpand}
                     onNodeClick={handleNodeClick}

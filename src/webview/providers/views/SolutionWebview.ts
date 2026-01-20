@@ -121,7 +121,11 @@ export class SolutionWebView {
                             background-color: var(--vscode-list-activeSelectionBackground);
                             color: var(--vscode-list-activeSelectionForeground);
                         }
-    
+
+                        .tree-node.active .node-name {
+                            font-weight: bold;
+                        }
+
                         .node-icon {
                             margin-right: 6px;
                             font-size: 16px;

@@ -5,7 +5,7 @@ import { LoadingBar } from '../shared/LoadingBar';
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loading, refreshing, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loading, refreshing, activeFilePath, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
@@ -49,6 +49,7 @@ export const App: React.FC = React.memo(() => {
             <div className="content">
                 <SolutionTree
                     projects={solutionData.projects}
+                    activeFilePath={activeFilePath}
                     onProjectAction={handleProjectAction}
                     onExpandNode={expandNode}
                     onCollapseNode={collapseNode}

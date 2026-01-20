@@ -355,6 +355,7 @@ export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
 
     useEffect(() => {
         log.info('Hook initialized, requesting solution data');
@@ -491,6 +492,10 @@ export const useVsCodeApi = () => {
                         return prev;
                     });
                     break;
+                case 'activeFileChanged':
+                    log.info('Active file changed:', message.filePath);
+                    setActiveFilePath(message.filePath);
+                    break;
                 default:
                     log.info('Unknown message command:', message.command);
             }
@@ -541,6 +546,7 @@ export const useVsCodeApi = () => {
         solutionData,
         loading,
         refreshing,
+        activeFilePath,
         handleFrameworkChange,
         handleProjectAction,
         expandNode,
