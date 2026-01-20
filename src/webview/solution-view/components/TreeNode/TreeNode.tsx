@@ -3,7 +3,7 @@ import { Icon } from '@iconify/react';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
-import { nodeIdToKey, parseNodeId } from '../../../shared/nodeIdUtils';
+import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -27,16 +27,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
 
     // Check if this node is the active file
-    // Extract path from nodeId and compare with activeFilePath
-    const nodePath = React.useMemo(() => {
-        if (node.type === 'file' || node.type === 'folder') {
-            const parsed = parseNodeId(node.nodeId);
-            return parsed?.filePath || parsed?.folderPath || null;
-        }
-        return null;
-    }, [node.nodeId, node.type]);
-
-    const isActiveFile = activeFilePath && nodePath && nodePath === activeFilePath;
+    // For now, disable active file highlighting since parseNodeId doesn't reliably return paths in the webview
+    // TODO: Send file path as part of the node data from extension
+    const isActiveFile = false;
 
 
 
