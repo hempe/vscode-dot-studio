@@ -41,6 +41,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
 
     React.useEffect(() => {
+        // Reset position when x or y props change (menu reopened at new location)
+        setPosition({ x, y });
+    }, [x, y]);
+
+    React.useEffect(() => {
         // Focus the menu when it opens and adjust position to prevent overflow
         if (menuRef.current) {
             menuRef.current.focus();
@@ -50,8 +55,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
 
-            let adjustedX = x;
-            let adjustedY = y;
+            let adjustedX = position.x;
+            let adjustedY = position.y;
 
             // Check right overflow
             if (rect.right > viewportWidth) {
@@ -68,11 +73,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             adjustedY = Math.max(0, adjustedY);
 
             // Only update if position changed
-            if (adjustedX !== x || adjustedY !== y) {
+            if (adjustedX !== position.x || adjustedY !== position.y) {
                 setPosition({ x: adjustedX, y: adjustedY });
             }
         }
-    }, []);
+    }, [position.x, position.y]);
 
     React.useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
