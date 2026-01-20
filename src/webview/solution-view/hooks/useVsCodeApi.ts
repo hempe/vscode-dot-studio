@@ -384,8 +384,10 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    console.error('Received full solution data:', message.data);
+                    console.error('📥 Received full solution data:', message.data);
+                    console.error('📥 Projects count:', message.data?.projects?.length);
                     setSolutionData(prev => mergeTreeData(prev, message.data));
+                    console.error('📥 Setting loading=false, refreshing=false');
                     setLoading(false);
                     setRefreshing(false);
                     break;

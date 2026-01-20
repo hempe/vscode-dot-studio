@@ -28,8 +28,8 @@ export const App: React.FC = React.memo(() => {
         };
     }, []);
 
-    // Temporarily disable to check if logging causes issues
-    // log.shotgun('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData);
+    // Debug logging to find the issue
+    console.error('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData, 'projects:', solutionData?.projects?.length);
 
     if (loading) {
         return (
