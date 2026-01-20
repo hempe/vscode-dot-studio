@@ -1,20 +1,20 @@
 # Solution Tree Context Menu & Functionality TODO
 
-## 🔥 CRITICAL: Tree Features Need Verification
+## ✅ COMPLETED: NodeId Refactoring and Bug Fixes
 
 ⚠️ **MAJOR CHANGE COMPLETED**: Implemented branded NodeIdString type system with compression
 
-**URGENT TODO for next session:**
-- [ ] **TEST ALL TREE FEATURES** - The NodeId system was completely rewritten
-- [ ] Verify expansion/collapse works correctly
-- [ ] Test context menus on all node types
-- [ ] Check file/folder creation and deletion
-- [ ] Verify rename functionality
-- [ ] Test project references and dependencies
-- [ ] Ensure temporary node creation/cancellation works
-- [ ] Validate all node selection and focus states
-- [ ] Check React key handling and re-rendering
-- [ ] Test lazy loading of Dependencies nodes
+**Testing completed - All features verified working:**
+- [x] **TEST ALL TREE FEATURES** - The NodeId system was completely rewritten
+- [x] Verify expansion/collapse works correctly
+- [x] Test context menus on all node types
+- [x] Check file/folder creation and deletion
+- [x] Verify rename functionality
+- [x] Test project references and dependencies ✅ **FIXED**
+- [x] Ensure temporary node creation/cancellation works
+- [x] Validate all node selection and focus states
+- [x] Check React key handling and re-rendering
+- [x] Test lazy loading of Dependencies nodes ✅ **FIXED**
 
 **What was changed:**
 - Converted from string-based nodeIds to compressed JSON with branded TypeScript types
@@ -22,11 +22,15 @@
 - Fixed all TypeScript compilation errors (38+ fixes)
 - Updated all test files to use proper NodeIdService generation methods
 
-**Potential issues to watch for:**
-- NodeId parsing/generation mismatches between extension and webview
-- React component re-rendering due to key changes
-- Temporary node ID conflicts
-- Path extraction in browser context vs extension context
+**Issues found and FIXED:**
+- ✅ Dependencies not showing packages/projects/assemblies (missing hasChildren property)
+- ✅ Solution item operations failing (wrong NodeId property - itemPath vs solutionPath)
+- ✅ Solution item parameter order swapped (GUID showing in dialogs)
+- ✅ Keyboard events bubbling to VS Code (File menu randomly appearing)
+- ✅ Context menu overflow outside viewport bounds
+- ✅ Context menu position not updating when reopened
+- ✅ Empty context menus showing for nodes with no actions
+- ✅ Loading bar timing improved (reduced blank screen gap)
 
 ```
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
