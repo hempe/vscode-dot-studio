@@ -571,26 +571,34 @@ export class Project {
     getDependencies(): ProjectChild[] {
         log.info(`getDependencies called for ${this.name}, found ${this._dependencies?.length || 0} dependencies`);
 
+        // Count dependencies by type
+        const packageCount = this._dependencies?.filter(dep => dep.type === 'PackageReference').length || 0;
+        const projectCount = this._dependencies?.filter(dep => dep.type === 'ProjectReference').length || 0;
+        const assemblyCount = this._dependencies?.filter(dep => dep.type === 'Reference').length || 0;
+
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
         const items: ProjectChild[] = [
             {
                 type: 'packageDependencies',
                 name: 'Packages',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
+                hasChildren: packageCount > 0
             },
             {
                 type: 'projectDependencies',
                 name: 'Projects',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
+                hasChildren: projectCount > 0
             },
             {
                 type: 'assemblyDependencies',
                 name: 'Assemblies',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
+                hasChildren: assemblyCount > 0
             }
         ];
 
-        log.info(`getDependencies for ${this.name}: Always returning 3 dependency categories (Packages, Projects, Assemblies)`);
+        log.info(`getDependencies for ${this.name}: Returning 3 dependency categories (Packages: ${packageCount}, Projects: ${projectCount}, Assemblies: ${assemblyCount})`);
         return items;
     }
 
