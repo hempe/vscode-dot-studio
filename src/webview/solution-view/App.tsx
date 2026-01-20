@@ -10,9 +10,12 @@ export const App: React.FC = React.memo(() => {
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
         const preventKeyboardBubbling = (e: KeyboardEvent) => {
-            // Stop all keyboard events from propagating outside the webview
-            // This prevents VS Code's menu from being triggered (especially Alt key)
-            e.stopPropagation();
+            // Only block specific keys that would trigger VS Code's menus
+            // Alt key alone or with other keys triggers VS Code menus (File, Edit, etc.)
+            if (e.altKey || e.key === 'Alt') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
         };
 
         // Capture keyboard events at the document level
