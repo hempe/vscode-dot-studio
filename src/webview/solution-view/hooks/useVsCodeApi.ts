@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { SolutionData, ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
-import { NodeIdString, parseNodeId, generateTemporaryId } from '../../shared/nodeIdUtils';
+import { NodeIdString, generateTemporaryId, extractPathFromNodeId } from '../../shared/nodeIdUtils';
 
 declare global {
     interface Window {
@@ -221,13 +221,7 @@ const removeFileFromTree = (solutionData: SolutionData, fileNodeId: string): Sol
 
 // Helper function to add a temporary node for creation
 const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: NodeIdString, nodeType: string, defaultName: string): SolutionData => {
-    // Extract the actual file system path from the parentNodeId using the service
-    const parentNode = parseNodeId(parentNodeId);
-    if (!parentNode) {
-        // Invalid parent node ID
-        return solutionData;
-    }
-    const parentPath = parentNode.folderPath || parentNode.solutionPath;
+    const parentPath = extractPathFromNodeId(parentNodeId);
     if (!parentPath) {
         // Parent node does not have a valid path
         return solutionData;

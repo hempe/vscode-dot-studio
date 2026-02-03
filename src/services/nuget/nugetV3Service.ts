@@ -1,11 +1,12 @@
 import { logger } from '../../core/logger';
-import { NuGetPackage, PackageSearchOptions } from './types';
+import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import * as https from 'https';
 import { VersionUtils } from '../versionUtils';
 import { PersistentCache } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
 import * as os from 'os';
+import { NuGetCredentialManager } from './nugetCredentialManager';
 
 const log = logger('NuGetV3Service');
 
@@ -123,13 +124,6 @@ export class NuGetV3Service {
             const searchResults = JSON.parse(response.body);
 
             const packages = this.parseSearchResults(searchResults);
-
-            // If prereleases are requested, enhance each package with latest prerelease version
-            if (options.includePrerelease && packages.length > 0) {
-                log.info(`Enhancing ${packages.length} packages with latest prereleases`);
-                await this.enhanceWithLatestPrereleases(packages, serviceIndex, accessToken);
-            }
-
             return packages;
 
         } catch (error) {
@@ -144,19 +138,18 @@ export class NuGetV3Service {
      * Get package details including all versions
      */
     static async getPackageDetails(
-        sourceUrl: string,
         packageId: string,
-        accessToken?: string
+        packageSource: PackageSource[],
     ): Promise<NuGetPackage | null> {
         const now = Date.now();
-        const cacheKey = `${sourceUrl}|${packageId}`;
+        const cacheKey = `${packageId}`;
         const cached = this.packageCache.get(cacheKey);
         if (cached && (now - cached.timestamp) < 10 * 60 * 1000) { // 10 minutes cache
             log.info(`Using cached package details for ${packageId}`);
             return cached.request;
         }
 
-        const request = this._getPackageDetails(sourceUrl, packageId, accessToken);
+        const request = this._getPackageDetails(packageId, packageSource);
         try {
             this.packageCache.set(cacheKey, { timestamp: now, request });
             return await request;
@@ -169,75 +162,85 @@ export class NuGetV3Service {
     }
 
     private static async _getPackageDetails(
-        sourceUrl: string,
         packageId: string,
-        accessToken?: string
+        packageSources: PackageSource[],
     ): Promise<NuGetPackage | null> {
-        for (let i = 0; i < 3; i++) {
-            try {
-                const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
-                const registrationUrl = this.findRegistrationService(serviceIndex);
 
-                if (!registrationUrl) {
-                    log.warn('No registration service found in V3 service index');
-                    return null;
-                }
+        for (const packageSource of packageSources) {
+            const accessToken = await NuGetCredentialManager.getSourceToken(packageSource);
+            if (!packageSource.enabled) continue;
 
-                const packageUrl = `${registrationUrl}${packageId.toLowerCase()}/index.json`;
-                const response = await this.makeRequest(packageUrl, accessToken);
-                if (response.statusCode !== 200) {
-                    log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode}`);
-                    return null;
-                }
+            for (let i = 0; i < 3; i++) {
+                try {
+                    var sourceUrl = upgradeNuGetOrgUrl(packageSource.url);
+                    const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
+                    const registrationUrl = this.findRegistrationService(serviceIndex);
 
-                const packageData = JSON.parse(response.body);
-
-                if (!packageData.items || packageData.items.length === 0) {
-                    return null;
-                }
-
-                // 🧮 Find the page with the highest `upper` version
-                const pages = packageData.items.filter((i: any) => i['@id'] && i.upper);
-                if (pages.length === 0) {
-                    return null;
-                }
-
-                // Compare versions using version utilities
-                const latestPage = pages.reduce((best: any, cur: any) => {
-                    try {
-                        return VersionUtils.compare(cur.upper, best.upper) > 0 ? cur : best;
-                    } catch {
-                        return cur.upper > best.upper ? cur : best;
+                    if (!registrationUrl) {
+                        log.warn('No registration service found in V3 service index');
+                        return null;
                     }
-                }, pages[0]);
 
-                let allItems: any[] = [];
+                    const packageUrl = `${registrationUrl}${packageId.toLowerCase()}/index.json`;
+                    const response = await this.makeRequest(packageUrl, accessToken);
 
-                if (Array.isArray(latestPage.items) && latestPage.items.length > 0) {
-                    allItems = latestPage.items;
-                } else if (latestPage['@id']) {
-                    // 🔗 Fetch only the latest page
-                    const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
-                    if (subResponse.statusCode === 200) {
-                        const subData = JSON.parse(subResponse.body);
-                        allItems = subData.items || [];
-                    } else {
-                        log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
+                    if (response.statusCode >= 500 || !response.statusCode) {
+                        log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode} retry....`);
+                        await new Promise(r => setTimeout(r, 100));
+                        continue;
                     }
+
+                    if (response.statusCode !== 200) {
+                        log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode}`);
+                        break;
+                    }
+
+                    const packageData = JSON.parse(response.body);
+
+                    if (!packageData.items || packageData.items.length === 0) {
+                        return null;
+                    }
+
+                    // 🧮 Find the page with the highest `upper` version
+                    const pages = packageData.items.filter((i: any) => i['@id'] && i.upper);
+                    if (pages.length === 0) {
+                        return null;
+                    }
+
+                    // Compare versions using version utilities
+                    const latestPage = pages.reduce((best: any, cur: any) => {
+                        try {
+                            return VersionUtils.compare(cur.upper, best.upper) > 0 ? cur : best;
+                        } catch {
+                            return cur.upper > best.upper ? cur : best;
+                        }
+                    }, pages[0]);
+
+                    let allItems: any[] = [];
+
+                    if (Array.isArray(latestPage.items) && latestPage.items.length > 0) {
+                        allItems = latestPage.items;
+                    } else if (latestPage['@id']) {
+                        // 🔗 Fetch only the latest page
+                        const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
+                        if (subResponse.statusCode === 200) {
+                            const subData = JSON.parse(subResponse.body);
+                            allItems = subData.items || [];
+                        } else {
+                            log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
+                        }
+                    }
+
+                    if (allItems.length === 0) {
+                        return null;
+                    }
+
+                    return this.parsePackageDetails(allItems, packageUrl);
+
+                } catch (error) {
+                    await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
+                    log.error(`Error getting V3 package details for ${packageId}:`, error);
                 }
-
-                if (allItems.length === 0) {
-                    return null;
-                }
-
-                // Reshape data so parsePackageDetails() can handle it
-                const mergedData = { items: [{ items: allItems }] };
-
-                return this.parsePackageDetails(mergedData, packageUrl);
-
-            } catch (error) {
-                await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
-                log.error(`Error getting V3 package details for ${packageId}:`, error);
             }
         }
 
@@ -351,10 +354,6 @@ export class NuGetV3Service {
         url.searchParams.set('q', options.query);
         url.searchParams.set('take', (options.take || 20).toString());
 
-        if (options.includePrerelease) {
-            url.searchParams.set('prerelease', 'true');
-        }
-
         if (options.skip) {
             url.searchParams.set('skip', options.skip.toString());
         }
@@ -453,8 +452,17 @@ export class NuGetV3Service {
                 'User-Agent': 'DotNet-Extension-VSCode/1.0'
             };
 
-            if (accessToken && accessToken !== 'credential-provider-managed') {
-                headers['Authorization'] = `Bearer ${accessToken}`;
+            if (accessToken) {
+                // Azure DevOps uses Basic authentication with PAT
+                if (url.includes('dev.azure.com') || url.includes('visualstudio.com')) {
+                    // Basic auth format: base64(username:password)
+                    // Username can be anything for PAT authentication
+                    const credentials = Buffer.from(`:${accessToken}`).toString('base64');
+                    headers['Authorization'] = `Basic ${credentials}`;
+                } else {
+                    // Other feeds typically use Bearer tokens
+                    headers['Authorization'] = `Bearer ${accessToken}`;
+                }
             }
 
             // Add If-None-Match header if we have an ETag
@@ -544,99 +552,14 @@ export class NuGetV3Service {
     }
 
     /**
-     * Enhance packages with latest prerelease versions from registration API
-     */
-    private static async enhanceWithLatestPrereleases(
-        packages: NuGetPackage[],
-        serviceIndex: any,
-        accessToken?: string
-    ): Promise<void> {
-        try {
-            const registrationUrl = this.findRegistrationService(serviceIndex);
-            if (!registrationUrl) {
-                log.warn('No registration service found for prerelease enhancement');
-                return;
-            }
-            log.info(`Using registration service: ${registrationUrl}`);
-
-            // Process packages in batches to avoid overwhelming the API
-            for (const pkg of packages.slice(0, 5)) { // Limit to first 5 packages for performance
-                try {
-                    log.info(`Getting versions for ${pkg.id} (current: ${pkg.currentVersion})`);
-                    const versions = await this.getPackageVersions(
-                        `https://api.nuget.org/v3/index.json`, // Use source URL
-                        pkg.id,
-                        accessToken
-                    );
-
-                    log.info(`Got ${versions.length} versions for ${pkg.id}: ${versions.slice(-5).join(', ')}`);
-
-                    if (versions.length > 0) {
-                        // Find the actual latest version (including prereleases)
-                        const latestVersion = this.findLatestVersion(versions, true);
-                        log.info(`Latest version for ${pkg.id}: ${latestVersion} (current: ${pkg.currentVersion})`);
-
-                        if (latestVersion && latestVersion !== pkg.currentVersion) {
-                            log.info(`Enhanced ${pkg.id}: ${pkg.currentVersion} -> ${latestVersion}`);
-                            pkg.latestVersion = latestVersion;
-                        }
-                        // Update all versions list
-                        pkg.allVersions = versions;
-                    }
-                } catch (error) {
-                    log.warn(`Failed to enhance ${pkg.id} with latest prerelease:`, error);
-                }
-            }
-        } catch (error) {
-            log.error('Error enhancing packages with prereleases:', error);
-        }
-    }
-
-    /**
-     * Find the latest version from a list, optionally including prereleases
-     */
-    private static findLatestVersion(versions: string[], includePrereleases: boolean): string | null {
-        if (versions.length === 0) return null;
-
-        // Filter out prereleases if not wanted
-        let candidateVersions = versions;
-        if (!includePrereleases) {
-            candidateVersions = versions.filter(v => !v.includes('-'));
-        }
-
-        if (candidateVersions.length === 0) return null;
-
-        // Sort versions using semantic versioning rules
-        return candidateVersions.sort((a, b) => {
-            return this.compareVersions(b, a); // Descending order
-        })[0];
-    }
-
-    /**
-     * Compare two versions (returns > 0 if a > b, < 0 if a < b, 0 if equal)
-     */
-    private static compareVersions(a: string, b: string): number {
-        return VersionUtils.compare(a, b);
-    }
-
-    /**
      * Parse package details from registration data
      */
-    private static parsePackageDetails(packageData: any, packageUrl: string): NuGetPackage | null {
+    private static parsePackageDetails(flatEntries: any[], packageUrl: string): NuGetPackage | null {
         try {
-            if (!packageData) {
+
+            if (flatEntries.length === 0) {
                 return null;
             }
-
-            const items = packageData.items || [];
-            if (items.length === 0) {
-                return null;
-            }
-
-            // Flatten nested structure (items[].items[].catalogEntry)
-            const flatEntries = items.flatMap((i: any) =>
-                Array.isArray(i.items) ? i.items : [i]
-            );
 
             // Extract all catalog entries
             const catalogEntries = flatEntries
@@ -648,7 +571,7 @@ export class NuGetV3Service {
             }
 
             // Filter for relevant types
-            const validEntries = catalogEntries.filter((e: any) => {
+            const validEntries: any[] = catalogEntries.filter((e: any) => {
                 const types = Array.isArray(e["@type"])
                     ? e["@type"]
                     : typeof e["@type"] === "string"
@@ -661,8 +584,7 @@ export class NuGetV3Service {
                 return null;
             }
 
-            // Pick the highest version (using version utilities)
-            const latestEntry = validEntries.reduce((best: any, current: any) => {
+            const sorted = validEntries.sort((best: any, current: any) => {
                 const vBest = best?.version ?? "0.0.0";
                 const vCur = current.version ?? "0.0.0";
                 try {
@@ -671,7 +593,10 @@ export class NuGetV3Service {
                     // fallback if version comparison fails
                     return vCur > vBest ? current : best;
                 }
-            }, validEntries[0]);
+            });
+
+            // Pick the highest version (using version utilities)
+            const latestEntry = sorted.slice().reverse()[0];
 
             const entry = latestEntry;
 
@@ -699,38 +624,15 @@ export class NuGetV3Service {
                 projectUrl: entry.projectUrl ?? "",
                 licenseUrl: entry.licenseUrl ?? "",
                 iconUrl: entry.iconUrl ?? "",
+                latestVersion: entry.version,
+                source: entry.source,
                 tags,
                 totalDownloads: 0, // still not exposed by registration API
-                allVersions: this.extractVersions(packageData)
+                allVersions: sorted.filter(x => x.version).map(x => x.version)
             };
         } catch (error) {
-            log.error(`Error parsing package details: ${packageUrl}`, error, packageData);
+            log.error(`Error parsing package details: ${packageUrl}`, error, flatEntries);
             return null;
-        }
-    }
-    /**
-     * Extract all versions from package registration data
-     */
-    private static extractVersions(packageData: any): string[] {
-        try {
-            const versions: string[] = [];
-            const items = packageData.items || [];
-
-            log.info(`Extracting versions from ${items.length} registration items`);
-
-            for (const item of items) {
-                const catalogEntry = item.catalogEntry;
-                if (catalogEntry?.version) {
-                    versions.push(catalogEntry.version);
-                }
-            }
-
-            log.info(`Extracted ${versions.length} versions, latest 5: ${versions.slice(-5).join(', ')}`);
-            return versions.sort();
-
-        } catch (error) {
-            log.error('Error extracting versions:', error);
-            return [];
         }
     }
 }

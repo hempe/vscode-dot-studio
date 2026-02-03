@@ -10,6 +10,5 @@ export interface PackageUpdate {
 }
 
 export interface UpdateCheckOptions {
-    includePrerelease: boolean;
     batchSize?: number;
 }

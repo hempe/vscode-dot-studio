@@ -1,9 +1,11 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as vscode from 'vscode';
 import { logger } from '../../core/logger';
-import { NuGetPackage, PackageSearchOptions, PackageSource } from './types';
+import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import { NuGetV3Service } from './nugetV3Service';
 import { VersionUtils } from '../versionUtils';
+import { NuGetCredentialManager } from './nugetCredentialManager';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -30,41 +32,22 @@ export class PackageBrowseService {
     /**
      * Get detailed package information including all versions
      */
-    static async getPackageDetails(packageId: string, source?: string): Promise<NuGetPackage | null> {
+    static async getPackageDetails(packageId: string, source?: PackageSource): Promise<NuGetPackage | null> {
         try {
             const targetSources: PackageSource[] = source
                 // Use specific source
-                ? [{ name: 'specified', url: source, enabled: true, isLocal: false }]
+                ? [source]
                 // Get all configured sources
                 : await this.getPackageSources();
 
             // Try each source until we find the package
-            for (const packageSource of targetSources) {
-                if (!packageSource.enabled) continue;
 
-                try {
-                    const accessToken = await this.getSourceToken(packageSource);
-
-                    // Upgrade nuget.org V2 URLs to V3 for better functionality
-                    const upgradedUrl = this.upgradeNuGetOrgUrl(packageSource.url);
-
-                    const packageDetails = await NuGetV3Service.getPackageDetails(upgradedUrl, packageId, accessToken);
-
-                    if (packageDetails) {
-                        // Get all versions
-                        packageDetails.allVersions = await this.getPackageVersions(packageId, packageSource.url);
-
-                        // Calculate latest version from all available versions
-                        if (packageDetails.allVersions && packageDetails.allVersions.length > 0) {
-                            packageDetails.latestVersion = VersionUtils.findLatest(packageDetails.allVersions) || undefined;
-                        }
-
-                        return packageDetails;
-                    }
-                } catch (error) {
-                    log.warn(`Failed to get package details from ${packageSource.name}:`, error);
-                    continue;
-                }
+            try {
+                // Upgrade nuget.org V2 URLs to V3 for better functionality
+                const packageDetails = await NuGetV3Service.getPackageDetails(packageId, targetSources);
+                return packageDetails;
+            } catch (error) {
+                log.warn(`Failed to get package details from ${packageId}:`, error);
             }
 
             return null;
@@ -72,50 +55,6 @@ export class PackageBrowseService {
         } catch (error) {
             log.warn(`Failed to get package details for ${packageId} (network issues during VS Code initialization are common):`, error);
             return null;
-        }
-    }
-
-    /**
-     * Get all available versions for a package
-     */
-    static async getPackageVersions(packageId: string, source?: string): Promise<string[]> {
-        try {
-            let targetSources: PackageSource[] = [];
-
-            if (source) {
-                // Use specific source
-                targetSources = [{ name: 'specified', url: source, enabled: true, isLocal: false }];
-            } else {
-                // Get all configured sources
-                targetSources = await this.getPackageSources();
-            }
-
-            // Try each source until we find versions
-            for (const packageSource of targetSources) {
-                if (!packageSource.enabled) continue;
-
-                try {
-                    const accessToken = await this.getSourceToken(packageSource);
-
-                    // Upgrade nuget.org V2 URLs to V3 for better functionality
-                    const upgradedUrl = this.upgradeNuGetOrgUrl(packageSource.url);
-
-                    const versions = await NuGetV3Service.getPackageVersions(upgradedUrl, packageId, accessToken);
-
-                    if (versions.length > 0) {
-                        return versions;
-                    }
-                } catch (error) {
-                    log.warn(`Failed to get versions from ${packageSource.name}:`, error);
-                    continue;
-                }
-            }
-
-            return [];
-
-        } catch (error) {
-            log.error(`Error getting versions for ${packageId}:`, error);
-            return [];
         }
     }
 
@@ -165,7 +104,11 @@ export class PackageBrowseService {
      */
     private static async _getSourcesFromDotnetCli(): Promise<PackageSource[]> {
         try {
-            const { stdout } = await execAsync('dotnet nuget list source --format detailed', { timeout: 10000 });
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const { stdout } = await execAsync('dotnet nuget list source --format detailed', {
+                timeout: 10000,
+                cwd: workspaceFolder
+            });
 
             const sources: PackageSource[] = [];
             const lines = stdout.split('\n').filter(line => line.trim());
@@ -175,8 +118,8 @@ export class PackageBrowseService {
             for (const line of lines) {
                 const trimmedLine = line.trim();
 
-                // Match source number and name
-                const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)(?:\s+\[Enabled\]|\s+\[Disabled\])?$/);
+                // Match source number and name (e.g., "1.  CIRRUS [Enabled]" or "2.  nuget.org [Disabled]")
+                const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)\s+\[(Enabled|Disabled)\]$/);
                 if (sourceMatch) {
                     // Save previous source if complete
                     if (currentSource.name && currentSource.url) {
@@ -191,7 +134,7 @@ export class PackageBrowseService {
                     // Start new source
                     currentSource = {
                         name: sourceMatch[2],
-                        enabled: !trimmedLine.includes('[Disabled]')
+                        enabled: sourceMatch[3] === 'Enabled'
                     };
                     continue;
                 }
@@ -386,7 +329,7 @@ export class PackageBrowseService {
             log.error('Error searching across configured sources:', error);
             // Ultimate fallback - try nuget.org V3 API directly
             try {
-                const accessToken = await this.getSourceToken({ name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, isLocal: false });
+                const accessToken = await NuGetCredentialManager.getSourceToken({ name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, isLocal: false });
                 return await NuGetV3Service.searchPackages('https://api.nuget.org/v3/index.json', options, accessToken);
             } catch (fallbackError) {
                 log.error('Fallback search also failed:', fallbackError);
@@ -400,10 +343,10 @@ export class PackageBrowseService {
      */
     private static async searchSingleSource(source: PackageSource, options: PackageSearchOptions): Promise<NuGetPackage[]> {
         try {
-            const accessToken = await this.getSourceToken(source);
+            const accessToken = await NuGetCredentialManager.getSourceToken(source);
 
             // Upgrade nuget.org V2 URLs to V3 for better functionality
-            const upgradedUrl = this.upgradeNuGetOrgUrl(source.url);
+            const upgradedUrl = upgradeNuGetOrgUrl(source.url);
 
             log.info(`Using NuGet V3 API for: ${source.name}`);
             return await NuGetV3Service.searchPackages(upgradedUrl, options, accessToken);
@@ -414,69 +357,6 @@ export class PackageBrowseService {
         }
     }
 
-    /**
-     * Upgrade nuget.org V2 URLs to V3 for better functionality
-     */
-    private static upgradeNuGetOrgUrl(sourceUrl: string): string {
-        // Upgrade old nuget.org V2 URLs to V3
-        if (sourceUrl.includes('nuget.org') && sourceUrl.includes('/api/v2')) {
-            log.info(`Upgrading nuget.org V2 URL to V3: ${sourceUrl}`);
-            return 'https://api.nuget.org/v3/index.json';
-        }
-
-        // Upgrade www.nuget.org URLs to api.nuget.org V3
-        if (sourceUrl.includes('www.nuget.org')) {
-            log.info(`Upgrading www.nuget.org URL to V3: ${sourceUrl}`);
-            return 'https://api.nuget.org/v3/index.json';
-        }
-
-        return sourceUrl;
-    }
-
-    /**
-     * Get authentication token for a source
-     */
-    private static async getSourceToken(source: PackageSource): Promise<string | undefined> {
-        try {
-            // For Azure DevOps feeds, check if credential provider is available
-            if (source.url.includes('dev.azure.com') || source.url.includes('visualstudio.com')) {
-                return await this.getAzureDevOpsToken();
-            }
-
-            // For other private feeds, return undefined (no auth)
-            return undefined;
-
-        } catch (error) {
-            log.warn(`Failed to get token for ${source.name}:`, error);
-            return undefined;
-        }
-    }
-
-    /**
-     * Get Azure DevOps authentication token using credential provider
-     */
-    private static async getAzureDevOpsToken(): Promise<string | undefined> {
-        try {
-            // Try to get token from Azure Artifacts Credential Provider
-            // This is installed when users set up Azure DevOps feeds
-            const authCommand = `dotnet restore --verbosity quiet --no-cache --force --interactive false`;
-            try {
-                await execAsync(authCommand, { timeout: 5000, cwd: process.cwd() });
-                log.info('Azure DevOps credentials are available');
-
-                // For now, return a placeholder - in production you'd extract from credential provider
-                // The credential provider handles this automatically for dotnet commands
-                return 'credential-provider-managed';
-            } catch (authError) {
-                log.warn('Azure DevOps credential provider not configured or no access');
-                return undefined;
-            }
-
-        } catch (error) {
-            log.error('Error checking Azure DevOps authentication:', error);
-            return undefined;
-        }
-    }
     /**
      * Remove duplicate packages based on ID, keeping the one with highest version
      */

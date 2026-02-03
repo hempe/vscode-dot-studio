@@ -20,7 +20,7 @@ declare global {
     }
 }
 
-const vscode = (function() {
+const vscode = (function () {
     try {
         // Try to get the real VS Code API when running in a webview
         return window.acquireVsCodeApi();
@@ -340,13 +340,12 @@ export const App: React.FC = () => {
 
     const handleSearch = () => {
         if (searchTerm.trim()) {
-            log.info('Frontend: Starting search for:', searchTerm, 'includePrerelease:', includePrerelease);
+            log.info('Frontend: Starting search for:', searchTerm);
             setLoading(true);
             vscode.postMessage({
                 type: 'searchPackages',
                 payload: {
                     query: searchTerm,
-                    includePrerelease: includePrerelease
                 }
             });
             log.info('Frontend: Search message sent to backend');
@@ -764,11 +763,11 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                                                selectedProjects={selectedProjects}
+                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                 projectPath={data.projectPath}
-                                 />
+                            />
                             <PackageActions
                                 selectedPackage={selectedPackage}
                                 selectedVersion={selectedVersion}
@@ -797,7 +796,7 @@ export const App: React.FC = () => {
                             <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
-                             />
+                            />
                         </div>
                     ) : (
                         <div style={{
@@ -888,45 +887,45 @@ export const App: React.FC = () => {
                     padding: '16px',
                     overflow: 'auto'
                 }}>
-                {selectedPackage ? (
-                    <div>
-                        <NugetHeader selectedPackage={selectedPackage} />
-                        <ProjectList
+                    {selectedPackage ? (
+                        <div>
+                            <NugetHeader selectedPackage={selectedPackage} />
+                            <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                                                selectedProjects={selectedProjects}
+                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
-                                 />
-                        <PackageActions
-                            selectedPackage={selectedPackage}
-                            selectedVersion={selectedVersion}
-                            selectedProjects={selectedProjects}
-                            initializing={initializing}
-                            loading={loading}
-                            totalProjects={data.projects?.length || 0}
-                            onVersionChange={handleVersionChange}
-                            onInstallUpdate={handleInstallPackage}
-                            onUninstall={handleUninstallPackage}
-                            getVersionOptions={getVersionOptions}
-                        />
-                        <NugetDetails
+                            />
+                            <PackageActions
+                                selectedPackage={selectedPackage}
+                                selectedVersion={selectedVersion}
+                                selectedProjects={selectedProjects}
+                                initializing={initializing}
+                                loading={loading}
+                                totalProjects={data.projects?.length || 0}
+                                onVersionChange={handleVersionChange}
+                                onInstallUpdate={handleInstallPackage}
+                                onUninstall={handleUninstallPackage}
+                                getVersionOptions={getVersionOptions}
+                            />
+                            <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
-                             />
-                    </div>
-                ) : (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                        color: 'var(--vscode-descriptionForeground)',
-                        fontStyle: 'italic'
-                    }}>
-                        Select a package to view details
-                    </div>
-                )}
+                            />
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            color: 'var(--vscode-descriptionForeground)',
+                            fontStyle: 'italic'
+                        }}>
+                            Select a package to view details
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1041,11 +1040,11 @@ export const App: React.FC = () => {
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
-                                                                selectedProjects={selectedProjects}
+                                selectedProjects={selectedProjects}
                                 setSelectedProjects={setSelectedProjects}
                                 initializing={initializing}
                                 projectPath={data.projectPath}
-                                 />
+                            />
                             <PackageActions
                                 selectedPackage={selectedPackage}
                                 selectedVersion={selectedVersion}
@@ -1074,7 +1073,7 @@ export const App: React.FC = () => {
                             <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
-                             />
+                            />
                         </div>
                     ) : (
                         <div style={{
@@ -1130,11 +1129,11 @@ export const App: React.FC = () => {
                     <ProjectList
                         selectedPackage={selectedPackage}
                         projects={data.projects || []}
-                                                selectedProjects={selectedProjects}
+                        selectedProjects={selectedProjects}
                         setSelectedProjects={setSelectedProjects}
                         initializing={initializing}
                         projectPath={data.projectPath}
-                         />
+                    />
                     <PackageActions
                         selectedPackage={selectedPackage}
                         selectedVersion={selectedVersion}
@@ -1162,7 +1161,7 @@ export const App: React.FC = () => {
                     <NugetDetails
                         selectedPackage={selectedPackage}
                         packageReadmes={packageReadmes}
-                     />
+                    />
                 </div>
             ) : (
                 <div style={{

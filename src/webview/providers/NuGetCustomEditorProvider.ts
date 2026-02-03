@@ -5,6 +5,9 @@ import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 import { LocalNuGetPackage } from '../nuget-view/shared';
+import { PackageUpdateService } from '../../services/nuget/packageUpdateService';
+import { PackageOperationsService } from '../../services/nuget/packageOperationsService';
+import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -108,10 +111,6 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleUninstallPackage(message, webview, context);
                     break;
 
-                case 'consolidatePackage':
-                    await this._handleConsolidatePackage(message, webview, context);
-                    break;
-
                 case 'bulkUpdatePackages':
                     await this._handleBulkUpdatePackages(message, webview, context);
                     break;
@@ -129,6 +128,10 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     if (packageId && version) {
                         await this._getPackageIcon(packageId, version, webview);
                     }
+                    break;
+
+                case 'getPackageDetails':
+                    console.error("what the fuck?", message);
                     break;
 
                 case 'getPackageReadme':
@@ -356,9 +359,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         try {
             // Extract query from both message formats
             const query = message.query || message.payload?.query;
-            const includePrerelease = message.includePrerelease || message.payload?.includePrerelease || false;
 
-            const results = await NuGetManagerService.searchPackages(query, { includePrerelease });
+            const results = await NuGetManagerService.searchPackages(query);
 
             webview.postMessage({
                 command: 'searchResults',
@@ -433,7 +435,12 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             switch (action) {
                 case 'install':
                     if (context.type === 'project') {
-                        result = await NuGetManagerService.installPackageInProject(context.target, packageId, version);
+                        result = await PackageOperationsService.installPackage({
+                            packageId,
+                            version,
+                            projectPath: context.target,
+                        });
+
                     } else {
                         // For solution, we need to show project selection - for now just show message
                         vscode.window.showInformationMessage('Solution-wide package installation not yet implemented');
@@ -443,13 +450,13 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                 case 'uninstall':
                     if (context.type === 'project') {
-                        result = await NuGetManagerService.uninstallPackageFromProject(context.target, packageId);
+                        result = await PackageOperationsService.uninstallPackage(context.target, packageId);
                     }
                     break;
 
                 case 'update':
                     if (context.type === 'project') {
-                        result = await NuGetManagerService.updatePackageInProject(context.target, packageId, version);
+                        result = await PackageUpdateService.updatePackage(context.target, packageId, version);
                     }
                     break;
             }
@@ -545,7 +552,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Use NuGetManagerService to uninstall the package from multiple projects
             const results = [];
             for (const projectPath of uninstallProjects) {
-                const result = await NuGetManagerService.uninstallPackageFromProject(projectPath, uninstallPackage.id);
+                const result = await PackageOperationsService.uninstallPackage(projectPath, uninstallPackage.id);
                 results.push(result);
             }
 
@@ -588,34 +595,6 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _handleConsolidatePackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
-        try {
-            // Extract packageId from both message formats
-            const packageId = message.packageId || message.payload?.packageId;
-
-            if (context.type === 'solution') {
-                // For now, consolidate to latest version across all projects
-                // In a full implementation, you'd show a dialog to select target version
-                const result = await NuGetManagerService.consolidatePackages();
-
-                const successful = result.filter(r => r.success).length;
-                const failed = result.length - successful;
-
-                if (failed === 0) {
-                    vscode.window.showInformationMessage(`Successfully consolidated ${packageId || 'packages'}`);
-                } else {
-                    vscode.window.showWarningMessage(`Consolidated ${packageId || 'packages'}: ${successful} successful, ${failed} failed`);
-                }
-
-                // Refresh the consolidate tab
-                await this._handleGetConsolidatePackages(webview, context);
-            }
-        } catch (error) {
-            log.error('Error consolidating package:', error);
-            vscode.window.showErrorMessage(`Error consolidating package: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
     private async _handleBulkUpdatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             // Extract packages from both message formats
@@ -644,7 +623,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                     try {
                         if (context.type === 'project') {
-                            const result = await NuGetManagerService.updatePackageInProject(
+                            const result = await PackageUpdateService.updatePackage(
                                 context.target,
                                 pkg.id,
                                 pkg.latestVersion
@@ -655,7 +634,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                             for (const project of pkg.projects || []) {
                                 try {
                                     // For solution context, update in the specific project
-                                    const result = await NuGetManagerService.updatePackageInProject(
+                                    const result = await PackageUpdateService.updatePackage(
                                         project.path,
                                         pkg.id,
                                         pkg.latestVersion
@@ -748,7 +727,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                         if (context.type === 'solution') {
                             // Use the consolidation service to consolidate this specific package
-                            const result = await NuGetManagerService.consolidatePackage(
+                            const result = await PackageConsolidationService.consolidatePackageToVersion(
                                 context.target,
                                 pkg.id,
                                 targetVersion
@@ -837,14 +816,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     try {
                         let result;
                         if (context.type === 'project') {
-                            result = await NuGetManagerService.updatePackageInProject(
+                            result = await PackageUpdateService.updatePackage(
                                 context.target,
                                 pkg.id,
                                 pkg.latestVersion
                             );
                         } else {
                             // For solution context, update in the specific project
-                            result = await NuGetManagerService.updatePackageInProject(
+                            result = await PackageUpdateService.updatePackage(
                                 pkg.projectPath,
                                 pkg.id,
                                 pkg.latestVersion

@@ -42,21 +42,6 @@ export function extractPathFromNodeId(nodeId: NodeIdString): string | null {
     }
 }
 
-/**
- * Temporary compatibility functions for webview use
- * These should be replaced with extension-side message handling
- */
-
-export function parseNodeId(nodeId: NodeIdString): any {
-    // TODO: This should be handled by extension side
-    // For now, return a simple object that won't break the webview
-    return {
-        folderPath: extractPathFromNodeId(nodeId),
-        solutionPath: extractPathFromNodeId(nodeId),
-        projectPath: extractPathFromNodeId(nodeId),
-    };
-}
-
 export function generateTemporaryId(parentPath: string, nodeType: string): NodeIdString {
     // TODO: This should be handled by extension side
     // For now, generate a simple temporary ID

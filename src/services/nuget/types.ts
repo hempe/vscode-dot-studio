@@ -73,29 +73,29 @@ export interface BasicConsolidationPackage {
  */
 export interface NuGetPackage {
     /** The package identifier (e.g., "Newtonsoft.Json") */
-    id: string;
+    readonly id: string;
     /** The version being referenced for this context (could be installed, latest, or searched version) */
-    currentVersion: string;
+    readonly currentVersion: string;
     /** Package description from NuGet API */
-    description?: string;
+    readonly description?: string;
     /** Package authors/owners */
-    authors?: string[];
+    readonly authors?: string[];
     /** Project or repository URL */
-    projectUrl?: string;
+    readonly projectUrl?: string;
     /** License information URL */
-    licenseUrl?: string;
+    readonly licenseUrl?: string;
     /** Package icon URL */
-    iconUrl?: string;
+    readonly iconUrl?: string;
     /** Package tags for categorization */
-    tags?: string[];
+    readonly tags?: string[];
     /** Total download count across all versions */
-    totalDownloads?: number;
+    readonly totalDownloads?: number;
     /** Latest stable version available */
     latestVersion?: string;
     /** All available versions (sorted) */
     allVersions?: string[];
     /** Package source URL or name where this package was found */
-    source?: string;
+    readonly source?: string;
 }
 
 /**
@@ -158,8 +158,6 @@ export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPacka
 export interface PackageSearchOptions {
     /** Search query string */
     query: string;
-    /** Whether to include prerelease versions in results */
-    includePrerelease?: boolean;
     /** Specific package source to search (optional) */
     source?: string;
     /** Maximum number of results to return */
@@ -230,6 +228,24 @@ export interface PackageSource {
     enabled: boolean;
     /** Whether this is a local file system source */
     isLocal: boolean;
+}
+
+
+/**
+ * Upgrade nuget.org V2 URLs to V3 for better functionality
+ */
+export function upgradeNuGetOrgUrl(sourceUrl: string): string {
+    // Upgrade old nuget.org V2 URLs to V3
+    if (sourceUrl.includes('nuget.org') && sourceUrl.includes('/api/v2')) {
+        return 'https://api.nuget.org/v3/index.json';
+    }
+
+    // Upgrade www.nuget.org URLs to api.nuget.org V3
+    if (sourceUrl.includes('www.nuget.org')) {
+        return 'https://api.nuget.org/v3/index.json';
+    }
+
+    return sourceUrl;
 }
 
 /**

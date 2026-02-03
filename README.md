@@ -226,6 +226,57 @@ npm run test:watch
 5. **Global Build**: Use Ctrl+B anywhere to build solution
 6. **NuGet Management**: Right-click solution → "Manage NuGet Packages"
 
+## 🔐 Azure DevOps Private Feeds Setup
+
+If you use Azure DevOps Artifacts for private NuGet packages, you need to configure authentication:
+
+### 1. Install the Credential Provider
+
+```bash
+dotnet tool install --global Microsoft.Artifacts.CredentialProvider.NuGet.Tool
+```
+
+### 2. Create a Personal Access Token (PAT)
+
+1. Go to Azure DevOps → User Settings → Personal Access Tokens
+2. Click "New Token"
+3. Give it a name (e.g., "NuGet Feed Access")
+4. Set expiration as needed
+5. **Important**: Select **Packaging (Read)** scope (or Read & Write if you need to publish)
+6. Click "Create" and copy the token
+
+### 3. Configure Your NuGet Source
+
+```bash
+# Navigate to your solution directory
+cd /path/to/your/solution
+
+# Update the source with your PAT
+dotnet nuget update source YOUR_FEED_NAME \
+  --username anything \
+  --password YOUR_PAT_HERE \
+  --store-password-in-clear-text
+```
+
+Replace:
+- `YOUR_FEED_NAME` - The name of your Azure DevOps feed (as shown in `dotnet nuget list source`)
+- `YOUR_PAT_HERE` - The Personal Access Token you created
+
+### 4. Verify Authentication
+
+```bash
+dotnet restore
+```
+
+If configured correctly, the restore should succeed without authentication errors.
+
+### Notes
+
+- The extension automatically detects all configured NuGet sources from your `nuget.config` files
+- PATs expire based on the expiration date you set - you'll need to update them when they expire
+- For security, consider using shorter-lived tokens (30-90 days) and rotating them regularly
+- The extension runs `dotnet nuget list source` from your workspace folder to discover feeds
+
 ## 🎨 Visual Studio Parity
 
 ### ✅ Achieved Parity

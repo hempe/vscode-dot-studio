@@ -3,8 +3,11 @@
     "tasks": [
         {
             "type": "npm",
-            "script": "compile",
-            "group": "build",
+            "script": "build:dev",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "presentation": {
                 "panel": "shared"
             },

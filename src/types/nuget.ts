@@ -8,7 +8,6 @@ export interface NuGetPackage {
 
 export interface NuGetSearchOptions {
     query: string;
-    includePrerelease: boolean;
     skip?: number;
     take?: number;
 }

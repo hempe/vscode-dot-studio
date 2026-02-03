@@ -3,12 +3,10 @@ import { PackageBrowseService } from './packageBrowseService';
 import { PackageInstalledService } from './packageInstalledService';
 import { PackageUpdateService } from './packageUpdateService';
 import { PackageOperationsService } from './packageOperationsService';
-import { PackageConsolidationService } from './packageConsolidationService';
 import { PackageSharedService } from './packageSharedService';
 import { VersionUtils } from '../versionUtils';
 import {
     PackageSearchOptions,
-    PackageInstallOptions,
     PackageOperationResult,
     ProjectInfo,
     BasicInstalledPackage,
@@ -431,7 +429,6 @@ export class NuGetManagerService {
     static async searchPackages(query: string, options?: Partial<PackageSearchOptions>) {
         return PackageBrowseService.searchPackages({
             query,
-            includePrerelease: options?.includePrerelease || false,
             take: options?.take || 20,
             skip: options?.skip || 0,
             source: options?.source
@@ -460,20 +457,6 @@ export class NuGetManagerService {
         }
 
         return results;
-    }
-
-    /**
-     * Consolidate packages across solution
-     */
-    static async consolidatePackages() {
-        return PackageConsolidationService.consolidateAllToLatest();
-    }
-
-    /**
-     * Consolidate a specific package across solution to a target version
-     */
-    static async consolidatePackage(solutionPath: string, packageId: string, targetVersion: string) {
-        return PackageConsolidationService.consolidatePackageToVersion(solutionPath, packageId, targetVersion);
     }
 
     /**
@@ -528,83 +511,6 @@ export class NuGetManagerService {
             log.error('Error getting project NuGet data:', error);
             throw error;
         }
-    }
-
-    /**
-     * Install a package in a specific project
-     */
-    static async installPackageInProject(
-        projectPath: string,
-        packageId: string,
-        version?: string,
-        options?: Partial<PackageInstallOptions>
-    ) {
-        return PackageOperationsService.installPackage({
-            packageId,
-            version,
-            projectPath,
-            source: options?.source,
-            prerelease: options?.prerelease,
-            noRestore: options?.noRestore
-        });
-    }
-
-    /**
-     * Uninstall a package from a specific project
-     */
-    static async uninstallPackageFromProject(projectPath: string, packageId: string) {
-        return PackageOperationsService.uninstallPackage(projectPath, packageId);
-    }
-
-    /**
-     * Update a package in a specific project
-     */
-    static async updatePackageInProject(projectPath: string, packageId: string, targetVersion?: string) {
-        return PackageUpdateService.updatePackage(projectPath, packageId, targetVersion);
-    }
-
-    /**
-     * Update all packages in a specific project
-     */
-    static async updateAllPackagesInProject(projectPath: string) {
-        return PackageUpdateService.updateAllPackages(projectPath);
-    }
-
-    // ============ COMMON OPERATIONS ============
-
-    /**
-     * Get package details (works for both contexts)
-     */
-    static async getPackageDetails(packageId: string) {
-        return PackageBrowseService.getPackageDetails(packageId);
-    }
-
-    /**
-     * Get package versions (works for both contexts)
-     */
-    static async getPackageVersions(packageId: string) {
-        return PackageBrowseService.getPackageVersions(packageId);
-    }
-
-    /**
-     * Restore packages (works for both project and solution)
-     */
-    static async restorePackages(targetPath: string) {
-        return PackageOperationsService.restorePackages(targetPath);
-    }
-
-    /**
-     * Clear package cache
-     */
-    static async clearPackageCache() {
-        return PackageOperationsService.clearCache();
-    }
-
-    /**
-     * Get package sources
-     */
-    static async getPackageSources() {
-        return PackageBrowseService.getPackageSources();
     }
 
     // ============ HELPER METHODS ============
