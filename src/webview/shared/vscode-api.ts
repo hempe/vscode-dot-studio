@@ -1,21 +1,18 @@
 import { logger } from '../../core/logger';
-import { WebviewMessage, WebviewApi } from '../../types/webview';
-
-// Re-export types for backwards compatibility
-export { WebviewMessage, WebviewApi };
+import { BackendCmd } from "../../types/backendCmd";
 
 const log = logger('PureWebviewAPI');
 
 export class PureWebviewAPI {
 
-    private messageHandlers: ((message: WebviewMessage) => void)[] = [];
+    private messageHandlers: ((message: BackendCmd) => void)[] = [];
     private state: any = {};
 
     constructor() {
         // Pure webview API - no VS Code dependencies
     }
 
-    public postMessage(message: WebviewMessage): void {
+    public postMessage(message: BackendCmd): void {
         // For pure webview, this could be handled by the service bridge
         // For now, we'll use a message queue approach
         log.info('Webview message:', message);
@@ -41,11 +38,11 @@ export class PureWebviewAPI {
         return this.state;
     }
 
-    public onMessage(handler: (message: WebviewMessage) => void): void {
+    public onMessage(handler: (message: BackendCmd) => void): void {
         this.messageHandlers.push(handler);
     }
 
-    private handleServiceMessage(message: WebviewMessage): void {
+    private handleServiceMessage(message: BackendCmd): void {
         // This would be replaced by actual service communication
         this.messageHandlers.forEach(handler => handler(message));
     }

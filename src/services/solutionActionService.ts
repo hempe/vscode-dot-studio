@@ -4,8 +4,9 @@ import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { ProjectActionType } from '../webview/solution-view/types';
-import { NodeId, NodeIdService, NodeIdString } from './nodeIdService';
+import { NodeId, NodeIdService } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
+import { NodeIdString } from '../types/nodeId';
 
 const log = logger('SolutionActionService');
 

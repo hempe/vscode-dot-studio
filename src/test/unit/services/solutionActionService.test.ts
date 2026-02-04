@@ -1,8 +1,8 @@
 import { SolutionActionService } from '../../../services/solutionActionService';
-import { MenuActionType } from '../../../webview/solution-view/types';
 import { NodeIdService } from '../../../services/nodeIdService';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import { MenuActionType } from '../../../types';
 
 // Mock dependencies
 jest.mock('vscode', () => ({

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ProjectNode, SolutionTreeProps, ProjectActionType } from '../types';
+import { SolutionTreeProps, ProjectActionType } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
 import { ContextMenu } from './ContextMenu/ContextMenu';
 import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 import { LoadingBar } from '../../shared/LoadingBar';
 import { logger } from '../../shared/logger';
-import { NodeIdString, nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
+import { nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
+import { NodeIdString } from '../../../types/nodeId';
+import { ProjectNode } from '../../../types';
 
 const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode }) => {
@@ -124,7 +126,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     const handleRenameConfirm = (newName: string, nodeId: NodeIdString, nodeType: string, oldName: string) => {
         log.info(`Rename confirmed: ${oldName} -> ${newName}`);
         setRenamingNodeId(undefined);
-        onProjectAction('rename', nodeId,  { newName, oldName, type: nodeType });
+        onProjectAction('rename', nodeId, { newName, oldName, type: nodeType });
     };
 
     const handleRenameCancel = () => {
@@ -144,8 +146,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     }, []);
 
     // Flatten tree nodes for keyboard navigation
-    const flattenNodes = useCallback((nodes: ProjectNode[], level: number = 0): Array<{node: ProjectNode, level: number}> => {
-        const result: Array<{node: ProjectNode, level: number}> = [];
+    const flattenNodes = useCallback((nodes: ProjectNode[], level: number = 0): Array<{ node: ProjectNode, level: number }> => {
+        const result: Array<{ node: ProjectNode, level: number }> = [];
         for (const node of nodes) {
             result.push({ node, level });
             if (node.children && node.expanded) {
@@ -326,7 +328,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                         );
                         if (removeAction) {
                             // Let backend handle the confirmation dialog - it already has one
-                            onProjectAction('removeSolutionFolder', focusedNodeForDelete.nodeId,{
+                            onProjectAction('removeSolutionFolder', focusedNodeForDelete.nodeId, {
                                 type: focusedNodeForDelete.type,
                                 guid: focusedNodeForDelete.guid,
                                 name: focusedNodeForDelete.name
@@ -351,7 +353,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                             item.kind === 'action' && (item as MenuAction).action === 'removeDependency'
                         );
                         if (removeAction) {
-                            onProjectAction('removeDependency', focusedNodeForDelete.nodeId,{
+                            onProjectAction('removeDependency', focusedNodeForDelete.nodeId, {
                                 type: focusedNodeForDelete.type,
                                 name: focusedNodeForDelete.name
                             });

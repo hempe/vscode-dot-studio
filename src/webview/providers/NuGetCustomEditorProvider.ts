@@ -4,10 +4,12 @@ import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
-import { LocalNuGetPackage } from '../nuget-view/shared';
+import { LocalNuGetPackage, sendToUi } from '../nuget-view/shared';
 import { PackageUpdateService } from '../../services/nuget/packageUpdateService';
 import { PackageOperationsService } from '../../services/nuget/packageOperationsService';
 import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
+import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/backendCmd';
+import { NuGetViewData } from '../../types/uiCmd';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -65,18 +67,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         this._updateWebview(webviewPanel.webview, context);
     }
 
-    private async _handleMessage(message: any, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
+    private async _handleMessage(message: BackendCmd, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
 
         try {
             // Add debug logging to see if messages are reaching the provider
-            log.info('NuGetCustomEditorProvider received message:', {
-                type: message.type,
-                command: message.command,
-                payload: message.payload
-            });
+            log.info('NuGetCustomEditorProvider received message:', message);
 
             // Handle both old (command) and new (type) message formats
-            const messageType = message.command || message.type;
+            const messageType = message.type;
 
             switch (messageType) {
                 case 'getNuGetData':
@@ -87,20 +85,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleSearchPackages(message, webview);
                     break;
 
-                case 'getInstalledPackages':
-                    await this._handleGetInstalledPackages(webview, context);
-                    break;
-
-                case 'getUpdatesPackages':
-                    await this._handleGetUpdatesPackages(webview, context);
-                    break;
-
                 case 'getConsolidatePackages':
                     await this._handleGetConsolidatePackages(webview, context);
-                    break;
-
-                case 'packageAction':
-                    await this._handlePackageAction(message, webview, context);
                     break;
 
                 case 'installPackage':
@@ -119,31 +105,18 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleBulkConsolidatePackages(message, webview, context);
                     break;
 
-                case 'updateAllPackages':
-                    await this._handleUpdateAllPackages(webview, context);
-                    break;
-
                 case 'getPackageIcon':
-                    const { packageId, version } = message.payload || message;
+                    const { packageId, version } = message.payload;
                     if (packageId && version) {
                         await this._getPackageIcon(packageId, version, webview);
                     }
                     break;
 
-                case 'getPackageDetails':
-                    console.error("what the fuck?", message);
-                    break;
-
                 case 'getPackageReadme':
-                    const readmePayload = message.payload || message;
+                    const readmePayload = message.payload;
                     if (readmePayload.packageId && readmePayload.version) {
                         await this._getPackageReadme(readmePayload.packageId, readmePayload.version, webview);
                     }
-                    break;
-
-                case 'debug':
-                    const debugMessage = message.message || message.payload?.message;
-                    log.info('Debug from webview:', debugMessage);
                     break;
 
                 default:
@@ -151,9 +124,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             }
         } catch (error) {
             log.error('Error handling message:', error);
-            webview.postMessage({
-                command: 'error',
-                message: error instanceof Error ? error.message : 'Unknown error occurred'
+            sendToUi(webview, {
+                type: 'error',
+                payload: {
+                    message: error instanceof Error ? error.message : 'Unknown error occurred'
+                }
             });
         }
     }
@@ -167,9 +142,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Get NuGet data based on context (project vs solution)
             const nugetData = await this._getNuGetData(context);
 
-            webview.postMessage({
-                command: 'nugetData',
-                data: nugetData
+            sendToUi(webview, {
+                type: 'nugetData',
+                payload: nugetData
             });
 
         } catch (error) {
@@ -293,14 +268,12 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     /**
      * Get NuGet data based on context (project vs solution)
      */
-    private async _getNuGetData(context?: { type: 'project' | 'solution', target: string }) {
+    private async _getNuGetData(context?: { type: 'project' | 'solution', target: string }): Promise<NuGetViewData> {
         if (!context) {
             return {
-                context: 'unknown',
                 projects: [],
                 installedPackages: [],
-                availablePackages: [],
-                outdatedPackages: null,
+                updatesAvailable: null,
             };
         }
 
@@ -330,73 +303,58 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 // Return solution-wide NuGet data
                 const solutionData = await NuGetManagerService.getSolutionNuGetData(context.target);
                 return {
-                    ...solutionData,
-                    context: 'solution',
-                    target: context.target,
-                    solutionPath: context.target
+                    updatesAvailable: solutionData.outdatedPackages,
+                    installedPackages: solutionData.installedPackages?.map(x => ({
+                        ...x,
+                        version: x.currentVersion
+                    })),
+                    consolidatePackages: [],
+                    projects: solutionData.projects,
+                    searchResults: [],
                 };
             } else {
                 // Return project-specific NuGet data
                 const projectData = await NuGetManagerService.getProjectNuGetData(context.target);
                 return {
-                    ...projectData,
-                    context: 'project',
-                    target: context.target,
-                    projectPath: context.target
+                    updatesAvailable: projectData.outdatedPackages,
+                    installedPackages: projectData.installedPackages?.map(x => ({
+                        ...x,
+                        version: x.currentVersion
+                    })),
+                    projectPath: projectData.projectPath,
+                    consolidatePackages: [],
+                    projects: projectData.projects,
+                    searchResults: [],
                 };
             }
         } catch (error) {
             log.error('Error getting NuGet data:', error);
-            return {
-                context: context.type,
-                target: context.target,
-                error: error instanceof Error ? error.message : 'Failed to load NuGet data'
-            };
+            return {};
         }
     }
 
-    private async _handleSearchPackages(message: any, webview: vscode.Webview) {
+    private async _handleSearchPackages(message: SearchPackagesCmd, webview: vscode.Webview) {
         try {
             // Extract query from both message formats
-            const query = message.query || message.payload?.query;
+            const query = message.payload.query;
 
             const results = await NuGetManagerService.searchPackages(query);
 
-            webview.postMessage({
-                command: 'searchResults',
-                data: results
+            sendToUi(webview, {
+                type: 'searchResults',
+                payload: {
+                    searchResults: results,
+                }
             });
         } catch (error) {
             log.error('Error searching packages:', error);
-            webview.postMessage({
-                command: 'searchResults',
-                data: [],
-                error: error instanceof Error ? error.message : 'Search failed'
+            sendToUi(webview, {
+                type: 'searchResults',
+                payload: {
+                    searchResults: [],
+                    error: error instanceof Error ? error.message : 'Search failed'
+                }
             });
-        }
-    }
-
-    private async _handleGetInstalledPackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
-        try {
-            const data = await this._getNuGetData(context);
-            webview.postMessage({
-                command: 'installedPackages',
-                data: data.installedPackages || []
-            });
-        } catch (error) {
-            log.error('Error getting installed packages:', error);
-        }
-    }
-
-    private async _handleGetUpdatesPackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
-        try {
-            const data = await this._getNuGetData(context);
-            webview.postMessage({
-                command: 'updatesPackages',
-                data: data.outdatedPackages || []
-            });
-        } catch (error) {
-            log.error('Error getting updates packages:', error);
         }
     }
 
@@ -405,80 +363,34 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             if (context.type === 'solution') {
                 // Lazy load consolidation data
                 const consolidationData = await NuGetManagerService.getSolutionNuGetData(context.target);
-                webview.postMessage({
-                    command: 'consolidatePackages',
-                    data: consolidationData.consolidatePackages
+                sendToUi(webview, {
+                    type: 'consolidatePackages',
+                    payload: {
+                        consolidatePackages: consolidationData.consolidatePackages
+                    }
                 });
             } else {
-                webview.postMessage({
-                    command: 'consolidatePackages',
-                    data: []
+                sendToUi(webview, {
+                    type: 'consolidatePackages',
+                    payload: {
+                        consolidatePackages: []
+                    }
                 });
             }
         } catch (error) {
             log.error('Error getting consolidate packages:', error);
-            webview.postMessage({
-                command: 'consolidatePackages',
-                data: []
+            sendToUi(webview, {
+                type: 'consolidatePackages',
+                payload: {
+                    consolidatePackages: []
+                }
             });
         }
     }
 
-    private async _handlePackageAction(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleInstallPackage(message: InstallPackageCmd, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
-            let result;
-            // Extract properties from both message formats
-            const action = message.action || message.payload?.action;
-            const packageId = message.packageId || message.payload?.packageId;
-            const version = message.version || message.payload?.version;
-
-            switch (action) {
-                case 'install':
-                    if (context.type === 'project') {
-                        result = await PackageOperationsService.installPackage({
-                            packageId,
-                            version,
-                            projectPath: context.target,
-                        });
-
-                    } else {
-                        // For solution, we need to show project selection - for now just show message
-                        vscode.window.showInformationMessage('Solution-wide package installation not yet implemented');
-                        return;
-                    }
-                    break;
-
-                case 'uninstall':
-                    if (context.type === 'project') {
-                        result = await PackageOperationsService.uninstallPackage(context.target, packageId);
-                    }
-                    break;
-
-                case 'update':
-                    if (context.type === 'project') {
-                        result = await PackageUpdateService.updatePackage(context.target, packageId, version);
-                    }
-                    break;
-            }
-
-            if (result) {
-                if (result.success) {
-                    vscode.window.showInformationMessage(result.message);
-                    // Refresh the current tab
-                    await this._updateWebview(webview, context);
-                } else {
-                    vscode.window.showErrorMessage(result.message);
-                }
-            }
-        } catch (error) {
-            log.error('Error performing package action:', error);
-            vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    private async _handleInstallPackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
-        try {
-            const installData = message.payload || message;
+            const installData = message.payload;
             const installPackage = installData.package;
             const installProjects = installData.projects || [];
             const installVersion = installData.version;
@@ -518,27 +430,30 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             await this._updateWebview(webview, context);
 
             // Send completion message to clear loading state
-            webview.postMessage({
-                command: 'installComplete',
-                success: successful.length > 0,
-                packageId: installPackage.id
+            sendToUi(webview, {
+                type: 'installComplete',
+                payload: {
+                    success: successful.length > 0,
+                    packageId: installPackage.id
+                }
             });
         } catch (error) {
             log.error('Error installing package:', error);
             vscode.window.showErrorMessage(`Failed to install package: ${error}`);
+            sendToUi(webview, {
+                type: 'installComplete',
+                payload: {
+                    success: false,
+                    packageId: message.payload?.package?.id || 'unknown'
 
-            // Send completion message even on error
-            webview.postMessage({
-                command: 'installComplete',
-                success: false,
-                packageId: message.payload?.package?.id || 'unknown'
+                }
             });
         }
     }
 
-    private async _handleUninstallPackage(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleUninstallPackage(message: UnInstallPackageCmd, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
-            const uninstallData = message.payload || message;
+            const uninstallData = message.payload;
             const uninstallPackage = uninstallData.package;
             const uninstallProjects = uninstallData.projects || [];
 
@@ -577,28 +492,31 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             await this._updateWebview(webview, context);
 
             // Send completion message to clear loading state
-            webview.postMessage({
-                command: 'uninstallComplete',
-                success: successful.length > 0,
-                packageId: uninstallPackage.id
+            sendToUi(webview, {
+                type: 'uninstallComplete',
+                payload: {
+                    success: successful.length > 0,
+                    packageId: uninstallPackage.id
+                }
             });
         } catch (error) {
             log.error('Error uninstalling package:', error);
             vscode.window.showErrorMessage(`Failed to uninstall package: ${error}`);
-
             // Send completion message even on error
-            webview.postMessage({
-                command: 'uninstallComplete',
-                success: false,
-                packageId: message.payload?.package?.id || 'unknown'
+            sendToUi(webview, {
+                type: 'uninstallComplete',
+                payload: {
+                    success: false,
+                    packageId: message.payload?.package?.id || 'unknown'
+                }
             });
         }
     }
 
-    private async _handleBulkUpdatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleBulkUpdatePackages(message: BulkUpdatePackagesCmd, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             // Extract packages from both message formats
-            const packages: LocalNuGetPackage[] = message.packages || message.payload?.packages;
+            const packages: LocalNuGetPackage[] = message.payload.packages;
 
             if (!packages || !Array.isArray(packages) || packages.length === 0) {
                 vscode.window.showWarningMessage('No packages selected for update');
@@ -673,13 +591,12 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 }
             });
 
-            // Refresh the updates tab
-            await this._handleGetUpdatesPackages(webview, context);
-
             // Send completion message to frontend
-            webview.postMessage({
-                command: 'bulkUpdateComplete',
-                success: true
+            sendToUi(webview, {
+                type: 'bulkUpdateComplete',
+                payload: {
+                    success: true
+                }
             });
 
         } catch (error) {
@@ -687,18 +604,20 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             vscode.window.showErrorMessage(`Error updating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
             // Send failure completion message
-            webview.postMessage({
-                command: 'bulkUpdateComplete',
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+            sendToUi(webview, {
+                type: 'bulkUpdateComplete',
+                payload: {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                }
             });
         }
     }
 
-    private async _handleBulkConsolidatePackages(message: any, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleBulkConsolidatePackages(message: BulkConsolidatePackagesCmd, webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
         try {
             // Extract packages from both message formats
-            const packages: LocalNuGetPackage[] = message.packages || message.payload?.packages;
+            const packages: LocalNuGetPackage[] = message.payload.packages;
 
             if (!packages || !Array.isArray(packages) || packages.length === 0) {
                 vscode.window.showWarningMessage('No packages selected for consolidation');
@@ -768,9 +687,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             await this._handleGetConsolidatePackages(webview, context);
 
             // Send completion message to frontend
-            webview.postMessage({
-                command: 'bulkConsolidateComplete',
-                success: true
+            sendToUi(webview, {
+                type: 'bulkConsolidateComplete',
+                payload: {
+                    success: true
+                }
             });
 
         } catch (error) {
@@ -778,86 +699,13 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             vscode.window.showErrorMessage(`Error consolidating packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
             // Send failure completion message
-            webview.postMessage({
-                command: 'bulkConsolidateComplete',
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-        }
-    }
-
-    private async _handleUpdateAllPackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
-        try {
-            log.info('Updating all packages');
-
-            // Get all outdated packages first
-            const data = await this._getNuGetData(context);
-            const outdatedPackages = data.outdatedPackages || [];
-
-            if (outdatedPackages.length === 0) {
-                vscode.window.showInformationMessage('No packages need updating');
-                return;
-            }
-
-            // Show progress notification
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: `Updating Packages`,
-                cancellable: false
-            }, async (progress) => {
-                const results = [];
-
-                for (const pkg of outdatedPackages) {
-                    progress.report({
-                        increment: (100 / outdatedPackages.length),
-                        message: `: ${pkg.id}`
-                    });
-
-                    try {
-                        let result;
-                        if (context.type === 'project') {
-                            result = await PackageUpdateService.updatePackage(
-                                context.target,
-                                pkg.id,
-                                pkg.latestVersion
-                            );
-                        } else {
-                            // For solution context, update in the specific project
-                            result = await PackageUpdateService.updatePackage(
-                                pkg.projectPath,
-                                pkg.id,
-                                pkg.latestVersion
-                            );
-                        }
-                        results.push(result);
-                    } catch (error) {
-                        log.error(`Error updating ${pkg.id}:`, error);
-                        results.push({
-                            success: false,
-                            message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            packageId: pkg.id
-                        });
-                    }
-                }
-
-                const successful = results.filter(r => r.success).length;
-                const failed = results.length - successful;
-
-                if (failed === 0) {
-                    vscode.window.showInformationMessage(`Successfully updated all ${successful} packages`);
-                } else if (successful === 0) {
-                    vscode.window.showErrorMessage(`Failed to update all ${failed} packages`);
-                } else {
-                    vscode.window.showWarningMessage(`Updated ${successful} packages, ${failed} failed`);
+            sendToUi(webview, {
+                type: 'bulkConsolidateComplete',
+                payload: {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
                 }
             });
-
-            // Refresh the updates tab
-            await this._handleGetUpdatesPackages(webview, context);
-
-        } catch (error) {
-            log.error('Error updating all packages:', error);
-            vscode.window.showErrorMessage(`Error updating all packages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
@@ -869,21 +717,24 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         try {
             // Use direct NuGet icon URL instead of caching
             const iconUri = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/icon`;
-
-            webview.postMessage({
-                command: 'packageIcon',
-                packageId,
-                version,
-                iconUri
+            sendToUi(webview, {
+                type: 'packageIcon',
+                payload: {
+                    packageId,
+                    version,
+                    iconUri
+                }
             });
         } catch (error) {
             log.error(`Error getting icon for ${packageId}@${version}:`, error);
 
-            webview.postMessage({
-                command: 'packageIcon',
-                packageId,
-                version,
-                iconUri: null
+            sendToUi(webview, {
+                type: 'packageIcon',
+                payload: {
+                    packageId,
+                    version,
+                    iconUri: null
+                }
             });
         }
     }
@@ -896,20 +747,24 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Use direct NuGet README URL
             const readmeUrl = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/readme`;
 
-            webview.postMessage({
-                command: 'packageReadme',
-                packageId,
-                version,
-                readmeUrl
+            sendToUi(webview, {
+                type: 'packageReadme',
+                payload: {
+                    packageId,
+                    version,
+                    readmeUrl
+                }
             });
         } catch (error) {
             log.error(`Error getting README for ${packageId}@${version}:`, error);
 
-            webview.postMessage({
-                command: 'packageReadme',
-                packageId,
-                version,
-                readmeUrl: null
+            sendToUi(webview, {
+                type: 'packageReadme',
+                payload: {
+                    packageId,
+                    version,
+                    readmeUrl: null
+                }
             });
         }
     }

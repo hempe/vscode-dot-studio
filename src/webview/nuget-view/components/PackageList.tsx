@@ -77,8 +77,8 @@ export const PackageList: React.FC<PackageListProps> = ({
                             background: selectedIndex === index
                                 ? 'var(--vscode-list-activeSelectionBackground)'
                                 : selectedPackage?.id === pkg.id
-                                ? 'var(--vscode-list-hoverBackground)'
-                                : 'transparent'
+                                    ? 'var(--vscode-list-hoverBackground)'
+                                    : 'transparent'
                         }}
                         onClick={() => onPackageSelect(pkg, index)}
                     >
@@ -162,7 +162,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                                 </span>
                                             )}
                                         </div>
-                                        
+
                                     </div>
                                     {/* Show update info for Updates tab */}
                                     {showUpdateInfo && getVersionChangeText && (
@@ -213,7 +213,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         }).filter(Boolean);
                                         if (installedVersions.length > 0) {
                                             const maxInstalledVersion = installedVersions.sort((a, b) => {
-                                                return VersionUtils.rcompare(a!, b!); // rcompare for descending order
+                                                return VersionUtils.compare(a!, b!); // rcompare for descending order
                                             })[0];
 
                                             // Always show the max installed version when package is installed

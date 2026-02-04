@@ -1,4 +1,5 @@
-import { NodeType, MenuActionType } from '../../types';
+import { MenuActionType } from '../../../../types';
+import { NodeType } from '../../types';
 
 export interface MenuAction {
     name: string;

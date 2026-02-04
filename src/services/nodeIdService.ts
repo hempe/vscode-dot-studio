@@ -4,10 +4,8 @@
  */
 
 import { gzipSync, gunzipSync } from 'zlib';
+import { NodeIdString } from '../types/nodeId';
 
-// Branded type for NodeId strings to provide type safety
-declare const __nodeIdBrand: unique symbol;
-export type NodeIdString = { readonly [__nodeIdBrand]: true };
 
 // Define the structure of a NodeId
 export interface NodeId {

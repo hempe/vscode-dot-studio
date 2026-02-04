@@ -1,7 +1,8 @@
 import React from 'react';
-import { NodeType, MenuActionType } from '../../types';
+import { NodeType } from '../../types';
 import { contextMenus, MenuItem, MenuAction } from './menuActions';
 import { logger } from '../../../shared/logger';
+import { MenuActionType } from '../../../../types';
 
 const log = logger('ContextMenu');
 export interface ContextMenuProps {
@@ -86,7 +87,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             }
         };
 
-        function stop(e:KeyboardEvent){
+        function stop(e: KeyboardEvent) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();

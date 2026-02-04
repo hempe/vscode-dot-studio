@@ -32,16 +32,6 @@ export class VersionUtils {
     }
 
     /**
-     * Compare versions using descending order (highest first)
-     * @param a First version string
-     * @param b Second version string
-     * @returns 1 if a < b, -1 if a > b, 0 if equal (reverse of compare)
-     */
-    static rcompare(a: string, b: string): number {
-        return this.compare(b, a);
-    }
-
-    /**
      * Find the latest (highest) version from an array of version strings
      * @param versions Array of version strings
      * @returns Latest version string or null if array is empty
@@ -58,7 +48,7 @@ export class VersionUtils {
         if (candidateVersions.length === 0) return null;
 
         // Sort in descending order and return the first (highest)
-        return candidateVersions.sort((a, b) => this.rcompare(a, b))[0];
+        return candidateVersions.sort((a, b) => this.compare(a, b))[0];
     }
 
     /**

@@ -5,12 +5,14 @@ import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
-import { NodeIdService, NodeIdString } from '../../services/nodeIdService';
-import { ProjectActionType, ProjectNode as ExtensionProjectNode } from '../../types';
-import { ProjectNode as WebviewProjectNode, SolutionData as WebviewSolutionData } from '../solution-view/types';
+import { NodeIdService } from '../../services/nodeIdService';
+import { ProjectNode as ExtensionProjectNode, SolutionData } from '../../types';
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
+import { NodeIdString } from '../../types/nodeId';
+import { sendToUi } from '../nuget-view/shared';
+import { ProjectActionType } from '../solution-view/types';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -45,6 +47,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ExtensionProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
+    private get webview(): vscode.Webview | undefined {
+        return this._view?.webview;
+    }
 
     public static Instance: SolutionWebviewProvider | null = null;
     constructor(
@@ -58,9 +63,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 console.error('Debounced updateView triggered');
 
                 // Show loading bar in webview
-                this._view?.webview.postMessage({
-                    command: 'showLoading',
-                    message: 'Loading solution...'
+                sendToUi(this.webview, {
+                    type: 'showLoading',
+                    payload: {
+                        message: 'Loading solution...'
+                    }
                 });
 
                 // Load data asynchronously to prevent blocking
@@ -76,15 +83,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // will automatically set loading=false in useVsCodeApi.ts (line 388-389)
             } catch (error) {
                 log.error('Error updating solution webview:', error);
-                this._view?.webview.postMessage({
-                    command: 'error',
-                    message: 'Failed to load solution data'
+                sendToUi(this.webview, {
+                    type: 'error',
+                    payload: {
+                        message: 'Failed to load solution data'
+                    }
                 });
 
                 // Hide loading bar on error
-                this._view?.webview.postMessage({
-                    command: 'hideLoading'
-                });
+                sendToUi(this.webview, { type: 'hideLoading', });
             }
         }, 100);
     }
@@ -115,9 +122,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this._activeEditorListener = vscode.window.onDidChangeActiveTextEditor(editor => {
             if (editor && this._view) {
                 const activeFilePath = editor.document.uri.fsPath;
-                this._view.webview.postMessage({
-                    command: 'activeFileChanged',
-                    filePath: activeFilePath
+                sendToUi(this.webview, {
+                    type: 'activeFileChanged',
+                    payload: {
+                        filePath: activeFilePath
+                    }
                 });
             }
         });
@@ -125,9 +134,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Send current active file on initial load
         if (vscode.window.activeTextEditor && this._view) {
             const activeFilePath = vscode.window.activeTextEditor.document.uri.fsPath;
-            this._view.webview.postMessage({
-                command: 'activeFileChanged',
-                filePath: activeFilePath
+            sendToUi(this.webview, {
+                type: 'activeFileChanged',
+                payload: {
+                    filePath: activeFilePath
+                }
             });
         }
 
@@ -329,10 +340,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         if (fileName.endsWith('.sln')) {
             if (changeType === 'deleted') {
                 // Solution file was deleted - clear everything
-                this._view?.webview.postMessage({
-                    command: 'solutionData',
-                    projects: [],
-                    frameworks: []
+                sendToUi(this.webview, {
+                    type: 'solutionData',
+                    payload: {
+                        projects: [],
+                        frameworks: []
+                    }
                 });
             } else {
                 this._updateViewDebouncer.trigger(); // Full refresh with expansion state preservation
@@ -361,17 +374,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         const frameworks = await this._frameworkService.getAvailableFrameworks();
         const activeFramework = this._frameworkService.getActiveFramework();
 
-        // Convert extension nodes to webview nodes
-        const webviewProjects = this.extensionToWebviewNodes(projects);
-
-        const data: WebviewSolutionData = {
-            projects: webviewProjects,
+        const data: SolutionData = {
+            projects: projects,
             frameworks: frameworks || [],
             activeFramework
         };
-        this._view.webview.postMessage({
-            command: 'solutionData',
-            data
+        sendToUi(this.webview, {
+            type: 'solutionData',
+            payload: data
         });
     }
 
@@ -390,11 +400,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.info(`Creating temporary file node for parent: ${parentPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
-            this._view?.webview.postMessage({
-                command: 'addTemporaryNode',
-                parentNodeId,
-                nodeType: 'file',
-                defaultName: 'newfile.cs'
+            sendToUi(this.webview, {
+                type: 'addTemporaryNode',
+                payload: {
+                    parentNodeId,
+                    nodeType: 'file',
+                    defaultName: 'newfile.cs'
+                }
             });
 
             log.info(`Sent addTemporaryNode message to webview`);
@@ -419,11 +431,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.info(`Creating temporary folder node for parent: ${parentPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
-            this._view?.webview.postMessage({
-                command: 'addTemporaryNode',
-                parentNodeId,
-                nodeType: 'folder',
-                defaultName: 'NewFolder'
+            sendToUi(this.webview, {
+                type: 'addTemporaryNode',
+                payload: {
+                    parentNodeId,
+                    nodeType: 'folder',
+                    defaultName: 'NewFolder'
+                }
             });
 
             log.info(`Sent addTemporaryNode message to webview for folder`);
@@ -481,9 +495,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.info(`File created successfully: ${fullPath}`);
             vscode.window.showInformationMessage(`File created: ${fileName}`);
             // Send message to remove all temporary nodes for this parent
-            this._view?.webview.postMessage({
-                command: 'removeTemporaryNodes',
-                parentPath: parentPath
+            sendToUi(this.webview, {
+                type: 'removeTemporaryNodes',
+                payload: {
+                    parentPath: parentPath
+                }
             });
 
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
@@ -558,9 +574,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             vscode.window.showInformationMessage(`Folder created: ${folderName}`);
 
             // Send message to remove all temporary nodes for this parent
-            this._view?.webview.postMessage({
-                command: 'removeTemporaryNodes',
-                parentPath: parentPath
+            sendToUi(this.webview, {
+                type: 'removeTemporaryNodes',
+                payload: {
+                    parentPath: parentPath
+                }
             });
 
             // Trigger immediate tree refresh
@@ -607,24 +625,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             log.error('Error triggering immediate tree refresh:', error);
         }
-    }
-
-    /**
-     * Convert extension ProjectNode to webview ProjectNode
-     */
-    private extensionToWebviewNode(node: ExtensionProjectNode): WebviewProjectNode {
-        return {
-            ...node,
-            nodeId: NodeIdService.toKey(node.nodeId), // Convert NodeIdString to string
-            children: node.children ? node.children.map(child => this.extensionToWebviewNode(child)) : undefined
-        };
-    }
-
-    /**
-     * Convert extension ProjectNode array to webview ProjectNode array
-     */
-    private extensionToWebviewNodes(nodes: ExtensionProjectNode[]): WebviewProjectNode[] {
-        return nodes.map(node => this.extensionToWebviewNode(node));
     }
 
     /**

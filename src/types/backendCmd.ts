@@ -1,0 +1,114 @@
+import { LocalNuGetPackage } from "../webview/nuget-view/shared";
+import { ProjectActionType } from "../webview/solution-view/types";
+import { NodeIdString } from "./nodeId";
+
+export declare type GetPackageReadmeCmd = {
+    readonly type: 'getPackageReadme',
+    readonly payload: {
+        readonly packageId: string,
+        readonly version: string
+    }
+}
+
+export declare type GetPackageIconCmd = {
+    readonly type: 'getPackageIcon',
+    readonly payload: {
+        readonly packageId: string,
+        readonly version: string
+    }
+}
+
+export declare type GetNuGetDataCmd = {
+    readonly type: 'getNuGetData'
+}
+
+export declare type SearchPackagesCmd = {
+    readonly type: 'searchPackages',
+    readonly payload: {
+        readonly query: string,
+    }
+}
+
+export declare type InstallPackageCmd = {
+    readonly type: 'installPackage',
+    readonly payload: {
+        readonly package: LocalNuGetPackage,
+        readonly projects: string[],
+        readonly version: string
+    }
+}
+
+export declare type UnInstallPackageCmd = {
+    readonly type: 'uninstallPackage',
+    readonly payload: {
+        readonly package: LocalNuGetPackage,
+        readonly projects: string[],
+    }
+}
+
+export declare type BulkUpdatePackagesCmd = {
+    readonly type: 'bulkUpdatePackages',
+    readonly payload: {
+        readonly packages: LocalNuGetPackage[]
+    }
+}
+
+export declare type BulkConsolidatePackagesCmd = {
+    readonly type: 'bulkConsolidatePackages',
+    readonly payload: {
+        readonly packages: LocalNuGetPackage[]
+    }
+}
+
+export declare type GetConsolidatePackagesCmd = { readonly type: 'getConsolidatePackages' }
+
+export declare type GetSolutionDataCmd = {
+    readonly type: 'getSolutionData'
+}
+
+export declare type SetFrameworkCmd = {
+    readonly type: 'setFramework',
+    readonly payload: {
+        readonly framework: string
+    }
+}
+
+export declare type ProjectActionCmd = {
+    readonly type: 'projectAction',
+    readonly payload: {
+        readonly action: ProjectActionType,
+        readonly nodeId: NodeIdString,
+        readonly data: any | undefined
+    }
+}
+
+export declare type ExpandNodeCmd = {
+    readonly type: 'expandNode',
+    readonly payload: {
+        readonly nodeId: NodeIdString,
+        readonly nodeType: string
+    }
+}
+
+export declare type CollapseNodeCmd = {
+    readonly type: 'collapseNode',
+    readonly payload: {
+        readonly nodeId: NodeIdString,
+    }
+}
+
+export declare type BackendCmd =
+    GetPackageReadmeCmd |
+    GetPackageIconCmd |
+    GetNuGetDataCmd |
+    SearchPackagesCmd |
+    InstallPackageCmd |
+    UnInstallPackageCmd |
+    BulkUpdatePackagesCmd |
+    BulkConsolidatePackagesCmd |
+    GetConsolidatePackagesCmd |
+    GetSolutionDataCmd |
+    SetFrameworkCmd |
+    ProjectActionCmd |
+    ExpandNodeCmd |
+    CollapseNodeCmd;

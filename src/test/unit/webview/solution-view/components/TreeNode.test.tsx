@@ -2,8 +2,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TreeNode } from '../../../../../webview/solution-view/components/TreeNode/TreeNode';
-import { ProjectNode } from '../../../../../webview/solution-view/types';
-import { NodeIdString } from '../../../../../webview/shared/nodeIdUtils';
+import { NodeIdString } from '../../../../../types/nodeId';
+import { ProjectNode } from '../../../../../types';
 
 describe('TreeNode Focus and Selection States', () => {
   const mockOnProjectAction = jest.fn();

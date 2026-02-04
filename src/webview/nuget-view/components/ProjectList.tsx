@@ -12,7 +12,7 @@ interface ProjectListProps {
     selectedProjects: Set<string>;
     setSelectedProjects: (projects: Set<string>) => void;
     initializing?: boolean;
-    projectPath?: string; // For project-specific context
+    projectPath?: string | null; // For project-specific context
 }
 
 export default function ProjectList({

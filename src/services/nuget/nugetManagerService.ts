@@ -100,7 +100,7 @@ export class NuGetManagerService {
 
                     // Use the highest current version as the "current" version
                     const sortedVersions = Array.from(versions).sort((a, b) => {
-                        return VersionUtils.rcompare(a, b);
+                        return VersionUtils.compare(a, b);
                     });
 
                     const consolidatePackage = {
@@ -195,7 +195,7 @@ export class NuGetManagerService {
 
                     // Use the highest current version as the "current" version
                     const sortedVersions = Array.from(versions).sort((a, b) => {
-                        return VersionUtils.rcompare(a, b);
+                        return VersionUtils.compare(a, b);
                     });
 
                     const consolidatePackage = {

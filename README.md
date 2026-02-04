@@ -198,7 +198,6 @@ npm run test:watch
 ├── src/
 │   ├── extension.ts              # Main entry point (44 lines - 96% reduction!)
 │   ├── solutionProvider.ts      # TreeDataProvider implementation
-│   ├── solutionManager.ts       # Solution file operations
 │   ├── commands/                # Modular command architecture
 │   │   ├── commandManager.ts    # Central command registration
 │   │   ├── solutionCommands.ts  # Solution operations + NuGet UI

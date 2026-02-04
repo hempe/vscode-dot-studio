@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
-import { NodeIdService, NodeIdString } from './nodeIdService';
+import { NodeIdService } from './nodeIdService';
 import { ProjectNode } from '../types';
 import { Project } from '../core/Project';
+import { NodeIdString } from '../types/nodeId';
 
 const log = logger('SolutionExpansionService');
 

@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Panels, TextField, Button, Checkbox, Icon } from 'vscrui';
-import { VSCodeAPI, WebviewApi } from '../shared/vscode-api';
 import { logger } from '../shared/logger';
 import { LoadingBar } from '../shared/LoadingBar';
-import { ensureArray, formatAuthors, LocalNuGetPackage } from './shared';
+import { ensureArray, formatAuthors, LocalNuGetPackage, sendToBackend } from './shared';
 import NugetDetails from './components/NugetDetails';
 import NugetHeader from './components/NugetHeader';
 import { PackageActions } from './components/PackageActions';
@@ -11,34 +10,11 @@ import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 import { ProjectInfo } from '../../services/nuget/types';
 import { VersionUtils } from '../../services/versionUtils';
+import { NuGetViewData, UICmd } from '../../types/uiCmd';
 
 const log = logger('NuGetReact');
 
-declare global {
-    interface Window {
-        acquireVsCodeApi(): WebviewApi;
-    }
-}
 
-const vscode = (function () {
-    try {
-        // Try to get the real VS Code API when running in a webview
-        return window.acquireVsCodeApi();
-    } catch {
-        // Fallback to mock API for development/testing
-        log.info('Using fallback VSCodeAPI for development');
-        return new VSCodeAPI();
-    }
-})();
-
-interface NuGetViewData {
-    installedPackages: LocalNuGetPackage[];
-    searchResults: LocalNuGetPackage[];
-    updatesAvailable: LocalNuGetPackage[];
-    consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality
-    projects?: ProjectInfo[];
-    projectPath?: string;
-}
 
 
 
@@ -111,27 +87,17 @@ export const App: React.FC = () => {
     const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
     useEffect(() => {
-        vscode.postMessage({ type: 'getNuGetData' });
+        sendToBackend({ type: 'getNuGetData' });
 
         const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
+            const message = event.data as UICmd;
             log.info('NuGet React: Received message:', message);
 
-            switch (message.command) {
+            switch (message.type) {
                 case 'nugetData':
-                    log.info('NuGet React: Setting data to:', message.data);
-                    log.debug('NuGet React: Raw installed packages:', message.data?.installedPackages);
-
+                    log.info('NuGet React: Setting data to:', message.payload);
                     // Backend now sends properly grouped data
-                    const safeData = {
-                        installedPackages: ensureArray(message.data?.installedPackages),
-                        searchResults: ensureArray(message.data?.searchResults),
-                        // Backend sends 'outdatedPackages' array, not 'updatesAvailable'
-                        updatesAvailable: ensureArray(message.data?.outdatedPackages),
-                        consolidatePackages: ensureArray(message.data?.consolidatePackages),
-                        projects: ensureArray(message.data?.projects),
-                        projectPath: message.data?.projectPath
-                    };
+                    const safeData = message.payload;
 
                     log.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
                     log.debug('NuGet React: Processed consolidate packages:', safeData.consolidatePackages);
@@ -146,14 +112,14 @@ export const App: React.FC = () => {
 
                         log.info('NuGet React: Looking for package in refresh data:', {
                             selectedPackageId: selectedPackageRef.current.id,
-                            installedPackagesCount: safeData.installedPackages.length,
-                            installedPackageIds: safeData.installedPackages.map(p => p.id)
+                            installedPackagesCount: safeData.installedPackages?.length ?? 0,
+                            installedPackageIds: safeData.installedPackages?.map(p => p.id) ?? []
                         });
 
                         const updatedPackage =
-                            safeData.installedPackages.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
-                            freshEnhancedResults.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
-                            safeData.updatesAvailable.find(pkg => pkg.id === selectedPackageRef.current!.id);
+                            safeData.installedPackages?.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
+                            freshEnhancedResults?.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
+                            safeData.updatesAvailable?.find(pkg => pkg.id === selectedPackageRef.current!.id);
 
                         if (updatedPackage) {
                             log.info('NuGet React: Preserving selection after data refresh:', {
@@ -167,10 +133,10 @@ export const App: React.FC = () => {
                             // This handles cases where data refresh timing might cause temporary mismatches
                             log.warn('NuGet React: Package not found in fresh data, keeping existing selection:', {
                                 selectedPackageId: selectedPackageRef.current.id,
-                                availablePackages: safeData.installedPackages.map(p => ({ id: p.id, version: p.version }))
+                                availablePackages: safeData.installedPackages?.map(p => ({ id: p.id, version: p.version }))
                             });
                         }
-                    } else if (safeData.installedPackages.length > 0) {
+                    } else if (safeData.installedPackages && safeData.installedPackages.length > 0) {
                         // Auto-select first installed package when data loads initially
                         log.info('NuGet React: Auto-selecting package:', safeData.installedPackages[0]);
                         setSelectedPackage(safeData.installedPackages[0]);
@@ -180,48 +146,21 @@ export const App: React.FC = () => {
                     setInitializing(false);
                     break;
                 case 'searchResults':
-                    const searchResults = message.packages || message.data;
+                    const searchResults = message.payload?.searchResults;
                     log.info('NuGet React: Setting searchResults to:', searchResults);
                     setData(prev => ({ ...prev, searchResults: ensureArray(searchResults) }));
                     setLoading(false);
                     setHasSearched(true);
                     break;
-                case 'updatesAvailable':
-                    log.info('NuGet React: Setting updatesAvailable to:', message.packages);
-                    log.debug('NuGet React: Raw updatesAvailable packages:', message.packages);
-                    // Log a few sample packages to debug version issues
-                    if (Array.isArray(message.packages) && message.packages.length > 0) {
-                        message.packages.slice(0, 3).forEach((pkg: LocalNuGetPackage, idx: number) => {
-                            log.debug(`Sample update package ${idx}:`, {
-                                id: pkg.id,
-                                version: pkg.currentVersion,
-                                latestVersion: pkg.latestVersion,
-                                projectName: pkg.projectName
-                            });
-                        });
-                    }
-                    setData(prev => ({ ...prev, updatesAvailable: ensureArray(message.packages) }));
-                    break;
-                case 'packageDetails':
-                    log.info('NuGet React: Received package details:', message.package);
-                    if (message.package && selectedPackage && selectedPackage.id === message.package.id) {
-                        // Update the selected package with detailed metadata
-                        setSelectedPackage({
-                            ...selectedPackage,
-                            ...message.package
-                        });
-                        log.info('NuGet React: Updated selected package with details');
-                    }
-                    break;
                 case 'packageIcon':
-                    if (message.packageId && message.version) {
-                        const iconKey = `${message.packageId}@${message.version}`;
-                        const packageKey = message.packageId.toLowerCase(); // Use only package ID for caching
+                    if (message.payload.packageId && message.payload.version) {
+                        const iconKey = `${message.payload.packageId}@${message.payload.version}`;
+                        const packageKey = message.payload.packageId.toLowerCase(); // Use only package ID for caching
 
-                        if (message.iconUri) {
+                        if (message.payload.iconUri) {
                             setPackageIcons(prev => {
                                 const newMap = new Map(prev);
-                                newMap.set(packageKey, message.iconUri);
+                                newMap.set(packageKey, message.payload.iconUri!);
                                 return newMap;
                             });
                             log.info(`Icon received for ${iconKey}: success`);
@@ -233,17 +172,17 @@ export const App: React.FC = () => {
                     }
                     break;
                 case 'packageReadme':
-                    if (message.packageId && message.version) {
-                        const readmeKey = `${message.packageId}@${message.version}`;
-                        const packageKey = message.packageId.toLowerCase();
+                    if (message.payload.packageId && message.payload.version) {
+                        const readmeKey = `${message.payload.packageId}@${message.payload.version}`;
+                        const packageKey = message.payload.packageId.toLowerCase();
 
-                        if (message.readmeUrl) {
+                        if (message.payload.readmeUrl) {
                             setPackageReadmes(prev => {
                                 const newMap = new Map(prev);
-                                newMap.set(packageKey, message.readmeUrl);
+                                newMap.set(packageKey, message.payload.readmeUrl!);
                                 return newMap;
                             });
-                            log.info(`README URL received for ${readmeKey}: ${message.readmeUrl}`);
+                            log.info(`README URL received for ${readmeKey}: ${message.payload.readmeUrl}`);
                         } else {
                             log.info(`README not available for ${readmeKey}`);
                         }
@@ -253,27 +192,27 @@ export const App: React.FC = () => {
                 case 'uninstallComplete':
                     // Clear loading state when install/uninstall operations complete
                     setLoading(false);
-                    log.info(`NuGet React: ${message.command} - success: ${message.success}`);
+                    log.info(`NuGet React: ${message.type} - success: ${message.payload.success}`);
 
                     // Refresh data to reflect the changes in the UI
-                    if (message.success) {
-                        log.info(`NuGet React: Refreshing data after successful ${message.command}`);
-                        vscode.postMessage({ type: 'getNuGetData' });
+                    if (message.payload.success) {
+                        log.info(`NuGet React: Refreshing data after successful ${message.type}`);
+                        sendToBackend({ type: 'getNuGetData' });
                     }
                     break;
                 case 'bulkUpdateComplete':
                     // Handle bulk update completion
                     setLoading(false);
-                    log.info(`NuGet React: Bulk update complete - success: ${message.success}`);
+                    log.info(`NuGet React: Bulk update complete - success: ${message.payload.success}`);
 
                     // Refresh data and clear selections after successful bulk update
-                    if (message.success) {
+                    if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful bulk update`);
-                        vscode.postMessage({ type: 'getNuGetData' });
+                        sendToBackend({ type: 'getNuGetData' });
                         // Clear all selections after successful update
                         setData(prevData => ({
                             ...prevData,
-                            updatesAvailable: prevData.updatesAvailable.map(p => ({ ...p, selected: false }))
+                            updatesAvailable: prevData.updatesAvailable?.map(p => ({ ...p, selected: false })) ?? []
                         }));
                     }
                     break;
@@ -281,10 +220,10 @@ export const App: React.FC = () => {
                 case 'bulkConsolidateComplete':
                     // Handle bulk consolidate completion
                     setLoading(false);
-                    log.info(`NuGet React: Bulk consolidate complete - success: ${message.success}`);
+                    log.info(`NuGet React: Bulk consolidate complete - success: ${message.payload.success}`);
 
                     // Refresh data and clear selections after successful bulk consolidate
-                    if (message.success) {
+                    if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful bulk consolidate`);
                         // Reset consolidate loaded state to trigger a fresh reload
                         setConsolidateLoaded(false);
@@ -296,8 +235,8 @@ export const App: React.FC = () => {
                     }
                     break;
                 case 'consolidatePackages':
-                    log.info('NuGet React: Received consolidate packages:', message.data);
-                    setData(prev => ({ ...prev, consolidatePackages: ensureArray(message.data) }));
+                    log.info('NuGet React: Received consolidate packages:', message.payload.consolidatePackages);
+                    setData(prev => ({ ...prev, consolidatePackages: ensureArray(message.payload.consolidatePackages) }));
                     setConsolidateLoading(false);
                     setConsolidateLoaded(true);
                     break;
@@ -342,7 +281,7 @@ export const App: React.FC = () => {
         if (searchTerm.trim()) {
             log.info('Frontend: Starting search for:', searchTerm);
             setLoading(true);
-            vscode.postMessage({
+            sendToBackend({
                 type: 'searchPackages',
                 payload: {
                     query: searchTerm,
@@ -354,7 +293,7 @@ export const App: React.FC = () => {
 
     const handleInstallPackage = (pkg: LocalNuGetPackage, projects: string[], version: string) => {
         setLoading(true);
-        vscode.postMessage({
+        sendToBackend({
             type: 'installPackage',
             payload: {
                 package: pkg,
@@ -366,7 +305,7 @@ export const App: React.FC = () => {
 
     const handleUninstallPackage = (pkg: LocalNuGetPackage, projects: string[]) => {
         setLoading(true);
-        vscode.postMessage({
+        sendToBackend({
             type: 'uninstallPackage',
             payload: {
                 package: pkg,
@@ -396,7 +335,7 @@ export const App: React.FC = () => {
         // Mark as requested to prevent duplicates
         setRequestedIcons(prev => new Set(prev).add(packageKey));
 
-        vscode.postMessage({
+        sendToBackend({
             type: 'getPackageIcon',
             payload: {
                 packageId: pkg.id,
@@ -419,7 +358,7 @@ export const App: React.FC = () => {
         // Mark as requested to prevent duplicates
         setRequestedReadmes(prev => new Set(prev).add(packageKey));
 
-        vscode.postMessage({
+        sendToBackend({
             type: 'getPackageReadme',
             payload: {
                 packageId: pkg.id,
@@ -450,7 +389,7 @@ export const App: React.FC = () => {
     };
 
     // Helper function to enhance search results with installed package information
-    const enhanceWithInstalledInfo = (searchResults: LocalNuGetPackage[], installedPackages: LocalNuGetPackage[]): LocalNuGetPackage[] => {
+    const enhanceWithInstalledInfo = (searchResults?: LocalNuGetPackage[] | null, installedPackages?: LocalNuGetPackage[] | null): LocalNuGetPackage[] => {
         // Group installed packages by ID and extract their projects array
         const installedMap = new Map<string, LocalNuGetPackage>();
         const projectsMap = new Map<string, ProjectInfo[]>();
@@ -505,7 +444,7 @@ export const App: React.FC = () => {
         // Sort versions in descending order (newest first) using semver
         return filteredVersions
             .slice()
-            .sort((a, b) => VersionUtils.rcompare(a, b)) // rcompare for descending order
+            .sort((a, b) => VersionUtils.compare(a, b)) // rcompare for descending order
             .map(version => ({
                 label: version,
                 value: version
@@ -525,31 +464,15 @@ export const App: React.FC = () => {
     const selectPackageWithDetails = async (pkg: LocalNuGetPackage, index: number) => {
         setSelectedPackage(pkg);
         setSelectedIndex(index);
-
-        // Check if we already have detailed data
-        if (pkg.allVersions && pkg.tags && pkg.projectUrl) {
-            log.info('Package already has detailed metadata:', pkg.id);
-            return;
-        }
-
-        // Fetch detailed metadata
-        log.info('Fetching detailed metadata for package:', pkg.id);
-        try {
-            vscode.postMessage({
-                type: 'getPackageDetails',
-                payload: { packageId: pkg.id }
-            });
-        } catch (error) {
-            log.error('Error fetching package details:', error);
-        }
+        return;
     };
 
     const handlePackageToggle = (pkg: LocalNuGetPackage, checked: boolean) => {
         setData(prevData => ({
             ...prevData,
-            updatesAvailable: prevData.updatesAvailable.map(p =>
+            updatesAvailable: prevData.updatesAvailable?.map(p =>
                 p.id === pkg.id ? { ...p, selected: checked } : p
-            )
+            ) ?? []
         }));
     };
 
@@ -568,9 +491,9 @@ export const App: React.FC = () => {
 
         setData(prevData => ({
             ...prevData,
-            updatesAvailable: prevData.updatesAvailable.map(p =>
+            updatesAvailable: prevData.updatesAvailable?.map(p =>
                 filteredPackageIds.has(p.id) ? { ...p, selected: checked } : p
-            )
+            ) ?? []
         }));
     };
 
@@ -585,7 +508,7 @@ export const App: React.FC = () => {
         const selectedPackages = ensureArray(data.updatesAvailable).filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
-            vscode.postMessage({ type: 'bulkUpdatePackages', payload: { packages: selectedPackages } });
+            sendToBackend({ type: 'bulkUpdatePackages', payload: { packages: selectedPackages } });
         }
     };
 
@@ -615,7 +538,7 @@ export const App: React.FC = () => {
         const selectedPackages = ensureArray(data.consolidatePackages).filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
-            vscode.postMessage({ type: 'bulkConsolidatePackages', payload: { packages: selectedPackages } });
+            sendToBackend({ type: 'bulkConsolidatePackages', payload: { packages: selectedPackages } });
         }
     };
 
@@ -1113,7 +1036,7 @@ export const App: React.FC = () => {
     React.useEffect(() => {
         if (activeTab === 'consolidate' && shouldShowConsolidate && !consolidateLoaded && !consolidateLoading) {
             setConsolidateLoading(true);
-            vscode.postMessage({ type: 'getConsolidatePackages' });
+            sendToBackend({ type: 'getConsolidatePackages' });
         }
     }, [activeTab, shouldShowConsolidate, consolidateLoaded, consolidateLoading]);
 

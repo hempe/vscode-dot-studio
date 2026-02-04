@@ -3,7 +3,7 @@
  * These utilities work with the string representation without compression
  */
 
-export type NodeIdString = string;
+import { NodeIdString } from "../../types/nodeId";
 
 /**
  * Converts a NodeIdString to a React key (they're both strings in browser context)
@@ -16,7 +16,7 @@ export function nodeIdToKey(nodeId: NodeIdString): string {
  * Converts a React key back to NodeIdString (they're both strings in browser context)
  */
 export function keyToNodeId(key: string): NodeIdString {
-    return key;
+    return key as NodeIdString;
 }
 
 /**
@@ -45,5 +45,5 @@ export function extractPathFromNodeId(nodeId: NodeIdString): string | null {
 export function generateTemporaryId(parentPath: string, nodeType: string): NodeIdString {
     // TODO: This should be handled by extension side
     // For now, generate a simple temporary ID
-    return `temp:${nodeType}:${parentPath}:${Date.now()}`;
+    return `temp:${nodeType}:${parentPath}:${Date.now()}` as NodeIdString;
 }

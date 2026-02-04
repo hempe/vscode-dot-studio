@@ -1,5 +1,10 @@
 import { NuGetPackage, InstalledPackage } from "../../services/nuget/types";
 import { logger } from "../shared/logger";
+import { BackendCmd } from "../../types/backendCmd";
+import { UICmd } from "../../types/uiCmd";
+import { VSCodeAPI } from "../shared/vscode-api";
+import * as vscode from 'vscode';
+
 const log = logger('NuGetReact');
 
 // Using shared NuGetPackage interface from types
@@ -39,3 +44,29 @@ export function ensureArray<T>(value: T | T[] | null | undefined): T[] {
 
     return [];
 };
+
+declare global {
+    interface Window {
+        acquireVsCodeApi(): any;
+    }
+}
+
+const vs: { postMessage(message: BackendCmd): void } = (function () {
+    try {
+        // Try to get the real VS Code API when running in a webview
+        return window.acquireVsCodeApi();
+    } catch {
+        // Fallback to mock API for development/testing
+        log.info('Using fallback VSCodeAPI for development');
+        return new VSCodeAPI();
+    }
+})();
+
+
+export function sendToBackend(message: BackendCmd) {
+    vs.postMessage(message)
+}
+
+export function sendToUi(webview: vscode.Webview | undefined, cmd: UICmd) {
+    webview?.postMessage(cmd);
+}

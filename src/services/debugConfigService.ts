@@ -374,7 +374,7 @@ export class DebugConfigService {
             const versionB = normalizeFramework(b);
 
             // Use the same version comparison as NuGet (newest first)
-            return VersionUtils.rcompare(versionA, versionB);
+            return VersionUtils.compare(versionA, versionB);
         });
     }
 

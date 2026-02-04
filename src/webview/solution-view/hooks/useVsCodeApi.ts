@@ -1,15 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { SolutionData, ProjectActionType } from '../types';
+import { ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
-import { NodeIdString, generateTemporaryId, extractPathFromNodeId } from '../../shared/nodeIdUtils';
-
-declare global {
-    interface Window {
-        acquireVsCodeApi(): any;
-    }
-}
-
-const vscode = window.acquireVsCodeApi();
+import { generateTemporaryId, extractPathFromNodeId } from '../../shared/nodeIdUtils';
+import { sendToBackend } from '../../nuget-view/shared';
+import { NodeIdString } from '../../../types/nodeId';
+import { SolutionData } from '../../../types';
 
 // Helper function to update a node in the tree structure
 /**
@@ -355,7 +350,7 @@ export const useVsCodeApi = () => {
         log.info('Hook initialized, requesting solution data');
 
         // Request initial solution data
-        vscode.postMessage({ command: 'getSolutionData' });
+        sendToBackend({ type: 'getSolutionData' });
 
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
@@ -502,7 +497,7 @@ export const useVsCodeApi = () => {
 
     const handleFrameworkChange = useCallback((framework: string) => {
         log.info('Framework change requested:', framework);
-        vscode.postMessage({ command: 'setFramework', framework });
+        sendToBackend({ type: 'setFramework', payload: { framework } });
     }, []);
 
     const handleProjectAction = useCallback((action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => {
@@ -515,23 +510,25 @@ export const useVsCodeApi = () => {
                 return removeTemporaryNodeFromTree(prev, nodeId); // projectPath is actually nodeId in this case
             });
         } else {
-            vscode.postMessage({
-                command: 'projectAction',
-                action,
-                nodeId: nodeId,
-                data
+            sendToBackend({
+                type: 'projectAction',
+                payload: {
+                    action,
+                    nodeId: nodeId,
+                    data
+                }
             });
         }
     }, []);
 
     const expandNode = useCallback((nodeId: NodeIdString, nodeType: string) => {
         log.info('Expanding node:', nodeId, nodeType);
-        vscode.postMessage({ command: 'expandNode', nodeId: nodeId, nodeType });
+        sendToBackend({ type: 'expandNode', payload: { nodeId: nodeId, nodeType } });
     }, []);
 
     const collapseNode = useCallback((nodeId: NodeIdString) => {
         log.info('Collapsing node:', nodeId);
-        vscode.postMessage({ command: 'collapseNode', nodeId: nodeId });
+        sendToBackend({ type: 'collapseNode', payload: { nodeId: nodeId } });
     }, []);
 
     return {
