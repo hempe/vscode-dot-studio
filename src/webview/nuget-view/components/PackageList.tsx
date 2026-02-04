@@ -59,7 +59,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                 fontSize: '12px',
                 fontWeight: 600
             }}>
-                {title} ({uniquePackages.length})
+                {title} ({uniquePackages.length}) includePrerelease:{includePrerelease ? 'yes' : 'no'}
             </div>
 
             {packages.length === 0 ? (

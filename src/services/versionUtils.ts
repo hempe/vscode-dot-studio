@@ -13,22 +13,7 @@ export class VersionUtils {
      * @returns 1 if a > b, -1 if a < b, 0 if equal
      */
     static compare(a: string, b: string): number {
-        // Handle null/undefined/empty versions
-        if (!a && !b) return 0;
-        if (!a) return -1;
-        if (!b) return 1;
-
-        // Check if both versions are valid semver
-        const aValid = semver.valid(a);
-        const bValid = semver.valid(b);
-
-        if (aValid && bValid) {
-            // Both are valid semver, use semver comparison
-            return semver.compare(a, b);
-        }
-
-        // At least one is not valid semver, use custom comparison
-        return this.compareNonSemver(a, b);
+        return comp(a, b) * -1;
     }
 
     /**
@@ -65,15 +50,15 @@ export class VersionUtils {
         }
 
         // Fallback to manual parsing
-        const parts = this.parseVersionParts(version);
+        const parts = parseVersionParts(version);
         return parts[0] || 0;
     }
 
     static includePrerelease(includePrerelease: boolean): (versions: string) => boolean {
         if (includePrerelease)
-            return (_version) => true;
+            return (version) => !!version;
 
-        return (version) => !VersionUtils.isPrerelease(version);
+        return (version) => !!version && !VersionUtils.isPrerelease(version);
     }
 
     /**
@@ -98,43 +83,69 @@ export class VersionUtils {
         const prereleasePatterns = ['-alpha', '-beta', '-rc', '-preview', '-pre', '-dev'];
         return prereleasePatterns.some(pattern => version.toLowerCase().includes(pattern));
     }
+}
 
-    /**
-     * Custom version comparison for non-semver formats (like 4-part .NET versions)
-     * Handles versions like "1.2.3.4", "1.0.0.1540", etc.
-     */
-    private static compareNonSemver(a: string, b: string): number {
-        // Split versions into parts and convert to numbers
-        const aParts = this.parseVersionParts(a);
-        const bParts = this.parseVersionParts(b);
+/**
+ * Compare two version strings, handling both semver and non-semver formats
+ * @param a First version string
+ * @param b Second version string
+ * @returns 1 if a > b, -1 if a < b, 0 if equal
+ */
+function comp(a: string, b: string): number {
+    // Handle null/undefined/empty versions
+    if (!a && !b) return 0;
+    if (!a) return -1;
+    if (!b) return 1;
 
-        // Compare each part
-        const maxLength = Math.max(aParts.length, bParts.length);
+    // Check if both versions are valid semver
+    const aValid = semver.valid(a);
+    const bValid = semver.valid(b);
 
-        for (let i = 0; i < maxLength; i++) {
-            const aPart = aParts[i] || 0; // Default to 0 if part doesn't exist
-            const bPart = bParts[i] || 0;
-
-            if (aPart > bPart) return 1;
-            if (aPart < bPart) return -1;
-        }
-
-        return 0; // All parts are equal
+    if (aValid && bValid) {
+        // Both are valid semver, use semver comparison
+        return semver.compare(a, b);
     }
 
-    /**
-     * Parse version string into numeric parts, handling various formats
-     */
-    private static parseVersionParts(version: string): number[] {
-        if (!version) return [0];
+    // At least one is not valid semver, use custom comparison
+    return compareNonSemver(a, b);
+}
 
-        // Remove any non-digit, non-dot characters (like 'v' prefix, prerelease suffixes)
-        const cleanVersion = version.replace(/^v/, '').split(/[-+]/)[0];
+/**
+ * Custom version comparison for non-semver formats (like 4-part .NET versions)
+ * Handles versions like "1.2.3.4", "1.0.0.1540", etc.
+ */
+function compareNonSemver(a: string, b: string): number {
+    // Split versions into parts and convert to numbers
+    const aParts = parseVersionParts(a);
+    const bParts = parseVersionParts(b);
 
-        // Split by dots and convert to numbers
-        return cleanVersion.split('.').map(part => {
-            const num = parseInt(part, 10);
-            return isNaN(num) ? 0 : num;
-        });
+    // Compare each part
+    const maxLength = Math.max(aParts.length, bParts.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        const aPart = aParts[i] || 0; // Default to 0 if part doesn't exist
+        const bPart = bParts[i] || 0;
+
+        if (aPart > bPart) return 1;
+        if (aPart < bPart) return -1;
     }
+
+    return 0; // All parts are equal
+}
+
+
+/**
+ * Parse version string into numeric parts, handling various formats
+ */
+function parseVersionParts(version: string): number[] {
+    if (!version) return [0];
+
+    // Remove any non-digit, non-dot characters (like 'v' prefix, prerelease suffixes)
+    const cleanVersion = version.replace(/^v/, '').split(/[-+]/)[0];
+
+    // Split by dots and convert to numbers
+    return cleanVersion.split('.').map(part => {
+        const num = parseInt(part, 10);
+        return isNaN(num) ? 0 : num;
+    });
 }

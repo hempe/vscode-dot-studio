@@ -95,7 +95,7 @@ export const App: React.FC = () => {
     const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
     useEffect(() => {
-        sendToBackend({ type: 'getNuGetData' });
+        sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
 
         const handleMessage = (event: MessageEvent) => {
             const message = event.data as UICmd;
@@ -205,7 +205,7 @@ export const App: React.FC = () => {
                     // Refresh data to reflect the changes in the UI
                     if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful ${message.type}`);
-                        sendToBackend({ type: 'getNuGetData' });
+                        sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
                     }
                     break;
                 case 'bulkUpdateComplete':
@@ -216,7 +216,7 @@ export const App: React.FC = () => {
                     // Refresh data and clear selections after successful bulk update
                     if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful bulk update`);
-                        sendToBackend({ type: 'getNuGetData' });
+                        sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
                         // Clear all selections after successful update
                         setData(prevData => ({
                             ...prevData,
@@ -306,7 +306,8 @@ export const App: React.FC = () => {
             payload: {
                 package: pkg,
                 projects: projects,
-                version: version
+                version: version,
+                includePrerelease
             }
         });
     };
@@ -317,7 +318,8 @@ export const App: React.FC = () => {
             type: 'uninstallPackage',
             payload: {
                 package: pkg,
-                projects: projects
+                projects: projects,
+                includePrerelease
             }
         });
     };
@@ -1055,7 +1057,12 @@ export const App: React.FC = () => {
     React.useEffect(() => {
         if (activeTab === 'consolidate' && shouldShowConsolidate && !consolidateLoaded && !consolidateLoading) {
             setConsolidateLoading(true);
-            sendToBackend({ type: 'getConsolidatePackages' });
+            sendToBackend({
+                type: 'getConsolidatePackages',
+                payload: {
+                    includePrerelease: includePrerelease
+                }
+            });
         }
     }, [activeTab, shouldShowConsolidate, consolidateLoaded, consolidateLoading]);
 

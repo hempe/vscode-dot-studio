@@ -22,112 +22,12 @@ const log = logger('NuGetManagerService');
 export class NuGetManagerService {
 
     // ============ SOLUTION-LEVEL OPERATIONS ============
-
-    /**
-     * Get consolidation data using already-loaded installed packages (much faster)
-     * No expensive dotnet commands needed since we have all the data from installed packages
-     */
-    static getConsolidationDataFromInstalledPackages(
-        installedPackages: (InstalledPackage & { projects: ProjectInfo[] })[]
-    ): { consolidatePackages: any[] } {
-        try {
-            log.info(`Getting consolidation data from ${installedPackages.length} installed packages...`);
-
-            // Group packages by ID to find version conflicts
-            const packageGroups = new Map<string, (InstalledPackage & { projects: ProjectInfo[] })[]>();
-
-            for (const pkg of installedPackages) {
-                const existingGroup = packageGroups.get(pkg.id) || [];
-                existingGroup.push(pkg);
-                packageGroups.set(pkg.id, existingGroup);
-            }
-
-            log.info(`Grouped into ${packageGroups.size} unique package IDs`);
-
-            const consolidatePackages: any[] = [];
-
-            // Find packages with multiple versions across projects
-            for (const [packageId, packages] of packageGroups.entries()) {
-                // Check if there are different versions
-                const versions = new Set(packages.map(p => p.currentVersion));
-
-                log.debug(`Package ${packageId}: ${packages.length} instances with versions [${Array.from(versions).join(', ')}]`);
-
-                if (versions.size > 1) {
-                    log.info(`Package ${packageId} needs consolidation: versions ${Array.from(versions).join(', ')}`);
-                    // This package needs consolidation
-                    const versionGroups = new Map<string, string[]>();
-
-                    // Group by version to get project paths per version
-                    for (const pkg of packages) {
-                        const version = pkg.currentVersion;
-                        const existingProjects = versionGroups.get(version) || [];
-                        // Add all project paths from this package
-                        for (const project of pkg.projects) {
-                            if (!existingProjects.includes(project.path)) {
-                                existingProjects.push(project.path);
-                            }
-                        }
-                        versionGroups.set(version, existingProjects);
-                    }
-
-                    // Get latest version from any of the packages (they should all have the same latestVersion)
-                    const latestVersion = packages[0].latestVersion;
-
-                    // Create consolidation info
-                    const versions_array = Array.from(versionGroups.entries()).map(([version, projects]) => ({
-                        version,
-                        projects
-                    }));
-
-                    // Create consolidate package for UI
-                    const allProjects = packages.reduce((acc, pkg) => {
-                        for (const project of pkg.projects) {
-                            if (!acc.find(p => p.path === project.path)) {
-                                acc.push(project);
-                            }
-                        }
-                        return acc;
-                    }, [] as ProjectInfo[]);
-
-                    // Use the highest current version as the "current" version
-                    const sortedVersions = Array.from(versions).sort((a, b) => {
-                        return VersionUtils.compare(a, b);
-                    });
-
-                    const consolidatePackage = {
-                        ...packages[0], // Use first package as base
-                        currentVersion: sortedVersions[0],
-                        latestVersion,
-                        allVersions: Array.from(versions),
-                        needsConsolidation: true,
-                        currentVersions: versions_array,
-                        projects: allProjects
-                    };
-
-                    consolidatePackages.push(consolidatePackage);
-                }
-            }
-
-            log.info(`Found ${consolidatePackages.length} packages needing consolidation (from ${installedPackages.length} installed packages)`);
-
-            return {
-                consolidatePackages
-            };
-
-        } catch (error) {
-            log.error('Error getting consolidation data from installed packages:', error);
-            return {
-                consolidatePackages: []
-            };
-        }
-    }
-
     /**
      * Get consolidation data from flat package list (works with version conflicts)
      */
     static getConsolidationDataFromFlatPackages(
-        flatPackages: (BasicInstalledPackage & { projectInfo: ProjectInfo })[]
+        flatPackages: (BasicInstalledPackage & { projectInfo: ProjectInfo })[],
+        includePrerelease: boolean
     ): { consolidatePackages: any[] } {
         try {
             log.info(`Getting consolidation data from ${flatPackages.length} flat packages...`);
@@ -178,9 +78,11 @@ export class NuGetManagerService {
                     const allProjects = Array.from(versionGroups.values()).flat();
 
                     // Use the highest current version as the "current" version
-                    const sortedVersions = Array.from(versions).sort((a, b) => {
-                        return VersionUtils.compare(a, b);
-                    });
+                    const sortedVersions = Array.from(versions)
+                        .filter(VersionUtils.includePrerelease(includePrerelease))
+                        .sort((a, b) => {
+                            return VersionUtils.compare(a, b);
+                        });
 
                     const consolidatePackage = {
                         id: packageId,
@@ -212,7 +114,7 @@ export class NuGetManagerService {
     /**
      * Get comprehensive solution-wide NuGet data for the Package Manager UI
      */
-    static async getSolutionNuGetData(solutionPath: string) {
+    static async getSolutionNuGetData(solutionPath: string, includePrerelease: boolean) {
         try {
             log.info(`Getting solution NuGet data for: ${solutionPath}`);
 
@@ -236,7 +138,7 @@ export class NuGetManagerService {
             const installedPackages = await this.getGroupedInstalledPackages(solutionPath, false, allProjects);
 
             // Get outdated packages by filtering installed packages (much faster than dotnet list --outdated)
-            const outdatedPackages = await this.getGroupedOutdatedPackages(solutionPath, false, allProjects);
+            const outdatedPackages = await this.getGroupedOutdatedPackages(includePrerelease, solutionPath, false, allProjects);
             log.info(`Found ${outdatedPackages.length} outdated packages`);
 
             // Get consolidation data from flat package list (before grouping)
@@ -245,7 +147,7 @@ export class NuGetManagerService {
                 ...pkg,
                 projectInfo: project
             })));
-            const { consolidatePackages: rawConsolidatePackages } = this.getConsolidationDataFromFlatPackages(flatPackageList);
+            const { consolidatePackages: rawConsolidatePackages } = this.getConsolidationDataFromFlatPackages(flatPackageList, includePrerelease);
 
             // Enrich consolidate packages with metadata (like authors, description, etc.)
             const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(rawConsolidatePackages);
@@ -335,9 +237,15 @@ export class NuGetManagerService {
      * Get outdated packages by filtering installed packages that have newer versions available
      * Much faster than running dotnet list --outdated commands
      */
-    static async getGroupedOutdatedPackages(targetPath?: string, isProject: boolean = false, allProjects?: ProjectInfo[])
+    static async getGroupedOutdatedPackages(
+        includePrerelease: boolean,
+        targetPath?: string,
+        isProject: boolean = false,
+        allProjects?: ProjectInfo[])
         : Promise<(UpdateablePackage & { projects: ProjectInfo[] })[]> {
         try {
+            /// TODO: WHY ANY CASTS?
+
             // Get installed packages with metadata (which includes latestVersion)
             const installedPackages = isProject
                 ? await this.getGroupedInstalledPackages(targetPath!, true, allProjects)
@@ -350,7 +258,9 @@ export class NuGetManagerService {
 
             for (const pkg of installedPackages) {
                 const currentVersion = pkg.currentVersion;
-                const latestVersion = pkg.latestVersion;
+                const latestVersion = pkg.versions
+                    ?.filter(VersionUtils.includePrerelease(includePrerelease))
+                    .sort(VersionUtils.compare)?.[0];
 
                 log.debug(`Package ${pkg.id}: current=${currentVersion}, latest=${latestVersion}, hasLatest=${!!latestVersion}`);
 
@@ -359,18 +269,12 @@ export class NuGetManagerService {
                         // Use version utilities to compare versions
                         if (VersionUtils.compare(latestVersion, currentVersion) > 0) {
                             // Convert InstalledPackage to UpdateablePackage format
-                            const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = {
-                                ...pkg,
-                                latestVersion
-                            } as any;
+                            const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = pkg as any;
                             outdatedPackages.push(updateablePackage);
                         } else {
                             // Fallback to simple string comparison if versions are the same
                             if (currentVersion !== latestVersion) {
-                                const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = {
-                                    ...pkg,
-                                    latestVersion
-                                } as any;
+                                const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = pkg as any;
                                 outdatedPackages.push(updateablePackage);
                             }
                         }
@@ -379,7 +283,6 @@ export class NuGetManagerService {
                         if (currentVersion !== latestVersion) {
                             const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = {
                                 ...pkg,
-                                latestVersion
                             } as any;
                             outdatedPackages.push(updateablePackage);
                         }
@@ -438,7 +341,7 @@ export class NuGetManagerService {
     /**
      * Get comprehensive project-specific NuGet data for the Package Manager UI
      */
-    static async getProjectNuGetData(projectPath: string) {
+    static async getProjectNuGetData(projectPath: string, includePrerelease: boolean) {
         try {
             log.info(`Getting project NuGet data for: ${projectPath}`);
 
@@ -451,7 +354,7 @@ export class NuGetManagerService {
                 outdatedPackages
             ] = await Promise.all([
                 this.getGroupedInstalledPackages(projectPath, true, allProjects),
-                this.getGroupedOutdatedPackages(projectPath, true, allProjects)
+                this.getGroupedOutdatedPackages(includePrerelease, projectPath, true, allProjects)
             ]);
 
             return {

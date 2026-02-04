@@ -65,7 +65,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         );
 
         // Send initial data when webview is ready
-        this._updateWebview(webviewPanel.webview, context);
+        this._updateWebview(webviewPanel.webview, context, false);
     }
 
     private async _handleMessage(message: BackendCmd, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {
@@ -79,7 +79,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             switch (messageType) {
                 case 'getNuGetData':
-                    await this._updateWebview(webview, context);
+                    await this._updateWebview(webview, context, message.payload.includePrerelease);
                     break;
 
                 case 'searchPackages':
@@ -87,7 +87,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     break;
 
                 case 'getConsolidatePackages':
-                    await this._handleGetConsolidatePackages(webview, context);
+                    await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
                     break;
 
                 case 'installPackage':
@@ -134,14 +134,17 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _updateWebview(webview?: vscode.Webview, context?: { type: 'project' | 'solution', target: string }) {
+    private async _updateWebview(
+        webview: vscode.Webview | null | undefined,
+        context: { type: 'project' | 'solution', target: string },
+        includePrerelease: boolean) {
         if (!webview) {
             return;
         }
 
         try {
             // Get NuGet data based on context (project vs solution)
-            const nugetData = await this._getNuGetData(context);
+            const nugetData = await this._getNuGetData(context, includePrerelease);
 
             sendToUi(webview, {
                 type: 'nugetData',
@@ -269,7 +272,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     /**
      * Get NuGet data based on context (project vs solution)
      */
-    private async _getNuGetData(context?: { type: 'project' | 'solution', target: string }): Promise<NuGetViewData> {
+    private async _getNuGetData(
+        context: { type: 'project' | 'solution', target: string } | null | undefined,
+        includePrerelease: boolean): Promise<NuGetViewData> {
         if (!context) {
             return {
                 projects: [],
@@ -302,7 +307,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             if (context.type === 'solution') {
                 // Return solution-wide NuGet data
-                const solutionData = await NuGetManagerService.getSolutionNuGetData(context.target);
+                const solutionData = await NuGetManagerService.getSolutionNuGetData(context.target, includePrerelease);
                 return {
                     updatesAvailable: solutionData.outdatedPackages,
                     installedPackages: solutionData.installedPackages?.map(x => ({
@@ -315,7 +320,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 };
             } else {
                 // Return project-specific NuGet data
-                const projectData = await NuGetManagerService.getProjectNuGetData(context.target);
+                const projectData = await NuGetManagerService.getProjectNuGetData(context.target, includePrerelease);
                 return {
                     updatesAvailable: projectData.outdatedPackages,
                     installedPackages: projectData.installedPackages?.map(x => ({
@@ -359,11 +364,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _handleGetConsolidatePackages(webview: vscode.Webview, context: { type: 'project' | 'solution', target: string }) {
+    private async _handleGetConsolidatePackages(
+        webview: vscode.Webview,
+        context: { type: 'project' | 'solution', target: string },
+        includePrerelease: boolean) {
         try {
             if (context.type === 'solution') {
                 // Lazy load consolidation data
-                const consolidationData = await NuGetManagerService.getSolutionNuGetData(context.target);
+                const consolidationData = await NuGetManagerService.getSolutionNuGetData(context.target, includePrerelease);
                 sendToUi(webview, {
                     type: 'consolidatePackages',
                     payload: {
@@ -428,7 +436,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             }
 
             // Refresh the webview
-            await this._updateWebview(webview, context);
+            await this._updateWebview(webview, context, message.payload.includePrerelease);
 
             // Send completion message to clear loading state
             sendToUi(webview, {
@@ -490,7 +498,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             }
 
             // Refresh the webview
-            await this._updateWebview(webview, context);
+            await this._updateWebview(webview, context, message.payload.includePrerelease);
 
             // Send completion message to clear loading state
             sendToUi(webview, {
@@ -689,7 +697,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             });
 
             // Refresh the consolidate tab data
-            await this._handleGetConsolidatePackages(webview, context);
+            await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
 
             // Send completion message to frontend
             sendToUi(webview, {

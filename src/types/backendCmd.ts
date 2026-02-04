@@ -20,6 +20,9 @@ export declare type GetPackageIconCmd = {
 
 export declare type GetNuGetDataCmd = {
     readonly type: 'getNuGetData'
+    readonly payload: {
+        readonly includePrerelease: boolean
+    }
 }
 
 export declare type SearchPackagesCmd = {
@@ -35,6 +38,7 @@ export declare type InstallPackageCmd = {
         readonly package: LocalNuGetPackage,
         readonly projects: string[],
         readonly version: string
+        readonly includePrerelease: boolean
     }
 }
 
@@ -43,6 +47,7 @@ export declare type UnInstallPackageCmd = {
     readonly payload: {
         readonly package: LocalNuGetPackage,
         readonly projects: string[],
+        readonly includePrerelease: boolean
     }
 }
 
@@ -62,7 +67,12 @@ export declare type BulkConsolidatePackagesCmd = {
     }
 }
 
-export declare type GetConsolidatePackagesCmd = { readonly type: 'getConsolidatePackages' }
+export declare type GetConsolidatePackagesCmd = {
+    readonly type: 'getConsolidatePackages'
+    readonly payload: {
+        readonly includePrerelease: boolean
+    }
+}
 
 export declare type GetSolutionDataCmd = {
     readonly type: 'getSolutionData'

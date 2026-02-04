@@ -99,7 +99,6 @@ export interface NuGetPackage {
 /**
  * Installed package with enriched NuGet API metadata
  * Combines basic installed package info with optional metadata from NuGet API
- * currentVersion = installed version, latestVersion = latest available version
  */
 export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion'>> & {
     /** Package description from NuGet API */
@@ -116,8 +115,6 @@ export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage
     readonly tags?: string[];
     /** Total download count across all versions */
     readonly totalDownloads?: number;
-    /** Latest stable version available from NuGet API */
-    readonly latestVersion?: string;
     /** All available versions (sorted) */
     readonly allVersions?: string[];
     /** Package source URL or name */
@@ -127,9 +124,8 @@ export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage
 /**
  * Updateable package with enriched NuGet API metadata
  * Combines basic updateable package info with optional metadata from NuGet API
- * currentVersion = installed version, latestVersion = latest available version
  */
-export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion' | 'latestVersion'>> & {
+export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion'>> & {
     /** Package description from NuGet API */
     readonly description?: string;
     /** Package authors/owners */
