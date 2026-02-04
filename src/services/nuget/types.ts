@@ -36,7 +36,7 @@ export interface BasicUpdateablePackage {
     /** The version currently installed in the project */
     readonly currentVersion: string;
     /** The latest version available from the package source */
-    readonly latestVersion: string;
+    readonly versions: string[];
     /** Absolute path to the project file (.csproj) */
     readonly projectPath: string;
     /** Name of the project (filename without extension) */
@@ -90,10 +90,8 @@ export interface NuGetPackage {
     readonly tags?: string[];
     /** Total download count across all versions */
     readonly totalDownloads?: number;
-    /** Latest stable version available */
-    readonly latestVersion?: string;
     /** All available versions (sorted) */
-    readonly allVersions?: string[];
+    readonly versions?: string[];
     /** Package source URL or name where this package was found */
     readonly source?: string;
 }
@@ -196,23 +194,6 @@ export interface ProjectInfo {
     readonly framework: string;
     /** All packages installed in this project */
     readonly packages: InstalledPackage[];
-}
-
-/**
- * Information about packages that need version consolidation across projects
- */
-export interface ConsolidationInfo {
-    /** The package identifier */
-    readonly packageId: string;
-    /** Breakdown of which projects use which versions */
-    readonly versions: Array<{
-        /** Version string */
-        readonly version: string;
-        /** Projects using this version */
-        readonly projects: string[];
-    }>;
-    /** Latest version available (optional) */
-    readonly latestVersion?: string;
 }
 
 /**

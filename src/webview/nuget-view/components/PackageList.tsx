@@ -9,6 +9,7 @@ import { VersionUtils } from '../../../services/versionUtils';
 interface PackageListProps {
     packages: LocalNuGetPackage[];
     loading?: boolean;
+    includePrerelease: boolean;
     emptyMessage: string;
     loadingMessage?: string;
     searchTerm?: string;
@@ -28,6 +29,7 @@ interface PackageListProps {
 export const PackageList: React.FC<PackageListProps> = ({
     packages,
     loading = false,
+    includePrerelease = false,
     emptyMessage,
     loadingMessage = "Loading packages...",
     searchTerm = '',
@@ -44,6 +46,9 @@ export const PackageList: React.FC<PackageListProps> = ({
     title
 }) => {
     const uniquePackages = ensureArray(packages);
+    // Helper function to determine if a version is prerelease using semver
+    const includePrereleaseFn = (includePrerelease: boolean): (versions: string) => boolean => VersionUtils.includePrerelease(includePrerelease);
+    const compare = (a: string, b: string): number => VersionUtils.compare(a, b);
 
     return (
         <>
@@ -202,7 +207,8 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         fontWeight: 500,
                                         color: 'var(--vscode-foreground)'
                                     }}>
-                                        v{pkg.latestVersion || pkg.currentVersion}
+                                        v{pkg.versions?.filter(includePrereleaseFn(includePrerelease))
+                                            .sort(compare)[0] || pkg.currentVersion}
                                     </div>
                                     {/* Max installed version - only show if different from current and package has projects */}
                                     {pkg.projects && pkg.projects.length > 0 && (() => {
@@ -213,7 +219,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                         }).filter(Boolean);
                                         if (installedVersions.length > 0) {
                                             const maxInstalledVersion = installedVersions.sort((a, b) => {
-                                                return VersionUtils.compare(a!, b!); // rcompare for descending order
+                                                return compare(a!, b!); // rcompare for descending order
                                             })[0];
 
                                             // Always show the max installed version when package is installed

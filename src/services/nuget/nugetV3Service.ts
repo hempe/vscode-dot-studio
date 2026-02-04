@@ -539,7 +539,7 @@ export class NuGetV3Service {
                     iconUrl: item.iconUrl,
                     tags: item.tags || [],
                     totalDownloads: item.totalDownloads || 0,
-                    allVersions: allVersions
+                    versions: allVersions
                 });
             }
 
@@ -596,9 +596,7 @@ export class NuGetV3Service {
             });
 
             // Pick the highest version (using version utilities)
-            const latestEntry = sorted.slice().reverse()[0];
-
-            const entry = latestEntry;
+            const entry = sorted.slice()[0];
 
             // Normalize authors
             const authors =
@@ -624,11 +622,10 @@ export class NuGetV3Service {
                 projectUrl: entry.projectUrl ?? "",
                 licenseUrl: entry.licenseUrl ?? "",
                 iconUrl: entry.iconUrl ?? "",
-                latestVersion: entry.version,
                 source: entry.source,
                 tags,
                 totalDownloads: 0, // still not exposed by registration API
-                allVersions: sorted.filter(x => x.version).map(x => x.version)
+                versions: sorted.filter(x => x.version).map(x => x.version)
             };
         } catch (error) {
             log.error(`Error parsing package details: ${packageUrl}`, error, flatEntries);

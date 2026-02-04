@@ -51,6 +51,11 @@ export const App: React.FC = () => {
     const [packageReadmes, setPackageReadmes] = useState<Map<string, string>>(new Map());
     const [requestedReadmes, setRequestedReadmes] = useState<Set<string>>(new Set());
 
+    // Helper function to determine if a version is prerelease using semver
+    const includePrereleaseFn = (includePrerelease: boolean): (versions: string) => boolean => VersionUtils.includePrerelease(includePrerelease);
+    const compare = (a: string, b: string): number => VersionUtils.compare(a, b);
+    const isPrerelease = (version: string): boolean => VersionUtils.isPrerelease(version);
+
     // Helper function to filter packages based on search term
     const filterPackages = (packages: LocalNuGetPackage[], searchTerm: string) => {
         if (!searchTerm.trim()) {
@@ -79,7 +84,10 @@ export const App: React.FC = () => {
 
     // Helper function to get version change text for Updates tab
     const getVersionChangeText = (pkg: LocalNuGetPackage): string => {
-        return formatVersionDisplay(pkg.currentVersion, pkg.latestVersion);
+        return formatVersionDisplay(
+            pkg.currentVersion,
+            pkg.versions?.filter(includePrereleaseFn(includePrerelease))
+                .sort(compare)[0]);
     };
 
     // Compute filtered package lists
@@ -424,27 +432,23 @@ export const App: React.FC = () => {
         });
     };
 
-    // Helper function to determine if a version is prerelease using semver
-    const isPrerelease = (version: string): boolean => {
-        return VersionUtils.isPrerelease(version);
-    };
 
     // Helper function to get version options for dropdown
     const getVersionOptions = (pkg: LocalNuGetPackage) => {
-        if (!pkg.allVersions || pkg.allVersions.length === 0) {
+        if (!pkg.versions || pkg.versions.length === 0) {
             return [{ label: pkg.currentVersion, value: pkg.currentVersion }];
         }
 
         // Filter versions based on prerelease setting
-        let filteredVersions = pkg.allVersions;
+        let filteredVersions = pkg.versions;
         if (!includePrerelease) {
-            filteredVersions = pkg.allVersions.filter(version => !isPrerelease(version));
+            filteredVersions = pkg.versions.filter(version => !isPrerelease(version));
         }
 
         // Sort versions in descending order (newest first) using semver
         return filteredVersions
             .slice()
-            .sort((a, b) => VersionUtils.compare(a, b)) // rcompare for descending order
+            .sort((a, b) => compare(a, b)) // rcompare for descending order
             .map(version => ({
                 label: version,
                 value: version
@@ -508,7 +512,13 @@ export const App: React.FC = () => {
         const selectedPackages = ensureArray(data.updatesAvailable).filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
-            sendToBackend({ type: 'bulkUpdatePackages', payload: { packages: selectedPackages } });
+            sendToBackend({
+                type: 'bulkUpdatePackages',
+                payload: {
+                    packages: selectedPackages,
+                    includePrerelease
+                }
+            });
         }
     };
 
@@ -538,7 +548,13 @@ export const App: React.FC = () => {
         const selectedPackages = ensureArray(data.consolidatePackages).filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
-            sendToBackend({ type: 'bulkConsolidatePackages', payload: { packages: selectedPackages } });
+            sendToBackend({
+                type: 'bulkConsolidatePackages',
+                payload: {
+                    packages: selectedPackages,
+                    includePrerelease
+                }
+            });
         }
     };
 
@@ -659,6 +675,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        includePrerelease={includePrerelease}
                         packages={enhancedSearchResults}
                         loading={loading}
                         emptyMessage="Search for packages to browse"
@@ -791,6 +808,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        includePrerelease={includePrerelease}
                         packages={filteredPackages}
                         loading={loading}
                         emptyMessage="No packages installed"
@@ -934,6 +952,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        includePrerelease={includePrerelease}
                         packages={filteredUpdates}
                         loading={loading}
                         emptyMessage="No updates available"
@@ -1166,6 +1185,7 @@ export const App: React.FC = () => {
                     }}
                 >
                     <PackageList
+                        includePrerelease={includePrerelease}
                         packages={filteredConsolidate}
                         loading={consolidateLoading}
                         emptyMessage={consolidateLoaded ? "No packages need consolidation" : "Loading consolidation data..."}

@@ -1,7 +1,6 @@
 import { logger } from '../../core/logger';
 import { PackageBrowseService } from './packageBrowseService';
 import { PackageInstalledService } from './packageInstalledService';
-import { PackageUpdateService } from './packageUpdateService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageSharedService } from './packageSharedService';
 import { VersionUtils } from '../versionUtils';
@@ -30,7 +29,7 @@ export class NuGetManagerService {
      */
     static getConsolidationDataFromInstalledPackages(
         installedPackages: (InstalledPackage & { projects: ProjectInfo[] })[]
-    ): { consolidationInfo: any[], consolidatePackages: any[] } {
+    ): { consolidatePackages: any[] } {
         try {
             log.info(`Getting consolidation data from ${installedPackages.length} installed packages...`);
 
@@ -46,7 +45,6 @@ export class NuGetManagerService {
             log.info(`Grouped into ${packageGroups.size} unique package IDs`);
 
             const consolidatePackages: any[] = [];
-            const consolidationInfo: any[] = [];
 
             // Find packages with multiple versions across projects
             for (const [packageId, packages] of packageGroups.entries()) {
@@ -82,12 +80,6 @@ export class NuGetManagerService {
                         projects
                     }));
 
-                    consolidationInfo.push({
-                        packageId,
-                        versions: versions_array,
-                        latestVersion
-                    });
-
                     // Create consolidate package for UI
                     const allProjects = packages.reduce((acc, pkg) => {
                         for (const project of pkg.projects) {
@@ -120,14 +112,12 @@ export class NuGetManagerService {
             log.info(`Found ${consolidatePackages.length} packages needing consolidation (from ${installedPackages.length} installed packages)`);
 
             return {
-                consolidationInfo,
                 consolidatePackages
             };
 
         } catch (error) {
             log.error('Error getting consolidation data from installed packages:', error);
             return {
-                consolidationInfo: [],
                 consolidatePackages: []
             };
         }
@@ -138,7 +128,7 @@ export class NuGetManagerService {
      */
     static getConsolidationDataFromFlatPackages(
         flatPackages: (BasicInstalledPackage & { projectInfo: ProjectInfo })[]
-    ): { consolidationInfo: any[], consolidatePackages: any[] } {
+    ): { consolidatePackages: any[] } {
         try {
             log.info(`Getting consolidation data from ${flatPackages.length} flat packages...`);
 
@@ -154,7 +144,6 @@ export class NuGetManagerService {
             log.info(`Grouped into ${packageGroups.size} unique package IDs`);
 
             const consolidatePackages: any[] = [];
-            const consolidationInfo: any[] = [];
 
             // Find packages with multiple versions across projects
             for (const [packageId, packages] of packageGroups.entries()) {
@@ -185,11 +174,6 @@ export class NuGetManagerService {
                         projects: projects.map(p => p.path)
                     }));
 
-                    consolidationInfo.push({
-                        packageId,
-                        versions: versions_array
-                    });
-
                     // Create consolidate package for UI
                     const allProjects = Array.from(versionGroups.values()).flat();
 
@@ -214,14 +198,12 @@ export class NuGetManagerService {
             log.info(`Found ${consolidatePackages.length} packages needing consolidation (from ${flatPackages.length} flat packages)`);
 
             return {
-                consolidationInfo,
                 consolidatePackages
             };
 
         } catch (error) {
             log.error('Error getting consolidation data from flat packages:', error);
             return {
-                consolidationInfo: [],
                 consolidatePackages: []
             };
         }
@@ -245,7 +227,6 @@ export class NuGetManagerService {
                     totalPackages: 0,
                     installedPackages: [],
                     outdatedPackages: [],
-                    consolidationInfo: [],
                     consolidatePackages: [],
                     updateStats: { total: 0, outdated: 0, majorUpdates: 0, hasOutdated: false },
                     lastUpdated: new Date().toISOString()
@@ -258,16 +239,13 @@ export class NuGetManagerService {
             const outdatedPackages = await this.getGroupedOutdatedPackages(solutionPath, false, allProjects);
             log.info(`Found ${outdatedPackages.length} outdated packages`);
 
-            // Calculate update stats from outdated packages (much faster than dotnet commands)
-            const updateStats = this.calculateUpdateStats(outdatedPackages);
-
             // Get consolidation data from flat package list (before grouping)
             const allProjectsData = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
             const flatPackageList = allProjectsData.flatMap(project => project.packages.map(pkg => ({
                 ...pkg,
                 projectInfo: project
             })));
-            const { consolidationInfo, consolidatePackages: rawConsolidatePackages } = this.getConsolidationDataFromFlatPackages(flatPackageList);
+            const { consolidatePackages: rawConsolidatePackages } = this.getConsolidationDataFromFlatPackages(flatPackageList);
 
             // Enrich consolidate packages with metadata (like authors, description, etc.)
             const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(rawConsolidatePackages);
@@ -280,10 +258,7 @@ export class NuGetManagerService {
                 totalPackages: installedPackages.length,
                 installedPackages,
                 outdatedPackages,
-                consolidationInfo, // Keep original for backend use
                 consolidatePackages, // UI-ready format
-                updateStats,
-                lastUpdated: new Date().toISOString()
             };
 
         } catch (error) {
@@ -319,7 +294,6 @@ export class NuGetManagerService {
                     log.debug('Sample package structure:', {
                         id: pkg.id,
                         currentVersion: pkg.currentVersion,
-                        latestVersion: pkg.latestVersion,
                         description: pkg.description,
                         authors: pkg.authors,
                         projectName: pkg.projectName,
@@ -459,21 +433,6 @@ export class NuGetManagerService {
         return results;
     }
 
-    /**
-     * Update all outdated packages in solution
-     */
-    static async updateAllPackagesInSolution(solutionPath: string) {
-        const allProjects = await PackageInstalledService.getAllProjectsInfo(solutionPath);
-        const results: PackageOperationResult[] = [];
-
-        for (const project of allProjects) {
-            const projectResults = await PackageUpdateService.updateAllPackages(project.path);
-            results.push(...projectResults);
-        }
-
-        return results;
-    }
-
     // ============ PROJECT-LEVEL OPERATIONS ============
 
     /**
@@ -540,49 +499,5 @@ export class NuGetManagerService {
 
         // Add more validation as needed
         return { valid: true };
-    }
-
-    /**
-     * Calculate update statistics from outdated packages
-     */
-    private static calculateUpdateStats(outdatedPackages: any[]): {
-        total: number;
-        outdated: number;
-        majorUpdates: number;
-        hasOutdated: boolean;
-    } {
-        try {
-            // Track projects with updates for potential future use
-            new Set(outdatedPackages.flatMap(pkg =>
-                pkg.projects?.map((p: any) => p.path) || []
-            )).size;
-
-            // Consider packages as "critical" if they have major version updates
-            const criticalUpdates = outdatedPackages.filter(pkg => {
-                try {
-                    const currentVersion = pkg.currentVersion;
-                    const latestVersion = pkg.latestVersion;
-                    return VersionUtils.isMajorUpdate(currentVersion, latestVersion);
-                } catch {
-                    return false;
-                }
-            }).length;
-
-            return {
-                total: outdatedPackages.length,
-                outdated: outdatedPackages.length,
-                majorUpdates: criticalUpdates,
-                hasOutdated: outdatedPackages.length > 0
-            };
-
-        } catch (error) {
-            log.error('Error calculating update statistics:', error);
-            return {
-                total: 0,
-                outdated: 0,
-                majorUpdates: 0,
-                hasOutdated: false
-            };
-        }
     }
 }

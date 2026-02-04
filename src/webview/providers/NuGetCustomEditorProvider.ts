@@ -10,6 +10,7 @@ import { PackageOperationsService } from '../../services/nuget/packageOperations
 import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
 import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/backendCmd';
 import { NuGetViewData } from '../../types/uiCmd';
+import { VersionUtils } from '../../services/versionUtils';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -544,7 +545,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                             const result = await PackageUpdateService.updatePackage(
                                 context.target,
                                 pkg.id,
-                                pkg.latestVersion
+                                pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
+                                    .sort(VersionUtils.compare)[0]
                             );
                             results.push(result);
 
@@ -555,7 +557,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                                     const result = await PackageUpdateService.updatePackage(
                                         project.path,
                                         pkg.id,
-                                        pkg.latestVersion
+                                        pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
+                                            .sort(VersionUtils.compare)[0]
                                     );
                                     results.push(result);
                                 } catch (error) {
@@ -642,7 +645,9 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
                     try {
                         // For consolidation, we need to find the target version and affected projects
-                        const targetVersion = pkg.latestVersion || pkg.currentVersion;
+                        const targetVersion = pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
+                            .sort(VersionUtils.compare)[0]
+                            || pkg.currentVersion;
 
                         if (context.type === 'solution') {
                             // Use the consolidation service to consolidate this specific package

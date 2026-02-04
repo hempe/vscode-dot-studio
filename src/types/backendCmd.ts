@@ -50,13 +50,15 @@ export declare type BulkUpdatePackagesCmd = {
     readonly type: 'bulkUpdatePackages',
     readonly payload: {
         readonly packages: LocalNuGetPackage[]
+        readonly includePrerelease: boolean,
     }
 }
 
 export declare type BulkConsolidatePackagesCmd = {
     readonly type: 'bulkConsolidatePackages',
     readonly payload: {
-        readonly packages: LocalNuGetPackage[]
+        readonly packages: LocalNuGetPackage[],
+        readonly includePrerelease: boolean
     }
 }
 

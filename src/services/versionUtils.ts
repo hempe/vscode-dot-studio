@@ -69,20 +69,11 @@ export class VersionUtils {
         return parts[0] || 0;
     }
 
-    /**
-     * Check if an update from currentVersion to latestVersion is a major version update
-     * @param currentVersion Current version string
-     * @param latestVersion Latest version string
-     * @returns true if it's a major version update
-     */
-    static isMajorUpdate(currentVersion: string, latestVersion: string): boolean {
-        try {
-            const currentMajor = this.getMajorVersion(currentVersion);
-            const latestMajor = this.getMajorVersion(latestVersion);
-            return latestMajor > currentMajor;
-        } catch {
-            return false;
-        }
+    static includePrerelease(includePrerelease: boolean): (versions: string) => boolean {
+        if (includePrerelease)
+            return (_version) => true;
+
+        return (version) => !VersionUtils.isPrerelease(version);
     }
 
     /**
