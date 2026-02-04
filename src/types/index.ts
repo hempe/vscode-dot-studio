@@ -50,3 +50,7 @@ export interface SolutionData {
     frameworks: string[];
     activeFramework?: string;
 }
+
+export type Mutable<T> = {
+    -readonly [P in keyof T]: T[P];
+};

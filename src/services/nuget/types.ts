@@ -11,19 +11,19 @@
  */
 export interface BasicInstalledPackage {
     /** The package identifier (e.g., "Newtonsoft.Json") */
-    id: string;
+    readonly id: string;
     /** The version currently installed in the project */
-    currentVersion: string;
+    readonly currentVersion: string;
     /** Absolute path to the project file (.csproj) */
-    projectPath: string;
+    readonly projectPath: string;
     /** Name of the project (filename without extension) */
-    projectName: string;
+    readonly projectName: string;
     /** Actual resolved version (may differ from requested version) */
-    resolved?: string;
+    readonly resolved?: string;
     /** Whether this package was automatically referenced by the framework */
-    autoReferenced?: boolean;
+    readonly autoReferenced?: boolean;
     /** Whether this is a transitive dependency (not directly referenced) */
-    transitivePackage?: boolean;
+    readonly transitivePackage?: boolean;
 }
 
 /**
@@ -32,15 +32,15 @@ export interface BasicInstalledPackage {
  */
 export interface BasicUpdateablePackage {
     /** The package identifier (e.g., "Newtonsoft.Json") */
-    id: string;
+    readonly id: string;
     /** The version currently installed in the project */
-    currentVersion: string;
+    readonly currentVersion: string;
     /** The latest version available from the package source */
-    latestVersion: string;
+    readonly latestVersion: string;
     /** Absolute path to the project file (.csproj) */
-    projectPath: string;
+    readonly projectPath: string;
     /** Name of the project (filename without extension) */
-    projectName: string;
+    readonly projectName: string;
 }
 
 /**
@@ -49,19 +49,19 @@ export interface BasicUpdateablePackage {
  */
 export interface BasicConsolidationPackage {
     /** The package identifier (e.g., "Newtonsoft.Json") */
-    id: string;
+    readonly id: string;
     /** The highest version currently used across all projects */
-    currentVersion: string;
+    readonly currentVersion: string;
     /** The latest version available from the package source (optional) */
-    latestVersion?: string;
+    readonly latestVersion?: string;
     /** All versions currently in use across projects */
-    allVersions: string[];
+    readonly allVersions: string[];
     /** Always true for consolidation packages */
-    needsConsolidation: true;
+    readonly needsConsolidation: true;
     /** Breakdown of which projects use which versions */
-    currentVersions: Array<{ version: string; projects: string[] }>;
+    readonly currentVersions: Array<{ version: string; projects: string[] }>;
     /** Project information for all projects using this package */
-    projects: ProjectInfo[];
+    readonly projects: ProjectInfo[];
 }
 
 // ============ FULL TYPES (For UI/API) ============
@@ -91,9 +91,9 @@ export interface NuGetPackage {
     /** Total download count across all versions */
     readonly totalDownloads?: number;
     /** Latest stable version available */
-    latestVersion?: string;
+    readonly latestVersion?: string;
     /** All available versions (sorted) */
-    allVersions?: string[];
+    readonly allVersions?: string[];
     /** Package source URL or name where this package was found */
     readonly source?: string;
 }
@@ -105,25 +105,25 @@ export interface NuGetPackage {
  */
 export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion'>> & {
     /** Package description from NuGet API */
-    description?: string;
+    readonly description?: string;
     /** Package authors/owners */
-    authors?: string[];
+    readonly authors?: string[];
     /** Project or repository URL */
-    projectUrl?: string;
+    readonly projectUrl?: string;
     /** License information URL */
-    licenseUrl?: string;
+    readonly licenseUrl?: string;
     /** Package icon URL */
-    iconUrl?: string;
+    readonly iconUrl?: string;
     /** Package tags for categorization */
-    tags?: string[];
+    readonly tags?: string[];
     /** Total download count across all versions */
-    totalDownloads?: number;
+    readonly totalDownloads?: number;
     /** Latest stable version available from NuGet API */
-    latestVersion?: string;
+    readonly latestVersion?: string;
     /** All available versions (sorted) */
-    allVersions?: string[];
+    readonly allVersions?: string[];
     /** Package source URL or name */
-    source?: string;
+    readonly source?: string;
 };
 
 /**
@@ -133,23 +133,23 @@ export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage
  */
 export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPackage, 'id' | 'currentVersion' | 'latestVersion'>> & {
     /** Package description from NuGet API */
-    description?: string;
+    readonly description?: string;
     /** Package authors/owners */
-    authors?: string[];
+    readonly authors?: string[];
     /** Project or repository URL */
-    projectUrl?: string;
+    readonly projectUrl?: string;
     /** License information URL */
-    licenseUrl?: string;
+    readonly licenseUrl?: string;
     /** Package icon URL */
-    iconUrl?: string;
+    readonly iconUrl?: string;
     /** Package tags for categorization */
-    tags?: string[];
+    readonly tags?: string[];
     /** Total download count across all versions */
-    totalDownloads?: number;
+    readonly totalDownloads?: number;
     /** All available versions (sorted) */
-    allVersions?: string[];
+    readonly allVersions?: string[];
     /** Package source URL or name */
-    source?: string;
+    readonly source?: string;
 }
 
 /**
@@ -157,13 +157,13 @@ export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPacka
  */
 export interface PackageSearchOptions {
     /** Search query string */
-    query: string;
+    readonly query: string;
     /** Specific package source to search (optional) */
-    source?: string;
+    readonly source?: string;
     /** Maximum number of results to return */
-    take?: number;
+    readonly take?: number;
     /** Number of results to skip (for pagination) */
-    skip?: number;
+    readonly skip?: number;
 }
 
 /**
@@ -171,17 +171,17 @@ export interface PackageSearchOptions {
  */
 export interface PackageInstallOptions {
     /** The package identifier to install */
-    packageId: string;
+    readonly packageId: string;
     /** Specific version to install (optional, defaults to latest) */
-    version?: string;
+    readonly version?: string;
     /** Path to the project file (.csproj) */
-    projectPath: string;
+    readonly projectPath: string;
     /** Package source to install from (optional) */
-    source?: string;
+    readonly source?: string;
     /** Whether to allow prerelease versions */
-    prerelease?: boolean;
+    readonly prerelease?: boolean;
     /** Whether to skip package restore after installation */
-    noRestore?: boolean;
+    readonly noRestore?: boolean;
 }
 
 /**
@@ -189,13 +189,13 @@ export interface PackageInstallOptions {
  */
 export interface ProjectInfo {
     /** Project name (filename without extension) */
-    name: string;
+    readonly name: string;
     /** Absolute path to the project file (.csproj) */
-    path: string;
+    readonly path: string;
     /** Target framework (e.g., "net8.0", "netstandard2.0") */
-    framework: string;
+    readonly framework: string;
     /** All packages installed in this project */
-    packages: InstalledPackage[];
+    readonly packages: InstalledPackage[];
 }
 
 /**
@@ -203,16 +203,16 @@ export interface ProjectInfo {
  */
 export interface ConsolidationInfo {
     /** The package identifier */
-    packageId: string;
+    readonly packageId: string;
     /** Breakdown of which projects use which versions */
-    versions: Array<{
+    readonly versions: Array<{
         /** Version string */
-        version: string;
+        readonly version: string;
         /** Projects using this version */
-        projects: string[];
+        readonly projects: string[];
     }>;
     /** Latest version available (optional) */
-    latestVersion?: string;
+    readonly latestVersion?: string;
 }
 
 /**
@@ -221,13 +221,13 @@ export interface ConsolidationInfo {
  */
 export interface PackageSource {
     /** Display name of the package source */
-    name: string;
+    readonly name: string;
     /** URL of the package source API */
-    url: string;
+    readonly url: string;
     /** Whether this source is currently enabled */
-    enabled: boolean;
+    readonly enabled: boolean;
     /** Whether this is a local file system source */
-    isLocal: boolean;
+    readonly isLocal: boolean;
 }
 
 
@@ -253,13 +253,13 @@ export function upgradeNuGetOrgUrl(sourceUrl: string): string {
  */
 export interface PackageOperationResult {
     /** Whether the operation completed successfully */
-    success: boolean;
+    readonly success: boolean;
     /** Human-readable message describing the result */
-    message: string;
+    readonly message: string;
     /** Package identifier that was operated on (optional) */
-    packageId?: string;
+    readonly packageId?: string;
     /** Version that was operated on (optional) */
-    version?: string;
+    readonly version?: string;
     /** Project path where the operation occurred (optional) */
-    projectPath?: string;
+    readonly projectPath?: string;
 }

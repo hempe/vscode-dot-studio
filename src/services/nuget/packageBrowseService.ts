@@ -6,6 +6,7 @@ import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl }
 import { NuGetV3Service } from './nugetV3Service';
 import { VersionUtils } from '../versionUtils';
 import { NuGetCredentialManager } from './nugetCredentialManager';
+import { Mutable } from '../../types';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -113,7 +114,7 @@ export class PackageBrowseService {
             const sources: PackageSource[] = [];
             const lines = stdout.split('\n').filter(line => line.trim());
 
-            let currentSource: Partial<PackageSource> = {};
+            let currentSource: Mutable<Partial<PackageSource>> = {};
 
             for (const line of lines) {
                 const trimmedLine = line.trim();
