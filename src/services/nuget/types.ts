@@ -55,9 +55,7 @@ export interface BasicConsolidationPackage {
     /** The latest version available from the package source (optional) */
     readonly latestVersion?: string;
     /** All versions currently in use across projects */
-    readonly allVersions: string[];
-    /** Always true for consolidation packages */
-    readonly needsConsolidation: true;
+    readonly versions: string[];
     /** Breakdown of which projects use which versions */
     readonly currentVersions: Array<{ version: string; projects: string[] }>;
     /** Project information for all projects using this package */
@@ -116,7 +114,7 @@ export type InstalledPackage = BasicInstalledPackage & Partial<Omit<NuGetPackage
     /** Total download count across all versions */
     readonly totalDownloads?: number;
     /** All available versions (sorted) */
-    readonly allVersions?: string[];
+    readonly versions?: string[];
     /** Package source URL or name */
     readonly source?: string;
 };
@@ -141,7 +139,7 @@ export type UpdateablePackage = BasicUpdateablePackage & Partial<Omit<NuGetPacka
     /** Total download count across all versions */
     readonly totalDownloads?: number;
     /** All available versions (sorted) */
-    readonly allVersions?: string[];
+    readonly versions?: string[];
     /** Package source URL or name */
     readonly source?: string;
 }

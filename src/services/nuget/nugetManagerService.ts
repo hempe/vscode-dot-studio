@@ -12,6 +12,7 @@ import {
     InstalledPackage,
     UpdateablePackage
 } from './types';
+import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
 
 const log = logger('NuGetManagerService');
 
@@ -28,7 +29,7 @@ export class NuGetManagerService {
     static getConsolidationDataFromFlatPackages(
         flatPackages: (BasicInstalledPackage & { projectInfo: ProjectInfo })[],
         includePrerelease: boolean
-    ): { consolidatePackages: any[] } {
+    ): { consolidatePackages: LocalNuGetPackage[] } {
         try {
             log.info(`Getting consolidation data from ${flatPackages.length} flat packages...`);
 
@@ -43,7 +44,7 @@ export class NuGetManagerService {
 
             log.info(`Grouped into ${packageGroups.size} unique package IDs`);
 
-            const consolidatePackages: any[] = [];
+            const consolidatePackages: LocalNuGetPackage[] = [];
 
             // Find packages with multiple versions across projects
             for (const [packageId, packages] of packageGroups.entries()) {
@@ -68,29 +69,19 @@ export class NuGetManagerService {
                         versionGroups.set(version, existingProjects);
                     }
 
-                    // Create consolidation info
-                    const versions_array = Array.from(versionGroups.entries()).map(([version, projects]) => ({
-                        version,
-                        projects: projects.map(p => p.path)
-                    }));
-
                     // Create consolidate package for UI
                     const allProjects = Array.from(versionGroups.values()).flat();
 
                     // Use the highest current version as the "current" version
                     const sortedVersions = Array.from(versions)
                         .filter(VersionUtils.includePrerelease(includePrerelease))
-                        .sort((a, b) => {
-                            return VersionUtils.compare(a, b);
-                        });
+                        .sort((a, b) => VersionUtils.compare(a, b));
 
-                    const consolidatePackage = {
+                    const consolidatePackage: LocalNuGetPackage = {
                         id: packageId,
                         currentVersion: sortedVersions[0],
-                        allVersions: Array.from(versions),
-                        needsConsolidation: true,
-                        currentVersions: versions_array,
-                        projects: allProjects
+                        versions: Array.from(versions),
+                        projects: allProjects,
                     };
 
                     consolidatePackages.push(consolidatePackage);
@@ -244,8 +235,6 @@ export class NuGetManagerService {
         allProjects?: ProjectInfo[])
         : Promise<(UpdateablePackage & { projects: ProjectInfo[] })[]> {
         try {
-            /// TODO: WHY ANY CASTS?
-
             // Get installed packages with metadata (which includes latestVersion)
             const installedPackages = isProject
                 ? await this.getGroupedInstalledPackages(targetPath!, true, allProjects)

@@ -202,35 +202,30 @@ export class NuGetV3Service {
                     }
 
                     // 🧮 Find the page with the highest `upper` version
-                    const pages = packageData.items.filter((i: any) => i['@id'] && i.upper);
+                    const pages: any[] = packageData.items.filter((i: any) => i['@id'] && i.upper);
                     if (pages.length === 0) {
                         return null;
                     }
 
                     // Compare versions using version utilities
-                    const latestPage = pages.reduce((best: any, cur: any) => {
-                        try {
-                            return VersionUtils.compare(cur.upper, best.upper) > 0 ? cur : best;
-                        } catch {
-                            return cur.upper > best.upper ? cur : best;
-                        }
-                    }, pages[0]);
+                    const latestPages = pages.sort((best: any, cur: any) => VersionUtils.compare(cur.upper, best.upper) * -1).slice(0, 2);
 
-                    let allItems: any[] = [];
+                    const allItems: any[] = [];
+                    for (const latestPage of latestPages) {
 
-                    if (Array.isArray(latestPage.items) && latestPage.items.length > 0) {
-                        allItems = latestPage.items;
-                    } else if (latestPage['@id']) {
-                        // 🔗 Fetch only the latest page
-                        const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
-                        if (subResponse.statusCode === 200) {
-                            const subData = JSON.parse(subResponse.body);
-                            allItems = subData.items || [];
-                        } else {
-                            log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
+                        if (Array.isArray(latestPage.items) && latestPage.items.length > 0) {
+                            allItems.push(...latestPage.items);
+                        } else if (latestPage['@id']) {
+                            // 🔗 Fetch only the latest page
+                            const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
+                            if (subResponse.statusCode === 200) {
+                                const subData = JSON.parse(subResponse.body);
+                                allItems.push(subData.items || []);
+                            } else {
+                                log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
+                            }
                         }
                     }
-
                     if (allItems.length === 0) {
                         return null;
                     }
@@ -523,6 +518,8 @@ export class NuGetV3Service {
             for (const item of data) {
                 // Get all available versions
                 const versions = item.versions || [];
+                debugger;
+                console.error("what the hell?");
                 const allVersions = versions.map((v: any) => v.version).filter(Boolean);
 
                 // Use the top-level version as it represents the latest according to search API
