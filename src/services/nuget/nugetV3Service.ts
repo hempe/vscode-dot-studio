@@ -208,7 +208,7 @@ export class NuGetV3Service {
                     }
 
                     // Compare versions using version utilities
-                    const latestPages = pages.sort((best: any, cur: any) => VersionUtils.compare(cur.upper, best.upper) * -1).slice(0, 2);
+                    const latestPages = pages.sort((best: any, cur: any) => VersionUtils.compare(cur.upper, best.upper)).slice(0, 2);
 
                     const allItems: any[] = [];
                     for (const latestPage of latestPages) {

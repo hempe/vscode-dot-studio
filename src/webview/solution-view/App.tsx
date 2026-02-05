@@ -2,6 +2,7 @@ import React from 'react';
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
+import { sendToBackend } from '../nuget-view/shared';
 
 
 export const App: React.FC = React.memo(() => {
@@ -30,6 +31,9 @@ export const App: React.FC = React.memo(() => {
 
     // Debug logging to find the issue
     console.error('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData, 'projects:', solutionData?.projects?.length);
+    if (!solutionData)
+        // Show loading bar in webview
+        sendToBackend({ type: 'getSolutionData' });
 
     if (loading) {
         return (

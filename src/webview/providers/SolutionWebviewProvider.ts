@@ -12,28 +12,10 @@ import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
 import { NodeIdString } from '../../types/nodeId';
 import { sendToUi } from '../nuget-view/shared';
-import { ProjectActionType } from '../solution-view/types';
+import { BackendCmd } from '../../types/backendCmd';
 
 const log = logger('SolutionWebviewProvider');
 
-interface WebviewMessage {
-    command: string;
-    framework?: string;
-    action?: ProjectActionType;
-    projectPath?: string;
-    data?: MessageData;
-    expandedNodes?: string[];
-    nodeId?: NodeIdString;
-    nodeType?: string;
-}
-
-interface MessageData {
-    type?: string;
-    oldName?: string;
-    newName?: string;
-    name?: string;
-    isConfirmed?: boolean;
-}
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotnet-solution-webview';
@@ -61,14 +43,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this._updateViewDebouncer = new SimpleDebounceManager(async () => {
             try {
                 console.error('Debounced updateView triggered');
-
-                // Show loading bar in webview
-                sendToUi(this.webview, {
-                    type: 'showLoading',
-                    payload: {
-                        message: 'Loading solution...'
-                    }
-                });
 
                 // Load data asynchronously to prevent blocking
                 log.info('Loading solution data and frameworks...');
@@ -145,83 +119,75 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         this._sendCachedData();
     }
 
-    private async _handleMessage(message: WebviewMessage) {
+    private async _handleMessage(message: BackendCmd) {
         log.info('Received message:', message);
 
-        switch (message.command) {
+        switch (message.type) {
             case 'getSolutionData':
                 log.info('Handling getSolutionData request');
                 await this._sendCachedData();
                 break;
 
             case 'setFramework':
-                log.info('Handling setFramework request:', message.framework);
-                await this._frameworkService.setActiveFramework(message.framework);
+                log.info('Handling setFramework request:', message.payload.framework);
+                await this._frameworkService.setActiveFramework(message.payload.framework);
                 break;
 
             case 'projectAction':
-                if (message.action && message.nodeId) {
+                if (message.payload.action && message.payload.nodeId) {
                     log.info('Handling projectAction:', {
-                        action: message.action,
-                        nodeId: message.nodeId,
-                        data: message.data
+                        action: message.payload.action,
+                        nodeId: message.payload.nodeId,
+                        data: message.payload.data
                     });
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
-                    if (message.action === 'addFile') {
-                        if (message.data?.isConfirmed && message.data?.name) {
-                            await this._handleCreateFileAction(message.nodeId, message.data.name);
+                    if (message.payload.action === 'addFile') {
+                        if (message.payload.data?.isConfirmed && message.payload.data?.name) {
+                            await this._handleCreateFileAction(message.payload.nodeId, message.payload.data.name);
                         } else {
-                            await this._handleAddFileAction(message.nodeId);
+                            await this._handleAddFileAction(message.payload.nodeId);
                         }
-                    } else if (message.action === 'addFolder') {
-                        if (message.data?.isConfirmed && message.data?.name) {
-                            await this._handleCreateFolderAction(message.nodeId, message.data.name);
+                    } else if (message.payload.action === 'addFolder') {
+                        if (message.payload.data?.isConfirmed && message.payload.data?.name) {
+                            await this._handleCreateFolderAction(message.payload.nodeId, message.payload.data.name);
                         } else {
-                            await this._handleAddFolderAction(message.nodeId);
+                            await this._handleAddFolderAction(message.payload.nodeId);
                         }
                     } else {
-                        await SolutionActionService.handleProjectAction(message.action, message.nodeId!, message.data);
+                        await SolutionActionService.handleProjectAction(message.payload.action, message.payload.nodeId!, message.payload.data);
 
                         // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
                         const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
-                        if (solutionFileOperations.includes(message.action)) {
+                        if (solutionFileOperations.includes(message.payload.action)) {
                             const solution = SolutionService.getActiveSolution();
                             if (solution) {
-                                log.info(`Triggering immediate file change handling after ${message.action} operation`);
+                                log.info(`Triggering immediate file change handling after ${message.payload.action} operation`);
                                 this.handleFileChange(solution.solutionPath, 'changed');
                             }
                         }
 
                         // Trigger immediate tree refresh for file/folder operations that affect the filesystem
                         const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
-                        if (operationsThatAffectTree.includes(message.action)) {
-                            const projectPath = NodeIdService.getPathFromId(message.nodeId!);
+                        if (operationsThatAffectTree.includes(message.payload.action)) {
+                            const projectPath = NodeIdService.getPathFromId(message.payload.nodeId!);
                             if (!projectPath) {
-                                log.error('Invalid node ID, cannot extract path for immediate refresh:', message.nodeId);
+                                log.error('Invalid node ID, cannot extract path for immediate refresh:', message.payload.nodeId);
                                 return;
                             }
                             const fileName = path.basename(projectPath);
-                            await this._triggerImmediateTreeRefresh(`${message.action} operation: ${fileName}`);
+                            await this._triggerImmediateTreeRefresh(`${message.payload.action} operation: ${fileName}`);
                         }
                     }
                 }
                 break;
 
-            case 'openFile':
-                log.info('Handling direct openFile request:', message.projectPath);
-                if (message.projectPath) {
-                    const uri = vscode.Uri.file(message.projectPath);
-                    await vscode.window.showTextDocument(uri);
-                }
-                break;
-
             case 'expandNode':
-                if (message.nodeId && message.nodeType) {
-                    log.info('Handling expandNode request:', message.nodeId, message.nodeType);
+                if (message.payload.nodeId && message.payload.nodeType) {
+                    log.info('Handling expandNode request:', message.payload.nodeId, message.payload.nodeType);
                     await SolutionExpansionService.handleExpandNode(
-                        message.nodeId!,
-                        message.nodeType,
+                        message.payload.nodeId!,
+                        message.payload.nodeType,
                         this._cachedSolutionData || null,
                         () => this._sendCachedData(),
                         this._context
@@ -230,10 +196,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'collapseNode':
-                if (message.nodeId) {
-                    log.info('Handling collapseNode request:', message.nodeId);
+                if (message.payload.nodeId) {
+                    log.info('Handling collapseNode request:', message.payload.nodeId);
                     await SolutionExpansionService.handleCollapseNode(
-                        message.nodeId!,
+                        message.payload.nodeId!,
                         this._cachedSolutionData || null,
                         () => this._sendCachedData(),
                         this._context
@@ -242,7 +208,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             default:
-                log.info('Unknown message command:', message.command);
+                log.info('Unknown message command:', message);
         }
     }
 

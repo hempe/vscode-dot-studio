@@ -5,6 +5,7 @@ import { generateTemporaryId, extractPathFromNodeId } from '../../shared/nodeIdU
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
 import { SolutionData } from '../../../types';
+import { UICmd } from '../../../types/uiCmd';
 
 // Helper function to update a node in the tree structure
 /**
@@ -91,129 +92,6 @@ const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData):
         projects: mergedProjects
     };
 };
-
-const updateNodeInTree = (solutionData: SolutionData, oldNodeId: string, newName: string, newPath?: string): SolutionData => {
-    const updateNode = (node: any): any => {
-        if (node.nodeId === oldNodeId) {
-            // This is the node we want to update
-            return {
-                ...node,
-                name: newName,
-                path: newPath || node.path // Keep existing path if not provided
-            };
-        }
-
-        if (node.children) {
-            return {
-                ...node,
-                children: node.children.map(updateNode)
-            };
-        }
-
-        return node;
-    };
-
-    return {
-        ...solutionData,
-        projects: solutionData.projects.map(updateNode)
-    };
-};
-
-// Helper function to add a project to the tree structure
-const addProjectToTree = (solutionData: SolutionData, newProject: any): SolutionData => {
-    const addToNode = (nodes: any[]): any[] => {
-        return nodes.map(node => {
-            // If this is a solution node, add the project to its children
-            if (node.type === 'solution') {
-                return {
-                    ...node,
-                    children: node.children ? [...node.children, newProject] : [newProject]
-                };
-            }
-            // Recursively check children for solution nodes
-            if (node.children) {
-                return {
-                    ...node,
-                    children: addToNode(node.children)
-                };
-            }
-            return node;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: addToNode(solutionData.projects)
-    };
-};
-
-// Helper function to remove a project from the tree structure
-const removeProjectFromTree = (solutionData: SolutionData, projectNodeId: string): SolutionData => {
-    const removeNode = (nodes: any[]): any[] => {
-        return nodes.filter(node => {
-            if (node.nodeId === projectNodeId) {
-                return false; // Remove this node
-            }
-            if (node.children) {
-                node.children = removeNode(node.children);
-            }
-            return true;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: removeNode(solutionData.projects)
-    };
-};
-
-// Helper function to add a file to the tree structure
-const addFileToTree = (solutionData: SolutionData, file: any, parentNodeId: string): SolutionData => {
-    const addFileToNode = (nodes: any[]): any[] => {
-        return nodes.map(node => {
-            if (node.nodeId === parentNodeId) {
-                // Found the parent, add the file to its children
-                return {
-                    ...node,
-                    children: node.children ? [...node.children, file] : [file]
-                };
-            }
-            if (node.children) {
-                return {
-                    ...node,
-                    children: addFileToNode(node.children)
-                };
-            }
-            return node;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: addFileToNode(solutionData.projects)
-    };
-};
-
-// Helper function to remove a file from the tree structure
-const removeFileFromTree = (solutionData: SolutionData, fileNodeId: string): SolutionData => {
-    const removeFileFromNode = (nodes: any[]): any[] => {
-        return nodes.filter(node => {
-            if (node.nodeId === fileNodeId) {
-                return false; // Remove this file
-            }
-            if (node.children) {
-                node.children = removeFileFromNode(node.children);
-            }
-            return true;
-        });
-    };
-
-    return {
-        ...solutionData,
-        projects: removeFileFromNode(solutionData.projects)
-    };
-};
-
 // Helper function to add a temporary node for creation
 const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: NodeIdString, nodeType: string, defaultName: string): SolutionData => {
     const parentPath = extractPathFromNodeId(parentNodeId);
@@ -299,10 +177,10 @@ const removeTemporaryNodeFromTree = (solutionData: SolutionData, nodeId: NodeIdS
 };
 
 // Helper function to remove all temporary nodes from a specific parent
-const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentNodeId: string): SolutionData => {
+const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentPath: string): SolutionData => {
     const removeTemporaryFromNode = (nodes: any[]): any[] => {
         return nodes.map(node => {
-            if (node.nodeId === parentNodeId && node.children) {
+            if (node.nodeId === parentPath && node.children) {
                 // Remove all temporary children from this parent
                 return {
                     ...node,
@@ -354,125 +232,43 @@ export const useVsCodeApi = () => {
 
         // Listen for messages from the extension
         const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
-            switch (message.command) {
-                case 'loading':
-                    log.info('Setting refreshing state');
-                    // If we already have data, show refreshing indicator instead of full loading
-                    if (solutionData) {
-                        setRefreshing(true);
-                    } else {
-                        setLoading(true);
-                    }
-                    break;
-                case 'showLoading':
-                    // Skip showing loading for quick operations
-                    break;
+            const message = event.data as UICmd;
+            switch (message.type) {
                 case 'hideLoading':
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    console.error('📥 Received full solution data:', message.data);
-                    console.error('📥 Projects count:', message.data?.projects?.length);
-                    setSolutionData(prev => mergeTreeData(prev, message.data));
+                    console.error('📥 Received full solution data:', message.payload);
+                    console.error('📥 Projects count:', message.payload?.projects?.length);
+                    setSolutionData(prev => mergeTreeData(prev, message.payload));
                     console.error('📥 Setting loading=false, refreshing=false');
                     setLoading(false);
                     setRefreshing(false);
                     break;
-                case 'frameworkChanged':
-                    log.info('Framework changed to:', message.framework);
-                    setSolutionData(prev => prev ? { ...prev, activeFramework: message.framework } : null);
-                    break;
                 case 'error':
-                    log.info('Received error:', message.message);
+                    log.info('Received error:', message.payload.message);
                     setLoading(false);
-                    break;
-                case 'nodeRenamed':
-                    log.info('Node renamed:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        const nodeId = findNodeIdFromPath(prev.projects, message.oldPath);
-                        if (nodeId) {
-                            return updateNodeInTree(prev, nodeId, message.newName, message.newPath);
-                        }
-                        return prev;
-                    });
-                    break;
-                case 'projectAdded':
-                    log.info('Project added:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        return addProjectToTree(prev, message.project);
-                    });
-                    break;
-                case 'projectRemoved':
-                    log.info('Project removed:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        const nodeId = findNodeIdFromPath(prev.projects, message.projectPath);
-                        if (nodeId) {
-                            return removeProjectFromTree(prev, nodeId);
-                        }
-                        return prev;
-                    });
-                    break;
-                case 'fileChanged':
-                    log.info('File changed:', message);
-                    // For now just log - could be used to show file modification indicators
-                    // or trigger specific updates based on file type
-                    break;
-                case 'fileAdded':
-                    log.info('File added:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        const parentNodeId = findNodeIdFromPath(prev.projects, message.parentPath);
-                        if (parentNodeId) {
-                            return addFileToTree(prev, message.file, parentNodeId);
-                        }
-                        return prev;
-                    });
-                    break;
-                case 'fileRemoved':
-                    log.info('File removed:', message);
-                    setSolutionData(prev => {
-                        if (!prev) return prev;
-                        const nodeId = findNodeIdFromPath(prev.projects, message.filePath);
-                        if (nodeId) {
-                            return removeFileFromTree(prev, nodeId);
-                        }
-                        return prev;
-                    });
-                    break;
-                case 'updateSolution':
-                    log.info('Received complete solution update:', message);
-                    setSolutionData({
-                        projects: message.projects || [],
-                        frameworks: message.frameworks || [],
-                        activeFramework: message.activeFramework
-                    });
-                    setLoading(false);
-                    setRefreshing(false);
                     break;
                 case 'addTemporaryNode':
                     log.info('Adding temporary node:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        const parentNodeId = message.parentNodeId;
-                        log.info('findNodeIdFromPath result for path:', message.parentNodeId, 'nodeId:', parentNodeId);
+                        const parentNodeId = message.payload.parentNodeId;
+                        log.info('findNodeIdFromPath result for path:', message.payload.parentNodeId, 'nodeId:', parentNodeId);
                         if (parentNodeId) {
-                            return addTemporaryNodeToTree(prev, parentNodeId, message.nodeType, message.defaultName);
+                            return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeType, message.payload.defaultName);
                         } else {
-                            log.error('Could not find nodeId for parentNodeId:', message.parentNodeId);
+                            log.error('Could not find nodeId for parentNodeId:', message.payload.parentNodeId);
                         }
                         return prev;
                     });
                     break;
                 case 'removeTemporaryNodes':
-                    log.info('Removing temporary nodes from parent:', message.parentPath);
+                    log.info('Removing temporary nodes from parent:', message.payload.parentPath);
                     setSolutionData(prev => {
                         if (!prev) return prev;
-                        const parentNodeId = message.parentNodeId;
+                        const parentNodeId = message.payload.parentPath;
                         if (parentNodeId) {
                             return removeTemporaryNodesFromParent(prev, parentNodeId);
                         }
@@ -480,11 +276,11 @@ export const useVsCodeApi = () => {
                     });
                     break;
                 case 'activeFileChanged':
-                    log.info('Active file changed:', message.filePath);
-                    setActiveFilePath(message.filePath);
+                    log.info('Active file changed:', message.payload.filePath);
+                    setActiveFilePath(message.payload.filePath);
                     break;
                 default:
-                    log.info('Unknown message command:', message.command);
+                    log.info('Unknown message command:', message.payload);
             }
         };
 

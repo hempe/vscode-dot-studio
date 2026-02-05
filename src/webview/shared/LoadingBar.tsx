@@ -8,6 +8,7 @@ interface LoadingBarProps {
 /**
  * Shared loading progress bar component with VS Code styling
  * Used across different webview components for consistent loading indicators
+ * Animation keyframes are defined in the HTML template files
  */
 export const LoadingBar: React.FC<LoadingBarProps> = ({ visible, className }) => {
     return (

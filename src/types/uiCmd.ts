@@ -89,11 +89,9 @@ export declare type PackageReadmeCmd = {
     }
 }
 
-export declare type ShowLoadingCmd = {
-    readonly type: 'showLoading',
-    readonly payload: {
-        readonly message: string,
-    }
+export declare type LoadingCmd = {
+    readonly type: 'loading',
+    readonly payload: {}
 }
 
 export declare type HideLoadingCmd = {
@@ -144,7 +142,7 @@ export declare type UICmd =
     BulkConsolidateCompleteCmd |
     PackageIconCmd |
     PackageReadmeCmd |
-    ShowLoadingCmd |
+    LoadingCmd |
     HideLoadingCmd |
     ActiveFileChangedCmd |
     SolutionDataCmd |
