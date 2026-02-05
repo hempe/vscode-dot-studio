@@ -257,28 +257,6 @@ export class PackageInstalledService {
         }
     }
 
-    /**
-     * Get packages with dependency tree information
-     */
-    static async getPackageDependencies(projectPath: string, includeTransitive: boolean = false): Promise<InstalledPackage[]> {
-        try {
-            const args = ['list', `"${projectPath}"`, 'package', '--format', 'json'];
-
-            if (includeTransitive) {
-                args.push('--include-transitive');
-            }
-
-            const command = `dotnet ${args.join(' ')}`;
-            log.info(`Getting package dependencies: ${command}`);
-
-            const { stdout } = await execAsync(command, { timeout: 20000 });
-            return this.parseInstalledPackages(stdout);
-
-        } catch (error) {
-            log.error(`Error getting package dependencies for ${projectPath}:`, error);
-            return [];
-        }
-    }
 
     /**
      * Parse the JSON output from dotnet list package command
