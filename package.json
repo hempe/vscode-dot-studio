@@ -80,16 +80,6 @@
           "group": "navigation@2"
         }
       ]
-    },
-    "configuration": {
-      "title": ".NET Solution",
-      "properties": {
-        "dotnet.solution.activeFramework": {
-          "type": "string",
-          "description": "Active target framework for debugging",
-          "default": null
-        }
-      }
     }
   },
   "scripts": {

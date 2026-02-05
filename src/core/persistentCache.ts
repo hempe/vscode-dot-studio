@@ -82,20 +82,6 @@ export class PersistentCache<T> {
     }
 
     /**
-     * Check if cached entry is fresh (within maxAge)
-     */
-    isFresh(entry: CacheEntry<T>): boolean {
-        return (Date.now() - entry.timestamp) < this.options.maxAge;
-    }
-
-    /**
-     * Check if cached entry is stale but still usable
-     */
-    isStale(entry: CacheEntry<T>): boolean {
-        return !this.isFresh(entry);
-    }
-
-    /**
      * Delete cache entry
      */
     async delete(key: string): Promise<void> {
@@ -139,40 +125,6 @@ export class PersistentCache<T> {
         } catch (error) {
             log.error('Failed to get cache keys:', error);
             return [];
-        }
-    }
-
-    /**
-     * Get cache statistics
-     */
-    async getStats(): Promise<{ totalEntries: number; totalSize: number; oldestEntry: number; newestEntry: number }> {
-        try {
-            const keys = await this.getAllKeys();
-            let totalSize = 0;
-            let oldestEntry = Date.now();
-            let newestEntry = 0;
-
-            for (const key of keys) {
-                const filePath = this.getFilePath(key);
-                const stats = await fs.promises.stat(filePath);
-                totalSize += stats.size;
-
-                const entry = await this.get(key);
-                if (entry) {
-                    oldestEntry = Math.min(oldestEntry, entry.timestamp);
-                    newestEntry = Math.max(newestEntry, entry.timestamp);
-                }
-            }
-
-            return {
-                totalEntries: keys.length,
-                totalSize,
-                oldestEntry: keys.length > 0 ? oldestEntry : 0,
-                newestEntry: keys.length > 0 ? newestEntry : 0
-            };
-        } catch (error) {
-            log.error('Failed to get cache stats:', error);
-            return { totalEntries: 0, totalSize: 0, oldestEntry: 0, newestEntry: 0 };
         }
     }
 

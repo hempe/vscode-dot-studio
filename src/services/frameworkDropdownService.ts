@@ -1,6 +1,5 @@
 import { SolutionService } from './solutionService';
 import { FrameworkOption } from '../types/framework';
-import { SettingsService } from './settingsService';
 import { DebugConfigService } from './debugConfigService';
 import { logger } from '../core/logger';
 import { Solution } from '../core/Solution';
@@ -87,9 +86,6 @@ export class FrameworkDropdownService {
     }
 
     public async setActiveFramework(framework?: string): Promise<void> {
-        // Save the active framework
-        await this.saveActiveFramework(framework || null);
-
         // Update the debug configuration with the new framework
         let currentStartupProject = this.solution?.getStartupProject();
 
@@ -107,13 +103,6 @@ export class FrameworkDropdownService {
         }
     }
 
-    private async saveActiveFramework(framework: string | null): Promise<void> {
-        try {
-            await SettingsService.setActiveFramework(framework || undefined);
-        } catch (error) {
-            // Ignore errors saving framework
-        }
-    }
     public getAvailableFrameworks(): string[] {
 
         if (!this.solution?.solutionFile) {

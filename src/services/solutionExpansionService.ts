@@ -105,7 +105,7 @@ export class SolutionExpansionService {
                 nodeType === 'projectDependencies' ||
                 nodeType === 'assemblyDependencies') {
                 // Expanding a Dependency Category node - extract project path from expansion ID
-                const projectPath = NodeIdService.getProjectPathFromDependencyId(nodeId);
+                const projectPath = NodeIdService.getProjectPathFromNodeId(nodeId);
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependency category expansion ID: ${nodeId}`);
                     return;

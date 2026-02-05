@@ -205,60 +205,6 @@ export class PackageInstalledService {
     }
 
     /**
-     * Get all projects with their package information
-     */
-    static async getAllProjectsInfo(solutionPath?: string): Promise<ProjectInfo[]> {
-        try {
-            const workingDir = solutionPath ? path.dirname(solutionPath) : process.cwd();
-
-            // First get all projects in the solution
-            const projectPaths = await this.getSolutionProjects(workingDir);
-
-            // Get package info for each project in parallel with timing
-            const totalStartTime = Date.now();
-
-            log.info(`Processing ${projectPaths.length} projects in parallel...`);
-
-            const projectInfoPromises = projectPaths.map(async (projectPath, index) => {
-                const projectName = path.basename(projectPath);
-                const startTime = Date.now();
-
-                log.info(`[${index + 1}/${projectPaths.length}] Starting project: ${projectName}`);
-
-                try {
-                    const projectInfo = await this.getProjectInfo(projectPath);
-                    const duration = Date.now() - startTime;
-
-                    if (projectInfo) {
-                        log.info(`[${index + 1}/${projectPaths.length}] ✓ ${projectName} completed in ${duration}ms (${projectInfo.packages.length} packages)`);
-                    } else {
-                        log.warn(`[${index + 1}/${projectPaths.length}] ✗ ${projectName} failed in ${duration}ms`);
-                    }
-
-                    return projectInfo;
-                } catch (error) {
-                    const duration = Date.now() - startTime;
-                    log.error(`[${index + 1}/${projectPaths.length}] ✗ ${projectName} error in ${duration}ms:`, error);
-                    return null;
-                }
-            });
-
-            const results = await Promise.all(projectInfoPromises);
-            const totalDuration = Date.now() - totalStartTime;
-            const validResults = results.filter((info): info is ProjectInfo => info !== null);
-
-            log.info(`Completed processing ${projectPaths.length} projects in parallel in ${totalDuration}ms (${validResults.length} successful)`);
-
-            return validResults;
-
-        } catch (error) {
-            log.error('Error getting all projects info:', error);
-            return [];
-        }
-    }
-
-
-    /**
      * Parse the JSON output from dotnet list package command
      */
     private static parseInstalledPackages(stdout: string): BasicInstalledPackage[] {
@@ -347,29 +293,6 @@ export class PackageInstalledService {
         } catch (error) {
             log.debug(`Could not determine framework for ${projectPath}`);
             return null;
-        }
-    }
-
-    /**
-     * Get all project paths in a solution
-     */
-    private static async getSolutionProjects(workingDir: string): Promise<string[]> {
-        try {
-            const { stdout } = await execAsync('dotnet sln list', {
-                cwd: workingDir,
-                timeout: 10000
-            });
-
-            const lines = stdout.split('\n')
-                .map(line => line.trim())
-                .filter(line => line && line.endsWith('.csproj'));
-
-            // Convert relative paths to absolute paths
-            return lines.map(relativePath => path.resolve(workingDir, relativePath));
-
-        } catch (error) {
-            log.error('Error getting solution projects:', error);
-            return [];
         }
     }
 }

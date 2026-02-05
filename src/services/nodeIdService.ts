@@ -41,10 +41,6 @@ export type NodeType =
  */
 export class NodeIdService {
 
-    static composeNodeId(nodeId: NodeId) {
-        return this.compress(nodeId);
-    }
-
     /**
      * Compress a NodeId object into a Base64 string using gzip
      */
@@ -200,48 +196,12 @@ export class NodeIdService {
     }
 
     /**
-     * Extracts solution path from any nodeId that contains it
-     */
-    static getSolutionPathFromNodeId(nodeId: NodeIdString): string | null {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.solutionPath || null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Extracts file path from a file nodeId
-     */
-    static getFilePathFromNodeId(nodeId: NodeIdString): string | null {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'file' ? parsed.filePath || null : null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
      * Extracts folder path from a folder nodeId
      */
     static getFolderPathFromNodeId(nodeId: NodeIdString): string | null {
         try {
             const parsed = this.parse(nodeId);
             return parsed.type === 'folder' ? parsed.folderPath || null : null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Extracts dependency information from a dependency nodeId
-     */
-    static getDependencyInfoFromNodeId(nodeId: NodeIdString): { projectPath: string; dependencyName: string; dependencyType: string; version?: string } | null {
-        try {
-            const parsed = this.parse(nodeId);
-            return this.getDependencyInfoFromNode(parsed);
         } catch {
             return null;
         }
@@ -285,113 +245,6 @@ export class NodeIdService {
         }
     }
 
-    /**
-     * Checks if nodeId represents a project
-     */
-    static isProject(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'project';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents a file
-     */
-    static isFile(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'file';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents a solution
-     */
-    static isSolution(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'solution';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents a solution folder
-     */
-    static isSolutionFolder(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'solutionFolder';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents dependencies container
-     */
-    static isDependencies(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'dependencies';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents a dependency category
-     */
-    static isDependencyCategory(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'dependencyCategory';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId represents a specific dependency
-     */
-    static isDependency(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'dependency';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Gets the type of a nodeId
-     */
-    static getNodeType(nodeId: NodeIdString): NodeType | null {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Helper method to get all available information from a nodeId
-     */
-    static getFullInfo(nodeId: NodeIdString): NodeId | null {
-        try {
-            return this.parse(nodeId);
-        } catch {
-            return null;
-        }
-    }
-
     // Backward compatibility methods for existing API
 
     /**
@@ -413,14 +266,6 @@ export class NodeIdService {
      */
     static nodeIdToPath(nodeId: NodeIdString): string | null {
         return this.getPathFromId(nodeId);
-    }
-
-    /**
-     * Gets the node type from a nodeId
-     * @deprecated Use getNodeType instead
-     */
-    static getNodeTypeFromId(nodeId: NodeIdString): string | null {
-        return this.getNodeType(nodeId);
     }
 
     /**
@@ -456,37 +301,6 @@ export class NodeIdService {
     }
 
     /**
-     * Extracts project path from dependency-related nodeIds
-     * @deprecated Use getProjectPathFromNodeId instead
-     */
-    static getProjectPathFromDependencyId(nodeId: NodeIdString): string | null {
-        return this.getProjectPathFromNodeId(nodeId);
-    }
-
-    /**
-     * Creates a NodeIdString from a raw string (used internally for casting)
-     * External code should not use this - use generation methods instead
-     */
-    static fromString(str: string): NodeIdString {
-        return str as unknown as NodeIdString;
-    }
-
-    /**
-     * Converts a NodeIdString to a raw string (used internally for operations that need string)
-     * External code should not use this - use utility methods instead
-     */
-    static toString(nodeId: NodeIdString): string {
-        return nodeId as unknown as string;
-    }
-
-    /**
-     * Gets the length of a nodeId string (for testing purposes)
-     */
-    static getLength(nodeId: NodeIdString): number {
-        return (nodeId as unknown as string).length;
-    }
-
-    /**
      * Checks if nodeId is valid by attempting to parse it
      */
     static isValid(nodeId: NodeIdString): boolean {
@@ -496,21 +310,5 @@ export class NodeIdService {
         } catch {
             return false;
         }
-    }
-
-    /**
-     * Converts a NodeIdString to a React key (string)
-     * This is the only proper way to get a string for React key usage
-     */
-    static toKey(nodeId: NodeIdString): string {
-        return nodeId as unknown as string;
-    }
-
-    /**
-     * Converts a React key string back to NodeIdString
-     * Only for use when you have a string that you know came from toKey()
-     */
-    static fromKey(key: string): NodeIdString {
-        return key as unknown as NodeIdString;
     }
 }
