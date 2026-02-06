@@ -303,16 +303,19 @@ export const useVsCodeApi = () => {
             // Handle temporary node cancellation locally
             setSolutionData(prev => {
                 if (!prev) return prev;
-                return removeTemporaryNodeFromTree(prev, nodeId); // projectPath is actually nodeId in this case
+                return removeTemporaryNodeFromTree(prev, nodeId);
             });
         } else {
+            // Construct properly typed command based on action
+            const cmd: any = {
+                action,
+                nodeId,
+                ...(data && { data })
+            };
+
             sendToBackend({
                 type: 'projectAction',
-                payload: {
-                    action,
-                    nodeId: nodeId,
-                    data
-                }
+                payload: cmd
             });
         }
     }, []);

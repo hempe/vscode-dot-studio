@@ -104,7 +104,6 @@ export class FrameworkDropdownService {
     }
 
     public getAvailableFrameworks(): string[] {
-
         if (!this.solution?.solutionFile) {
             return [];
         }

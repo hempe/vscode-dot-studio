@@ -2,7 +2,6 @@ import { SolutionActionService } from '../../../services/solutionActionService';
 import { NodeIdService } from '../../../services/nodeIdService';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { MenuActionType } from '../../../types';
 
 // Mock dependencies
 jest.mock('vscode', () => ({
@@ -70,7 +69,7 @@ describe('SolutionActionService', () => {
             (mockVscode.workspace.openTextDocument as jest.Mock).mockResolvedValue({} as any);
             (mockVscode.window.showTextDocument as jest.Mock).mockResolvedValue({} as any);
 
-            await SolutionActionService.handleProjectAction('openFile', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'openFile', nodeId });
 
             expect(mockVscode.workspace.openTextDocument).toHaveBeenCalledWith(
                 mockVscode.Uri.file(filePath)
@@ -82,7 +81,7 @@ describe('SolutionActionService', () => {
             const filePath = '/path/to/file.cs';
             const nodeId = NodeIdService.generateFileId(filePath);
 
-            await SolutionActionService.handleProjectAction('revealInExplorer', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'revealInExplorer', nodeId });
 
             expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
                 'revealFileInOS',
@@ -99,7 +98,7 @@ describe('SolutionActionService', () => {
             };
             (mockVscode.window.createTerminal as jest.Mock).mockReturnValue(mockTerminal as any);
 
-            await SolutionActionService.handleProjectAction('build', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'build', nodeId });
 
             expect(mockVscode.window.createTerminal).toHaveBeenCalledWith('Build: project.csproj');
             expect(mockTerminal.show).toHaveBeenCalled();
@@ -115,7 +114,7 @@ describe('SolutionActionService', () => {
             };
             (mockVscode.window.createTerminal as jest.Mock).mockReturnValue(mockTerminal as any);
 
-            await SolutionActionService.handleProjectAction('rebuild', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'rebuild', nodeId });
 
             expect(mockTerminal.sendText).toHaveBeenCalledWith(`dotnet build "${projectPath}" --no-incremental`);
         });
@@ -129,7 +128,7 @@ describe('SolutionActionService', () => {
             };
             (mockVscode.window.createTerminal as jest.Mock).mockReturnValue(mockTerminal as any);
 
-            await SolutionActionService.handleProjectAction('clean', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'clean', nodeId });
 
             expect(mockTerminal.sendText).toHaveBeenCalledWith(`dotnet clean "${projectPath}"`);
         });
@@ -137,7 +136,7 @@ describe('SolutionActionService', () => {
         it('should handle unknown actions gracefully', async () => {
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-            await SolutionActionService.handleProjectAction('unknownAction' as MenuActionType, NodeIdService.generateFileId('/path'));
+            await SolutionActionService.handleProjectAction({ action: 'unknownAction' as any, nodeId: NodeIdService.generateFileId('/path') });
 
             expect(consoleSpy).toHaveBeenCalledWith('Unknown action: unknownAction');
             consoleSpy.mockRestore();
@@ -152,7 +151,7 @@ describe('SolutionActionService', () => {
                 (mockVscode.window.showWarningMessage as jest.Mock).mockResolvedValue('Delete' as any);
                 (mockFs.promises.unlink as jest.Mock).mockResolvedValue(undefined);
 
-                await SolutionActionService.handleProjectAction('deleteFile', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'deleteFile', nodeId });
 
                 expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
                     'Are you sure you want to delete file.cs?',
@@ -170,7 +169,7 @@ describe('SolutionActionService', () => {
                 const nodeId = NodeIdService.generateFileId(filePath);
                 (mockVscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
 
-                await SolutionActionService.handleProjectAction('deleteFile', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'deleteFile', nodeId });
 
                 expect(mockFs.promises.unlink).not.toHaveBeenCalled();
             });
@@ -181,7 +180,7 @@ describe('SolutionActionService', () => {
                 (mockVscode.window.showWarningMessage as jest.Mock).mockResolvedValue('Delete' as any);
                 (mockFs.promises.unlink as jest.Mock).mockRejectedValue(new Error('Permission denied'));
 
-                await SolutionActionService.handleProjectAction('deleteFile', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'deleteFile', nodeId });
 
                 expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
                     'Error deleting file: Error: Permission denied'
@@ -195,7 +194,7 @@ describe('SolutionActionService', () => {
                 const nodeId = NodeIdService.generateFileId(oldPath);
                 const newName = 'newfile.cs';
 
-                await SolutionActionService.handleProjectAction('rename', nodeId, { newName });
+                await SolutionActionService.handleProjectAction({ action: 'rename', nodeId, data: { newName } });
 
                 // Verify the rename operation was attempted
                 // Note: The actual rename logic involves file system operations
@@ -221,7 +220,7 @@ EndGlobal`
                 );
                 (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
-                await SolutionActionService.handleProjectAction('addSolutionFolder', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId });
 
                 expect(mockVscode.window.showInputBox).toHaveBeenCalledWith({
                     prompt: 'Enter solution folder name',
@@ -243,7 +242,7 @@ EndGlobal`
                 (mockFs.promises.readFile as jest.Mock).mockResolvedValue('solution content');
                 (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
-                await SolutionActionService.handleProjectAction('addSolutionFolder', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId });
 
                 // Test validation function
                 expect(validateInput!('')).toBe('Folder name cannot be empty');
@@ -260,7 +259,7 @@ EndGlobal`
                     { fsPath: '/path/to/project.csproj' }
                 ] as any);
 
-                await SolutionActionService.handleProjectAction('addExistingProject', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'addExistingProject', nodeId });
 
                 expect(mockVscode.window.showOpenDialog).toHaveBeenCalledWith({
                     canSelectFiles: true,
@@ -281,7 +280,7 @@ EndGlobal`
             it('should open NuGet webview', async () => {
                 const nodeId = NodeIdService.generateDependenciesId('/path/to/project.csproj');
 
-                await SolutionActionService.handleProjectAction('manageNuGetPackages', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'manageNuGetPackages', nodeId });
 
                 expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith(
                     'dotnet-nuget-webview.focus'
@@ -298,7 +297,7 @@ EndGlobal`
                 };
                 (mockVscode.window.createTerminal as jest.Mock).mockReturnValue(mockTerminal as any);
 
-                await SolutionActionService.handleProjectAction('addProjectReference', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'addProjectReference', nodeId });
 
                 expect(mockVscode.window.createTerminal).toHaveBeenCalledWith(
                     'Add Project Reference: project.csproj'
@@ -317,7 +316,7 @@ EndGlobal`
                 };
                 (mockVscode.window.createTerminal as jest.Mock).mockReturnValue(mockTerminal as any);
 
-                await SolutionActionService.handleProjectAction('restoreDependencies', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'restoreDependencies', nodeId });
 
                 expect(mockTerminal.sendText).toHaveBeenCalledWith(
                     'dotnet restore "/path/to/project.csproj"'
@@ -350,7 +349,7 @@ EndGlobal`
                 (mockFs.promises.readFile as jest.Mock).mockResolvedValue('<Project></Project>');
                 (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
-                await SolutionActionService.handleProjectAction('removeDependency', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'removeDependency', nodeId });
 
                 expect(mockVscode.window.showWarningMessage).toHaveBeenCalledWith(
                     'Are you sure you want to remove Newtonsoft.Json from the project?',
@@ -363,7 +362,7 @@ EndGlobal`
                 const invalidPath = '/invalid/path/format';
                 const nodeId = NodeIdService.generateFileId(invalidPath);
 
-                await SolutionActionService.handleProjectAction('removeDependency', nodeId);
+                await SolutionActionService.handleProjectAction({ action: 'removeDependency', nodeId });
 
                 expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
                     expect.stringContaining('Error removing dependency')
@@ -378,7 +377,7 @@ EndGlobal`
             const nodeId = NodeIdService.generateFileId(filePath);
             (mockVscode.workspace.openTextDocument as jest.Mock).mockRejectedValue(new Error('File not found'));
 
-            await SolutionActionService.handleProjectAction('openFile', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'openFile', nodeId });
 
             expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Error opening file: Error: File not found'
@@ -392,7 +391,7 @@ EndGlobal`
                 throw new Error('Terminal creation failed');
             });
 
-            await SolutionActionService.handleProjectAction('build', nodeId);
+            await SolutionActionService.handleProjectAction({ action: 'build', nodeId });
 
             expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
                 'Error during build: Error: Terminal creation failed'
@@ -427,7 +426,7 @@ EndGlobal`
             (mockFs.promises.readFile as jest.Mock).mockResolvedValue('solution content');
             (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
 
-            await SolutionActionService.handleProjectAction('addSolutionFolder', NodeIdService.generateSolutionId('/test/solution.sln'));
+            await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId: NodeIdService.generateSolutionId('/test/solution.sln') });
 
             expect(capturedValidator).toBeDefined();
 

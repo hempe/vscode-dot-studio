@@ -3,9 +3,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
-import { ProjectActionType } from '../webview/solution-view/types';
 import { NodeId, NodeIdService } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
+import { ProjectActionCmd } from '../types/projectActionCmd';
 import { NodeIdString } from '../types/nodeId';
 
 const log = logger('SolutionActionService');
@@ -25,31 +25,29 @@ export interface MessageData {
 export class SolutionActionService {
 
     /**
-     * Handles a project action with the specified parameters
+     * Handles a project action with strongly-typed command
      */
-    static async handleProjectAction(action: ProjectActionType, nodeIdString: NodeIdString, data?: MessageData): Promise<void> {
-        const nodeId = NodeIdService.parse(nodeIdString);
+    static async handleProjectAction(cmd: ProjectActionCmd): Promise<void> {
+        const nodeId = NodeIdService.parse(cmd.nodeId);
         if (!nodeId) {
-            log.error(`Invalid nodeId: ${nodeIdString}`);
+            log.error(`Invalid nodeId: ${cmd.nodeId}`);
             return;
         }
 
-        log.info(`Executing project action: ${action} on nodeId: ${nodeId}`);
+        log.info(`Executing project action: ${cmd.action} on nodeId: ${nodeId}`);
 
-        switch (action) {
+        switch (cmd.action) {
             case 'openFile':
                 await this._handleOpenFile(nodeId);
                 break;
 
             case 'contextMenu':
-                log.info(`Context menu action for ${data?.type || 'unknown'} on nodeId: ${nodeId}`);
+                log.info(`Context menu action on nodeId: ${nodeId}`);
                 // Context menu actions are handled by the UI - this is just logging
                 break;
 
             case 'rename':
-                if (data?.newName) {
-                    await this._handleRename(nodeId, data.newName, data.type, data.oldName);
-                }
+                await this._handleRename(nodeId, cmd.data.newName, cmd.data.type, cmd.data.oldName);
                 break;
 
             case 'build':
@@ -119,15 +117,15 @@ export class SolutionActionService {
                 break;
 
             case 'addSolutionFolder':
-                await this._handleAddSolutionFolder(data);
+                await this._handleAddSolutionFolder(cmd.data);
                 break;
 
             case 'removeSolutionFolder':
-                await this._handleRemoveSolutionFolder(nodeId, data);
+                await this._handleRemoveSolutionFolder(nodeId, cmd.data);
                 break;
 
             case 'addSolutionItem':
-                await this._handleAddSolutionItem(nodeId, data);
+                await this._handleAddSolutionItem(nodeId, cmd.data);
                 break;
 
             case 'removeProject':
@@ -143,19 +141,28 @@ export class SolutionActionService {
                 break;
 
             case 'copy':
-                await this._handleCopy(nodeId, nodeIdString, data);
+                await this._handleCopy(nodeId, cmd.nodeId, cmd.data);
                 break;
 
             case 'cut':
-                await this._handleCut(nodeId, nodeIdString, data);
+                await this._handleCut(nodeId, cmd.nodeId, cmd.data);
                 break;
 
             case 'paste':
-                await this._handlePaste(nodeId, data);
+                await this._handlePaste(nodeId, undefined);
+                break;
+
+            case 'addFile':
+            case 'addFolder':
+            case 'cancelTemporaryNode':
+                // These actions are handled by the webview provider, not here
+                log.info(`${cmd.action} action is handled by webview provider`);
                 break;
 
             default:
-                log.warn(`Unknown project action: ${action}`);
+                // TypeScript exhaustiveness check
+                const _exhaustive: never = cmd;
+                log.warn(`Unknown project action:`, _exhaustive);
                 break;
         }
     }

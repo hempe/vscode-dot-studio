@@ -138,7 +138,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     log.info('Handling projectAction:', {
                         action: message.payload.action,
                         nodeId: message.payload.nodeId,
-                        data: message.payload.data
+                        data: (message.payload as any).data
                     });
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
@@ -155,7 +155,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                             await this._handleAddFolderAction(message.payload.nodeId);
                         }
                     } else {
-                        await SolutionActionService.handleProjectAction(message.payload.action, message.payload.nodeId!, message.payload.data);
+                        await SolutionActionService.handleProjectAction(message.payload);
 
                         // Trigger the same file change handling that the file watcher would do for operations that modify the .sln file
                         const solutionFileOperations = ['addSolutionFolder', 'removeSolutionFolder', 'addSolutionItem', 'removeSolutionItem'];
@@ -170,7 +170,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         // Trigger immediate tree refresh for file/folder operations that affect the filesystem
                         const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
                         if (operationsThatAffectTree.includes(message.payload.action)) {
-                            const projectPath = NodeIdService.getPathFromId(message.payload.nodeId!);
+                            const projectPath = NodeIdService.getPathFromId(message.payload.nodeId);
                             if (!projectPath) {
                                 log.error('Invalid node ID, cannot extract path for immediate refresh:', message.payload.nodeId);
                                 return;

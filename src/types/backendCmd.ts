@@ -1,6 +1,6 @@
 import { LocalNuGetPackage } from "../webview/nuget-view/shared";
-import { ProjectActionType } from "../webview/solution-view/types";
 import { NodeIdString } from "./nodeId";
+import { ProjectActionCmd } from "./projectActionCmd";
 
 export declare type GetPackageReadmeCmd = {
     readonly type: 'getPackageReadme',
@@ -85,13 +85,9 @@ export declare type SetFrameworkCmd = {
     }
 }
 
-export declare type ProjectActionCmd = {
+export declare type ProjectActionBackendCmd = {
     readonly type: 'projectAction',
-    readonly payload: {
-        readonly action: ProjectActionType,
-        readonly nodeId: NodeIdString,
-        readonly data: any | undefined
-    }
+    readonly payload: ProjectActionCmd
 }
 
 export declare type ExpandNodeCmd = {
@@ -121,6 +117,6 @@ export declare type BackendCmd =
     GetConsolidatePackagesCmd |
     GetSolutionDataCmd |
     SetFrameworkCmd |
-    ProjectActionCmd |
+    ProjectActionBackendCmd |
     ExpandNodeCmd |
     CollapseNodeCmd;
