@@ -285,13 +285,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     <Icon
                         icon="codicon:chevron-right"
                         className="expand-icon"
-                        width="12"
-                        height="12"
+                        width="16"
+                        height="16"
                         style={{
                             display: 'inline-flex',
-                            minWidth: '12px',
-                            minHeight: '12px',
-                            transition: 'transform 0.15s ease',
+                            minWidth: '16px',
+                            minHeight: '16px',
                             transform: node.expanded ? 'rotate(90deg)' : 'rotate(0deg)'
                         }}
                     />
