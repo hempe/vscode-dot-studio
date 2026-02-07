@@ -6,49 +6,60 @@
 import { Dependency } from "../parsers/projectFileParser";
 import { NodeIdString } from "./nodeId";
 
-export type NodeType = 'solution' | 'solutionFolder' | 'project' | 'folder' | 'file' | 'dependencies' | 'dependency' | 'dependencyCategory' | 'packageDependencies' | 'projectDependencies' | 'assemblyDependencies' | 'solutionItem';
-
-export type MenuActionType = 'openFile' | 'rename' | 'deleteFile' | 'revealInExplorer' | 'removeProject' | 'deleteProject' | 'build' | 'rebuild' | 'clean' | 'restoreNugets' | 'addExistingProject' | 'addNewProject' | 'addSolutionFolder' | 'removeSolutionFolder' | 'addSolutionItem' | 'removeSolutionItem' | 'manageNuGetPackages' | 'manageNuGetPackagesForSolution' | 'addProjectReference' | 'restoreDependencies' | 'removeDependency' | 'setStartupProject' | 'addFile' | 'addFolder' | 'copy' | 'cut' | 'paste';
+export type NodeType =
+    'solution' |
+    'solutionFolder' |
+    'project' |
+    'folder' |
+    'file' |
+    'temporary' |
+    'dependencies' |
+    'dependency' |
+    'dependencyCategory' |
+    'packageDependencies' |
+    'projectDependencies' |
+    'assemblyDependencies' |
+    'solutionItem';
 
 /**
  * Extension-side ProjectChild interface using extension's NodeIdString
  */
 export interface ProjectChild {
-    type: NodeType;
-    name: string;
-    nodeId: NodeIdString;
-    hasChildren?: boolean;
-    expanded?: boolean;
-    children?: ProjectChild[];
-    isLoaded?: boolean;
+    readonly type: NodeType;
+    readonly name: string;
+    readonly nodeId: NodeIdString;
+    readonly hasChildren?: boolean;
+    readonly expanded?: boolean;
+    readonly children?: ProjectChild[];
+    readonly isLoaded?: boolean;
 }
 
 /**
  * Extension-side ProjectNode interface using extension's NodeIdString
  */
 export interface ProjectNode {
-    type: NodeType;
-    name: string;
+    // is this needed?
+    readonly type: NodeType;
+    readonly name: string;
     children?: ProjectNode[];
     expanded?: boolean;
-    isSolutionFolder?: boolean;
-    projectDependencies?: Dependency[];
-    frameworks?: string[];
-    typeGuid?: string;
-    guid?: string;
-    isLoaded?: boolean;
+    readonly isSolutionFolder?: boolean;
+    readonly projectDependencies?: Dependency[];
+    readonly frameworks?: string[];
+    readonly typeGuid?: string;
+    readonly isLoaded?: boolean;
     hasChildren?: boolean;
-    isLoading?: boolean;
-    isStartupProject?: boolean;
-    nodeId: NodeIdString;
-    isTemporary?: boolean;
-    isEditing?: boolean;
+    readonly isLoading?: boolean;
+    readonly isStartupProject?: boolean;
+    readonly nodeId: NodeIdString;
+    readonly isTemporary?: boolean;
+    readonly isEditing?: boolean;
 }
 
 export interface SolutionData {
-    projects: any[];
-    frameworks: string[];
-    activeFramework?: string;
+    readonly projects: ProjectNode[];
+    readonly frameworks: string[];
+    readonly activeFramework?: string;
 }
 
 export type Mutable<T> = {

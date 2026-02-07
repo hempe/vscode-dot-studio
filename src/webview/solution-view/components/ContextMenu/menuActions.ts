@@ -1,9 +1,11 @@
-import { MenuActionType } from '../../../../types';
-import { NodeType } from '../../types';
+import { NodeType } from '../../../../types';
+import { ProjectActionCmd } from '../../../../types/projectActionCmd';
+
+export declare type ProjectActionType = ProjectActionCmd['action'];
 
 export interface MenuAction {
     name: string;
-    action: MenuActionType;
+    action: ProjectActionType;
     kind: 'action';
     shortcut?: string;
 }
@@ -306,5 +308,7 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
         removeSolutionItemAction,
         separator,
         revealInExplorerAction
-    ]
+    ],
+    temporary: []
 };
+

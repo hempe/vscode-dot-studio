@@ -1,8 +1,8 @@
 import React from 'react';
-import { NodeType } from '../../types';
-import { contextMenus, MenuItem, MenuAction } from './menuActions';
+import { contextMenus, MenuItem, MenuAction, ProjectActionType } from './menuActions';
 import { logger } from '../../../shared/logger';
-import { MenuActionType } from '../../../../types';
+import { NodeType } from '../../../../types';
+import { ProjectActionCmd } from '../../../../types/projectActionCmd';
 
 const log = logger('ContextMenu');
 export interface ContextMenuProps {
@@ -10,7 +10,7 @@ export interface ContextMenuProps {
     y: number;
     onClose: () => void;
     onRename: () => void;
-    onAction: (action: MenuActionType, data?: any) => void;
+    onAction: (cmd: Omit<ProjectActionCmd, 'nodeId'>) => void;
     nodeType: NodeType;
     nodeName: string;
 }
@@ -131,14 +131,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         };
     }, [onClose, focusedItemIndex]);
 
-    const handleActionClick = (action: MenuActionType, data?: any) => {
+    const handleActionClick = (action: ProjectActionType) => {
         // Handle special case for rename action
         if (action === 'rename') {
             onRename();
         } else {
-            // For deleteFile action, pass the node type as data
-            const actionData = action === 'deleteFile' ? { type: nodeType, ...data } : data;
-            onAction(action, actionData);
+            onAction({
+                action: action
+            });
         }
         onClose();
     };

@@ -117,15 +117,15 @@ export class SolutionActionService {
                 break;
 
             case 'addSolutionFolder':
-                await this._handleAddSolutionFolder(cmd.data);
+                await this._handleAddSolutionFolder(nodeId);
                 break;
 
             case 'removeSolutionFolder':
-                await this._handleRemoveSolutionFolder(nodeId, cmd.data);
+                await this._handleRemoveSolutionFolder(nodeId);
                 break;
 
             case 'addSolutionItem':
-                await this._handleAddSolutionItem(nodeId, cmd.data);
+                await this._handleAddSolutionItem(nodeId);
                 break;
 
             case 'removeProject':
@@ -410,7 +410,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddSolutionFolder(data?: MessageData): Promise<void> {
+    private static async _handleAddSolutionFolder(nodeId: NodeId): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -425,11 +425,9 @@ export class SolutionActionService {
 
             if (folderName) {
                 // If data contains parent folder info (from solution folder context menu), use it
-                const parentFolderName = data?.name;
-                await solution.addSolutionFolder(folderName, parentFolderName);
-                const parentInfo = parentFolderName ? ` under '${parentFolderName}'` : '';
-                log.info(`Solution folder added: ${folderName}${parentInfo}`);
-                vscode.window.showInformationMessage(`Solution folder '${folderName}' added${parentInfo}`);
+                await solution.addSolutionFolder(folderName, nodeId.solutionPath);
+                log.info(`Solution folder added: ${folderName}`);
+                vscode.window.showInformationMessage(`Solution folder '${folderName}' added`);
             }
         } catch (error) {
             log.error('Error adding solution folder:', error);
@@ -437,7 +435,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveSolutionFolder(nodeId: NodeId, data?: MessageData): Promise<void> {
+    private static async _handleRemoveSolutionFolder(nodeId: NodeId): Promise<void> {
         try {
             const folderPath = nodeId.solutionPath;
             if (!folderPath) {
@@ -453,8 +451,8 @@ export class SolutionActionService {
             }
 
             // Try to get folder name from data first (safer), then fall back to path parsing
-            const folderName = data?.name || path.basename(folderPath);
-            const folderGuid = data?.guid;
+            const folderName = nodeId?.solutionItemName || path.basename(folderPath);
+            const folderGuid = nodeId?.guid;
 
             log.info(`Removing solution folder: name="${folderName}", guid="${folderGuid}"`);
 
@@ -480,7 +478,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddSolutionItem(nodeId: NodeId, data?: MessageData): Promise<void> {
+    private static async _handleAddSolutionItem(nodeId: NodeId): Promise<void> {
         try {
             const folderPath = nodeId.solutionPath;
             if (!folderPath) {
@@ -522,10 +520,10 @@ export class SolutionActionService {
                     }
                 } else {
                     // Adding to an existing solution folder
-                    targetFolderName = data?.name || path.basename(folderPath);
+                    targetFolderName = nodeId?.solutionItemName || path.basename(folderPath);
                 }
 
-                const folderGuid = data?.guid;
+                const folderGuid = nodeId?.guid;
                 log.info(`Adding solution item to folder: name="${targetFolderName}", guid="${folderGuid}"`);
 
                 await solution.addSolutionItem(targetFolderName, fileUri[0].fsPath);

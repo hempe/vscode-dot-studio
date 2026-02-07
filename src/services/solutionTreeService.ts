@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { ProjectChild, ProjectNode } from '../types';
+import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeIdService } from './nodeIdService';
 import { logger } from '../core/logger';
 import { NodeIdString } from '../types/nodeId';
@@ -47,7 +47,7 @@ export class SolutionTreeService {
         log.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
 
         // Add the solution as the root node
-        const solutionNode: ProjectNode = {
+        const solutionNode: Mutable<ProjectNode> = {
             type: 'solution',
             name: path.basename(solutionPath, '.sln'),
             nodeId: NodeIdService.generateSolutionId(solutionPath),
@@ -111,8 +111,9 @@ export class SolutionTreeService {
             } else if (itemType === 'solutionFolder') {
                 // Include parent hierarchy in solution folder ID for proper nesting support
                 nodeId = NodeIdService.generateSolutionFolderId(
-                    project.guid || project.name,
+                    project.name || path.basename(project.path || '', path.extname(project.path || '')),
                     solution.solutionPath,
+                    project.guid || project.name,
                     parentExpansionId ? NodeIdService.parse(parentExpansionId)?.guid : undefined
                 );
             } else {
@@ -120,7 +121,7 @@ export class SolutionTreeService {
                 nodeId = NodeIdService.generateTemporaryId(itemType, absolutePath);
             }
 
-            const itemNode: ProjectNode = {
+            const itemNode: Mutable<ProjectNode> = {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
                 nodeId: nodeId,
@@ -129,8 +130,6 @@ export class SolutionTreeService {
                 frameworks: project.targetFrameworks || [],
                 // Store original typeGuid for debugging
                 typeGuid: project.typeGuid,
-                // Store GUID for hierarchy lookup
-                guid: project.guid,
                 // Mark as not loaded for lazy loading
                 isLoaded: false,
                 // Mark if this is the startup project (only for actual projects)
@@ -182,6 +181,7 @@ export class SolutionTreeService {
                         type: 'solutionItem',
                         name: itemName,
                         nodeId: NodeIdService.generateSolutionItemId(
+                            itemName,
                             project.guid || project.name,
                             absoluteItemPath
                         )

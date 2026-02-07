@@ -1,11 +1,7 @@
+import { NodeType } from ".";
 import { NodeIdString } from "./nodeId";
 
-/**
- * Strongly-typed project action commands
- * Each action has its own interface with specific payload requirements
- */
 
-// Actions with no additional data
 export interface OpenFileActionCmd {
     readonly action: 'openFile';
     readonly nodeId: NodeIdString;
@@ -122,13 +118,12 @@ export interface CancelTemporaryNodeActionCmd {
     readonly nodeId: NodeIdString;
 }
 
-// Actions with specific data requirements
 export interface RenameActionCmd {
     readonly action: 'rename';
     readonly nodeId: NodeIdString;
     readonly data: {
         readonly newName: string;
-        readonly type?: string;
+        readonly type?: NodeType;
         readonly oldName?: string;
     };
 }
@@ -136,25 +131,16 @@ export interface RenameActionCmd {
 export interface AddSolutionFolderActionCmd {
     readonly action: 'addSolutionFolder';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly name?: string;
-    };
 }
 
 export interface RemoveSolutionFolderActionCmd {
     readonly action: 'removeSolutionFolder';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly name?: string;
-    };
 }
 
 export interface AddSolutionItemActionCmd {
     readonly action: 'addSolutionItem';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly itemPath?: string;
-    };
 }
 
 export interface AddFileActionCmd {

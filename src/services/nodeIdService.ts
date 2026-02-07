@@ -5,6 +5,7 @@
 
 import { gzipSync, gunzipSync } from 'zlib';
 import { NodeIdString } from '../types/nodeId';
+import { NodeType } from '../types';
 
 
 // Define the structure of a NodeId
@@ -18,23 +19,12 @@ export interface NodeId {
     parentGuid?: string;
     categoryName?: string;
     dependencyName?: string;
+    solutionItemName?: string;
     version?: string;
     itemPath?: string;
     timestamp?: number;
     random?: string;
 }
-
-export type NodeType =
-    | 'solution'
-    | 'project'
-    | 'folder'
-    | 'file'
-    | 'solutionFolder'
-    | 'solutionItem'
-    | 'dependencies'
-    | 'dependencyCategory'
-    | 'dependency'
-    | 'temporary';
 
 /**
  * Service for generating and managing structured node IDs with compression
@@ -111,9 +101,10 @@ export class NodeIdService {
     /**
      * Generates a unique ID for a solution folder node
      */
-    static generateSolutionFolderId(solutionPath: string, guid: string, parentGuid?: string): NodeIdString {
+    static generateSolutionFolderId(solutionItemName: string, solutionPath: string, guid: string, parentGuid?: string): NodeIdString {
         return this.compress({
             type: 'solutionFolder',
+            solutionItemName,
             solutionPath,
             guid,
             parentGuid
@@ -123,9 +114,10 @@ export class NodeIdService {
     /**
      * Generates a unique ID for a solution item node
      */
-    static generateSolutionItemId(solutionFolderGuid: string, itemPath: string): NodeIdString {
+    static generateSolutionItemId(solutionItemName: string, solutionFolderGuid: string, itemPath: string): NodeIdString {
         return this.compress({
             type: 'solutionItem',
+            solutionItemName,
             guid: solutionFolderGuid,
             itemPath
         });

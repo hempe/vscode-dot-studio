@@ -89,7 +89,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         // Double click opens file for file types, project files, and solution files
         if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
             log.info(`Opening file: ${node.name}`);
-            onProjectAction('openFile', nodeIdentifier, undefined);
+            onProjectAction({
+                action: 'openFile',
+                nodeId: nodeIdentifier
+            });
         } else {
             log.info(`Double click on ${node.type} - no action needed`);
         }
@@ -114,9 +117,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         if (node.isTemporary) {
             log.info(`Creating new ${node.type}: ${newName}`);
             if (node.type === 'file') {
-                onProjectAction('addFile',  nodeIdentifier, { name: newName, isConfirmed: true });
+                onProjectAction({
+                    action: 'addFile',
+                    nodeId: nodeIdentifier,
+                    data: { name: newName, isConfirmed: true }
+                });
             } else if (node.type === 'folder') {
-                onProjectAction('addFolder',  nodeIdentifier, { name: newName, isConfirmed: true });
+                onProjectAction({
+                    action: 'addFolder',
+                    nodeId: nodeIdentifier,
+                    data: { name: newName, isConfirmed: true }
+                });
             }
         } else {
             log.info(`Renaming ${node.name} to ${newName}`);
@@ -128,7 +139,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         if (node.isTemporary) {
             log.info(`Cancelling creation of temporary ${node.type}: ${node.name}`);
             // For temporary nodes, trigger removal action
-            onProjectAction('cancelTemporaryNode', node.nodeId, undefined);
+            onProjectAction({
+                action: 'cancelTemporaryNode',
+                nodeId: node.nodeId
+            });
         } else {
             log.info(`Cancelling rename for: ${node.name}`);
             onRenameCancel();
@@ -154,7 +168,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
                 if (projectName.includes('.csproj')) return {
                     icon: 'mdi:language-csharp',
-                    color:'#3BA745',
+                    color: '#3BA745',
                     border: true
                 };
                 if (projectName.includes('.vbproj')) return {
@@ -312,8 +326,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 >
                     <Icon
                         icon={iconConfig.icon}
-                        width={iconConfig.border ? "13": "14"}
-                        height={iconConfig.border ? "13": "14"}
+                        width={iconConfig.border ? "13" : "14"}
+                        height={iconConfig.border ? "13" : "14"}
                         style={{
                             color: iconConfig.color,
                             display: 'block',

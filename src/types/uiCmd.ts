@@ -1,4 +1,4 @@
-import { ProjectNode } from "."
+import { NodeType, ProjectNode } from "."
 import { NuGetPackage, ProjectInfo } from "../services/nuget/types"
 import { LocalNuGetPackage } from "../webview/nuget-view/shared"
 import { NodeIdString } from "./nodeId"
@@ -117,9 +117,9 @@ export declare type SolutionDataCmd = {
 export declare type AddTemporaryNodeCmd = {
     readonly type: 'addTemporaryNode',
     readonly payload: {
-        readonly parentNodeId: NodeIdString,
-        readonly nodeType: string,
-        readonly defaultName: string
+        readonly nodeId: NodeIdString,
+        readonly nodeType: NodeType,
+        readonly parentNodeId: NodeIdString
     }
 }
 

@@ -6,7 +6,7 @@ import { SolutionActionService } from '../../services/solutionActionService';
 import { SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { NodeIdService } from '../../services/nodeIdService';
-import { ProjectNode as ExtensionProjectNode, SolutionData } from '../../types';
+import { ProjectNode, SolutionData } from '../../types';
 import { logger } from '../../core/logger';
 import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
@@ -27,7 +27,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _activeEditorListener?: vscode.Disposable;
 
     // Cache for solution tree data to improve expand performance
-    private _cachedSolutionData?: ExtensionProjectNode[];
+    private _cachedSolutionData?: ProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
     private get webview(): vscode.Webview | undefined {
         return this._view?.webview;
@@ -212,7 +212,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _getSolutionData(): Promise<ExtensionProjectNode[]> {
+    private async _getSolutionData(): Promise<ProjectNode[]> {
         log.info('Getting solution data...');
 
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
@@ -330,7 +330,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Centralized method to send solution data with expansion states already applied
      * This ensures expansion states are always restored before sending data to UI
      */
-    private async _sendSolutionData(projects: ExtensionProjectNode[]): Promise<void> {
+    private async _sendSolutionData(projects: ProjectNode[]): Promise<void> {
 
         if (!this._view) {
             return;
@@ -356,22 +356,22 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      */
     private async _handleAddFileAction(parentNodeId: NodeIdString): Promise<void> {
         try {
-            const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
-            if (!parentPath) {
+            const node = NodeIdService.parse(parentNodeId);
+            if (!node) {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding file: invalid parent path`);
                 return;
             }
 
-            log.info(`Creating temporary file node for parent: ${parentPath}`);
+            log.info(`Creating temporary file node for parent: ${node.folderPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
-                    parentNodeId,
-                    nodeType: 'file',
-                    defaultName: 'newfile.cs'
+                    parentNodeId: parentNodeId,
+                    nodeId: NodeIdService.generateTemporaryId('file', node.folderPath!),
+                    nodeType: 'file'
                 }
             });
 
@@ -387,22 +387,22 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      */
     private async _handleAddFolderAction(parentNodeId: NodeIdString): Promise<void> {
         try {
-            const parentPath = NodeIdService.nodeIdToPath(parentNodeId);
-            if (!parentPath) {
+            const node = NodeIdService.parse(parentNodeId);
+            if (!node) {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding folder: invalid parent path`);
                 return;
             }
 
-            log.info(`Creating temporary folder node for parent: ${parentPath}`);
+            log.info(`Creating temporary folder node for parent: ${node.folderPath}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
-                    parentNodeId,
-                    nodeType: 'folder',
-                    defaultName: 'NewFolder'
+                    parentNodeId: parentNodeId,
+                    nodeId: NodeIdService.generateTemporaryId('folder', node.folderPath!),
+                    nodeType: 'folder'
                 }
             });
 

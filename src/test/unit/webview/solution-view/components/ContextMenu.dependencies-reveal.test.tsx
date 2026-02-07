@@ -1,7 +1,7 @@
 // import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ContextMenu } from '../../../../../webview/solution-view/components/ContextMenu/ContextMenu';
-import { NodeType } from '../../../../../webview/solution-view/types';
+import { NodeType } from '../../../../../types';
 
 describe('ContextMenu Dependencies Reveal Test', () => {
     const defaultProps = {
@@ -45,7 +45,7 @@ describe('ContextMenu Dependencies Reveal Test', () => {
     });
 
     it('should verify that other node types DO show "Reveal in Explorer"', () => {
-        const testCases: Array<{nodeType: NodeType, nodeName: string}> = [
+        const testCases: Array<{ nodeType: NodeType, nodeName: string }> = [
             { nodeType: 'file', nodeName: 'Program.cs' },
             { nodeType: 'folder', nodeName: 'Controllers' },
             { nodeType: 'project', nodeName: 'MyProject.csproj' },

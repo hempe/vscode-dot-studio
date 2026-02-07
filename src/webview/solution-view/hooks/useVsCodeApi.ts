@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ProjectActionType } from '../types';
 import { logger } from '../../shared/logger';
-import { generateTemporaryId, extractPathFromNodeId } from '../../shared/nodeIdUtils';
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
-import { SolutionData } from '../../../types';
+import { NodeType, ProjectNode, SolutionData } from '../../../types';
 import { UICmd } from '../../../types/uiCmd';
+import { ProjectActionCmd } from '../../../types/projectActionCmd';
 
 // Helper function to update a node in the tree structure
 /**
@@ -93,18 +92,15 @@ const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData):
     };
 };
 // Helper function to add a temporary node for creation
-const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: NodeIdString, nodeType: string, defaultName: string): SolutionData => {
-    const parentPath = extractPathFromNodeId(parentNodeId);
-    if (!parentPath) {
-        // Parent node does not have a valid path
-        return solutionData;
-    }
-    // Generate proper temporary node ID using the service
-    const tempNodeId = generateTemporaryId(parentPath, nodeType);
-    const tempNode = {
-        nodeId: tempNodeId,
+const addTemporaryNodeToTree = (
+    solutionData: SolutionData,
+    parentNodeId: NodeIdString,
+    nodeId: NodeIdString,
+    nodeType: NodeType): SolutionData => {
+    const tempNode: ProjectNode = {
+        nodeId: nodeId,
         type: nodeType,
-        name: defaultName,
+        name: '',
         isTemporary: true,
         isEditing: true,
         hasChildren: false,
@@ -122,15 +118,8 @@ const addTemporaryNodeToTree = (solutionData: SolutionData, parentNodeId: NodeId
                     newChildren = [tempNode];
                 } else {
                     // Insert temp node in proper position based on type
-                    if (nodeType === 'folder') {
-                        // Folders should go after existing folders but before files
-                        const folders = node.children.filter((child: any) => child.type === 'folder');
-                        const files = node.children.filter((child: any) => child.type !== 'folder');
-                        newChildren = [...folders, tempNode, ...files];
-                    } else {
-                        // Files go at the end
-                        newChildren = [...node.children, tempNode];
-                    }
+                    // Files go at the end
+                    newChildren = [...node.children, tempNode];
                 }
 
                 return {
@@ -203,20 +192,6 @@ const removeTemporaryNodesFromParent = (solutionData: SolutionData, parentPath: 
     };
 };
 
-// Helper function to find nodeId from path in tree
-const findNodeIdFromPath = (nodes: any[], targetPath: string): string | null => {
-    for (const node of nodes) {
-        if (node.path === targetPath) {
-            return node.nodeId;
-        }
-        if (node.children) {
-            const found = findNodeIdFromPath(node.children, targetPath);
-            if (found) return found;
-        }
-    }
-    return null;
-};
-
 const log = logger('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
@@ -257,7 +232,7 @@ export const useVsCodeApi = () => {
                         const parentNodeId = message.payload.parentNodeId;
                         log.info('findNodeIdFromPath result for path:', message.payload.parentNodeId, 'nodeId:', parentNodeId);
                         if (parentNodeId) {
-                            return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeType, message.payload.defaultName);
+                            return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeId, message.payload.nodeType);
                         } else {
                             log.error('Could not find nodeId for parentNodeId:', message.payload.parentNodeId);
                         }
@@ -296,23 +271,16 @@ export const useVsCodeApi = () => {
         sendToBackend({ type: 'setFramework', payload: { framework } });
     }, []);
 
-    const handleProjectAction = useCallback((action: ProjectActionType, nodeId: NodeIdString, data: any | undefined) => {
-        log.info('Project action requested:', { action, nodeId, data });
+    const handleProjectAction = useCallback((cmd: ProjectActionCmd) => {
+        log.info('Project action requested:', cmd);
 
-        if (action === 'cancelTemporaryNode') {
+        if (cmd.action === 'cancelTemporaryNode') {
             // Handle temporary node cancellation locally
             setSolutionData(prev => {
                 if (!prev) return prev;
-                return removeTemporaryNodeFromTree(prev, nodeId);
+                return removeTemporaryNodeFromTree(prev, cmd.nodeId);
             });
         } else {
-            // Construct properly typed command based on action
-            const cmd: any = {
-                action,
-                nodeId,
-                ...(data && { data })
-            };
-
             sendToBackend({
                 type: 'projectAction',
                 payload: cmd

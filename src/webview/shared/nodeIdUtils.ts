@@ -18,32 +18,3 @@ export function nodeIdToKey(nodeId: NodeIdString): string {
 export function keyToNodeId(key: string): NodeIdString {
     return key as NodeIdString;
 }
-
-/**
- * Simple path extraction from nodeId for webview use
- * This is a temporary helper that works with the string format
- * The actual parsing should happen on the extension side
- */
-export function extractPathFromNodeId(nodeId: NodeIdString): string | null {
-    // For temporary compatibility, we'll extract paths from the string representation
-    // This assumes the nodeId string contains path information
-    // TODO: Remove this once all path extraction moves to extension side
-    try {
-        // Check if it's a simple path-like string (old format)
-        if (typeof nodeId === 'string' && nodeId.includes('/') && !nodeId.includes('H4sI')) {
-            return nodeId; // Return as-is for old format
-        }
-
-        // For compressed format, we can't decode it in the browser (no zlib)
-        // Return null and let the component handle it differently
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-export function generateTemporaryId(parentPath: string, nodeType: string): NodeIdString {
-    // TODO: This should be handled by extension side
-    // For now, generate a simple temporary ID
-    return `temp:${nodeType}:${parentPath}:${Date.now()}` as NodeIdString;
-}
