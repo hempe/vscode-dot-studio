@@ -97,12 +97,6 @@ export interface PasteActionCmd {
     readonly nodeId: NodeIdString;
 }
 
-// UI-only actions (no backend processing)
-export interface ContextMenuActionCmd {
-    readonly action: 'contextMenu';
-    readonly nodeId: NodeIdString;
-}
-
 export interface StartRenameActionCmd {
     readonly action: 'startRename';
     readonly nodeId: NodeIdString;
@@ -194,7 +188,6 @@ export type ProjectActionCmd =
     | DeleteProjectActionCmd
     | SetStartupProjectActionCmd
     | PasteActionCmd
-    | ContextMenuActionCmd
     | StartRenameActionCmd
     | CollapseParentActionCmd
     | CancelTemporaryNodeActionCmd

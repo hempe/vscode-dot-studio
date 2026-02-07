@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { Mutable, ProjectChild, ProjectNode } from '../types';
+import { Mutable, NodeType, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
 import { NodeIdString } from '../types/nodeId';
@@ -226,6 +226,8 @@ export class SolutionTreeService {
     static updateNodeInTree(nodes: ProjectNode[], nodeId: NodeIdString, updates: Partial<ProjectNode>, expandedIds?: Set<NodeIdString>): boolean {
         let changed = false;
         for (const node of nodes) {
+            const p = NodeIdService.parse(node.nodeId);
+            log.info("Check ", p.path);
             if (node.nodeId === nodeId) {
                 Object.assign(node, updates);
                 if (!expandedIds)
@@ -266,7 +268,7 @@ export class SolutionTreeService {
     /**
      * Gets the node type for a given expansion ID from the tree
      */
-    static getNodeTypeById(nodeId: NodeIdString, nodes: ProjectNode[]): string | null {
+    static getNodeTypeById(nodeId: NodeIdString, nodes: ProjectNode[]): NodeType | null {
         const node = this.findNodeById(nodeId, nodes);
         return node ? node.type : null;
     }

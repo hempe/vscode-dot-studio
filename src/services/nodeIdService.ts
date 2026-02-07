@@ -226,31 +226,6 @@ export class NodeIdService {
         });
     }
 
-    // Utility methods for extracting information from nodeIds
-
-    /**
-     * Extracts project path from any nodeId that contains it
-     */
-    static getProjectPathFromNodeId(nodeId: NodeIdString): string | null {
-        try {
-            const parsed = this.parse(nodeId) as ProjectNodeId;
-            return parsed.path || null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Extracts folder path from a folder nodeId
-     */
-    static getFolderPathFromNodeId(nodeId: NodeIdString): string | null {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'folder' ? parsed.path || null : null;
-        } catch {
-            return null;
-        }
-    }
 
     static getDependencyInfoFromNode(node: NodeId): { projectPath: string; dependencyName: string; dependencyType: string; version?: string } | null {
         if (node.type === 'dependency' && node.path && node.category && node.name) {
@@ -287,61 +262,6 @@ export class NodeIdService {
             return parsed.type === 'folder';
         } catch {
             return false;
-        }
-    }
-
-    // Backward compatibility methods for existing API
-
-    /**
-     * Extracts the primary path from a nodeId (filePath, folderPath, projectPath, etc.)
-     * @deprecated Use specific path extraction methods instead
-     */
-    static getPathFromId(nodeId: NodeIdString): string | null {
-        try {
-            const parsed = this.parse(nodeId) as any;
-            return parsed.filePath || parsed.folderPath || parsed.projectPath || parsed.solutionPath || null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Alias for getPathFromId for backward compatibility
-     * @deprecated Use specific path extraction methods instead
-     */
-    static nodeIdToPath(nodeId: NodeIdString): string | null {
-        return this.getPathFromId(nodeId);
-    }
-
-    /**
-     * Alias for isTemporary for backward compatibility
-     */
-    static isTemporaryNode(nodeId: NodeIdString): boolean {
-        return this.isTemporary(nodeId);
-    }
-
-    /**
-     * Alias for isFolder for backward compatibility
-     */
-    static isFolderNode(nodeId: NodeIdString): boolean {
-        return this.isFolder(nodeId);
-    }
-
-    /**
-     * Gets temporary node information
-     */
-    static getTemporaryNodeInfo(nodeId: NodeIdString): { nodeType: string; parentPath: string } | null {
-        try {
-            const parsed = this.parse(nodeId);
-            if (parsed.type === 'temporary') {
-                return {
-                    nodeType: parsed.nodeType || 'unknown',
-                    parentPath: parsed.path || ''
-                };
-            }
-            return null;
-        } catch {
-            return null;
         }
     }
 

@@ -303,6 +303,16 @@ export class Solution {
                     return proj;
                 }
             }
+
+            for (const [storedPath, proj] of this._projects) {
+                if (
+                    projectPath.startsWith(path.dirname(storedPath)) ||
+                    projectPath.startsWith(path.dirname(proj.projectPath))
+                ) {
+                    log.debug(`Found project by parent matching: ${proj.name}`);
+                    return proj;
+                }
+            }
             log.debug(`No project found for path: ${projectPath}`);
         } else {
             log.debug(`Found project: ${project.name}`);
