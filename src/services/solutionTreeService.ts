@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
-import { Mutable, NodeType, ProjectChild, ProjectNode } from '../types';
+import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
 import { NodeIdString } from '../types/nodeId';
@@ -263,14 +263,6 @@ export class SolutionTreeService {
             }
         }
         return null;
-    }
-
-    /**
-     * Gets the node type for a given expansion ID from the tree
-     */
-    static getNodeTypeById(nodeId: NodeIdString, nodes: ProjectNode[]): NodeType | null {
-        const node = this.findNodeById(nodeId, nodes);
-        return node ? node.type : null;
     }
 
     /**

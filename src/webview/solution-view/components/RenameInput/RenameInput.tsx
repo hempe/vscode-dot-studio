@@ -12,6 +12,7 @@ export const RenameInput: React.FC<RenameInputProps> = ({
     onCancel
 }) => {
     const [value, setValue] = useState(initialValue);
+    const [done, setDone] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -33,13 +34,17 @@ export const RenameInput: React.FC<RenameInputProps> = ({
     }, [initialValue]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (done) return;
+
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
             if (value.trim() && value !== initialValue) {
                 onConfirm(value.trim());
+                setDone(true);
             } else {
                 onCancel();
+                setDone(true);
             }
         } else if (e.key === 'Escape') {
             e.preventDefault();
@@ -52,10 +57,13 @@ export const RenameInput: React.FC<RenameInputProps> = ({
     };
 
     const handleBlur = () => {
+        if (done) return;
         if (value.trim() && value !== initialValue) {
             onConfirm(value.trim());
+            setDone(true);
         } else {
             onCancel();
+            setDone(true);
         }
     };
 

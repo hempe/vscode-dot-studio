@@ -239,40 +239,11 @@ export class NodeIdService {
         return null;
     }
 
-    // Type checking methods
-
-    /**
-     * Checks if nodeId represents a temporary node
-     */
-    static isTemporary(nodeId: NodeIdString): boolean {
+    static isValid(compressedNodeId: NodeIdString) {
         try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'temporary';
-        } catch {
-            return false;
+            return !!this.parse(compressedNodeId);
         }
-    }
-
-    /**
-     * Checks if nodeId represents a folder
-     */
-    static isFolder(nodeId: NodeIdString): boolean {
-        try {
-            const parsed = this.parse(nodeId);
-            return parsed.type === 'folder';
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if nodeId is valid by attempting to parse it
-     */
-    static isValid(nodeId: NodeIdString): boolean {
-        try {
-            this.parse(nodeId);
-            return true;
-        } catch {
+        catch {
             return false;
         }
     }

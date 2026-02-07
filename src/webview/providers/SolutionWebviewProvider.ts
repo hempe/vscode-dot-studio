@@ -429,13 +429,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.info(`File created successfully: ${fullPath}`);
             vscode.window.showInformationMessage(`File created: ${fileName}`);
             // Send message to remove all temporary nodes for this parent
+            /*
             sendToUi(this.webview, {
                 type: 'removeTemporaryNodes',
                 payload: {
                     parentPath: parentPath
                 }
             });
-
+*/
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
             const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
             if (!currentExpanded.has(parentNodeId)) {
@@ -446,7 +447,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 log.info(`Folder already in expansion state: ${parentNodeId}`);
             }
 
-            return this._triggerImmediateTreeRefresh(`File created: ${fileName}`);
+            //return this._triggerImmediateTreeRefresh(`File created: ${fileName}`);
         } catch (error) {
             log.error('Error creating file:', error);
             vscode.window.showErrorMessage(`Error creating file: ${error}`);

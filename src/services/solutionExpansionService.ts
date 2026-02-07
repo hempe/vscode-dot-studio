@@ -329,10 +329,10 @@ export class SolutionExpansionService {
                     }
 
                     // Try to parse as new format
-                    NodeIdService.parse(expandedId);
+                    const node = NodeIdService.parse(expandedId);
 
                     // Check if the node actually exists in the tree
-                    const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
+                    const nodeType = node.type;
                     if (nodeType) {
                         validExpansionPaths.add(expandedId);
                     } else {
@@ -353,7 +353,7 @@ export class SolutionExpansionService {
 
             // Restore expansion states and load children for valid nodes
             for (const expandedId of validExpansionPaths) {
-                const nodeType = SolutionTreeService.getNodeTypeById(expandedId, treeData);
+                const nodeType = NodeIdService.parse(expandedId).type;
                 if (nodeType) {
                     log.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
 

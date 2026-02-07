@@ -26,12 +26,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const nodeIdentifier = node.nodeId;
     const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
 
-    // Check if this node is the active file
-    // For now, disable active file highlighting since parseNodeId doesn't reliably return paths in the webview
-    // TODO: Send file path as part of the node data from extension
     const isActiveFile = false;
-
-
 
     const handleClick = () => {
         log.info(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
