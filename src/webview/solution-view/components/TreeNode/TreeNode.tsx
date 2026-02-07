@@ -120,13 +120,19 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onProjectAction({
                     action: 'addFile',
                     nodeId: nodeIdentifier,
-                    data: { name: newName, isConfirmed: true }
+                    data: {
+                        name: newName,
+                        confirmed: true
+                    }
                 });
             } else if (node.type === 'folder') {
                 onProjectAction({
                     action: 'addFolder',
                     nodeId: nodeIdentifier,
-                    data: { name: newName, isConfirmed: true }
+                    data: {
+                        name: newName,
+                        confirmed: true
+                    }
                 });
             }
         } else {
@@ -259,9 +265,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 if (node.name === 'Assemblies') return { icon: 'mdi:package-variant', color: '#dcdcdc' };
                 if (node.name === 'Frameworks') return { icon: 'hugeicons:frameworks', color: '#dcdcdc' };
                 return { icon: 'mdi:folder', color: '#d8ac6a' };
-            case 'packageDependencies': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
-            case 'projectDependencies': return { icon: 'mdi:application-outline', color: '#dcdcdc' };
-            case 'assemblyDependencies': return { icon: 'mdi:package-variant', color: '#dcdcdc' };
             case 'dependency': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
             default: return { icon: 'mdi:file', color: '#dcdcdc' };
         }

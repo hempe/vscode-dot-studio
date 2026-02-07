@@ -2,7 +2,7 @@ import * as path from 'path';
 import { SolutionProject } from '../parsers/solutionFileParser';
 import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
-import { NodeIdService } from './nodeIdService';
+import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
 import { NodeIdString } from '../types/nodeId';
 
@@ -114,7 +114,7 @@ export class SolutionTreeService {
                     project.name || path.basename(project.path || '', path.extname(project.path || '')),
                     solution.solutionPath,
                     project.guid || project.name,
-                    parentExpansionId ? NodeIdService.parse(parentExpansionId)?.guid : undefined
+                    parentExpansionId ? (NodeIdService.parse(parentExpansionId) as SolutionFolderNodeId)?.guid : undefined
                 );
             } else {
                 // Fallback for other types - use temporary ID
@@ -286,12 +286,6 @@ export class SolutionTreeService {
                 nodeType = 'dependencies';
             } else if (child.type === 'dependencyCategory') {
                 nodeType = 'dependencyCategory';
-            } else if (child.type === 'packageDependencies') {
-                nodeType = 'packageDependencies';
-            } else if (child.type === 'projectDependencies') {
-                nodeType = 'projectDependencies';
-            } else if (child.type === 'assemblyDependencies') {
-                nodeType = 'assemblyDependencies';
             } else if (child.type === 'dependency') {
                 nodeType = 'dependency';
             } else {
@@ -313,7 +307,7 @@ export class SolutionTreeService {
 
     // Private helper methods
 
-    private static getItemType(typeGuid?: string): ProjectNode['type'] {
+    private static getItemType(typeGuid?: string): NodeId['type'] {
         if (!typeGuid) return 'project';
 
         // Solution folder type GUID

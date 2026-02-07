@@ -94,7 +94,6 @@ export declare type ExpandNodeCmd = {
     readonly type: 'expandNode',
     readonly payload: {
         readonly nodeId: NodeIdString,
-        readonly nodeType: string
     }
 }
 

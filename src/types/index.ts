@@ -4,22 +4,10 @@
  */
 
 import { Dependency } from "../parsers/projectFileParser";
+import { NodeId } from "../services/nodeIdService";
 import { NodeIdString } from "./nodeId";
 
-export type NodeType =
-    'solution' |
-    'solutionFolder' |
-    'project' |
-    'folder' |
-    'file' |
-    'temporary' |
-    'dependencies' |
-    'dependency' |
-    'dependencyCategory' |
-    'packageDependencies' |
-    'projectDependencies' |
-    'assemblyDependencies' |
-    'solutionItem';
+export type NodeType = NodeId['type'];
 
 /**
  * Extension-side ProjectChild interface using extension's NodeIdString

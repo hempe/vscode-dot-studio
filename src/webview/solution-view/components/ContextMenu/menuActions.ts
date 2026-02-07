@@ -287,18 +287,8 @@ export const contextMenus: Record<NodeType, MenuItem[]> = {
 
     dependencyCategory: [
         // Keep for backward compatibility - should not be used anymore
-    ],
-
-    packageDependencies: [
-        manageNuGetPackagesAction
-    ],
-
-    projectDependencies: [
+        manageNuGetPackagesAction,
         addProjectReferenceAction
-    ],
-
-    assemblyDependencies: [
-        // No actions available for assembly references
     ],
 
     solutionItem: [

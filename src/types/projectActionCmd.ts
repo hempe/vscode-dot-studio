@@ -146,35 +146,29 @@ export interface AddSolutionItemActionCmd {
 export interface AddFileActionCmd {
     readonly action: 'addFile';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly name?: string;
-        readonly isConfirmed?: boolean;
+    readonly data: {
+        readonly name: string;
+        readonly confirmed: boolean;
     };
 }
 
 export interface AddFolderActionCmd {
     readonly action: 'addFolder';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly name?: string;
-        readonly isConfirmed?: boolean;
+    readonly data: {
+        readonly name: string;
+        readonly confirmed: boolean;
     };
 }
 
 export interface CopyActionCmd {
     readonly action: 'copy';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly [key: string]: any;
-    };
 }
 
 export interface CutActionCmd {
     readonly action: 'cut';
     readonly nodeId: NodeIdString;
-    readonly data?: {
-        readonly [key: string]: any;
-    };
 }
 
 /**

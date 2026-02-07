@@ -5,26 +5,83 @@
 
 import { gzipSync, gunzipSync } from 'zlib';
 import { NodeIdString } from '../types/nodeId';
-import { NodeType } from '../types';
 
 
 // Define the structure of a NodeId
-export interface NodeId {
-    type: NodeType;
-    solutionPath?: string;
-    projectPath?: string;
-    filePath?: string;
-    folderPath?: string;
-    guid?: string;
-    parentGuid?: string;
-    categoryName?: string;
-    dependencyName?: string;
-    solutionItemName?: string;
-    version?: string;
-    itemPath?: string;
-    timestamp?: number;
-    random?: string;
+export declare type SolutionNodeId = {
+    readonly type: 'solution';
+    readonly solutionPath: string;
 }
+export declare type ProjectNodeId = {
+    readonly type: 'project';
+    readonly projectPath: string;
+}
+
+export declare type FolderNodeId = {
+    readonly type: 'folder';
+    readonly projectPath: string;
+    readonly folderPath: string;
+}
+
+export declare type FileNodeId = {
+    readonly type: 'file';
+    readonly filePath: string;
+}
+
+export declare type SolutionFolderNodeId = {
+    readonly type: 'solutionFolder';
+    readonly solutionItemName: string;
+    readonly solutionPath: string;
+    readonly guid: string;
+    readonly parentGuid: string | undefined;
+}
+
+export declare type SolutionItemNodeId = {
+    readonly type: 'solutionItem',
+    readonly solutionItemName: string;
+    readonly guid: string;
+    readonly itemPath: string;
+}
+
+
+export declare type TemporaryNodeId = {
+    readonly type: 'temporary';
+    readonly folderPath: string;
+    readonly nodeType: string;
+    readonly random: string;
+    readonly timestamp: number;
+}
+
+export declare type DependenciesNodeId = {
+    readonly type: 'dependencies';
+    readonly projectPath: string;
+}
+
+export declare type DependencyNodeId = {
+    readonly type: 'dependency';
+    readonly projectPath: string;
+    readonly categoryName: string;
+    readonly dependencyName: string;
+    readonly version?: string
+}
+
+export declare type DependencyCategoryNodeId = {
+    readonly type: 'dependencyCategory';
+    readonly projectPath: string;
+    readonly categoryName: string;
+}
+
+export declare type NodeId =
+    SolutionNodeId |
+    SolutionItemNodeId |
+    ProjectNodeId |
+    FolderNodeId |
+    FileNodeId |
+    SolutionFolderNodeId |
+    TemporaryNodeId |
+    DependencyNodeId |
+    DependenciesNodeId |
+    DependencyCategoryNodeId;
 
 /**
  * Service for generating and managing structured node IDs with compression
@@ -90,11 +147,10 @@ export class NodeIdService {
     /**
      * Generates a unique ID for a file node
      */
-    static generateFileId(filePath: string, projectPath?: string): NodeIdString {
+    static generateFileId(filePath: string): NodeIdString {
         return this.compress({
             type: 'file',
-            filePath,
-            projectPath
+            filePath
         });
     }
 
@@ -167,7 +223,7 @@ export class NodeIdService {
         return this.compress({
             type: 'temporary',
             folderPath: parentPath, // Using folderPath as generic parent path
-            categoryName: nodeType, // Using categoryName as generic node type
+            nodeType, // Using categoryName as generic node type
             timestamp,
             random
         });
@@ -180,7 +236,7 @@ export class NodeIdService {
      */
     static getProjectPathFromNodeId(nodeId: NodeIdString): string | null {
         try {
-            const parsed = this.parse(nodeId);
+            const parsed = this.parse(nodeId) as ProjectNodeId;
             return parsed.projectPath || null;
         } catch {
             return null;
@@ -245,7 +301,7 @@ export class NodeIdService {
      */
     static getPathFromId(nodeId: NodeIdString): string | null {
         try {
-            const parsed = this.parse(nodeId);
+            const parsed = this.parse(nodeId) as any;
             return parsed.filePath || parsed.folderPath || parsed.projectPath || parsed.solutionPath || null;
         } catch {
             return null;
@@ -282,7 +338,7 @@ export class NodeIdService {
             const parsed = this.parse(nodeId);
             if (parsed.type === 'temporary') {
                 return {
-                    nodeType: parsed.categoryName || 'unknown',
+                    nodeType: parsed.nodeType || 'unknown',
                     parentPath: parsed.folderPath || ''
                 };
             }

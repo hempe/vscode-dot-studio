@@ -50,7 +50,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             onCollapseNode?.(nodeId);
         } else {
             log.info(`Requesting expand: ${nodeId}`);
-            onExpandNode?.(nodeId, nodeType);
+            onExpandNode?.(nodeId);
         }
     };
 
@@ -401,9 +401,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                                 onProjectAction({
                                     nodeId: focusedNodeForCopy.nodeId,
                                     action: 'copy',
-                                    data: {
-                                        type: focusedNodeForCopy.type
-                                    }
                                 });
                             }
                         }
@@ -425,9 +422,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                                 onProjectAction({
                                     nodeId: focusedNodeForCut.nodeId,
                                     action: 'cut',
-                                    data: {
-                                        type: focusedNodeForCut.type
-                                    }
                                 });
                             }
                         }

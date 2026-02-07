@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
-import { NodeId, NodeIdService } from './nodeIdService';
+import { FileNodeId, FolderNodeId, NodeId, NodeIdService, ProjectNodeId, SolutionFolderNodeId, SolutionItemNodeId, SolutionNodeId } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
 import { ProjectActionCmd } from '../types/projectActionCmd';
 import { NodeIdString } from '../types/nodeId';
@@ -71,7 +71,7 @@ export class SolutionActionService {
                 break;
 
             case 'removeSolutionItem':
-                await this._handleRemoveSolutionItem(nodeId);
+                await this._handleRemoveSolutionItem(nodeId as SolutionItemNodeId);
                 break;
 
             case 'revealInExplorer':
@@ -97,19 +97,19 @@ export class SolutionActionService {
                 break;
 
             case 'manageNuGetPackages':
-                await this._handleManageNuGetPackages(nodeId);
+                await this._handleManageNuGetPackages(nodeId as ProjectNodeId);
                 break;
 
             case 'manageNuGetPackagesForSolution':
-                await this._handleManageNuGetPackagesForSolution(nodeId);
+                await this._handleManageNuGetPackagesForSolution(nodeId as SolutionFolderNodeId);
                 break;
 
             case 'addProjectReference':
-                await this._handleAddProjectReference(nodeId);
+                await this._handleAddProjectReference(nodeId as ProjectNodeId);
                 break;
 
             case 'restoreDependencies':
-                await this._handleRestoreDependencies(nodeId);
+                await this._handleRestoreDependencies(nodeId as ProjectNodeId);
                 break;
 
             case 'removeDependency':
@@ -121,35 +121,35 @@ export class SolutionActionService {
                 break;
 
             case 'removeSolutionFolder':
-                await this._handleRemoveSolutionFolder(nodeId);
+                await this._handleRemoveSolutionFolder(nodeId as SolutionFolderNodeId);
                 break;
 
             case 'addSolutionItem':
-                await this._handleAddSolutionItem(nodeId);
+                await this._handleAddSolutionItem(nodeId as SolutionFolderNodeId);
                 break;
 
             case 'removeProject':
-                await this._handleRemoveProject(nodeId);
+                await this._handleRemoveProject(nodeId as ProjectNodeId);
                 break;
 
             case 'deleteProject':
-                await this._handleDeleteProject(nodeId);
+                await this._handleDeleteProject(nodeId as ProjectNodeId);
                 break;
 
             case 'setStartupProject':
-                await this._handleSetStartupProject(nodeId);
+                await this._handleSetStartupProject(nodeId as ProjectNodeId);
                 break;
 
             case 'copy':
-                await this._handleCopy(nodeId, cmd.nodeId, cmd.data);
+                await this._handleCopy(nodeId as FileNodeId | FolderNodeId, cmd.nodeId);
                 break;
 
             case 'cut':
-                await this._handleCut(nodeId, cmd.nodeId, cmd.data);
+                await this._handleCut(nodeId as FileNodeId | FolderNodeId, cmd.nodeId);
                 break;
 
             case 'paste':
-                await this._handlePaste(nodeId, undefined);
+                await this._handlePaste(nodeId as FileNodeId | FolderNodeId, undefined);
                 break;
 
             case 'addFile':
@@ -173,7 +173,7 @@ export class SolutionActionService {
         try {
             // Extract the file system path from the nodeId
             // For solution items, use itemPath instead of filePath
-            const filePath = nodeId.filePath ?? nodeId.itemPath;
+            const filePath = (nodeId as FileNodeId).filePath || (nodeId as SolutionItemNodeId).itemPath || (nodeId as SolutionNodeId).solutionPath;
             if (!filePath) {
                 log.error('Cannot extract file path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine file path to open');
@@ -208,7 +208,10 @@ export class SolutionActionService {
                 }
             } else {
                 // Handle file/folder rename - extract the file system path
-                const oldPath = nodeId.filePath ?? nodeId.folderPath;
+                const oldPath = nodeId.type == 'file' ? nodeId.filePath
+                    : nodeId.type == 'folder' ? nodeId.folderPath
+                        : '';
+
                 if (!oldPath) {
                     log.error('Cannot extract file path from nodeId:', nodeId);
                     vscode.window.showErrorMessage('Error: Cannot determine file path for rename');
@@ -240,7 +243,7 @@ export class SolutionActionService {
                 return;
             }
 
-            const targetPath = nodeId.filePath;
+            const targetPath = (nodeId as FileNodeId).filePath;
             if (!targetPath) {
                 log.error('Cannot extract solution or project path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine solution or project path for build action');
@@ -282,7 +285,8 @@ export class SolutionActionService {
     private static async _handleDeleteFile(nodeId: NodeId): Promise<void> {
         try {
             // Extract the file system path from the nodeId
-            const filePath = nodeId.filePath;
+            const filePath = (nodeId as FileNodeId).filePath ?? (nodeId as FolderNodeId).folderPath;
+
             if (!filePath) {
                 log.error('Cannot extract file path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine file path for deletion');
@@ -313,7 +317,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveSolutionItem(nodeId: NodeId): Promise<void> {
+    private static async _handleRemoveSolutionItem(nodeId: SolutionItemNodeId): Promise<void> {
         try {
             const itemPath = nodeId.itemPath;
             if (!itemPath) {
@@ -349,7 +353,7 @@ export class SolutionActionService {
 
     private static async _handleRevealInExplorer(nodeId: NodeId): Promise<void> {
         try {
-            const itemPath = nodeId.filePath ?? nodeId.folderPath ?? nodeId.itemPath;
+            const itemPath = (nodeId as FileNodeId).filePath ?? (nodeId as FolderNodeId).folderPath;
             if (!itemPath) {
                 log.error('Cannot extract path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine path to reveal in explorer');
@@ -424,8 +428,7 @@ export class SolutionActionService {
             });
 
             if (folderName) {
-                // If data contains parent folder info (from solution folder context menu), use it
-                await solution.addSolutionFolder(folderName, nodeId.solutionPath);
+                await solution.addSolutionFolder(folderName, nodeId as SolutionFolderNodeId);
                 log.info(`Solution folder added: ${folderName}`);
                 vscode.window.showInformationMessage(`Solution folder '${folderName}' added`);
             }
@@ -435,7 +438,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveSolutionFolder(nodeId: NodeId): Promise<void> {
+    private static async _handleRemoveSolutionFolder(nodeId: SolutionFolderNodeId): Promise<void> {
         try {
             const folderPath = nodeId.solutionPath;
             if (!folderPath) {
@@ -478,7 +481,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddSolutionItem(nodeId: NodeId): Promise<void> {
+    private static async _handleAddSolutionItem(nodeId: SolutionFolderNodeId | SolutionNodeId): Promise<void> {
         try {
             const folderPath = nodeId.solutionPath;
             if (!folderPath) {
@@ -501,14 +504,11 @@ export class SolutionActionService {
 
             if (fileUri && fileUri[0]) {
                 // Check if we're adding to the solution root or to a specific folder
-                const isSolutionRoot = folderPath.endsWith('.sln');
-                let targetFolderName: string;
+                let targetFolderGuid: string | null | undefined;
 
-                if (isSolutionRoot) {
+                if (nodeId.type === 'solution') {
                     // Adding to solution root - ensure "Solution Items" folder exists
                     const solutionItemsFolderName = 'Solution Items';
-                    targetFolderName = solutionItemsFolderName;
-
                     // Check if "Solution Items" folder already exists
                     const existingFolders = solution.getSolutionFolders();
                     const solutionItemsExists = existingFolders.some(folder => folder.name === solutionItemsFolderName);
@@ -518,15 +518,15 @@ export class SolutionActionService {
                         await solution.addSolutionFolder(solutionItemsFolderName);
                         vscode.window.showInformationMessage(`Created "${solutionItemsFolderName}" folder`);
                     }
+                    targetFolderGuid = solution.findSolutionFolderGuid(solutionItemsFolderName);
                 } else {
                     // Adding to an existing solution folder
-                    targetFolderName = nodeId?.solutionItemName || path.basename(folderPath);
+                    targetFolderGuid = nodeId.guid;
                 }
 
-                const folderGuid = nodeId?.guid;
-                log.info(`Adding solution item to folder: name="${targetFolderName}", guid="${folderGuid}"`);
+                log.info(`Adding solution item to folder: guid="${targetFolderGuid}"`);
 
-                await solution.addSolutionItem(targetFolderName, fileUri[0].fsPath);
+                await solution.addSolutionItem(targetFolderGuid!, fileUri[0].fsPath);
                 log.info(`Solution item added: ${fileUri[0].fsPath}`);
                 vscode.window.showInformationMessage(`Solution item added: ${path.basename(fileUri[0].fsPath)}`);
             }
@@ -536,7 +536,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleRemoveProject(nodeId: NodeId): Promise<void> {
+    private static async _handleRemoveProject(nodeId: ProjectNodeId): Promise<void> {
         try {
             const projectPath = nodeId.projectPath;
             if (!projectPath) {
@@ -569,7 +569,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleDeleteProject(nodeId: NodeId): Promise<void> {
+    private static async _handleDeleteProject(nodeId: ProjectNodeId): Promise<void> {
         try {
             const projectPath = nodeId.projectPath;
             if (!projectPath) {
@@ -626,7 +626,7 @@ export class SolutionActionService {
     /**
      * Handles managing NuGet packages for a project
      */
-    private static async _handleManageNuGetPackages(nodeId: NodeId): Promise<void> {
+    private static async _handleManageNuGetPackages(nodeId: ProjectNodeId): Promise<void> {
         try {
             // Extract project path from nodeId
             const projectPath = nodeId.projectPath;
@@ -647,7 +647,7 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleManageNuGetPackagesForSolution(nodeId: NodeId): Promise<void> {
+    private static async _handleManageNuGetPackagesForSolution(nodeId: SolutionFolderNodeId): Promise<void> {
         try {
             // Extract solution path from nodeId
             const solutionPath = nodeId.solutionPath;
@@ -671,7 +671,7 @@ export class SolutionActionService {
     /**
      * Handles adding a reference to a project
      */
-    private static async _handleAddProjectReference(nodeId: NodeId): Promise<void> {
+    private static async _handleAddProjectReference(nodeId: ProjectNodeId): Promise<void> {
         try {
             // Extract project path from nodeId
             const projectPath = nodeId.projectPath;
@@ -718,7 +718,7 @@ export class SolutionActionService {
     /**
      * Handles restoring dependencies for a project
      */
-    private static async _handleRestoreDependencies(nodeId: NodeId): Promise<void> {
+    private static async _handleRestoreDependencies(nodeId: ProjectNodeId): Promise<void> {
         try {
             // Extract project path from nodeId
             const projectPath = nodeId.projectPath;
@@ -963,7 +963,7 @@ export class SolutionActionService {
     /**
      * Handles setting a project as the startup project
      */
-    private static async _handleSetStartupProject(nodeId: NodeId): Promise<void> {
+    private static async _handleSetStartupProject(nodeId: ProjectNodeId): Promise<void> {
         try {
             const projectPath = nodeId.projectPath;
             if (!projectPath) {
@@ -1042,15 +1042,14 @@ export class SolutionActionService {
         nodeId: NodeIdString;
         path: string;
         operation: 'copy' | 'cut';
-        type: string;
     } | null = null;
 
     /**
      * Handles copying a file or folder to the clipboard
      */
-    private static async _handleCopy(nodeId: NodeId, nodeIdString: NodeIdString, data?: MessageData): Promise<void> {
+    private static async _handleCopy(nodeId: FileNodeId | FolderNodeId, nodeIdString: NodeIdString): Promise<void> {
         try {
-            const itemPath = nodeId.filePath ?? nodeId.folderPath;
+            const itemPath = (nodeId as FileNodeId).filePath ?? (nodeId as FolderNodeId).folderPath;
             if (!itemPath) {
                 log.error('Cannot extract path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine item path');
@@ -1061,7 +1060,6 @@ export class SolutionActionService {
                 nodeId: nodeIdString,
                 path: itemPath,
                 operation: 'copy',
-                type: data?.type || 'unknown'
             };
 
             const itemName = path.basename(itemPath);
@@ -1076,9 +1074,9 @@ export class SolutionActionService {
     /**
      * Handles cutting a file or folder to the clipboard
      */
-    private static async _handleCut(nodeId: NodeId, nodeIdString: NodeIdString, data?: MessageData): Promise<void> {
+    private static async _handleCut(nodeId: FileNodeId | FolderNodeId, nodeIdString: NodeIdString): Promise<void> {
         try {
-            const itemPath = nodeId.filePath ?? nodeId.folderPath;
+            const itemPath = (nodeId as FileNodeId).filePath ?? (nodeId as FolderNodeId).folderPath;
             if (!itemPath) {
                 log.error('Cannot extract path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine item path');
@@ -1089,7 +1087,6 @@ export class SolutionActionService {
                 nodeId: nodeIdString,
                 path: itemPath,
                 operation: 'cut',
-                type: data?.type || 'unknown'
             };
 
             const itemName = path.basename(itemPath);
@@ -1104,7 +1101,7 @@ export class SolutionActionService {
     /**
      * Handles pasting a file or folder from the clipboard
      */
-    private static async _handlePaste(nodeId: NodeId, _data?: MessageData): Promise<void> {
+    private static async _handlePaste(nodeId: FileNodeId | FolderNodeId, _data?: MessageData): Promise<void> {
         try {
             log.info(`_handlePaste called: nodeId=${nodeId}, clipboard=${JSON.stringify(this.clipboard)}`);
 
@@ -1112,8 +1109,7 @@ export class SolutionActionService {
                 vscode.window.showWarningMessage('Nothing to paste');
                 return;
             }
-
-            const targetPath = nodeId.folderPath ?? nodeId.filePath;
+            const targetPath = (nodeId as FolderNodeId).folderPath ?? (nodeId as FileNodeId).filePath;
             if (!targetPath) {
                 log.error('Cannot extract target path from nodeId:', nodeId);
                 vscode.window.showErrorMessage('Error: Cannot determine target path');

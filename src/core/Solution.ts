@@ -7,6 +7,7 @@ import { DebugConfigService } from '../services/debugConfigService';
 import { Project } from './Project';
 import { logger } from './logger';
 import { SimpleDebounceManager } from '../services/debounceManager';
+import { SolutionFolderNodeId } from '../services/nodeIdService';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -369,8 +370,8 @@ export class Solution {
     /**
      * Adds a solution folder to the solution file
      */
-    async addSolutionFolder(folderName: string, parentFolderName?: string): Promise<void> {
-        log.info(`Adding solution folder: ${folderName}${parentFolderName ? ` under ${parentFolderName}` : ''}`);
+    async addSolutionFolder(folderName: string, parentNode?: SolutionFolderNodeId): Promise<void> {
+        log.info(`Adding solution folder: ${folderName}${parentNode?.solutionItemName ? ` under ${parentNode.solutionItemName}` : ''}`);
 
         try {
             // Read the current solution file
@@ -411,15 +412,14 @@ export class Solution {
             ];
 
             // If this is a nested folder, we need to add/update the NestedProjects section
-            if (parentFolderName) {
+            if (parentNode) {
                 // Find the parent folder's GUID
-                const parentFolderGuid = this.findSolutionFolderGuid(parentFolderName);
-                if (!parentFolderGuid) {
-                    throw new Error(`Parent solution folder "${parentFolderName}" not found`);
+                if (!parentNode.guid) {
+                    throw new Error(`Parent solution folder "${parentNode.solutionItemName}" not found`);
                 }
 
                 // Add or update NestedProjects section
-                newLines = this.addNestedProjectEntry(newLines, folderGuid, parentFolderGuid);
+                newLines = this.addNestedProjectEntry(newLines, folderGuid, parentNode?.guid);
             }
 
             // Write the updated solution file
@@ -440,7 +440,7 @@ export class Solution {
     /**
      * Finds the GUID of a solution folder by its name
      */
-    private findSolutionFolderGuid(folderName: string): string | null {
+    public findSolutionFolderGuid(folderName: string): string | null {
         if (!this._solutionFile?.projects) {
             return null;
         }
@@ -629,14 +629,13 @@ export class Solution {
     /**
      * Adds a solution item (file) to a solution folder
      */
-    async addSolutionItem(folderName: string, filePath: string): Promise<void> {
-        log.info(`Adding solution item "${filePath}" to folder "${folderName}"`);
+    async addSolutionItem(folderGuid: string, filePath: string): Promise<void> {
+        log.info(`Adding solution item "${filePath}" to folder "${folderGuid}"`);
 
         try {
             // Find the solution folder to get its GUID
-            const folderGuid = this.findSolutionFolderGuid(folderName);
             if (!folderGuid) {
-                throw new Error(`Solution folder "${folderName}" not found`);
+                throw new Error(`Solution folder "${folderGuid}" not found`);
             }
 
             // Read the current solution file
@@ -648,13 +647,13 @@ export class Solution {
             const relativePath = path.relative(solutionDir, filePath).replace(/\\/g, '/');
 
             // Find the solution folder's Project block and add the file to it
-            const updatedLines = this.addSolutionItemToFolder(lines, folderName, folderGuid, relativePath);
+            const updatedLines = this.addSolutionItemToFolder(lines, folderGuid, relativePath);
 
             // Write the updated solution file
             const updatedContent = updatedLines.join('\n');
             await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
 
-            log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderName}"`);
+            log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderGuid}"`);
 
             // Re-parse the solution file to update internal state
             await this.parseSolutionFile();
@@ -838,7 +837,7 @@ export class Solution {
     /**
      * Adds a solution item to a solution folder's Project block
      */
-    private addSolutionItemToFolder(lines: string[], folderName: string, folderGuid: string, relativePath: string): string[] {
+    private addSolutionItemToFolder(lines: string[], folderGuid: string, relativePath: string): string[] {
         const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
         let projectStartIndex = -1;
         let projectEndIndex = -1;
@@ -849,7 +848,6 @@ export class Solution {
 
             // Look for the Project line for this solution folder
             if (line.includes(`Project("${solutionFolderTypeGuid}")`) &&
-                line.includes(`"${folderName}"`) &&
                 line.includes(folderGuid)) {
                 projectStartIndex = i;
             }
@@ -862,7 +860,7 @@ export class Solution {
         }
 
         if (projectStartIndex === -1 || projectEndIndex === -1) {
-            throw new Error(`Could not find Project block for solution folder "${folderName}"`);
+            throw new Error(`Could not find Project block for solution folder "${folderGuid}"`);
         }
 
         // Check if there are already ProjectSection(SolutionItems) in this folder

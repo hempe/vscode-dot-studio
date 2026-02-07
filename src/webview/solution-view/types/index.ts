@@ -23,7 +23,7 @@ export interface SolutionTreeProps {
     projects: any[];
     activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionCmd) => void;
-    onExpandNode?: (nodeId: NodeIdString, nodeType: NodeType) => void;
+    onExpandNode?: (nodeId: NodeIdString) => void;
     onCollapseNode?: (nodeId: NodeIdString) => void;
 }
 

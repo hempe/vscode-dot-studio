@@ -579,19 +579,19 @@ export class Project {
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
         const items: ProjectChild[] = [
             {
-                type: 'packageDependencies',
+                type: 'dependencyCategory',
                 name: 'Packages',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
                 hasChildren: packageCount > 0
             },
             {
-                type: 'projectDependencies',
+                type: 'dependencyCategory',
                 name: 'Projects',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
                 hasChildren: projectCount > 0
             },
             {
-                type: 'assemblyDependencies',
+                type: 'dependencyCategory',
                 name: 'Assemblies',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
                 hasChildren: assemblyCount > 0
@@ -616,21 +616,23 @@ export class Project {
         let categoryName: string = '';
 
         // Determine which category - handle both legacy paths and new expansion IDs
-        if (nodeId.categoryName == 'packages') {
-            // Packages: NuGet package references
-            dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
-            categoryName = 'packages';
-        } else if (nodeId.categoryName == 'projects') {
-            // Projects: project-to-project references
-            dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
-            categoryName = 'projects';
-        } else if (nodeId.categoryName == 'assemblies') {
-            // Assemblies: binary/assembly references
-            dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
-            categoryName = 'assemblies';
-        } else if (nodeId.categoryName == 'frameworks') {            // Frameworks: framework references
-            dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
-            categoryName = 'frameworks';
+        if (nodeId.type == 'dependencyCategory') {
+            if (nodeId.categoryName == 'packages') {
+                // Packages: NuGet package references
+                dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
+                categoryName = 'packages';
+            } else if (nodeId.categoryName == 'projects') {
+                // Projects: project-to-project references
+                dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
+                categoryName = 'projects';
+            } else if (nodeId.categoryName == 'assemblies') {
+                // Assemblies: binary/assembly references
+                dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
+                categoryName = 'assemblies';
+            } else if (nodeId.categoryName == 'frameworks') {            // Frameworks: framework references
+                dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
+                categoryName = 'frameworks';
+            }
         }
 
         // Convert to tree nodes

@@ -143,13 +143,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
                     if (message.payload.action === 'addFile') {
-                        if (message.payload.data?.isConfirmed && message.payload.data?.name) {
+                        if (message.payload.data?.confirmed) {
                             await this._handleCreateFileAction(message.payload.nodeId, message.payload.data.name);
                         } else {
                             await this._handleAddFileAction(message.payload.nodeId);
                         }
                     } else if (message.payload.action === 'addFolder') {
-                        if (message.payload.data?.isConfirmed && message.payload.data?.name) {
+                        if (message.payload.data?.confirmed) {
                             await this._handleCreateFolderAction(message.payload.nodeId, message.payload.data.name);
                         } else {
                             await this._handleAddFolderAction(message.payload.nodeId);
@@ -183,11 +183,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'expandNode':
-                if (message.payload.nodeId && message.payload.nodeType) {
-                    log.info('Handling expandNode request:', message.payload.nodeId, message.payload.nodeType);
+                if (message.payload.nodeId) {
+                    log.info('Handling expandNode request:', message.payload.nodeId);
                     await SolutionExpansionService.handleExpandNode(
                         message.payload.nodeId!,
-                        message.payload.nodeType,
                         this._cachedSolutionData || null,
                         () => this._sendCachedData(),
                         this._context
@@ -357,7 +356,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _handleAddFileAction(parentNodeId: NodeIdString): Promise<void> {
         try {
             const node = NodeIdService.parse(parentNodeId);
-            if (!node) {
+            if (!node || node.type !== 'folder') {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding file: invalid parent path`);
                 return;
@@ -388,7 +387,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _handleAddFolderAction(parentNodeId: NodeIdString): Promise<void> {
         try {
             const node = NodeIdService.parse(parentNodeId);
-            if (!node) {
+            if (!node || node.type !== 'folder') {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding folder: invalid parent path`);
                 return;

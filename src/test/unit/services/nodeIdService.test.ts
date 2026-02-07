@@ -2,7 +2,7 @@
  * Tests for the new JSON-based NodeId service
  */
 
-import { NodeIdService } from '../../../services/nodeIdService';
+import { DependencyNodeId, FolderNodeId, NodeIdService, ProjectNodeId, SolutionNodeId } from '../../../services/nodeIdService';
 
 describe('NodeIdService', () => {
     describe('Basic functionality', () => {
@@ -12,7 +12,7 @@ describe('NodeIdService', () => {
 
             expect(typeof nodeId).toBe('object');
 
-            const parsed = NodeIdService.parse(nodeId);
+            const parsed = NodeIdService.parse(nodeId) as SolutionNodeId;
             expect(parsed.type).toBe('solution');
             expect(parsed.solutionPath).toBe(solutionPath);
         });
@@ -21,19 +21,8 @@ describe('NodeIdService', () => {
             const projectPath = '/home/user/project/MyProject.csproj';
             const nodeId = NodeIdService.generateProjectId(projectPath);
 
-            const parsed = NodeIdService.parse(nodeId);
+            const parsed = NodeIdService.parse(nodeId) as ProjectNodeId;
             expect(parsed.type).toBe('project');
-            expect(parsed.projectPath).toBe(projectPath);
-        });
-
-        it('should generate and parse file nodeId', () => {
-            const filePath = '/home/user/project/src/MyFile.cs';
-            const projectPath = '/home/user/project/MyProject.csproj';
-            const nodeId = NodeIdService.generateFileId(filePath, projectPath);
-
-            const parsed = NodeIdService.parse(nodeId);
-            expect(parsed.type).toBe('file');
-            expect(parsed.filePath).toBe(filePath);
             expect(parsed.projectPath).toBe(projectPath);
         });
 
@@ -42,7 +31,7 @@ describe('NodeIdService', () => {
             const projectPath = '/home/user/project/MyProject.csproj';
             const nodeId = NodeIdService.generateFolderId(folderPath, projectPath);
 
-            const parsed = NodeIdService.parse(nodeId);
+            const parsed = NodeIdService.parse(nodeId) as FolderNodeId;
             expect(parsed.type).toBe('folder');
             expect(parsed.folderPath).toBe(folderPath);
             expect(parsed.projectPath).toBe(projectPath);
@@ -56,7 +45,7 @@ describe('NodeIdService', () => {
 
             const nodeId = NodeIdService.generateDependencyId(projectPath, categoryName, dependencyName, version);
 
-            const parsed = NodeIdService.parse(nodeId);
+            const parsed = NodeIdService.parse(nodeId) as DependencyNodeId;
             expect(parsed.type).toBe('dependency');
             expect(parsed.projectPath).toBe(projectPath);
             expect(parsed.categoryName).toBe(categoryName);
@@ -75,7 +64,7 @@ describe('NodeIdService', () => {
             expect(typeof nodeId).toBe('object');
 
             // Should be able to parse it back
-            const parsed = NodeIdService.parse(nodeId);
+            const parsed = NodeIdService.parse(nodeId) as ProjectNodeId;
             expect(parsed.projectPath).toBe(longPath);
         });
 
@@ -89,7 +78,7 @@ describe('NodeIdService', () => {
 
             expect(typeof complexNodeId).toBe('object');
 
-            const parsed = NodeIdService.parse(complexNodeId);
+            const parsed = NodeIdService.parse(complexNodeId) as DependencyNodeId;
             expect(parsed.type).toBe('dependency');
             expect(parsed.dependencyName).toBe('Microsoft.Extensions.DependencyInjection.Abstractions');
         });

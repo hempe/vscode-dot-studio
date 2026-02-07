@@ -288,9 +288,9 @@ export const useVsCodeApi = () => {
         }
     }, []);
 
-    const expandNode = useCallback((nodeId: NodeIdString, nodeType: string) => {
-        log.info('Expanding node:', nodeId, nodeType);
-        sendToBackend({ type: 'expandNode', payload: { nodeId: nodeId, nodeType } });
+    const expandNode = useCallback((nodeId: NodeIdString) => {
+        log.info('Expanding node:', nodeId);
+        sendToBackend({ type: 'expandNode', payload: { nodeId: nodeId } });
     }, []);
 
     const collapseNode = useCallback((nodeId: NodeIdString) => {
