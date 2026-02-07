@@ -362,14 +362,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
-            log.info(`Creating temporary file node for parent: ${node.folderPath}`);
+            log.info(`Creating temporary file node for parent: ${node.path}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
                     parentNodeId: parentNodeId,
-                    nodeId: NodeIdService.generateTemporaryId('file', node.folderPath!),
+                    nodeId: NodeIdService.generateTemporaryId('file', node.path!),
                     nodeType: 'file'
                 }
             });
@@ -393,14 +393,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
-            log.info(`Creating temporary folder node for parent: ${node.folderPath}`);
+            log.info(`Creating temporary folder node for parent: ${node.path}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
                     parentNodeId: parentNodeId,
-                    nodeId: NodeIdService.generateTemporaryId('folder', node.folderPath!),
+                    nodeId: NodeIdService.generateTemporaryId('folder', node.path!),
                     nodeType: 'folder'
                 }
             });
@@ -469,7 +469,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
             if (projectPath) {
-                const parentNodeId = NodeIdService.generateFolderId(parentPath, projectPath);
+                const parentNodeId = NodeIdService.generateFolderId(parentPath);
                 const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
                 if (!currentExpanded.has(parentNodeId)) {
                     currentExpanded.add(parentNodeId);
@@ -551,7 +551,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             // Ensure parent folder stays expanded by adding it to expansion state AFTER refresh
             if (projectPath) {
-                const parentNodeId = NodeIdService.generateFolderId(parentPath, projectPath);
+                const parentNodeId = NodeIdService.generateFolderId(parentPath);
                 const currentExpanded = SolutionExpansionService.getExpansionState(this._context);
                 if (!currentExpanded.has(parentNodeId)) {
                     currentExpanded.add(parentNodeId);

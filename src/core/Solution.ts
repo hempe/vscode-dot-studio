@@ -371,7 +371,7 @@ export class Solution {
      * Adds a solution folder to the solution file
      */
     async addSolutionFolder(folderName: string, parentNode?: SolutionFolderNodeId): Promise<void> {
-        log.info(`Adding solution folder: ${folderName}${parentNode?.solutionItemName ? ` under ${parentNode.solutionItemName}` : ''}`);
+        log.info(`Adding solution folder: ${folderName}${parentNode?.name ? ` under ${parentNode.name}` : ''}`);
 
         try {
             // Read the current solution file
@@ -415,7 +415,7 @@ export class Solution {
             if (parentNode) {
                 // Find the parent folder's GUID
                 if (!parentNode.guid) {
-                    throw new Error(`Parent solution folder "${parentNode.solutionItemName}" not found`);
+                    throw new Error(`Parent solution folder "${parentNode.name}" not found`);
                 }
 
                 // Add or update NestedProjects section

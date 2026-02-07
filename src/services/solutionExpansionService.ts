@@ -90,7 +90,7 @@ export class SolutionExpansionService {
                 }
             } else if (node.type === 'dependencies') {
                 // Expanding a Dependencies node - extract project path from expansion ID
-                const projectPath = node.projectPath;
+                const projectPath = node.path;
                 if (!projectPath) {
                     log.error(`Could not extract project path from dependencies expansion ID: ${nodeId}`);
                     return;

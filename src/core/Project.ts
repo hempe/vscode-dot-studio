@@ -522,7 +522,7 @@ export class Project {
                         type: 'folder',
                         name: propertiesFolder.name,
                         hasChildren: propertiesFolder.hasChildren,
-                        nodeId: NodeIdService.generateFolderId(propertiesFolder.path, this._projectPath)
+                        nodeId: NodeIdService.generateFolderId(propertiesFolder.path)
                     });
                 }
 
@@ -544,7 +544,7 @@ export class Project {
                     }
 
                     const nodeId = child.type === 'folder'
-                        ? NodeIdService.generateFolderId(child.path, this._projectPath)
+                        ? NodeIdService.generateFolderId(child.path)
                         : NodeIdService.generateFileId(child.path);
 
                     items.push({
@@ -617,19 +617,19 @@ export class Project {
 
         // Determine which category - handle both legacy paths and new expansion IDs
         if (nodeId.type == 'dependencyCategory') {
-            if (nodeId.categoryName == 'packages') {
+            if (nodeId.name == 'packages') {
                 // Packages: NuGet package references
                 dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
                 categoryName = 'packages';
-            } else if (nodeId.categoryName == 'projects') {
+            } else if (nodeId.name == 'projects') {
                 // Projects: project-to-project references
                 dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
                 categoryName = 'projects';
-            } else if (nodeId.categoryName == 'assemblies') {
+            } else if (nodeId.name == 'assemblies') {
                 // Assemblies: binary/assembly references
                 dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
                 categoryName = 'assemblies';
-            } else if (nodeId.categoryName == 'frameworks') {            // Frameworks: framework references
+            } else if (nodeId.name == 'frameworks') {            // Frameworks: framework references
                 dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
                 categoryName = 'frameworks';
             }
@@ -675,7 +675,7 @@ export class Project {
 
             for (const child of children) {
                 const nodeId = child.type === 'folder'
-                    ? NodeIdService.generateFolderId(child.path, this._projectPath)
+                    ? NodeIdService.generateFolderId(child.path)
                     : NodeIdService.generateFileId(child.path);
 
                 items.push({

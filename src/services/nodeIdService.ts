@@ -10,43 +10,41 @@ import { NodeIdString } from '../types/nodeId';
 // Define the structure of a NodeId
 export declare type SolutionNodeId = {
     readonly type: 'solution';
-    readonly solutionPath: string;
+    readonly path: string;
 }
 export declare type ProjectNodeId = {
     readonly type: 'project';
-    readonly projectPath: string;
+    readonly path: string;
 }
 
 export declare type FolderNodeId = {
     readonly type: 'folder';
-    readonly projectPath: string;
-    readonly folderPath: string;
+    readonly path: string;
 }
 
 export declare type FileNodeId = {
     readonly type: 'file';
-    readonly filePath: string;
+    readonly path: string;
 }
 
 export declare type SolutionFolderNodeId = {
     readonly type: 'solutionFolder';
-    readonly solutionItemName: string;
-    readonly solutionPath: string;
+    readonly name: string;
+    readonly path: string;
     readonly guid: string;
     readonly parentGuid: string | undefined;
 }
 
 export declare type SolutionItemNodeId = {
     readonly type: 'solutionItem',
-    readonly solutionItemName: string;
+    readonly name: string;
     readonly guid: string;
-    readonly itemPath: string;
+    readonly path: string;
 }
-
 
 export declare type TemporaryNodeId = {
     readonly type: 'temporary';
-    readonly folderPath: string;
+    readonly path: string;
     readonly nodeType: string;
     readonly random: string;
     readonly timestamp: number;
@@ -54,21 +52,21 @@ export declare type TemporaryNodeId = {
 
 export declare type DependenciesNodeId = {
     readonly type: 'dependencies';
-    readonly projectPath: string;
+    readonly path: string;
 }
 
 export declare type DependencyNodeId = {
     readonly type: 'dependency';
-    readonly projectPath: string;
-    readonly categoryName: string;
-    readonly dependencyName: string;
+    readonly path: string;
+    readonly category: string;
+    readonly name: string;
     readonly version?: string
 }
 
 export declare type DependencyCategoryNodeId = {
     readonly type: 'dependencyCategory';
-    readonly projectPath: string;
-    readonly categoryName: string;
+    readonly path: string;
+    readonly name: string;
 }
 
 export declare type NodeId =
@@ -119,7 +117,7 @@ export class NodeIdService {
     static generateSolutionId(solutionPath: string): NodeIdString {
         return this.compress({
             type: 'solution',
-            solutionPath
+            path: solutionPath
         });
     }
 
@@ -129,18 +127,17 @@ export class NodeIdService {
     static generateProjectId(projectPath: string): NodeIdString {
         return this.compress({
             type: 'project',
-            projectPath
+            path: projectPath
         });
     }
 
     /**
      * Generates a unique ID for a folder node
      */
-    static generateFolderId(folderPath: string, projectPath: string): NodeIdString {
+    static generateFolderId(folderPath: string): NodeIdString {
         return this.compress({
             type: 'folder',
-            folderPath,
-            projectPath
+            path: folderPath
         });
     }
 
@@ -150,7 +147,7 @@ export class NodeIdService {
     static generateFileId(filePath: string): NodeIdString {
         return this.compress({
             type: 'file',
-            filePath
+            path: filePath
         });
     }
 
@@ -160,8 +157,8 @@ export class NodeIdService {
     static generateSolutionFolderId(solutionItemName: string, solutionPath: string, guid: string, parentGuid?: string): NodeIdString {
         return this.compress({
             type: 'solutionFolder',
-            solutionItemName,
-            solutionPath,
+            name: solutionItemName,
+            path: solutionPath,
             guid,
             parentGuid
         });
@@ -173,9 +170,9 @@ export class NodeIdService {
     static generateSolutionItemId(solutionItemName: string, solutionFolderGuid: string, itemPath: string): NodeIdString {
         return this.compress({
             type: 'solutionItem',
-            solutionItemName,
+            name: solutionItemName,
             guid: solutionFolderGuid,
-            itemPath
+            path: itemPath
         });
     }
 
@@ -185,7 +182,7 @@ export class NodeIdService {
     static generateDependenciesId(projectPath: string): NodeIdString {
         return this.compress({
             type: 'dependencies',
-            projectPath
+            path: projectPath
         });
     }
 
@@ -195,8 +192,8 @@ export class NodeIdService {
     static generateDependencyCategoryId(projectPath: string, categoryName: string): NodeIdString {
         return this.compress({
             type: 'dependencyCategory',
-            projectPath,
-            categoryName
+            path: projectPath,
+            name: categoryName
         });
     }
 
@@ -206,9 +203,9 @@ export class NodeIdService {
     static generateDependencyId(projectPath: string, categoryName: string, dependencyName: string, version?: string): NodeIdString {
         return this.compress({
             type: 'dependency',
-            projectPath,
-            categoryName,
-            dependencyName,
+            path: projectPath,
+            category: categoryName,
+            name: dependencyName,
             version
         });
     }
@@ -222,7 +219,7 @@ export class NodeIdService {
 
         return this.compress({
             type: 'temporary',
-            folderPath: parentPath, // Using folderPath as generic parent path
+            path: parentPath, // Using folderPath as generic parent path
             nodeType, // Using categoryName as generic node type
             timestamp,
             random
@@ -237,7 +234,7 @@ export class NodeIdService {
     static getProjectPathFromNodeId(nodeId: NodeIdString): string | null {
         try {
             const parsed = this.parse(nodeId) as ProjectNodeId;
-            return parsed.projectPath || null;
+            return parsed.path || null;
         } catch {
             return null;
         }
@@ -249,18 +246,18 @@ export class NodeIdService {
     static getFolderPathFromNodeId(nodeId: NodeIdString): string | null {
         try {
             const parsed = this.parse(nodeId);
-            return parsed.type === 'folder' ? parsed.folderPath || null : null;
+            return parsed.type === 'folder' ? parsed.path || null : null;
         } catch {
             return null;
         }
     }
 
     static getDependencyInfoFromNode(node: NodeId): { projectPath: string; dependencyName: string; dependencyType: string; version?: string } | null {
-        if (node.type === 'dependency' && node.projectPath && node.categoryName && node.dependencyName) {
+        if (node.type === 'dependency' && node.path && node.category && node.name) {
             return {
-                projectPath: node.projectPath,
-                dependencyName: node.dependencyName,
-                dependencyType: node.categoryName, // Map categoryName to dependencyType for backward compatibility
+                projectPath: node.path,
+                dependencyName: node.name,
+                dependencyType: node.category, // Map categoryName to dependencyType for backward compatibility
                 version: node.version
             };
         }
@@ -339,7 +336,7 @@ export class NodeIdService {
             if (parsed.type === 'temporary') {
                 return {
                     nodeType: parsed.nodeType || 'unknown',
-                    parentPath: parsed.folderPath || ''
+                    parentPath: parsed.path || ''
                 };
             }
             return null;

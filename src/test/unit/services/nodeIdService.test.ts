@@ -14,7 +14,7 @@ describe('NodeIdService', () => {
 
             const parsed = NodeIdService.parse(nodeId) as SolutionNodeId;
             expect(parsed.type).toBe('solution');
-            expect(parsed.solutionPath).toBe(solutionPath);
+            expect(parsed.path).toBe(solutionPath);
         });
 
         it('should generate and parse project nodeId', () => {
@@ -23,18 +23,16 @@ describe('NodeIdService', () => {
 
             const parsed = NodeIdService.parse(nodeId) as ProjectNodeId;
             expect(parsed.type).toBe('project');
-            expect(parsed.projectPath).toBe(projectPath);
+            expect(parsed.path).toBe(projectPath);
         });
 
         it('should generate and parse folder nodeId', () => {
             const folderPath = '/home/user/project/src/Services';
-            const projectPath = '/home/user/project/MyProject.csproj';
-            const nodeId = NodeIdService.generateFolderId(folderPath, projectPath);
+            const nodeId = NodeIdService.generateFolderId(folderPath);
 
             const parsed = NodeIdService.parse(nodeId) as FolderNodeId;
             expect(parsed.type).toBe('folder');
-            expect(parsed.folderPath).toBe(folderPath);
-            expect(parsed.projectPath).toBe(projectPath);
+            expect(parsed.path).toBe(folderPath);
         });
 
         it('should generate and parse dependency nodeId', () => {
@@ -47,9 +45,9 @@ describe('NodeIdService', () => {
 
             const parsed = NodeIdService.parse(nodeId) as DependencyNodeId;
             expect(parsed.type).toBe('dependency');
-            expect(parsed.projectPath).toBe(projectPath);
-            expect(parsed.categoryName).toBe(categoryName);
-            expect(parsed.dependencyName).toBe(dependencyName);
+            expect(parsed.path).toBe(projectPath);
+            expect(parsed.category).toBe(categoryName);
+            expect(parsed.name).toBe(dependencyName);
             expect(parsed.version).toBe(version);
         });
     });
@@ -65,7 +63,7 @@ describe('NodeIdService', () => {
 
             // Should be able to parse it back
             const parsed = NodeIdService.parse(nodeId) as ProjectNodeId;
-            expect(parsed.projectPath).toBe(longPath);
+            expect(parsed.path).toBe(longPath);
         });
 
         it('should handle complex nodeIds efficiently', () => {
@@ -80,7 +78,7 @@ describe('NodeIdService', () => {
 
             const parsed = NodeIdService.parse(complexNodeId) as DependencyNodeId;
             expect(parsed.type).toBe('dependency');
-            expect(parsed.dependencyName).toBe('Microsoft.Extensions.DependencyInjection.Abstractions');
+            expect(parsed.name).toBe('Microsoft.Extensions.DependencyInjection.Abstractions');
         });
     });
 });
