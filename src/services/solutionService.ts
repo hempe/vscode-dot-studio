@@ -227,9 +227,10 @@ export class SolutionService {
      */
     static getFrameworkDisplayName(framework: string): string {
         const frameworkInfo: { [key: string]: { name: string, status?: string } } = {
-            // Current supported frameworks (as of 2024/2025)
-            'net8.0': { name: '.NET 8.0 (LTS)', status: '✅ Supported until Nov 2026' },
-            'net9.0': { name: '.NET 9.0', status: '✅ Supported until May 2025' },
+            // Current supported frameworks (as of 2024/2025/2026)
+            'net8.0': { name: '.NET 8.0 (LTS)', status: '✅ Supported until November 2026' },
+            'net9.0': { name: '.NET 9.0', status: '✅ Supported until November 2026' },
+            'net10.0': { name: '.NET 10.0 (LTS)', status: '✅ Supported until November 2028' },
 
             // Out of support modern frameworks
             'net7.0': { name: '.NET 7.0', status: '⚠️ End of life May 2024' },
@@ -286,10 +287,10 @@ export class SolutionService {
      */
     static getUpgradeRecommendation(framework: string): string {
         if (framework.startsWith('net6') || framework.startsWith('net7')) {
-            return 'Consider upgrading to .NET 8.0 (LTS) for continued support and performance improvements.';
+            return 'Consider upgrading to .NET 10.0 (LTS) for continued support and performance improvements.';
         }
         if (framework.startsWith('netcoreapp') || framework.startsWith('net5')) {
-            return 'Upgrade to .NET 8.0 (LTS) - this framework is no longer supported.';
+            return 'Upgrade to .NET 10.0 (LTS) - this framework is no longer supported.';
         }
         if (framework.startsWith('net4')) {
             return 'Consider migrating to .NET 8.0 for better performance, cross-platform support, and modern features.';

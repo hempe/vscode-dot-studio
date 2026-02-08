@@ -219,8 +219,6 @@ The extension provides comprehensive solution and project management with stable
 - Project properties management UI (graphical .csproj editor)
 
 **Performance & Polish**:
-- Virtual scrolling for large trees
-- Enhanced caching strategies
 - Source control status indicators
 - Active file highlighting in tree
 
@@ -228,7 +226,6 @@ The extension provides comprehensive solution and project management with stable
 
 **Advanced Features**:
 - Dependency graph visualization with circular dependency detection
-- Package Manager Console (PowerShell-like interface)
 - Scaffolding system for MVC, Entity Framework
 - Advanced project types (.shproj, .sqlproj, Docker projects)
 
