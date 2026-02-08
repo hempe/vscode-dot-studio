@@ -7,6 +7,7 @@ import { NodeId, NodeIdService } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
 import { ProjectActionCmd } from '../types/projectActionCmd';
 import { NodeIdString } from '../types/nodeId';
+import { sln } from '../core/utils';
 
 const log = logger('SolutionActionService');
 
@@ -241,9 +242,10 @@ export class SolutionActionService {
             }
 
             // Determine if this is a solution or project
-            const isSolution = targetPath.endsWith('.sln');
-            const targetName = path.basename(targetPath, isSolution ? '.sln' : path.extname(targetPath));
-            const targetType = isSolution ? 'Solution' : 'Project';
+            const solutionExt = sln(targetPath);
+
+            const targetName = path.basename(targetPath, solutionExt ?? path.extname(targetPath));
+            const targetType = solutionExt ? 'Solution' : 'Project';
 
             const terminal = vscode.window.createTerminal(`${action} ${targetType}: ${targetName}`);
             terminal.show();

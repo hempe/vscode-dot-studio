@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../core/logger';
+import { sln } from '../core/utils';
 
 const log = logger('SolutionDiscovery');
 
@@ -20,7 +21,7 @@ export class SolutionDiscovery {
         try {
             const files = await fs.promises.readdir(workspaceRoot);
             const solutionFiles = files
-                .filter(file => file.endsWith('.sln'))
+                .filter(sln)
                 .map(file => path.join(workspaceRoot, file));
 
             if (solutionFiles.length === 0) {
@@ -47,7 +48,7 @@ export class SolutionDiscovery {
      */
     static async selectSolution(availableSolutions: string[]): Promise<string | null> {
         const items = availableSolutions.map(solutionPath => ({
-            label: path.basename(solutionPath, '.sln'),
+            label: solutionPath,
             description: path.dirname(solutionPath),
             solutionPath
         }));

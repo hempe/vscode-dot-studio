@@ -51,7 +51,6 @@ describe('SolutionWebviewProvider', () => {
         } as any;
 
         // Setup static method mocks
-        (SolutionService.findSolutionFile as jest.Mock) = jest.fn();
         (SolutionService.parseSolutionFile as jest.Mock) = jest.fn();
 
         // Mock ProjectFileParser instance
@@ -98,7 +97,6 @@ describe('SolutionWebviewProvider', () => {
                 dependencies: []
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             // Mock the parser instance method
@@ -166,7 +164,6 @@ describe('SolutionWebviewProvider', () => {
                 dependencies: []
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             // Mock the parser instance method
@@ -199,7 +196,6 @@ describe('SolutionWebviewProvider', () => {
                 ]
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             // Mock the parser instance method to throw error
@@ -248,7 +244,6 @@ describe('SolutionWebviewProvider', () => {
                 ]
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);
@@ -327,7 +322,6 @@ describe('SolutionWebviewProvider', () => {
                 dependencies: []
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);
@@ -391,7 +385,6 @@ describe('SolutionWebviewProvider', () => {
                 dependencies: []
             };
 
-            (SolutionService.findSolutionFile as jest.Mock).mockResolvedValue('/test/workspace/TestSolution.sln');
             (SolutionService.parseSolutionFile as jest.Mock).mockResolvedValue(mockSolutionData);
 
             const mockParseProjectFiles = jest.fn().mockResolvedValue(mockProjectData);

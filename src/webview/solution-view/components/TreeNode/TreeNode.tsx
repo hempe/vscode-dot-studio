@@ -4,6 +4,7 @@ import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
+import { sln } from '../../../../core/utils';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -219,7 +220,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
                 // Project/build files
                 if (fileName.endsWith('.csproj') || fileName.endsWith('.vbproj') || fileName.endsWith('.fsproj')) return { icon: 'mdi:microsoft-visual-studio', color: '#dcdcdc' };
-                if (fileName.endsWith('.sln')) return { icon: 'mdi:microsoft-visual-studio', color: '#68217a' };
+                if (sln(fileName)) return { icon: 'mdi:microsoft-visual-studio', color: '#68217a' };
                 if (fileName === 'global.asax') return { icon: 'mdi:web', color: '#dcdcdc' };
 
                 // Web files

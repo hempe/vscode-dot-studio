@@ -13,6 +13,7 @@ import { SimpleDebounceManager } from '../../services/debounceManager';
 import { NodeIdString } from '../../types/nodeId';
 import { sendToUi } from '../nuget-view/shared';
 import { BackendCmd } from '../../types/backendCmd';
+import { sln } from '../../core/utils';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -298,7 +299,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         const fileName = path.basename(filePath);
 
         // Handle different types of file changes
-        if (fileName.endsWith('.sln')) {
+        if (sln(filePath)) {
             if (changeType === 'deleted') {
                 // Solution file was deleted - clear everything
                 sendToUi(this.webview, {

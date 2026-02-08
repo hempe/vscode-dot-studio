@@ -115,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Watch only .NET solution and project files to reduce load
-    const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln');
+    const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln*');
     const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.{csproj,vbproj,fsproj}');
 
     // Set up handlers for both watchers

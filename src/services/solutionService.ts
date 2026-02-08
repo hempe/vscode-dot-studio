@@ -149,27 +149,6 @@ export class SolutionService {
     }
 
     /**
-     * Finds the first solution file in a workspace (legacy method, kept for compatibility)
-     */
-    static async findSolutionFile(workspaceRoot: string): Promise<string | null> {
-        try {
-            const discovery = await SolutionDiscovery.discoverSolutions(workspaceRoot);
-
-            switch (discovery.type) {
-                case 'single':
-                    return discovery.solutionPath!;
-                case 'multiple':
-                    return discovery.availableSolutions![0]; // Return first one for legacy compatibility
-                default:
-                    return null;
-            }
-        } catch (error) {
-            log.error('Error finding solution files:', error);
-            return null;
-        }
-    }
-
-    /**
      * Disposes the active solution and clears cache
      */
     static dispose(): void {

@@ -13,6 +13,7 @@ import {
     UpdateablePackage
 } from './types';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
+import { sln } from '../../core/utils';
 
 const log = logger('NuGetManagerService');
 
@@ -369,7 +370,7 @@ export class NuGetManagerService {
      * Determine if a path is a solution or project file
      */
     static getContextFromPath(filePath: string): 'solution' | 'project' | 'unknown' {
-        if (filePath.endsWith('.sln')) {
+        if (sln(filePath)) {
             return 'solution';
         } else if (filePath.endsWith('.csproj') || filePath.endsWith('.vbproj') || filePath.endsWith('.fsproj')) {
             return 'project';

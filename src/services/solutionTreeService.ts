@@ -46,10 +46,11 @@ export class SolutionTreeService {
 
         log.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
 
+
         // Add the solution as the root node
         const solutionNode: Mutable<ProjectNode> = {
             type: 'solution',
-            name: path.basename(solutionPath, '.sln'),
+            name: path.basename(solutionPath, path.extname(solutionPath)),
             nodeId: NodeIdService.generateSolutionId(solutionPath),
             children: []
         };
