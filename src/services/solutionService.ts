@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
+import { SolutionFileParser } from '../parsers/solutionFileParser';
+import { SolutionFile, SolutionProject } from '../types/solution';
 import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
 import { logger } from '../core/logger';

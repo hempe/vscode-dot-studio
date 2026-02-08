@@ -1,6 +1,6 @@
-import { LocalNuGetPackage } from "../webview/nuget-view/shared";
-import { NodeIdString } from "./nodeId";
-import { ProjectActionCmd } from "./projectActionCmd";
+import { LocalNuGetPackage } from "../../webview/nuget-view/shared";
+import { NodeIdString } from "../nodeId";
+import { ProjectActionCmd } from "./project-action";
 
 export declare type GetPackageReadmeCmd = {
     readonly type: 'getPackageReadme',

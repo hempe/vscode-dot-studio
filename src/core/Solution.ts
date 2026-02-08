@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { SolutionFileParser, SolutionFile, SolutionProject } from '../parsers/solutionFileParser';
+import { SolutionFileParser } from '../parsers/solutionFileParser';
+import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { DebugConfigService } from '../services/debugConfigService';
 import { Project } from './Project';
 import { logger } from './logger';
@@ -390,7 +391,7 @@ export class Solution {
 
             // Generate a new GUID for the solution folder
             const folderGuid = `{${crypto.randomUUID().toUpperCase()}}`;
-            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+            const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
 
             // Create the solution folder entry
             const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
@@ -603,7 +604,7 @@ export class Solution {
             const lines = solutionContent.split('\n');
 
             // Find and update the Project line for this solution folder
-            const solutionFolderTypeGuid = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}';
+            const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
             const updatedLines = lines.map(line => {
                 const trimmedLine = line.trim();
 

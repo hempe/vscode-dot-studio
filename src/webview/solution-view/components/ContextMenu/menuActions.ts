@@ -1,5 +1,5 @@
 import { NodeType } from '../../../../types';
-import { ProjectActionCmd } from '../../../../types/projectActionCmd';
+import { ProjectActionCmd } from '../../../../types/commands/project-action';
 
 export declare type ProjectActionType = ProjectActionCmd['action'];
 

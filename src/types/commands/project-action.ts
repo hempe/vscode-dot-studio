@@ -1,118 +1,117 @@
-import { NodeType } from ".";
-import { NodeIdString } from "./nodeId";
+import { NodeType } from "..";
+import { NodeIdString } from "../nodeId";
 
-
-export interface OpenFileActionCmd {
+export declare type OpenFileActionCmd = {
     readonly action: 'openFile';
     readonly nodeId: NodeIdString;
 }
 
-export interface RevealInExplorerActionCmd {
+export declare type RevealInExplorerActionCmd = {
     readonly action: 'revealInExplorer';
     readonly nodeId: NodeIdString;
 }
 
-export interface BuildActionCmd {
+export declare type BuildActionCmd = {
     readonly action: 'build';
     readonly nodeId: NodeIdString;
 }
 
-export interface RebuildActionCmd {
+export declare type RebuildActionCmd = {
     readonly action: 'rebuild';
     readonly nodeId: NodeIdString;
 }
 
-export interface CleanActionCmd {
+export declare type CleanActionCmd = {
     readonly action: 'clean';
     readonly nodeId: NodeIdString;
 }
 
-export interface RestoreNugetsActionCmd {
+export declare type RestoreNugetsActionCmd = {
     readonly action: 'restoreNugets';
     readonly nodeId: NodeIdString;
 }
 
-export interface DeleteFileActionCmd {
+export declare type DeleteFileActionCmd = {
     readonly action: 'deleteFile';
     readonly nodeId: NodeIdString;
 }
 
-export interface RemoveSolutionItemActionCmd {
+export declare type RemoveSolutionItemActionCmd = {
     readonly action: 'removeSolutionItem';
     readonly nodeId: NodeIdString;
 }
 
-export interface AddExistingProjectActionCmd {
+export declare type AddExistingProjectActionCmd = {
     readonly action: 'addExistingProject';
     readonly nodeId: NodeIdString;
 }
 
-export interface AddNewProjectActionCmd {
+export declare type AddNewProjectActionCmd = {
     readonly action: 'addNewProject';
     readonly nodeId: NodeIdString;
 }
 
-export interface ManageNuGetPackagesActionCmd {
+export declare type ManageNuGetPackagesActionCmd = {
     readonly action: 'manageNuGetPackages';
     readonly nodeId: NodeIdString;
 }
 
-export interface ManageNuGetPackagesForSolutionActionCmd {
+export declare type ManageNuGetPackagesForSolutionActionCmd = {
     readonly action: 'manageNuGetPackagesForSolution';
     readonly nodeId: NodeIdString;
 }
 
-export interface AddProjectReferenceActionCmd {
+export declare type AddProjectReferenceActionCmd = {
     readonly action: 'addProjectReference';
     readonly nodeId: NodeIdString;
 }
 
-export interface RestoreDependenciesActionCmd {
+export declare type RestoreDependenciesActionCmd = {
     readonly action: 'restoreDependencies';
     readonly nodeId: NodeIdString;
 }
 
-export interface RemoveDependencyActionCmd {
+export declare type RemoveDependencyActionCmd = {
     readonly action: 'removeDependency';
     readonly nodeId: NodeIdString;
 }
 
-export interface RemoveProjectActionCmd {
+export declare type RemoveProjectActionCmd = {
     readonly action: 'removeProject';
     readonly nodeId: NodeIdString;
 }
 
-export interface DeleteProjectActionCmd {
+export declare type DeleteProjectActionCmd = {
     readonly action: 'deleteProject';
     readonly nodeId: NodeIdString;
 }
 
-export interface SetStartupProjectActionCmd {
+export declare type SetStartupProjectActionCmd = {
     readonly action: 'setStartupProject';
     readonly nodeId: NodeIdString;
 }
 
-export interface PasteActionCmd {
+export declare type PasteActionCmd = {
     readonly action: 'paste';
     readonly nodeId: NodeIdString;
 }
 
-export interface StartRenameActionCmd {
+export declare type StartRenameActionCmd = {
     readonly action: 'startRename';
     readonly nodeId: NodeIdString;
 }
 
-export interface CollapseParentActionCmd {
+export declare type CollapseParentActionCmd = {
     readonly action: 'collapseParent';
     readonly nodeId: NodeIdString;
 }
 
-export interface CancelTemporaryNodeActionCmd {
+export declare type CancelTemporaryNodeActionCmd = {
     readonly action: 'cancelTemporaryNode';
     readonly nodeId: NodeIdString;
 }
 
-export interface RenameActionCmd {
+export declare type RenameActionCmd = {
     readonly action: 'rename';
     readonly nodeId: NodeIdString;
     readonly data: {
@@ -122,22 +121,22 @@ export interface RenameActionCmd {
     };
 }
 
-export interface AddSolutionFolderActionCmd {
+export declare type AddSolutionFolderActionCmd = {
     readonly action: 'addSolutionFolder';
     readonly nodeId: NodeIdString;
 }
 
-export interface RemoveSolutionFolderActionCmd {
+export declare type RemoveSolutionFolderActionCmd = {
     readonly action: 'removeSolutionFolder';
     readonly nodeId: NodeIdString;
 }
 
-export interface AddSolutionItemActionCmd {
+export declare type AddSolutionItemActionCmd = {
     readonly action: 'addSolutionItem';
     readonly nodeId: NodeIdString;
 }
 
-export interface AddFileActionCmd {
+export declare type AddFileActionCmd = {
     readonly action: 'addFile';
     readonly nodeId: NodeIdString;
     readonly data: {
@@ -146,7 +145,7 @@ export interface AddFileActionCmd {
     };
 }
 
-export interface AddFolderActionCmd {
+export declare type AddFolderActionCmd = {
     readonly action: 'addFolder';
     readonly nodeId: NodeIdString;
     readonly data: {
@@ -155,12 +154,12 @@ export interface AddFolderActionCmd {
     };
 }
 
-export interface CopyActionCmd {
+export declare type CopyActionCmd = {
     readonly action: 'copy';
     readonly nodeId: NodeIdString;
 }
 
-export interface CutActionCmd {
+export declare type CutActionCmd = {
     readonly action: 'cut';
     readonly nodeId: NodeIdString;
 }

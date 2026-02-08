@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
-import { SolutionProject } from '../parsers/solutionFileParser';
+import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
 import { NodeId, NodeIdService } from '../services/nodeIdService';

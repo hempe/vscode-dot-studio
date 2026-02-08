@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { SolutionProject } from '../parsers/solutionFileParser';
+import { SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
@@ -306,7 +306,7 @@ export class SolutionTreeService {
         if (!typeGuid) return 'project';
 
         // Solution folder type GUID
-        if (typeGuid === '{2150E333-8FDC-42A3-9474-1A3956D46DE8}') {
+        if (typeGuid === PROJECT_TYPE_GUIDS.SOLUTION_FOLDER) {
             return 'solutionFolder';
         }
 

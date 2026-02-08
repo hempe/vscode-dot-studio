@@ -1,7 +1,7 @@
-import { NodeType, ProjectNode } from "."
-import { NuGetPackage, ProjectInfo } from "../services/nuget/types"
-import { LocalNuGetPackage } from "../webview/nuget-view/shared"
-import { NodeIdString } from "./nodeId"
+import { NodeType, ProjectNode } from ".."
+import { NuGetPackage, ProjectInfo } from "../../services/nuget/types"
+import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
+import { NodeIdString } from "../nodeId"
 
 export declare type ErrorCmd = {
     readonly type: 'error',

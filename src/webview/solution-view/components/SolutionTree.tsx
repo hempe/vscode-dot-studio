@@ -8,7 +8,7 @@ import { logger } from '../../shared/logger';
 import { nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
 import { NodeIdString } from '../../../types/nodeId';
 import { NodeType, ProjectNode } from '../../../types';
-import { ProjectActionCmd } from '../../../types/projectActionCmd';
+import { ProjectActionCmd } from '../../../types/commands/project-action';
 
 const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode }) => {

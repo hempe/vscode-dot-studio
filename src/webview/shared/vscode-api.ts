@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { BackendCmd } from "../../types/backendCmd";
+import { BackendCmd } from "../../types/commands/backend";
 
 const log = logger('PureWebviewAPI');
 

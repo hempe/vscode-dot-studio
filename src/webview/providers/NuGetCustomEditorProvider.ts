@@ -8,8 +8,8 @@ import { LocalNuGetPackage, sendToUi } from '../nuget-view/shared';
 import { PackageUpdateService } from '../../services/nuget/packageUpdateService';
 import { PackageOperationsService } from '../../services/nuget/packageOperationsService';
 import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
-import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/backendCmd';
-import { NuGetViewData } from '../../types/uiCmd';
+import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/commands/backend';
+import { NuGetViewData } from '../../types/commands/ui';
 import { VersionUtils } from '../../services/versionUtils';
 
 const log = logger('NuGetCustomEditorProvider');

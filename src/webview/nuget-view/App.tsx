@@ -10,13 +10,9 @@ import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 import { ProjectInfo } from '../../services/nuget/types';
 import { VersionUtils } from '../../services/versionUtils';
-import { NuGetViewData, UICmd } from '../../types/uiCmd';
+import { NuGetViewData, UICmd } from '../../types/commands/ui';
 
 const log = logger('NuGetReact');
-
-
-
-
 
 export const App: React.FC = () => {
     const [data, setData] = useState<NuGetViewData>({

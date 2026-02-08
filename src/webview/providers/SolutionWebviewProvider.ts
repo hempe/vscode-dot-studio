@@ -12,7 +12,7 @@ import { SolutionWebView } from './views/SolutionWebview';
 import { SimpleDebounceManager } from '../../services/debounceManager';
 import { NodeIdString } from '../../types/nodeId';
 import { sendToUi } from '../nuget-view/shared';
-import { BackendCmd } from '../../types/backendCmd';
+import { BackendCmd } from '../../types/commands/backend';
 import { sln } from '../../core/utils';
 
 const log = logger('SolutionWebviewProvider');

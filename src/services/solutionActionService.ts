@@ -5,7 +5,7 @@ import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { NodeId, NodeIdService } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
-import { ProjectActionCmd } from '../types/projectActionCmd';
+import { ProjectActionCmd } from '../types/commands/project-action';
 import { NodeIdString } from '../types/nodeId';
 import { sln } from '../core/utils';
 

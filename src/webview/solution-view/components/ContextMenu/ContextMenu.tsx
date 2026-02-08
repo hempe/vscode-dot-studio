@@ -2,7 +2,7 @@ import React from 'react';
 import { contextMenus, MenuItem, MenuAction, ProjectActionType } from './menuActions';
 import { logger } from '../../../shared/logger';
 import { NodeType } from '../../../../types';
-import { ProjectActionCmd } from '../../../../types/projectActionCmd';
+import { ProjectActionCmd } from '../../../../types/commands/project-action';
 
 const log = logger('ContextMenu');
 export interface ContextMenuProps {

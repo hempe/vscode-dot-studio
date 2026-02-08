@@ -1,6 +1,6 @@
 import { NodeType, ProjectNode } from "../../../types";
 import { NodeIdString } from "../../../types/nodeId";
-import { ProjectActionCmd } from "../../../types/projectActionCmd";
+import { ProjectActionCmd } from "../../../types/commands/project-action";
 
 
 export interface TreeNodeProps {

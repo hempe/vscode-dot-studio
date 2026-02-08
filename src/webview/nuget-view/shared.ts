@@ -1,7 +1,7 @@
 import { NuGetPackage, InstalledPackage } from "../../services/nuget/types";
 import { logger } from "../shared/logger";
-import { BackendCmd } from "../../types/backendCmd";
-import { UICmd } from "../../types/uiCmd";
+import { BackendCmd } from "../../types/commands/backend";
+import { UICmd } from "../../types/commands/ui";
 import { VSCodeAPI } from "../shared/vscode-api";
 import * as vscode from 'vscode';
 

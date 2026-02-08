@@ -3,8 +3,8 @@ import { logger } from '../../shared/logger';
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
 import { NodeType, ProjectNode, SolutionData } from '../../../types';
-import { UICmd } from '../../../types/uiCmd';
-import { ProjectActionCmd } from '../../../types/projectActionCmd';
+import { UICmd } from '../../../types/commands/ui';
+import { ProjectActionCmd } from '../../../types/commands/project-action';
 
 // Helper function to update a node in the tree structure
 /**
