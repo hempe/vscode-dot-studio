@@ -61,7 +61,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             }
 
             setClickTimeout(null);
-        }, 250); // 250ms delay to detect double clicks
+        }, ['folder', 'solutionFolder', 'dependencyCategory', 'dependencies'].includes(node.type) ? 0 : 250); // 250ms delay to detect double clicks
 
         setClickTimeout(timeout);
     };

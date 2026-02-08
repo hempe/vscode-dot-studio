@@ -1,301 +1,267 @@
 # .NET Extension for VS Code
 
-A comprehensive .NET development extension for Visual Studio Code that brings Visual Studio's Solution Explorer experience to VS Code, with complete solution/project management capabilities and modern NuGet package management.
+A comprehensive Visual Studio Code extension that brings full .NET Solution Explorer capabilities to VS Code, providing near-complete parity with Visual Studio's solution management experience.
 
-## 🎯 Feature Status
+## Overview
 
-### ✅ Fully Implemented Features
+This extension transforms VS Code into a powerful .NET development environment by adding a complete Solution Explorer, integrated NuGet package manager, and robust project management capabilities. It aims to provide .NET developers with a familiar and efficient workflow directly in VS Code.
 
-#### Solution Explorer
+## Features
 
-- **Complete solution (.sln) support** with hierarchical project tree view
-- **Solution folder support** with unlimited nesting (just like Visual Studio)
-- **Solution Items support** - Files in solution folders (README.md, LICENSE, etc.)
-- **Robust .sln parser** - JSON-structured parsing with full format support
-- **Project file parsing** with dependencies, references, and file organization
-- **Smart file nesting** (e.g., `User.cs` under `User.cshtml`)
-- **Dependencies tree** showing PackageReferences, ProjectReferences, and Framework assemblies
-- **Real-time tree updates** when files change
-- **Double-click to open files** with single-click expand/collapse
+### Solution Explorer
 
-#### Solution Management
+- **Complete Solution (.sln) Support**: Full hierarchical project tree view with real-time updates
+- **Solution Folders**: Virtual folders with unlimited nesting for organizing projects
+- **Solution Items**: Support for solution-level files (README, LICENSE, etc.)
+- **Intelligent File Nesting**: Automatic nesting similar to Visual Studio (e.g., `User.cs` under `User.cshtml`)
+- **Dependencies View**: Displays PackageReferences, ProjectReferences, and Framework assemblies
+- **File Watchers**: Automatic tree refresh when solution or project files change
+- **Startup Project Management**: Set and manage startup projects with visual indicators (bold text)
 
-- **Build/Rebuild/Clean Solution** with global keyboard shortcuts (Ctrl+B, Shift+Ctrl+B)
-- **New Solution Folder** - Create virtual folders to organize projects
-- **Rename Solution** - Full solution renaming with file system updates
-- **Solution-level NuGet Package Manager** with Visual Studio-like UI
+### Solution & Project Operations
 
-#### Project Management
+- **Build System**: Build/Rebuild/Clean for solutions and individual projects
+- **Project Creation**: New projects from templates (Console, Web API, MVC, Blazor, WPF, etc.)
+- **Project Management**: Add existing projects, remove projects, manage references
+- **Framework Management**: Target framework selection and debug configuration
+- **Keyboard Shortcuts**: Standard shortcuts (Ctrl+B for build, F2 for rename, Delete, etc.)
 
-- **New Project from Templates** - Console, Web API, MVC, Blazor, WPF, WinForms, Test projects
-- **Add Existing Project** - Add existing projects to solution with multi-select support
-- **Build/Rebuild/Clean Project** - Individual project build operations
-- **Add Project Reference** - Reference other projects in the solution
-- **Add NuGet Package** - Install packages via integrated NuGet UI
-- **New File/Folder** - Create files and folders within projects
+### File Operations
 
-#### File Operations
+- **Complete File Management**: Copy, paste, rename, delete with keyboard shortcuts
+- **File Creation**: Add new files and folders with inline editing
+- **Context Actions**: Reveal in Explorer, Open in Terminal, Copy Path/Relative Path
+- **Split Editor**: Open to side support
 
-- **Complete file operations** - Copy, paste, rename, delete with keyboard shortcuts
-- **Reveal in Explorer** - Open containing folder in system file manager
-- **Open in Terminal** - Launch terminal in file/project directory
-- **Copy Path/Relative Path** - Clipboard path operations
-- **Open to Side** - Split editor support
+### NuGet Package Manager
 
-#### Advanced Features
+Modern web-based UI with comprehensive package management:
 
-- **NuGet Package Manager UI** - Modern web-based interface with search, install, browse tabs
-- **Live NuGet API Integration** - Real-time package search from nuget.org
-- **External project support** - Handle projects outside workspace folder
-- **Performance optimized** - Fast folder expansion and file scanning
-- **Context-aware menus** - Different options for solutions, projects, folders, and files
-- **Full keyboard shortcuts** - Standard shortcuts (Ctrl+C, Ctrl+V, F2, Delete, etc.)
-- **Service-layer architecture** - Clean, maintainable codebase with proper separation of concerns
-- **Comprehensive error handling** - User-friendly error messages and validation
-- **Type-safe implementation** - Full TypeScript with strict type checking
+- **Browse Tab**: Search and discover packages from nuget.org with real-time API integration
+- **Package Installation**: Install packages to multiple projects with version selection
+- **Azure DevOps Support**: Private feed authentication with credential management
+- **Package Details**: View package metadata, versions, dependencies, and descriptions
 
-### 🚧 Placeholder Implementations
+### Developer Experience
 
-#### NuGet Package Manager
+- **Context-Aware Menus**: Different right-click options for solutions, projects, folders, and files
+- **Type Safety**: Written in TypeScript with strict mode for reliability
+- **Service Architecture**: Clean, maintainable codebase with proper separation of concerns
+- **Comprehensive Testing**: Jest and React Testing Library coverage
+- **Performance Optimized**: Debounced updates and efficient tree rendering
 
-- **Installed Packages Tab** - Shows placeholder "No packages installed"
-- **Updates Tab** - Shows placeholder "All packages are up to date"
-- **Consolidate Tab** - Shows placeholder "No version conflicts"
-- **Package source filtering** - Only shows nuget.org, no custom sources
-- **Package uninstall/update** - Search and install works, but no removal/update UI
+## Tech Stack
 
-#### Project Templates
+**Extension Backend**:
+- TypeScript with strict mode
+- VS Code Extension API
+- Node.js for CLI operations
+- xml2js for .sln and project file parsing
 
-- **Template customization** - Uses basic dotnet CLI templates without custom parameters
-- **Project location selection** - Creates in solution directory only
-- **Framework targeting** - Uses template defaults, no framework selection UI
+**Webview UI**:
+- React 18 with TypeScript
+- VS Code Codicons
+- Webpack 5 bundling
+- Modern ES6+ JavaScript
 
-#### Build System Integration
+**Testing**:
+- Jest 30
+- @testing-library/react
+- VS Code test framework
 
-- **Build output parsing** - Shows terminal output but no parsed error/warning list
-- **MSBuild integration** - Uses basic dotnet CLI, no advanced MSBuild features
-- **Custom build configurations** - No Debug/Release configuration switching
-
-## 🎯 Missing Visual Studio Solution Explorer Features
-
-### High Priority Missing Features
-
-- **Project Dependencies Node** - Visual representation of project-to-project references
-- **References Node** - Expandable list of assembly references, NuGet packages, project references
-- **Properties** - Project properties dialog/panel
-- **Multi-project selection** - Select multiple projects for batch operations
-- **Solution Configurations** - Debug/Release configuration management
-- **Platform targeting** - x86/x64/AnyCPU platform selection
-- **Startup Projects** - Multiple startup project configuration
-
-### Medium Priority Missing Features
-
-- **Connected Services** - Azure, web services integration
-- **Shared Projects** - .shproj file support
-- **Database Projects** - .sqlproj support
-- **Deployment** - Publish profiles and deployment targets
-- **Code Analysis** - Built-in analyzers and rule sets
-- **Testing Integration** - Test discovery and execution within Solution Explorer
-- **Source Control Integration** - Git status indicators in tree
-
-### Lower Priority Missing Features
-
-- **Project Templates Gallery** - Extended template marketplace
-- **Custom Project Types** - Support for non-standard project types
-- **Solution Filters** - .slnf file support for large solutions
-- **Project Load/Unload** - Selectively load/unload projects
-- **Virtual Folders** - Client-side folder organization without file system changes
-- **External Dependencies** - Show external assemblies and COM references
-- **Analyzers Node** - Code analyzer packages visualization
-
-### Advanced Features Not Yet Implemented
-
-- **Solution-wide Find/Replace** - Search across all projects
-- **Dependency Graph View** - Visual project dependency mapping
-- **Package Manager Console** - PowerShell-like package management interface
-- **Custom Build Steps** - Pre/post build event configuration
-- **Resource Files** - .resx file management and editing
-- **App.config/Web.config** - Configuration file special handling
-- **Scaffolding** - MVC controller/view generation
-- **T4 Templates** - Text template transformation support
-
-## 🏗️ Architecture
-
-### Service Layer (New)
-
-- **NuGetService** - NuGet.org API integration with search and validation
-- **TerminalService** - Centralized dotnet CLI command execution
-- **WebviewService** - Webview panel creation and message handling utilities
-
-### Core Components
-
-- **SolutionProvider** - VS Code TreeDataProvider for the Solution Explorer view
-- **SolutionManager** - Handles dotnet CLI operations (sln add/remove)
-- **SolutionFileParser** - Robust .sln file parser that outputs structured JSON
-- **ProjectFileParser** - Parses .csproj files and builds file structure
-- **SolutionItem** - Tree view item representation with icons and context
-- **FileNesting** - Implements intelligent file nesting similar to Visual Studio
-
-### Command Architecture
-
-- **CommandManager** - Central command registration hub
-- **SolutionCommands** - Solution-level operations with NuGet integration
-- **ProjectCommands** - Project operations (build, NuGet, references)
-- **FileCommands** - File operations (open, rename, delete, copy/paste)
-- **SolutionFolderCommands** - Solution folder operations
-
-### Utilities & Support
-
-- **Utils Module** - Centralized utility functions
-  - PathUtils: File path manipulation and validation
-  - ValidationUtils: Input validation patterns with proper error handling
-  - TerminalUtils: Terminal creation and command execution
-  - ErrorUtils: Consistent error handling and user messaging
-  - FileSystemUtils: File and directory operations
-  - InputUtils: VS Code input box and quick pick helpers
-- **Constants** - Centralized configuration for file types and directories
-
-## 📋 Development & Testing
+## Installation & Setup
 
 ### Prerequisites
 
-- Node.js (16 or higher)
-- VS Code (1.74.0 or higher)
-- .NET SDK (6.0 or higher)
+- Node.js 16 or higher
+- VS Code 1.74.0 or higher
+- .NET SDK 6.0 or higher
 
-### Setup
+### Build from Source
 
 ```bash
+# Install dependencies
 npm install
-npm run compile
-```
 
-### Testing
+# Build for production
+npm run build
 
-```bash
-# Run unit tests
-npm run test:unit
-
-# Run specific service tests
-npx mocha out/test/unit/services/nugetService.simple.test.js
+# Build for development (with source maps)
+npm run build:dev
 
 # Watch mode for development
-npm run test:watch
+npm run watch
+
+# Run tests
+npm test
+
+# Type checking
+npm run typecheck
 ```
 
-### Test Coverage
+### Usage
 
-- ✅ **NuGetService**: Package ID validation, version validation, API integration
-- ✅ **TerminalService**: Command execution, solution build operations
-- ✅ **WebviewService**: Panel creation, message handling, CSP generation
-- ✅ **Service Integration**: Solution commands with service layer
-- ⚠️ **Integration Tests**: Require VS Code extension host environment
+1. Open a folder containing `.sln` files in VS Code
+2. The extension activates automatically
+3. Solution Explorer appears in the sidebar with folder-library icon
+4. Right-click any node for context menu actions
+5. Use Ctrl+B to build, F2 to rename, Delete to remove items
 
-### Directory Structure
+## Project Structure
 
 ```
-.
-├── src/
-│   ├── extension.ts              # Main entry point (44 lines - 96% reduction!)
-│   ├── solutionProvider.ts      # TreeDataProvider implementation
-│   ├── commands/                # Modular command architecture
-│   │   ├── commandManager.ts    # Central command registration
-│   │   ├── solutionCommands.ts  # Solution operations + NuGet UI
-│   │   ├── projectCommands.ts   # Project build/reference operations
-│   │   ├── fileCommands.ts      # File operations with shortcuts
-│   │   └── solutionFolderCommands.ts # Virtual folder management
-│   ├── services/                # Service layer (NEW)
-│   │   ├── nugetService.ts      # NuGet.org API integration
-│   │   ├── terminalService.ts   # Dotnet CLI command execution
-│   │   └── webviewService.ts    # Webview creation utilities
-│   ├── test/                    # Comprehensive test suite
-│   │   ├── unit/                # Unit tests with Mocha + Sinon
-│   │   ├── suite/               # Integration test runner
-│   │   └── runTest.js          # VS Code test executor
-│   └── utils/                   # Shared utilities and constants
-└── TEST_RESULTS.md              # Test coverage and results
+src/
+├── extension.ts              # Extension entry point & activation
+├── core/                     # Core domain models
+│   ├── Solution.ts           # Solution file representation (~1,156 lines)
+│   ├── Project.ts            # Project model with file trees
+│   └── utils.ts              # Shared utilities
+├── parsers/                  # File format parsers
+│   ├── solutionFileParser.ts # .sln parser with JSON output
+│   └── projectFileParser.ts  # .csproj/.vbproj/.fsproj parser
+├── services/                 # Business logic services
+│   ├── solutionService.ts    # Solution operations
+│   ├── solutionTreeService.ts # Tree data provider
+│   ├── debugConfigService.ts # launch.json management
+│   ├── fileNesting.ts        # File nesting logic
+│   └── nuget/                # NuGet-specific services
+│       ├── nugetManagerService.ts
+│       ├── nugetV3Service.ts
+│       └── packageBrowseService.ts
+├── webview/                  # React UI components
+│   ├── providers/            # Webview providers
+│   ├── solution-view/        # Solution Explorer UI
+│   ├── nuget-view/           # NuGet Manager UI
+│   └── shared/               # Shared components
+└── types/                    # TypeScript type definitions
 ```
 
-## 🚀 Usage
+## Architecture
 
-1. **Install Extension**: Load in VS Code development host (F5)
-2. **Open .NET Solution**: Open folder containing `.sln` files
-3. **Solution Explorer**: Appears automatically in sidebar
-4. **Context Menus**: Right-click solutions, projects, folders for operations
-5. **Global Build**: Use Ctrl+B anywhere to build solution
-6. **NuGet Management**: Right-click solution → "Manage NuGet Packages"
+**Layered Design**:
 
-## 🔐 Azure DevOps Private Feeds Setup
+1. **Extension Host Layer**: VS Code API integration, command registration, file watchers
+2. **Service Layer**: Business logic for solution operations, tree rendering, package management
+3. **Core Domain Layer**: Solution and Project models with file system operations
+4. **Webview Layer**: React-based UI with message passing to extension host
+5. **Parsers**: XML parsing for .sln and project files
 
-If you use Azure DevOps Artifacts for private NuGet packages, you need to configure authentication:
+**Communication Flow**:
+- Extension → Webview: Solution data via postMessage
+- Webview → Extension: User actions via VS Code API
+- Services ↔ File System: Read/write operations with debouncing
 
-### 1. Install the Credential Provider
+## Configuration
+
+### File Watching
+
+Automatically monitors:
+- `*.sln` files
+- `*.csproj`, `*.vbproj`, `*.fsproj` files
+- Project structure changes
+
+Excluded directories:
+- `bin`, `obj`, `node_modules`, `.git`, `.vs`, `.vscode`
+
+### Azure DevOps Private Feeds
+
+For Azure DevOps Artifacts private NuGet packages:
 
 ```bash
+# Install credential provider
 dotnet tool install --global Microsoft.Artifacts.CredentialProvider.NuGet.Tool
-```
 
-### 2. Create a Personal Access Token (PAT)
-
-1. Go to Azure DevOps → User Settings → Personal Access Tokens
-2. Click "New Token"
-3. Give it a name (e.g., "NuGet Feed Access")
-4. Set expiration as needed
-5. **Important**: Select **Packaging (Read)** scope (or Read & Write if you need to publish)
-6. Click "Create" and copy the token
-
-### 3. Configure Your NuGet Source
-
-```bash
-# Navigate to your solution directory
-cd /path/to/your/solution
-
-# Update the source with your PAT
+# Configure with Personal Access Token (PAT)
 dotnet nuget update source YOUR_FEED_NAME \
   --username anything \
   --password YOUR_PAT_HERE \
   --store-password-in-clear-text
 ```
 
-Replace:
-- `YOUR_FEED_NAME` - The name of your Azure DevOps feed (as shown in `dotnet nuget list source`)
-- `YOUR_PAT_HERE` - The Personal Access Token you created
+Create PAT in Azure DevOps with **Packaging (Read)** scope. The extension automatically detects all configured NuGet sources.
 
-### 4. Verify Authentication
+## Current Status
 
-```bash
-dotnet restore
-```
+**~90% Visual Studio Solution Explorer Parity**
 
-If configured correctly, the restore should succeed without authentication errors.
+The extension provides comprehensive solution and project management with stable core features. Recent improvements include:
 
-### Notes
+- Refactored NodeId system with type safety and compression
+- Fixed Dependencies node expansion and display
+- Improved context menu positioning and keyboard navigation
+- Enhanced loading performance with better timing
+- Comprehensive bug fixes and stability improvements
 
-- The extension automatically detects all configured NuGet sources from your `nuget.config` files
-- PATs expire based on the expiration date you set - you'll need to update them when they expire
-- For security, consider using shorter-lived tokens (30-90 days) and rotating them regularly
-- The extension runs `dotnet nuget list source` from your workspace folder to discover feeds
+## Future Roadmap
 
-## 🎨 Visual Studio Parity
+### Near Term (Q1-Q2 2025)
 
-### ✅ Achieved Parity
+**NuGet Enhancements**:
+- Installed Packages tab with removal and update functionality
+- Updates tab with version checking and upgrade workflows
+- Consolidate tab for resolving version conflicts across projects
 
-- Solution/Project tree structure
-- Solution folder organization
-- File nesting and dependencies
-- Context menus and keyboard shortcuts
-- Build operations with terminal integration
-- NuGet package management UI
-- Project creation from templates
+**Project Management**:
+- Multi-project selection with batch operations (Ctrl+Click, Shift+Click)
+- Solution configuration and platform management (Debug/Release, x86/x64/AnyCPU)
+- Enhanced project template system with custom parameters
 
-### 📈 Improvement Areas
+**Build System**:
+- Parsed build errors and warnings with clickable navigation
+- Problems panel integration
+- Build progress indicators with cancellation support
 
-- Multi-project operations and selection
-- Configuration/platform management
-- Advanced build system integration
-- Testing framework integration
-- Enhanced debugging support
+### Medium Term (Q3-Q4 2025)
 
----
+**Development Tools**:
+- Test framework integration with VS Code Test Explorer API
+- Solution-wide find and replace with project filtering
+- Project properties management UI (graphical .csproj editor)
 
-This extension provides a **90% Visual Studio Solution Explorer experience** in VS Code with modern web-based NuGet management and clean service architecture. The core functionality is production-ready with comprehensive error handling and user experience optimizations.
+**Performance & Polish**:
+- Virtual scrolling for large trees
+- Enhanced caching strategies
+- Source control status indicators
+- Active file highlighting in tree
+
+### Long Term (2026+)
+
+**Advanced Features**:
+- Dependency graph visualization with circular dependency detection
+- Package Manager Console (PowerShell-like interface)
+- Scaffolding system for MVC, Entity Framework
+- Advanced project types (.shproj, .sqlproj, Docker projects)
+
+### Target Milestones
+
+| Quarter | Goal | VS Parity |
+|---------|------|-----------|
+| Q1 2025 | Working NuGet management, References tree | 95% |
+| Q2 2025 | Multi-selection, configurations, templates | 98% |
+| Q3 2025 | Build integration, testing, console | 100%+ |
+| Q4 2025 | Search, properties, polish features | 105%+ |
+
+The goal is to achieve **full Visual Studio Solution Explorer parity by Q2 2025**, with advanced features and productivity enhancements continuing through 2025-2026.
+
+## Contributing
+
+This project welcomes contributions! The codebase is well-structured with:
+
+- Strict TypeScript typing for safety
+- Service-layer architecture for maintainability
+- Comprehensive test coverage
+- Clear separation of concerns
+
+Key areas for contribution:
+- Feature implementation from the roadmap
+- Bug fixes and performance improvements
+- Test coverage expansion
+- Documentation improvements
+
+## License
+
+[License information to be determined]
+
+## Acknowledgments
+
+Built with TypeScript, React, and the VS Code Extension API to provide .NET developers with a powerful and familiar solution management experience in Visual Studio Code.
