@@ -137,7 +137,7 @@ export class SolutionWebView {
                         }
     
                         .node-name {
-                            font-size: 12px;
+                            font-size: var(--vscode-font-size);
                         }
 
                         .node-name.startup-project {

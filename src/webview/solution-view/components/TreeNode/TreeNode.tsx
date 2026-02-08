@@ -323,16 +323,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 >
                     <Icon
                         icon={iconConfig.icon}
-                        width={iconConfig.border ? "13" : "14"}
-                        height={iconConfig.border ? "13" : "14"}
+                        width={iconConfig.border ? "15" : "16"}
+                        height={iconConfig.border ? "15" : "16"}
                         style={{
                             color: iconConfig.color,
                             display: 'block',
-                            minWidth: iconConfig.border ? "13px" : "14px",
-                            minHeight: iconConfig.border ? "13px" : "14px",
+                            minWidth: iconConfig.border ? "15px" : "16px",
+                            minHeight: iconConfig.border ? "15px" : "16px",
                             ...(iconConfig.border && {
                                 position: 'absolute',
-                                bottom: '-5px',
+                                bottom: '-6px',
                                 left: '0px',
                                 background: 'var(--vscode-editor-background)'
                             })
