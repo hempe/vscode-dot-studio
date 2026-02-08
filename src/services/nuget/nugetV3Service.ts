@@ -518,8 +518,6 @@ export class NuGetV3Service {
             for (const item of data) {
                 // Get all available versions
                 const versions = item.versions || [];
-                debugger;
-                console.error("what the hell?");
                 const allVersions = versions.map((v: any) => v.version).filter(Boolean);
 
                 // Use the top-level version as it represents the latest according to search API

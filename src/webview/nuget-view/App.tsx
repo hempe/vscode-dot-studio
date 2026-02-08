@@ -94,9 +94,13 @@ export const App: React.FC = () => {
     const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm);
     const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
+    // Fetch data when includePrerelease changes
     useEffect(() => {
         sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
+    }, [includePrerelease]);
 
+    // Set up message listener (only once)
+    useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data as UICmd;
             log.info('NuGet React: Received message:', message);
@@ -205,7 +209,8 @@ export const App: React.FC = () => {
                     // Refresh data to reflect the changes in the UI
                     if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful ${message.type}`);
-                        sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
+                        // Trigger refresh by updating a state or calling the refresh function
+                        setIncludePrerelease(prev => prev); // Trigger re-fetch
                     }
                     break;
                 case 'bulkUpdateComplete':
@@ -216,7 +221,7 @@ export const App: React.FC = () => {
                     // Refresh data and clear selections after successful bulk update
                     if (message.payload.success) {
                         log.info(`NuGet React: Refreshing data after successful bulk update`);
-                        sendToBackend({ type: 'getNuGetData', payload: { includePrerelease } });
+                        setIncludePrerelease(prev => prev); // Trigger re-fetch
                         // Clear all selections after successful update
                         setData(prevData => ({
                             ...prevData,
