@@ -14,14 +14,39 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": ".NET Extension",
+      "properties": {
+        "dotnet.solutionExplorer.location": {
+          "type": "string",
+          "enum": [
+            "sidebar",
+            "secondary-sidebar"
+          ],
+          "enumDescriptions": [
+            "Show Solution Explorer in the left sidebar (Sidebar)",
+            "Show Solution Explorer in the right sidebar (Secondary Sidebar)"
+          ],
+          "default": "sidebar",
+          "description": "Choose where the Solution Explorer appears"
+        }
+      }
+    },
     "views": {
       "solution-explorer": [
         {
-          "icon": "",
           "id": "dotnet-solution-webview",
-          "name": "",
+          "name": "Solution Explorer",
           "type": "webview",
-          "when": "workspaceHasDotnetFiles"
+          "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location != 'secondary-sidebar'"
+        }
+      ],
+      "solution-explorer-secondary-sidebar": [
+        {
+          "id": "dotnet-solution-webview-secondary-sidebar",
+          "name": "Solution Explorer",
+          "type": "webview",
+          "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location == 'secondary-sidebar'"
         }
       ]
     },
@@ -29,6 +54,13 @@
       "activitybar": [
         {
           "id": "solution-explorer",
+          "title": "Solution",
+          "icon": "$(folder-library)"
+        }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "solution-explorer-secondary-sidebar",
           "title": "Solution",
           "icon": "$(folder-library)"
         }
@@ -71,12 +103,12 @@
       "view/title": [
         {
           "command": "dotnet.solution.selectFramework",
-          "when": "view == dotnet-solution-webview",
+          "when": "view == dotnet-solution-webview || view == dotnet-solution-webview-secondary-sidebar",
           "group": "navigation@1"
         },
         {
           "command": "dotnet.solution.debug",
-          "when": "view == dotnet-solution-webview",
+          "when": "view == dotnet-solution-webview || view == dotnet-solution-webview-secondary-sidebar",
           "group": "navigation@2"
         }
       ]

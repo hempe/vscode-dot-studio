@@ -56,10 +56,14 @@ export function activate(context: vscode.ExtensionContext) {
         context
     );
 
-    // Register webview providers
+    // Register webview providers for both sidebar and secondary-sidebar locations
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             SolutionWebviewProvider.viewType,
+            solutionWebviewProvider
+        ),
+        vscode.window.registerWebviewViewProvider(
+            'dotnet-solution-webview-secondary-sidebar',
             solutionWebviewProvider
         )
     );
