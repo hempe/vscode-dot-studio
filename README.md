@@ -54,7 +54,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Mark files with errors, warnings and infos (icon/colour and count, like VS Code's explorer decorations)
 - [ ] Roll the most severe state up to nested parent files, folders, projects, solution folders and the solution
 - [ ] Update live as diagnostics change
-- [ ] Offer to set `dotnet.backgroundAnalysis.compilerDiagnosticsScope` (and optionally `analyzerDiagnosticsScope`) to `fullSolution`; the default `openFiles` means only open files report errors
+- [ ] Build output (`$msCompile`) is the primary source, as in Visual Studio where the markers are only reliable after a (re)build; live language-server errors for open files come on top. Optionally mention `dotnet.backgroundAnalysis.compilerDiagnosticsScope: fullSolution` for live errors in all files
 
 **Build**:
 - [ ] Run Build/Rebuild/Clean/Restore as VS Code tasks with the `$msCompile` problem matcher instead of `terminal.sendText`
@@ -62,7 +62,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Build solution from the command palette / a key binding (Ctrl+Shift+B)
 
 **Implementation Notes**:
-- Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges the C# language server and `$msCompile` build output
+- Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks
 - Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
 
 ### Phase 3: Run & Debug Web Apps (F5)
