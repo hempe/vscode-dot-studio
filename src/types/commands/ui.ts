@@ -1,4 +1,4 @@
-import { NodeType, ProjectNode } from ".."
+import { DiagnosticMarkers, NodeType, ProjectNode } from ".."
 import { NuGetPackage, ProjectInfo } from "../../services/nuget/types"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
 import { NodeIdString } from "../nodeId"
@@ -137,6 +137,13 @@ export declare type StartRenameCmd = {
     }
 }
 
+export declare type DiagnosticsCmd = {
+    readonly type: 'diagnostics',
+    readonly payload: {
+        readonly markers: DiagnosticMarkers,
+    }
+}
+
 export declare type UICmd =
     ErrorCmd |
     SearchResultsCmd |
@@ -154,4 +161,5 @@ export declare type UICmd =
     SolutionDataCmd |
     AddTemporaryNodeCmd |
     RemoveTemporaryNodesCmd |
-    StartRenameCmd;
+    StartRenameCmd |
+    DiagnosticsCmd;

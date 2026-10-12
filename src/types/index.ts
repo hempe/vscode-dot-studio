@@ -54,6 +54,21 @@ export interface SolutionData {
     readonly activeFramework?: string;
 }
 
+/** Diagnostic counts of a file, or rolled up for a tree node */
+export interface DiagnosticCounts {
+    readonly errors: number;
+    readonly warnings: number;
+    readonly infos: number;
+}
+
+/** Error/warning/info marker of a Solution Explorer node; `severity` is the most severe non-zero count */
+export interface NodeMarker extends DiagnosticCounts {
+    readonly severity: 'error' | 'warning' | 'info';
+}
+
+/** Markers keyed by node ID; nodes without diagnostics are absent */
+export type DiagnosticMarkers = Readonly<Record<NodeIdString, NodeMarker>>;
+
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
 };
