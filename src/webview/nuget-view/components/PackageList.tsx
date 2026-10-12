@@ -16,7 +16,7 @@ interface PackageListProps {
     hasSearched?: boolean;
     selectedIndex: number;
     selectedPackage: LocalNuGetPackage | null;
-    selectedItemRef: React.RefObject<HTMLDivElement>;
+    selectedItemRef: React.RefObject<HTMLDivElement | null>;
     onPackageSelect: (pkg: LocalNuGetPackage, index: number) => void;
     getPackageIconUrl: (pkg: LocalNuGetPackage) => string;
     showUpdateInfo?: boolean; // For Updates tab to show version changes

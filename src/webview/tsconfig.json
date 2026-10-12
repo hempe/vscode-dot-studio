@@ -4,7 +4,7 @@
         "target": "ES2020",
         "lib": ["DOM", "DOM.Iterable", "ES2020"],
         "module": "ESNext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "jsx": "react-jsx",
         "declaration": false,
         "strict": true,
@@ -15,5 +15,10 @@
     },
     "include": [
         "**/*"
+    ],
+    "exclude": [
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx"
     ]
 }
