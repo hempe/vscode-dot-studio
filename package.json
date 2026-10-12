@@ -41,6 +41,7 @@
         {
           "id": "dotnet-solution-webview",
           "name": "Solution Explorer",
+          "icon": "$(folder-library)",
           "type": "webview",
           "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location != 'secondary-sidebar'"
         }
@@ -49,6 +50,7 @@
         {
           "id": "dotnet-solution-webview-secondary-sidebar",
           "name": "Solution Explorer",
+          "icon": "$(folder-library)",
           "type": "webview",
           "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location == 'secondary-sidebar'"
         }
@@ -101,6 +103,146 @@
         "command": "dotnet.solution.debug",
         "title": "Start Debugging",
         "icon": "$(debug-start)"
+      },
+      {
+        "command": "dotnet.solutionExplorer.openFile",
+        "title": "Open",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addNewProject",
+        "title": "Add New Project...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addExistingProject",
+        "title": "Add Existing Project...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addSolutionFolder",
+        "title": "Add Solution Folder",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addSolutionItem",
+        "title": "Add Solution Item...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addFile",
+        "title": "Add File...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addFolder",
+        "title": "Add Folder...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addProjectReference",
+        "title": "Add Project Reference...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.addAssemblyReference",
+        "title": "Add Assembly Reference...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.manageNuGetPackages",
+        "title": "Manage NuGet Packages...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
+        "title": "Manage NuGet Packages...",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.restoreNugets",
+        "title": "Restore NuGet Packages",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.restoreDependencies",
+        "title": "Restore Dependencies",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.setStartupProject",
+        "title": "Set as Startup Project",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.build",
+        "title": "Build",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.rebuild",
+        "title": "Rebuild",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.clean",
+        "title": "Clean",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.copy",
+        "title": "Copy",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.cut",
+        "title": "Cut",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.paste",
+        "title": "Paste",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.rename",
+        "title": "Rename",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.deleteFile",
+        "title": "Delete",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.deleteProject",
+        "title": "Delete",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeProject",
+        "title": "Remove from Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeSolutionFolder",
+        "title": "Remove",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeSolutionItem",
+        "title": "Remove from Solution",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeDependency",
+        "title": "Remove",
+        "category": ".NET"
+      },
+      {
+        "command": "dotnet.solutionExplorer.revealInExplorer",
+        "title": "Reveal in Explorer",
+        "category": ".NET"
       }
     ],
     "menus": {
@@ -115,8 +257,458 @@
           "when": "view == dotnet-solution-webview || view == dotnet-solution-webview-secondary-sidebar",
           "group": "navigation@2"
         }
+      ],
+      "webview/context": [
+        {
+          "command": "dotnet.solutionExplorer.addNewProject",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addExistingProject",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "1_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionFolder",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "1_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "1_group@4"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.build",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rebuild",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "3_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.clean",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "3_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.restoreNugets",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "3_group@4"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "4_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "5_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionFolder",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "1_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeSolutionFolder",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.openFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFolder",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.paste",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.setStartupProject",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "4_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "5_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "6_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeProject",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "6_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.deleteProject",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "6_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.build",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "7_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rebuild",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "7_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.clean",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "7_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "8_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFolder",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "1_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.copy",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.cut",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.paste",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "2_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.deleteFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "3_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "4_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.openFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.copy",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.cut",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.paste",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "2_group@3"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.deleteFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "3_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "group": "4_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addProjectReference",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addAssemblyReference",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.restoreDependencies",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "group": "3_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeDependency",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependency'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.restoreDependencies",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addProjectReference",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'projects'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addAssemblyReference",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'assemblies'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.openFile",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "group": "2_group@1"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeSolutionItem",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "group": "2_group@2"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "group": "3_group@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "dotnet.solutionExplorer.openFile",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addNewProject",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addExistingProject",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionFolder",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addSolutionItem",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFile",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addFolder",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addProjectReference",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.addAssemblyReference",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackages",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.restoreNugets",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.restoreDependencies",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.setStartupProject",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.build",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rebuild",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.clean",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.copy",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.cut",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.paste",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.rename",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.deleteFile",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.deleteProject",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeProject",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeSolutionFolder",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeSolutionItem",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.removeDependency",
+          "when": "false"
+        },
+        {
+          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "when": "false"
+        }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "dotnet.solutionExplorer.copy",
+        "key": "ctrl+c",
+        "mac": "cmd+c",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.cut",
+        "key": "ctrl+x",
+        "mac": "cmd+x",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.paste",
+        "key": "ctrl+v",
+        "mac": "cmd+v",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(project|folder|file)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.rename",
+        "key": "f2",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solution|solutionFolder|project|folder|file|solutionItem)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.deleteFile",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeSolutionFolder",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solutionFolder)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeSolutionItem",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solutionItem)$/"
+      },
+      {
+        "command": "dotnet.solutionExplorer.removeDependency",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(dependency)$/"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
@@ -130,7 +722,8 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "generate:menus": "node scripts/generate-context-menus.js"
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",

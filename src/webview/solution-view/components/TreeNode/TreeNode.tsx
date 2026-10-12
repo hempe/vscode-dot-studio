@@ -15,7 +15,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onToggleExpand,
     onNodeClick,
     onNodeFocus,
-    onContextMenu,
     onRenameConfirm,
     onRenameCancel,
     selectedNodeId,
@@ -95,18 +94,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {
-        e.preventDefault();
-
-        // Don't show context menu for temporary nodes
         if (node.isTemporary) {
-            log.info(`Context menu blocked for temporary node: ${node.name}`);
+            // Suppress the native menu while a new file/folder is being named
+            e.preventDefault();
             return;
         }
-
-        log.info(`RIGHT CLICK DETECTED on ${node.type}: ${node.name}`);
-        log.info(`Calling onContextMenu with coordinates:`, e.clientX, e.clientY);
-        onContextMenu(e.clientX, e.clientY, node);
-        log.info(`onContextMenu called successfully`);
+        // Don't prevent default: VS Code shows the native webview/context menu for this row
+        onNodeFocus(nodeIdentifier);
     };
 
     const handleRenameConfirmLocal = (newName: string) => {
@@ -281,6 +275,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
+                data-vscode-context={node.isTemporary ? undefined : JSON.stringify({
+                    webviewSection: 'node',
+                    nodeType: node.type,
+                    contextValue: node.contextValue,
+                    nodeId: nodeIdentifier,
+                    preventDefaultContextMenuItems: true
+                })}
             >
                 {(node.children?.length || node.hasChildren) ? (
                     <Icon
@@ -362,7 +363,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onToggleExpand={onToggleExpand}
                             onNodeClick={onNodeClick}
                             onNodeFocus={onNodeFocus}
-                            onContextMenu={onContextMenu}
                             onRenameConfirm={onRenameConfirm}
                             onRenameCancel={onRenameCancel}
                             selectedNodeId={selectedNodeId}

@@ -1,0 +1,246 @@
+// Solution folder and solution item actions, run through SolutionActionService against real .sln/.slnx files
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+
+const ui = {
+    inputBox: undefined as string | undefined,
+    openDialog: undefined as string | undefined,
+    errors: [] as string[],
+};
+
+jest.mock('vscode', () => {
+    const disposable = { dispose: () => { } };
+    const watcher = { onDidChange: () => disposable, onDidCreate: () => disposable, onDidDelete: () => disposable, dispose: () => { } };
+    class EventEmitter { event = () => disposable; fire() { } dispose() { } }
+    return {
+        EventEmitter,
+        RelativePattern: class { constructor(public base: string, public pattern: string) { } },
+        Uri: { file: (p: string) => ({ fsPath: p }) },
+        workspace: {
+            createFileSystemWatcher: () => watcher,
+            workspaceFolders: undefined,
+            fs: { rename: async (from: any, to: any) => require('fs').renameSync(from.fsPath, to.fsPath) },
+        },
+        window: {
+            showInputBox: async () => ui.inputBox,
+            showOpenDialog: async () => ui.openDialog ? [{ fsPath: ui.openDialog }] : undefined,
+            showWarningMessage: async (_message: string, _options: any, button: string) => button,
+            showInformationMessage: async () => undefined,
+            showErrorMessage: async (message: string) => { ui.errors.push(message); },
+        },
+        commands: { executeCommand: async () => undefined },
+    };
+}, { virtual: true });
+
+// The parsers refuse paths under /tmp (and /var, where macOS keeps its temp dir)
+jest.mock('../../../core/constants', () => ({
+    ...jest.requireActual('../../../core/constants'),
+    isSystemPath: () => false,
+}));
+
+import { Solution } from '../../../core/Solution';
+import { SolutionService } from '../../../services/solutionService';
+import { SolutionActionService } from '../../../services/solutionActionService';
+import { SolutionTreeService } from '../../../services/solutionTreeService';
+import { ProjectNode } from '../../../types';
+import { ProjectActionCmd } from '../../../types/commands/project-action';
+
+// As written by `dotnet new sln` + `dotnet sln add src/Lib/Lib.csproj --solution-folder Libs`
+const slnContent = `
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{6C4D298B-81FB-2B6B-5AB6-46205EDDC72C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib", "src\\Lib\\Lib.csproj", "{142F4FE7-2814-4E67-A7EF-97A50F8A2890}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{142F4FE7-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{142F4FE7-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{142F4FE7-2814-4E67-A7EF-97A50F8A2890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{142F4FE7-2814-4E67-A7EF-97A50F8A2890}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{142F4FE7-2814-4E67-A7EF-97A50F8A2890} = {6C4D298B-81FB-2B6B-5AB6-46205EDDC72C}
+	EndGlobalSection
+EndGlobal
+`;
+
+const slnxContent = `<Solution>
+  <Folder Name="/Libs/">
+    <Project Path="src/Lib/Lib.csproj" />
+  </Folder>
+</Solution>
+`;
+
+const variants: [string, string, string][] = [
+    ['.sln', 'App.sln', slnContent],
+    ['.sln with CRLF line endings', 'App.sln', slnContent.replace(/\n/g, '\r\n')],
+    ['.slnx', 'App.slnx', slnxContent],
+];
+
+describe.each(variants)('solution folders and items (%s)', (_, fileName, initialContent) => {
+    let dir: string;
+    let file: string;
+    let solution: Solution;
+
+    const nodes = () => SolutionTreeService.buildSolutionTree(solution);
+    const outline = async () => {
+        const print = (list: ProjectNode[], indent: string): string[] =>
+            list.flatMap(n => [`${indent}${n.type}: ${n.name}`, ...print(n.children ?? [], indent + '  ')]);
+        return print((await nodes())[0].children ?? [], '');
+    };
+    const find = async (type: string, ...names: string[]): Promise<ProjectNode> => {
+        let list = await nodes();
+        let node: ProjectNode | undefined;
+        for (const name of ['', ...names]) {
+            const search = (items: ProjectNode[]): ProjectNode | undefined => {
+                for (const n of items) {
+                    if ((name === '' ? n.type === 'solution' : n.name === name)) return n;
+                }
+                return undefined;
+            };
+            node = search(list);
+            if (!node) throw new Error(`${type} ${names.join('/')} not found`);
+            list = node.children ?? [];
+        }
+        expect(node!.type).toBe(type);
+        return node!;
+    };
+    const run = async (cmd: ProjectActionCmd) => {
+        await SolutionActionService.handleProjectAction(cmd);
+        expect(ui.errors).toEqual([]);
+    };
+
+    beforeEach(async () => {
+        ui.errors = [];
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-sf-'));
+        file = path.join(dir, fileName);
+        fs.writeFileSync(file, initialContent);
+        fs.writeFileSync(path.join(dir, 'README.md'), '# readme');
+        fs.writeFileSync(path.join(dir, 'LICENSE'), 'MIT');
+
+        solution = new Solution(file);
+        for (let i = 0; i < 100 && !solution.isInitialized; i++) await new Promise(r => setTimeout(r, 10));
+        (SolutionService as any).activeSolution = solution;
+    });
+
+    afterEach(() => {
+        solution.dispose();
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    test('adds solution folders at the root and nested', async () => {
+        ui.inputBox = 'Docs';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+        ui.inputBox = 'Inner';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Docs',
+            'solutionFolder: Libs',
+            '  solutionFolder: Inner',
+            '  project: Lib',
+        ]);
+    });
+
+    test('adds solution items to the root ("Solution Items") and to a folder, and removes them', async () => {
+        ui.openDialog = path.join(dir, 'README.md');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solution')).nodeId });
+        ui.openDialog = path.join(dir, 'LICENSE');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  project: Lib',
+            '  solutionItem: LICENSE',
+            'solutionFolder: Solution Items',
+            '  solutionItem: README.md',
+        ]);
+
+        await run({ action: 'removeSolutionItem', nodeId: (await find('solutionItem', 'Solution Items', 'README.md')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  project: Lib',
+            '  solutionItem: LICENSE',
+            'solutionFolder: Solution Items',
+        ]);
+        expect(fs.existsSync(path.join(dir, 'README.md'))).toBe(true);
+    });
+
+    test('renames a solution folder', async () => {
+        await run({ action: 'rename', nodeId: (await find('solutionFolder', 'Libs')).nodeId, data: { newName: 'Libraries', oldName: 'Libs', type: 'solutionFolder' } });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libraries',
+            '  project: Lib',
+        ]);
+    });
+
+    test('renames a solution item on disk and in the solution', async () => {
+        ui.openDialog = path.join(dir, 'LICENSE');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        await run({ action: 'rename', nodeId: (await find('solutionItem', 'Libs', 'LICENSE')).nodeId, data: { newName: 'LICENSE.txt', oldName: 'LICENSE', type: 'solutionItem' } });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  project: Lib',
+            '  solutionItem: LICENSE.txt',
+        ]);
+        expect(fs.existsSync(path.join(dir, 'LICENSE.txt'))).toBe(true);
+        expect(fs.existsSync(path.join(dir, 'LICENSE'))).toBe(false);
+    });
+
+    test('removes the clicked folder when another folder has the same name', async () => {
+        ui.inputBox = 'Docs';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+        ui.inputBox = 'Inner';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Docs')).nodeId });
+
+        await run({ action: 'removeSolutionFolder', nodeId: (await find('solutionFolder', 'Docs', 'Inner')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Docs',
+            'solutionFolder: Libs',
+            '  solutionFolder: Inner',
+            '  project: Lib',
+        ]);
+    });
+
+    test('removes a solution folder together with its projects', async () => {
+        await run({ action: 'removeSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        expect(await outline()).toEqual([]);
+    });
+
+    test('keeps the line endings of the file', async () => {
+        ui.inputBox = 'Docs';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+
+        const content = fs.readFileSync(file, 'utf8');
+        const crlf = initialContent.includes('\r\n');
+        expect(/(^|[^\r])\n/.test(content)).toBe(!crlf);
+        expect(content.includes('\r\n')).toBe(crlf);
+    });
+
+    test('rejects folder names that would corrupt the solution file', async () => {
+        ui.inputBox = 'a"b';
+        await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+
+        expect(ui.errors).toEqual([expect.stringContaining('Invalid')]);
+        expect(await outline()).toEqual(['solutionFolder: Libs', '  project: Lib']);
+    });
+});

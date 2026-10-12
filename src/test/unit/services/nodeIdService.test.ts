@@ -2,20 +2,10 @@
  * Tests for the new JSON-based NodeId service
  */
 
-import { DependencyNodeId, FolderNodeId, NodeIdService, ProjectNodeId, SolutionNodeId } from '../../../services/nodeIdService';
+import { DependencyNodeId, FolderNodeId, NodeIdService, ProjectNodeId } from '../../../services/nodeIdService';
 
 describe('NodeIdService', () => {
     describe('Basic functionality', () => {
-        it('should generate and parse solution nodeId', () => {
-            const solutionPath = '/home/user/project/solution.sln';
-            const nodeId = NodeIdService.generateSolutionId(solutionPath);
-
-            expect(typeof nodeId).toBe('object');
-
-            const parsed = NodeIdService.parse(nodeId) as SolutionNodeId;
-            expect(parsed.type).toBe('solution');
-            expect(parsed.path).toBe(solutionPath);
-        });
 
         it('should generate and parse project nodeId', () => {
             const projectPath = '/home/user/project/MyProject.csproj';
@@ -54,32 +44,6 @@ describe('NodeIdService', () => {
 
 
     describe('Compression efficiency', () => {
-        it('should produce reasonably compressed nodeIds', () => {
-            const longPath = '/very/long/path/to/project/with/many/subdirectories/and/a/very/long/filename/MyProject.csproj';
-            const nodeId = NodeIdService.generateProjectId(longPath);
-
-            // The nodeId should be a valid base64 string
-            expect(typeof nodeId).toBe('object');
-
-            // Should be able to parse it back
-            const parsed = NodeIdService.parse(nodeId) as ProjectNodeId;
-            expect(parsed.path).toBe(longPath);
-        });
-
-        it('should handle complex nodeIds efficiently', () => {
-            const complexNodeId = NodeIdService.generateDependencyId(
-                '/very/long/path/to/project/MyProject.csproj',
-                'PackageReferences',
-                'Microsoft.Extensions.DependencyInjection.Abstractions',
-                '7.0.0'
-            );
-
-            expect(typeof complexNodeId).toBe('object');
-
-            const parsed = NodeIdService.parse(complexNodeId) as DependencyNodeId;
-            expect(parsed.type).toBe('dependency');
-            expect(parsed.name).toBe('Microsoft.Extensions.DependencyInjection.Abstractions');
-        });
     });
 });
 

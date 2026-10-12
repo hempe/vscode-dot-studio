@@ -11,7 +11,6 @@ export interface TreeNodeProps {
     onToggleExpand: (nodeId: NodeIdString, nodeType: NodeType) => void;
     onNodeClick: (nodeId: NodeIdString) => void;
     onNodeFocus: (nodeId: NodeIdString) => void;
-    onContextMenu: (x: number, y: number, node: ProjectNode) => void;
     onRenameConfirm: (newName: string, nodeId: NodeIdString, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
     selectedNodeId?: NodeIdString; // Node ID for selection

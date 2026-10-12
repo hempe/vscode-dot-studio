@@ -23,6 +23,9 @@ export interface SolutionFileItem {
     relativePath: string;
 }
 
+/** Line ending used by the file, so line-based edits don't mix CRLF and LF */
+const eolOf = (content: string) => content.includes('\r\n') ? '\r\n' : '\n';
+
 const log = logger('Solution');
 
 export class Solution {
@@ -421,6 +424,10 @@ export class Solution {
         log.info(`Adding solution folder: ${folderName}${parentNode?.name ? ` under ${parentNode.name}` : ''}`);
 
         try {
+            if (!folderName.trim() || /["\/\\]/.test(folderName)) {
+                throw new Error(`Invalid solution folder name "${folderName}"`);
+            }
+
             if (this.isSlnx) {
                 const parentSegments = parentNode ? this.getSolutionFolderSegments(parentNode.guid) : [];
                 await this.editSlnx(content => SolutionXFileEditor.addFolder(content, [...parentSegments, folderName]));
@@ -430,7 +437,7 @@ export class Solution {
 
             // Read the current solution file
             const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
+            const lines = solutionContent.split(/\r?\n/);
 
             // Generate a new GUID for the solution folder
             const folderGuid = `{${crypto.randomUUID().toUpperCase()}}`;
@@ -477,7 +484,7 @@ export class Solution {
             }
 
             // Write the updated solution file
-            const updatedContent = newLines.join('\n');
+            const updatedContent = newLines.join(eolOf(solutionContent));
             await this._handler.write(updatedContent);
 
             log.info(`Successfully added solution folder "${folderName}" to solution`);
@@ -502,6 +509,19 @@ export class Solution {
             p => p.name === folderName && SolutionFileParser.isSolutionFolder(p)
         );
         return folder ? folder.guid : null;
+    }
+
+    /**
+     * Gets the name of a solution folder by its GUID
+     */
+    private getSolutionFolderName(folderGuid: string): string {
+        const folder = this._solutionFile?.projects.find(
+            p => p.guid === folderGuid && SolutionFileParser.isSolutionFolder(p)
+        );
+        if (!folder) {
+            throw new Error(`Solution folder "${folderGuid}" not found`);
+        }
+        return folder.name;
     }
 
     /**
@@ -566,15 +586,12 @@ export class Solution {
     /**
      * Removes a solution folder from the solution file
      */
-    async removeSolutionFolder(folderName: string): Promise<void> {
-        log.info(`Removing solution folder: ${folderName}`);
+    async removeSolutionFolder(folderGuid: string): Promise<void> {
+        log.info(`Removing solution folder: ${folderGuid}`);
 
         try {
-            // Find the solution folder to get its GUID and capture it before removal
-            const folderGuid = this.findSolutionFolderGuid(folderName);
-            if (!folderGuid) {
-                throw new Error(`Solution folder "${folderName}" not found`);
-            }
+            // Identify the folder by GUID: names are only unique among siblings
+            const folderName = this.getSolutionFolderName(folderGuid);
 
             if (this.isSlnx) {
                 const segments = this.getSolutionFolderSegments(folderGuid);
@@ -587,7 +604,7 @@ export class Solution {
 
             // Read the current solution file
             const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
+            const lines = solutionContent.split(/\r?\n/);
 
             // Find all child items (projects and folders) that need to be removed recursively
             const allItemsToRemove = this.findAllChildItemsRecursively(folderGuid);
@@ -620,7 +637,7 @@ export class Solution {
             }
 
             // Write the updated solution file
-            const updatedContent = newLines.join('\n');
+            const updatedContent = newLines.join(eolOf(solutionContent));
             await this._handler.write(updatedContent);
 
             log.info(`Successfully removed solution folder "${folderName}" and ${allItemsToRemove.length} child items from solution`);
@@ -639,14 +656,13 @@ export class Solution {
     /**
      * Renames a solution folder in the solution file
      */
-    async renameSolutionFolder(oldName: string, newName: string): Promise<void> {
-        log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
-
+    async renameSolutionFolder(folderGuid: string, newName: string): Promise<void> {
         try {
-            // Find the solution folder to get its GUID
-            const folderGuid = this.findSolutionFolderGuid(oldName);
-            if (!folderGuid) {
-                throw new Error(`Solution folder "${oldName}" not found`);
+            const oldName = this.getSolutionFolderName(folderGuid);
+            log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
+
+            if (!newName.trim() || /["\/\\]/.test(newName)) {
+                throw new Error(`Invalid solution folder name "${newName}"`);
             }
 
             if (this.isSlnx) {
@@ -658,7 +674,7 @@ export class Solution {
 
             // Read the current solution file
             const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
+            const lines = solutionContent.split(/\r?\n/);
 
             // Find and update the Project line for this solution folder
             const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
@@ -671,14 +687,14 @@ export class Solution {
                     trimmedLine.includes(folderGuid)) {
                     // Replace the old name with the new name in the Project line
                     // Format: Project("{guid}") = "OldName", "OldName", "{folder-guid}"
-                    return line.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`);
+                    return line.split(`"${oldName}"`).join(`"${newName}"`);
                 }
 
                 return line;
             });
 
             // Write the updated solution file
-            const updatedContent = updatedLines.join('\n');
+            const updatedContent = updatedLines.join(eolOf(solutionContent));
             await this._handler.write(updatedContent);
 
             log.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
@@ -719,13 +735,13 @@ export class Solution {
 
             // Read the current solution file
             const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
+            const lines = solutionContent.split(/\r?\n/);
 
             // Find the solution folder's Project block and add the file to it
             const updatedLines = this.addSolutionItemToFolder(lines, folderGuid, relativePath);
 
             // Write the updated solution file
-            const updatedContent = updatedLines.join('\n');
+            const updatedContent = updatedLines.join(eolOf(solutionContent));
             await this._handler.write(updatedContent);
 
             log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderGuid}"`);
@@ -760,13 +776,13 @@ export class Solution {
 
             // Read the current solution file
             const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
+            const lines = solutionContent.split(/\r?\n/);
 
             // Remove the file reference from the solution file
             const updatedLines = this.removeSolutionItemFromFile(lines, relativePath);
 
             // Write the updated solution file
-            const updatedContent = updatedLines.join('\n');
+            const updatedContent = updatedLines.join(eolOf(solutionContent));
             await this._handler.write(updatedContent);
 
             log.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);

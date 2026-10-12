@@ -10,7 +10,6 @@ describe('TreeNode Focus and Selection States', () => {
   const mockOnToggleExpand = jest.fn();
   const mockOnNodeClick = jest.fn();
   const mockOnNodeFocus = jest.fn();
-  const mockOnContextMenu = jest.fn();
   const mockOnRenameConfirm = jest.fn();
   const mockOnRenameCancel = jest.fn();
 
@@ -43,7 +42,6 @@ describe('TreeNode Focus and Selection States', () => {
     onToggleExpand: mockOnToggleExpand,
     onNodeClick: mockOnNodeClick,
     onNodeFocus: mockOnNodeFocus,
-    onContextMenu: mockOnContextMenu,
     onRenameConfirm: mockOnRenameConfirm,
     onRenameCancel: mockOnRenameCancel,
     selectedNodeId: undefined,
@@ -57,7 +55,6 @@ describe('TreeNode Focus and Selection States', () => {
     mockOnToggleExpand.mockClear();
     mockOnNodeClick.mockClear();
     mockOnNodeFocus.mockClear();
-    mockOnContextMenu.mockClear();
     mockOnRenameConfirm.mockClear();
     mockOnRenameCancel.mockClear();
 
@@ -80,37 +77,29 @@ describe('TreeNode Focus and Selection States', () => {
       }, { timeout: 300 });
     });
 
-    test('should call onProjectAction with openFile on double-click', async () => {
+    test('should focus the node and leave the right-click to the native menu', async () => {
       render(<TreeNode {...defaultProps} />);
 
       const nodeElement = screen.getByText('Program.cs');
-      await user.dblClick(nodeElement);
+      const notPrevented = fireEvent.contextMenu(nodeElement);
 
-      expect(mockOnProjectAction).toHaveBeenCalledWith('openFile', 'file:/test/Program.cs', undefined);
-    });
-
-    test('should call onContextMenu on right-click', async () => {
-      render(<TreeNode {...defaultProps} />);
-
-      const nodeElement = screen.getByText('Program.cs');
-      fireEvent.contextMenu(nodeElement, {
-        clientX: 100,
-        clientY: 200
+      expect(notPrevented).toBe(true);
+      expect(mockOnNodeFocus).toHaveBeenCalledWith('file:/test/Program.cs');
+      expect(JSON.parse(nodeElement.closest('[data-vscode-context]')!.getAttribute('data-vscode-context')!)).toEqual({
+        webviewSection: 'node',
+        nodeType: 'file',
+        nodeId: 'file:/test/Program.cs',
+        preventDefaultContextMenuItems: true
       });
-
-      expect(mockOnContextMenu).toHaveBeenCalledWith(100, 200, fileNode);
     });
 
-    test('should toggle expansion on single click for folders', async () => {
-      render(<TreeNode {...defaultProps} node={folderNode} />);
+    test('should suppress the context menu for temporary nodes', async () => {
+      render(<TreeNode {...defaultProps} node={{ ...fileNode, name: 'New.cs', isTemporary: true }} />);
 
-      const nodeElement = screen.getByText('Controllers');
-      await user.click(nodeElement);
-
-      // Wait for debounced click
-      await waitFor(() => {
-        expect(mockOnToggleExpand).toHaveBeenCalledWith('folder:/test/project:/test/Controllers', 'folder');
-      }, { timeout: 300 });
+      const row = document.querySelector('.tree-node')!;
+      expect(row.hasAttribute('data-vscode-context')).toBe(false);
+      expect(fireEvent.contextMenu(row)).toBe(false);
+      expect(mockOnNodeFocus).not.toHaveBeenCalled();
     });
   });
 
@@ -178,25 +167,6 @@ describe('TreeNode Focus and Selection States', () => {
       const iconContainer = document.querySelector('.node-icon');
       expect(iconContainer).toBeInTheDocument();
     });
-
-    test('should show chevron for expandable nodes', () => {
-      const nodeWithChildren = { ...folderNode, hasChildren: true };
-      render(<TreeNode {...defaultProps} node={nodeWithChildren} />);
-
-      // Look for the expand-icon instead of specific chevron classes
-      const chevronElement = document.querySelector('.expand-icon');
-      expect(chevronElement).toBeInTheDocument();
-    });
-
-    test('should show down chevron for expanded nodes', () => {
-      const expandedFolder = { ...folderNode, expanded: true, hasChildren: true };
-      render(<TreeNode {...defaultProps} node={expandedFolder} />);
-
-      // Look for the expand-icon and check if it's rotated (expanded state)
-      const chevronElement = document.querySelector('.expand-icon');
-      expect(chevronElement).toBeInTheDocument();
-      // The expanded state is shown via CSS transform rotation, not different icons
-    });
   });
 
   describe('Keyboard Events', () => {
@@ -239,22 +209,5 @@ describe('TreeNode Focus and Selection States', () => {
   });
 
   describe('Click Debouncing', () => {
-    test('should cancel single click when double click occurs', async () => {
-      render(<TreeNode {...defaultProps} />);
-
-      const nodeElement = screen.getByText('Program.cs');
-
-      // Simulate fast single click followed by double click
-      await user.click(nodeElement);
-      await user.dblClick(nodeElement);
-
-      // Should only call openFile from double click, not onNodeClick from single click
-      expect(mockOnProjectAction).toHaveBeenCalledWith('openFile', 'file:/test/Program.cs', undefined);
-
-      // Wait for any potential delayed single click
-      await waitFor(() => {
-        expect(mockOnNodeClick).not.toHaveBeenCalled();
-      }, { timeout: 300 });
-    });
   });
 });

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SolutionTreeProps } from '../types';
 import { TreeNode } from './TreeNode/TreeNode';
-import { ContextMenu } from './ContextMenu/ContextMenu';
-import { contextMenus, MenuAction } from './ContextMenu/menuActions';
 import { LoadingBar } from '../../shared/LoadingBar';
 import { logger } from '../../shared/logger';
 import { nodeIdToKey, keyToNodeId } from '../../shared/nodeIdUtils';
 import { NodeIdString } from '../../../types/nodeId';
 import { NodeType, ProjectNode } from '../../../types';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
+import { UICmd } from '../../../types/commands/ui';
+import { sendToBackend } from '../../nuget-view/shared';
 
 const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode }) => {
@@ -16,7 +16,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     // Backend controls all expansion state - no local expansion management
     const [selectedNodeId, setSelectedNodeId] = useState<NodeIdString | undefined>();
     const [focusedNodeId, setFocusedNodeId] = useState<NodeIdString | undefined>();
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: ProjectNode } | null>(null);
     const [renamingNodeId, setRenamingNodeId] = useState<NodeIdString | undefined>();
     const [localLoadingNodes, setLocalLoadingNodes] = useState<Set<string>>(new Set());
 
@@ -65,64 +64,18 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         setFocusedNodeId(nodeId);
     };
 
-    const handleContextMenu = (x: number, y: number, node: ProjectNode) => {
-        log.info(`HANDLE CONTEXT MENU CALLED for ${node.type}: ${node.name}`);
-        log.info(`Coordinates:`, x, y);
-        log.info(`Current contextMenu state:`, contextMenu);
-
-        // Check if this node type has any menu items
-        const menuItems = contextMenus[node.type] || [];
-        if (menuItems.length === 0) {
-            log.info(`No menu items for node type ${node.type}, skipping context menu`);
-            return;
-        }
-
-        // Right-click focuses the item but doesn't select it
-        setFocusedNodeId(node.nodeId);
-
-        // Calculate adjusted position to keep menu within webview bounds
-        const menuWidth = 220; // min-width from CSS
-        const menuHeight = 200; // estimated height for menu items (increased for more items)
-        const padding = 0; // no padding - use full available space
-
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        // Adjust X position if menu would go off right edge
-        let adjustedX = x;
-        if (x + menuWidth + padding > viewportWidth) {
-            adjustedX = viewportWidth - menuWidth - padding;
-        }
-
-        // Adjust Y position if menu would go off bottom edge
-        let adjustedY = y;
-        if (y + menuHeight + padding > viewportHeight) {
-            adjustedY = viewportHeight - menuHeight - padding;
-        }
-
-        // Ensure menu stays within bounds (no minimum padding needed)
-        adjustedX = Math.max(0, adjustedX);
-        adjustedY = Math.max(0, adjustedY);
-
-        setContextMenu({ x: adjustedX, y: adjustedY, node });
-        log.info(`Context menu state SET:`, { x: adjustedX, y: adjustedY, node });
-    };
-
-    const handleCloseContextMenu = () => {
-        setContextMenu(null);
-        // Return focus to the tree container so keyboard navigation works again
-        if (treeRef.current) {
-            treeRef.current.focus();
-        }
-    };
-
-    const handleRename = () => {
-        if (contextMenu) {
-            log.info(`Starting rename for: ${contextMenu.node.name}`);
-            setRenamingNodeId(contextMenu.node.nodeId);
-            setContextMenu(null);
-        }
-    };
+    // Rename (menu or F2 key binding) is routed back here by the extension
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data as UICmd;
+            if (message.type === 'startRename') {
+                setFocusedNodeId(message.payload.nodeId);
+                setRenamingNodeId(message.payload.nodeId);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
 
     const handleRenameConfirm = (newName: string, nodeId: NodeIdString, nodeType: NodeType, oldName: string) => {
         log.info(`Rename confirmed: ${oldName} -> ${newName}`);
@@ -226,16 +179,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                 return;
             }
 
-            // Don't handle tree navigation if context menu is open
-            if (contextMenu) {
-                return;
-            }
-
-            // Don't handle tree navigation if context menu is focused
-            if (document.activeElement?.closest('.context-menu')) {
-                return;
-            }
-
             const currentIndex = flatNodes.findIndex(item => item.node.nodeId === focusedNodeId);
             if (currentIndex === -1) return;
 
@@ -313,141 +256,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     }
                     break;
 
-                // Handle context menu shortcuts
-                case 'F2':
-                    e.preventDefault();
-                    const focusedNodeForRename = flatNodes[currentIndex].node;
-                    // Check if rename action is available for this node type
-                    const nodeMenuItems = contextMenus[focusedNodeForRename.type] || [];
-                    const renameMenuItem = nodeMenuItems.find(item =>
-                        item.kind === 'action' && (item as MenuAction).action === 'rename'
-                    );
-                    if (renameMenuItem) {
-                        setRenamingNodeId(focusedNodeForRename.nodeId);
-                    }
-                    break;
-
-                case 'Delete':
-                    e.preventDefault();
-                    const focusedNodeForDelete = flatNodes[currentIndex].node;
-
-                    // Handle different node types appropriately
-                    if (focusedNodeForDelete.type === 'solutionFolder') {
-                        // For solution folders, confirm before removing from .sln file
-                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
-                        const removeAction = menuItems.find(item =>
-                            item.kind === 'action' && (item as MenuAction).action === 'removeSolutionFolder'
-                        );
-                        if (removeAction) {
-                            // Let backend handle the confirmation dialog - it already has one
-                            onProjectAction({
-                                nodeId: focusedNodeForDelete.nodeId,
-                                action: 'removeSolutionFolder',
-                            });
-                        }
-                    } else if (focusedNodeForDelete.type === 'solutionItem') {
-                        // For solution items, remove from .sln file only
-                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
-                        const removeAction = menuItems.find(item =>
-                            item.kind === 'action' && (item as MenuAction).action === 'removeSolutionItem'
-                        );
-                        if (removeAction) {
-                            // Let backend handle the confirmation dialog for consistency with solution folders
-                            onProjectAction({
-                                nodeId: focusedNodeForDelete.nodeId,
-                                action: 'removeSolutionItem'
-                            });
-                        }
-                    } else if (focusedNodeForDelete.type === 'dependency') {
-                        // For dependency nodes, use the remove dependency action
-                        const menuItems = contextMenus[focusedNodeForDelete.type] || [];
-                        const removeAction = menuItems.find(item =>
-                            item.kind === 'action' && (item as MenuAction).action === 'removeDependency'
-                        );
-                        if (removeAction) {
-                            onProjectAction({
-                                nodeId: focusedNodeForDelete.nodeId,
-                                action: 'removeDependency',
-                            });
-                        }
-                    } else {
-                        // For other types (files, folders), use the existing delete logic
-                        const deleteMenuItems = contextMenus[focusedNodeForDelete.type] || [];
-                        const deleteMenuItem = deleteMenuItems.find(item =>
-                            item.kind === 'action' && (item as MenuAction).action === 'deleteFile'
-                        );
-                        if (deleteMenuItem) {
-                            onProjectAction({
-                                nodeId: focusedNodeForDelete.nodeId,
-                                action: 'deleteFile'
-                            });
-                        }
-                    }
-                    break;
-
-                // Handle copy/cut/paste shortcuts
-                case 'c':
-                case 'C':
-                    if (e.ctrlKey || e.metaKey) {
-                        e.preventDefault();
-                        const focusedNodeForCopy = flatNodes[currentIndex].node;
-                        // Only allow copy for files and folders
-                        if (focusedNodeForCopy.type === 'file' || focusedNodeForCopy.type === 'folder') {
-                            const copyMenuItems = contextMenus[focusedNodeForCopy.type] || [];
-                            const copyMenuItem = copyMenuItems.find(item =>
-                                item.kind === 'action' && (item as MenuAction).action === 'copy'
-                            );
-                            if (copyMenuItem) {
-                                onProjectAction({
-                                    nodeId: focusedNodeForCopy.nodeId,
-                                    action: 'copy',
-                                });
-                            }
-                        }
-                    }
-                    break;
-
-                case 'x':
-                case 'X':
-                    if (e.ctrlKey || e.metaKey) {
-                        e.preventDefault();
-                        const focusedNodeForCut = flatNodes[currentIndex].node;
-                        // Only allow cut for files and folders
-                        if (focusedNodeForCut.type === 'file' || focusedNodeForCut.type === 'folder') {
-                            const cutMenuItems = contextMenus[focusedNodeForCut.type] || [];
-                            const cutMenuItem = cutMenuItems.find(item =>
-                                item.kind === 'action' && (item as MenuAction).action === 'cut'
-                            );
-                            if (cutMenuItem) {
-                                onProjectAction({
-                                    nodeId: focusedNodeForCut.nodeId,
-                                    action: 'cut',
-                                });
-                            }
-                        }
-                    }
-                    break;
-
-                case 'v':
-                case 'V':
-                    if (e.ctrlKey || e.metaKey) {
-                        e.preventDefault();
-                        const focusedNodeForPaste = flatNodes[currentIndex].node;
-                        // Allow paste into folders, projects, and files (files paste into their parent folder)
-                        if (focusedNodeForPaste.type === 'folder' || focusedNodeForPaste.type === 'project' || focusedNodeForPaste.type === 'file') {
-                            const pasteMenuItems = contextMenus[focusedNodeForPaste.type] || [];
-                            const pasteMenuItem = pasteMenuItems.find(item =>
-                                item.kind === 'action' && (item as MenuAction).action === 'paste'
-                            );
-                            if (pasteMenuItem) {
-                                onProjectAction({
-                                    nodeId: focusedNodeForPaste.nodeId,
-                                    action: 'paste'
-                                });
-                            }
-                        }
-                    }
-                    break;
             }
         };
 
@@ -461,7 +269,30 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                 treeRef.current.removeEventListener('keydown', handleKeyDown);
             }
         };
-    }, [focusedNodeId, flatNodes, handleToggleExpand, contextMenu]);
+    }, [focusedNodeId, flatNodes, handleToggleExpand]);
+
+    // Tell the extension which node keyboard shortcuts (VS Code key bindings) apply to.
+    // Nothing while the view is unfocused or a name is being edited, so keys like Delete reach the input.
+    const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
+    useEffect(() => {
+        const onFocus = () => setWindowFocused(true);
+        const onBlur = () => setWindowFocused(false);
+        window.addEventListener('focus', onFocus);
+        window.addEventListener('blur', onBlur);
+        return () => {
+            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('blur', onBlur);
+        };
+    }, []);
+
+    const focusedNode = focusedNodeId ? flatNodes.find(item => item.node.nodeId === focusedNodeId)?.node : undefined;
+    const shortcutNode = windowFocused && !renamingNodeId && focusedNode && !focusedNode.isTemporary ? focusedNode : undefined;
+    useEffect(() => {
+        sendToBackend({
+            type: 'treeFocusChanged',
+            payload: shortcutNode ? { nodeId: shortcutNode.nodeId, nodeType: shortcutNode.type } : {}
+        });
+    }, [shortcutNode?.nodeId, shortcutNode?.type]);
 
     // Check if any node in the tree is loading (backend state or local frontend state)
     const hasLoadingNode = useCallback((nodes: ProjectNode[]): boolean => {
@@ -530,6 +361,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             ref={treeRef}
             className="solution-tree"
             tabIndex={0}
+            data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
         >
             <LoadingBar visible={showLoadingBar} />
             {treeNodes.map((node) => (
@@ -542,7 +374,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     onToggleExpand={handleToggleExpand}
                     onNodeClick={handleNodeClick}
                     onNodeFocus={handleNodeFocus}
-                    onContextMenu={handleContextMenu}
                     onRenameConfirm={handleRenameConfirm}
                     onRenameCancel={handleRenameCancel}
                     selectedNodeId={selectedNodeId}
@@ -550,22 +381,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     renamingNodeId={renamingNodeId}
                 />
             ))}
-            {contextMenu && (
-                <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    onClose={handleCloseContextMenu}
-                    onRename={handleRename}
-                    onAction={cmd => {
-                        onProjectAction({
-                            nodeId: contextMenu.node.nodeId,
-                            ...cmd as any,
-                        });
-                    }}
-                    nodeType={contextMenu.node.type}
-                    nodeName={contextMenu.node.name}
-                />
-            )}
         </div>
     );
 };

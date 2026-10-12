@@ -8,6 +8,7 @@ import { NamespaceService } from './namespaceService';
 import { ProjectActionCmd } from '../types/commands/project-action';
 import { NodeIdString } from '../types/nodeId';
 import { sln } from '../core/utils';
+import { ProjectFileEditor } from '../parsers/projectFileEditor';
 
 const log = logger('SolutionActionService');
 
@@ -92,6 +93,10 @@ export class SolutionActionService {
 
             case 'addProjectReference':
                 await this._handleAddProjectReference(nodeId);
+                break;
+
+            case 'addAssemblyReference':
+                await this._handleAddAssemblyReference(nodeId);
                 break;
 
             case 'restoreDependencies':
@@ -184,19 +189,13 @@ export class SolutionActionService {
 
         try {
             if (nodeId.type === 'solutionFolder') {
-                // Handle solution folder rename - extract the solution folder path
-                const itemPath = nodeId.path;
-                if (!itemPath) {
-                    log.error('Cannot extract solution folder path from nodeId:', nodeId);
-                    vscode.window.showErrorMessage('Error: Cannot determine solution folder path for rename');
-                    return;
-                }
-
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
-                    await solution.renameSolutionFolder(itemPath, newName);
+                    await solution.renameSolutionFolder(nodeId.guid, newName);
                     log.info(`Solution folder renamed successfully`);
                 }
+            } else if (nodeId.type === 'solutionItem') {
+                await this._renameSolutionItem(nodeId.guid, nodeId.path, newName);
             } else {
                 // Handle file/folder rename - extract the file system path
                 const oldPath = nodeId.type == 'file' ? nodeId.path
@@ -224,6 +223,31 @@ export class SolutionActionService {
             log.error('Error renaming item:', error);
             vscode.window.showErrorMessage(`Error renaming: ${error}`);
         }
+    }
+
+    /**
+     * Renames a solution item on disk and updates its reference in the solution folder
+     */
+    private static async _renameSolutionItem(folderGuid: string, oldPath: string, newName: string): Promise<void> {
+        const solution = SolutionService.getActiveSolution();
+        if (!solution) {
+            vscode.window.showErrorMessage('No active solution found');
+            return;
+        }
+        if (!newName.trim() || /[\\/]/.test(newName)) {
+            vscode.window.showErrorMessage(`Invalid file name '${newName}'`);
+            return;
+        }
+
+        const newPath = path.join(path.dirname(oldPath), newName);
+        if (fs.existsSync(oldPath)) {
+            await vscode.workspace.fs.rename(vscode.Uri.file(oldPath), vscode.Uri.file(newPath));
+            log.info(`Solution item file renamed from ${oldPath} to ${newPath}`);
+        }
+
+        await solution.removeSolutionItem(oldPath);
+        await solution.addSolutionItem(folderGuid, newPath);
+        log.info(`Solution item reference updated to ${newPath}`);
     }
 
     private static async _handleBuild(nodeId: NodeId, action: 'build' | 'rebuild' | 'clean' | 'restore'): Promise<void> {
@@ -444,11 +468,8 @@ export class SolutionActionService {
                 return;
             }
 
-            // Try to get folder name from data first (safer), then fall back to path parsing
-            const folderName = nodeId?.name || path.basename(folderPath);
-            const folderGuid = nodeId?.guid;
-
-            log.info(`Removing solution folder: name="${folderName}", guid="${folderGuid}"`);
+            const folderName = nodeId.name;
+            log.info(`Removing solution folder: name="${folderName}", guid="${nodeId.guid}"`);
 
             const answer = await vscode.window.showWarningMessage(
                 `Are you sure you want to remove solution folder '${folderName}'?`,
@@ -457,12 +478,7 @@ export class SolutionActionService {
             );
 
             if (answer === 'Remove') {
-                // Use GUID-based removal if available, otherwise fall back to name-based
-                if (folderGuid) {
-                    await this._removeSolutionFolderByGuid(solution, folderGuid, folderName);
-                } else {
-                    await solution.removeSolutionFolder(folderName);
-                }
+                await solution.removeSolutionFolder(nodeId.guid);
                 log.info(`Solution folder removed: ${folderName}`);
                 vscode.window.showInformationMessage(`Solution folder '${folderName}' removed`);
             }
@@ -600,21 +616,6 @@ export class SolutionActionService {
     }
 
     /**
-     * Removes a solution folder by GUID (safer than name-based removal)
-     */
-    private static async _removeSolutionFolderByGuid(solution: any, folderGuid: string, folderName: string): Promise<void> {
-        try {
-            // For now, fall back to the name-based method since Solution class doesn't have GUID-based methods yet
-            // TODO: Implement GUID-based removal in Solution class for better safety
-            log.info(`Using name-based removal for GUID ${folderGuid} (name: ${folderName})`);
-            await solution.removeSolutionFolder(folderName);
-        } catch (error) {
-            log.error(`Error in GUID-based solution folder removal:`, error);
-            throw error;
-        }
-    }
-
-    /**
      * Handles managing NuGet packages for a project
      */
     private static async _handleManageNuGetPackages(nodeId: NodeId): Promise<void> {
@@ -705,6 +706,57 @@ export class SolutionActionService {
     }
 
 
+
+    /**
+     * Handles adding assembly (.dll) references to a project, written as <Reference> items with a HintPath
+     */
+    private static async _handleAddAssemblyReference(nodeId: NodeId): Promise<void> {
+        try {
+            const projectPath = nodeId.path;
+            if (!projectPath) {
+                log.error('Cannot extract project path from nodeId:', nodeId);
+                vscode.window.showErrorMessage('Error: Cannot determine project path');
+                return;
+            }
+
+            const assemblyUris = await vscode.window.showOpenDialog({
+                canSelectMany: true,
+                canSelectFiles: true,
+                canSelectFolders: false,
+                defaultUri: vscode.Uri.file(path.dirname(projectPath)),
+                openLabel: 'Add Reference',
+                filters: {
+                    'Assemblies': ['dll', 'exe']
+                }
+            });
+            if (!assemblyUris?.length) {
+                return;
+            }
+
+            let content = await fs.promises.readFile(projectPath, 'utf8');
+            const added: string[] = [];
+            for (const uri of assemblyUris) {
+                const assemblyName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+                const hintPath = path.relative(path.dirname(projectPath), uri.fsPath).split(path.sep).join('/');
+                try {
+                    content = ProjectFileEditor.addAssemblyReference(content, assemblyName, hintPath);
+                    added.push(assemblyName);
+                } catch (error) {
+                    vscode.window.showWarningMessage(`${error instanceof Error ? error.message : error}`);
+                }
+            }
+
+            if (added.length > 0) {
+                await fs.promises.writeFile(projectPath, content, 'utf8');
+                const projectName = path.basename(projectPath, path.extname(projectPath));
+                log.info(`Added assembly references to ${projectName}: ${added.join(', ')}`);
+                vscode.window.showInformationMessage(`Added reference${added.length > 1 ? 's' : ''} to ${added.join(', ')}`);
+            }
+        } catch (error) {
+            log.error('Error adding assembly reference:', error);
+            vscode.window.showErrorMessage(`Error adding assembly reference: ${error}`);
+        }
+    }
 
     /**
      * Handles restoring dependencies for a project

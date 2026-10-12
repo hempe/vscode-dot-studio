@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
+import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
@@ -111,7 +112,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('dotnet.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)
             solutionWebviewProvider.refresh();
-        })
+        }),
+        ...registerNativeContextMenuCommands(solutionWebviewProvider)
     );
 
     // Watch only .NET solution and project files to reduce load

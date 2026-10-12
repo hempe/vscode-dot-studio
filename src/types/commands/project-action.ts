@@ -66,6 +66,11 @@ export declare type AddProjectReferenceActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type AddAssemblyReferenceActionCmd = {
+    readonly action: 'addAssemblyReference';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type RestoreDependenciesActionCmd = {
     readonly action: 'restoreDependencies';
     readonly nodeId: NodeIdString;
@@ -181,6 +186,7 @@ export type ProjectActionCmd =
     | ManageNuGetPackagesActionCmd
     | ManageNuGetPackagesForSolutionActionCmd
     | AddProjectReferenceActionCmd
+    | AddAssemblyReferenceActionCmd
     | RestoreDependenciesActionCmd
     | RemoveDependencyActionCmd
     | RemoveProjectActionCmd

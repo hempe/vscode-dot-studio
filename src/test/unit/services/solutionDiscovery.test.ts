@@ -83,26 +83,6 @@ describe('SolutionDiscovery', () => {
 
             expect(result).toEqual({ type: 'none' });
         });
-
-        it('should filter only .sln files correctly', async () => {
-            (mockFs.promises.readdir as jest.Mock).mockResolvedValue([
-                'MySolution.sln',
-                'NotASolution.slnx', // Different extension
-                'project.csproj',
-                'Another.SLN', // Wrong case - should not match
-                'Valid.sln'
-            ] as any);
-
-            const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
-
-            expect(result).toEqual({
-                type: 'multiple',
-                availableSolutions: [
-                    path.join(mockWorkspaceRoot, 'MySolution.sln'),
-                    path.join(mockWorkspaceRoot, 'Valid.sln')
-                ]
-            });
-        });
     });
 
     describe('selectSolution', () => {

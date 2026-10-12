@@ -49,6 +49,10 @@ Messages are discriminated unions keyed by `type` with a `payload`:
 
 Providers in `src/webview/providers/` (`SolutionWebviewProvider`, `NuGetCustomEditorProvider`) switch on `message.type`; HTML shells are in `providers/views/`. When adding a message, add the type to these files and handle it on both sides.
 
+### Solution Explorer context menus
+
+Context menus are native VS Code menus (`webview/context`), not rendered by React. `src/core/contextMenus.ts` is the single source: commands (`dotnet.solutionExplorer.<action>`), per-node-type menus, and key bindings. After editing it run `npm run generate:menus` to rewrite the matching `package.json` contributions (a unit test fails if they're out of sync). Tree rows carry `data-vscode-context` (`nodeType`, `nodeId`); `providers/nativeContextMenu.ts` registers the commands and routes them to `SolutionWebviewProvider.runNodeAction`. Key bindings get no node argument and act on the focused node, which the webview reports via `treeFocusChanged` (also sets the `dotnet.solutionExplorer.focusedNodeType` context key; empty while renaming so keys reach the input). Rename is handed back to the webview with `startRename`.
+
 ### Node IDs
 
 Tree nodes are identified by `NodeIdString` (branded string, `src/types/nodeId.ts`). `services/nodeIdService.ts` encodes a typed JSON object (`{type: 'solution'|'project'|'folder'|'file'|'solutionFolder'|..., path, ...}`) with gzip compression. The webview treats IDs as opaque strings (`webview/shared/nodeIdUtils.ts` is browser-safe and does not decode); only the extension host should encode/decode them via `nodeIdService`.

@@ -582,18 +582,21 @@ export class Project {
                 type: 'dependencyCategory',
                 name: 'Packages',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
+                contextValue: 'packages',
                 hasChildren: packageCount > 0
             },
             {
                 type: 'dependencyCategory',
                 name: 'Projects',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
+                contextValue: 'projects',
                 hasChildren: projectCount > 0
             },
             {
                 type: 'dependencyCategory',
                 name: 'Assemblies',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
+                contextValue: 'assemblies',
                 hasChildren: assemblyCount > 0
             }
         ];

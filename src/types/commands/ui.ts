@@ -130,6 +130,12 @@ export declare type RemoveTemporaryNodesCmd = {
     }
 }
 
+export declare type StartRenameCmd = {
+    readonly type: 'startRename',
+    readonly payload: {
+        readonly nodeId: NodeIdString,
+    }
+}
 
 export declare type UICmd =
     ErrorCmd |
@@ -147,4 +153,5 @@ export declare type UICmd =
     ActiveFileChangedCmd |
     SolutionDataCmd |
     AddTemporaryNodeCmd |
-    RemoveTemporaryNodesCmd;
+    RemoveTemporaryNodesCmd |
+    StartRenameCmd;

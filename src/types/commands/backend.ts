@@ -1,3 +1,4 @@
+import { NodeType } from "..";
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared";
 import { NodeIdString } from "../nodeId";
 import { ProjectActionCmd } from "./project-action";
@@ -104,6 +105,15 @@ export declare type CollapseNodeCmd = {
     }
 }
 
+/** Focused tree node while the tree has keyboard focus and no rename is in progress; empty otherwise */
+export declare type TreeFocusChangedCmd = {
+    readonly type: 'treeFocusChanged',
+    readonly payload: {
+        readonly nodeId?: NodeIdString,
+        readonly nodeType?: NodeType
+    }
+}
+
 export declare type BackendCmd =
     GetPackageReadmeCmd |
     GetPackageIconCmd |
@@ -118,4 +128,5 @@ export declare type BackendCmd =
     SetFrameworkCmd |
     ProjectActionBackendCmd |
     ExpandNodeCmd |
-    CollapseNodeCmd;
+    CollapseNodeCmd |
+    TreeFocusChangedCmd;

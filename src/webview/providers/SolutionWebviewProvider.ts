@@ -13,7 +13,9 @@ import { SimpleDebounceManager } from '../../services/debounceManager';
 import { NodeIdString } from '../../types/nodeId';
 import { sendToUi } from '../nuget-view/shared';
 import { BackendCmd } from '../../types/commands/backend';
+import { ProjectActionCmd } from '../../types/commands/project-action';
 import { sln } from '../../core/utils';
+import { FOCUSED_NODE_TYPE_CONTEXT } from '../../core/contextMenus';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -23,6 +25,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;
+    private _focusedNodeId?: NodeIdString;
 
     private _solutionChangeListener?: vscode.Disposable;
     private _activeEditorListener?: vscode.Disposable;
@@ -93,6 +96,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             []
         );
 
+        // A hidden view can't have focus, so stop keyboard shortcuts from targeting it
+        webviewView.onDidChangeVisibility(() => {
+            if (!webviewView.visible) {
+                this._focusedNodeId = undefined;
+                vscode.commands.executeCommand('setContext', FOCUSED_NODE_TYPE_CONTEXT, '');
+            }
+        });
+
         // Track active editor changes to highlight the active file in the tree
         this._activeEditorListener = vscode.window.onDidChangeActiveTextEditor(editor => {
             if (editor && this._view) {
@@ -118,6 +129,23 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         this._sendCachedData();
+    }
+
+    /** Tree node that keyboard shortcuts apply to, if the tree has focus */
+    public get focusedNodeId(): NodeIdString | undefined {
+        return this._focusedNodeId;
+    }
+
+    /**
+     * Runs a tree node action invoked from the native (`webview/context`) context menu.
+     */
+    public async runNodeAction(action: ProjectActionCmd['action'], nodeId: NodeIdString): Promise<void> {
+        if (action === 'rename') {
+            // Rename is an inline edit in the tree, so hand it back to the webview
+            sendToUi(this.webview, { type: 'startRename', payload: { nodeId } });
+            return;
+        }
+        await this._handleMessage({ type: 'projectAction', payload: { action, nodeId } as ProjectActionCmd });
     }
 
     private async _handleMessage(message: BackendCmd) {
@@ -177,6 +205,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         }
                     }
                 }
+                break;
+
+            case 'treeFocusChanged':
+                this._focusedNodeId = message.payload.nodeId;
+                await vscode.commands.executeCommand('setContext', FOCUSED_NODE_TYPE_CONTEXT, message.payload.nodeType ?? '');
                 break;
 
             case 'expandNode':
@@ -348,25 +381,37 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * Returns the directory new files/folders are created in for a folder or project node
+     */
+    private _getContainerDirectory(nodeId: NodeIdString): string | undefined {
+        const node = NodeIdService.parse(nodeId);
+        switch (node?.type) {
+            case 'folder': return node.path;
+            case 'project': return path.dirname(node.path);
+            default: return undefined;
+        }
+    }
+
+    /**
      * Handles the addFile action by creating a temporary node in edit mode
      */
     private async _handleAddFileAction(parentNodeId: NodeIdString): Promise<void> {
         try {
-            const node = NodeIdService.parse(parentNodeId);
-            if (!node || node.type !== 'folder') {
+            const parentDir = this._getContainerDirectory(parentNodeId);
+            if (!parentDir) {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding file: invalid parent path`);
                 return;
             }
 
-            log.info(`Creating temporary file node for parent: ${node.path}`);
+            log.info(`Creating temporary file node for parent: ${parentDir}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
                     parentNodeId: parentNodeId,
-                    nodeId: NodeIdService.generateTemporaryId('file', node.path!),
+                    nodeId: NodeIdService.generateTemporaryId('file', parentDir),
                     nodeType: 'file'
                 }
             });
@@ -383,21 +428,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      */
     private async _handleAddFolderAction(parentNodeId: NodeIdString): Promise<void> {
         try {
-            const node = NodeIdService.parse(parentNodeId);
-            if (!node || node.type !== 'folder') {
+            const parentDir = this._getContainerDirectory(parentNodeId);
+            if (!parentDir) {
                 log.error('Invalid parent node ID, cannot extract path:', parentNodeId);
                 vscode.window.showErrorMessage(`Error adding folder: invalid parent path`);
                 return;
             }
 
-            log.info(`Creating temporary folder node for parent: ${node.path}`);
+            log.info(`Creating temporary folder node for parent: ${parentDir}`);
 
             // Send a message to the webview to create a temporary node in edit mode
             sendToUi(this.webview, {
                 type: 'addTemporaryNode',
                 payload: {
                     parentNodeId: parentNodeId,
-                    nodeId: NodeIdService.generateTemporaryId('folder', node.path!),
+                    nodeId: NodeIdService.generateTemporaryId('folder', parentDir),
                     nodeType: 'folder'
                 }
             });

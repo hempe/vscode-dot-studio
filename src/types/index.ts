@@ -20,6 +20,8 @@ export interface ProjectChild {
     readonly expanded?: boolean;
     readonly children?: ProjectChild[];
     readonly isLoaded?: boolean;
+    /** Distinguishes nodes of the same type for context menus, e.g. the dependency category */
+    readonly contextValue?: string;
 }
 
 /**
@@ -42,6 +44,8 @@ export interface ProjectNode {
     readonly nodeId: NodeIdString;
     readonly isTemporary?: boolean;
     readonly isEditing?: boolean;
+    /** Distinguishes nodes of the same type for context menus, e.g. the dependency category */
+    readonly contextValue?: string;
 }
 
 export interface SolutionData {

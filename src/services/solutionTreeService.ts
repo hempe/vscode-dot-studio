@@ -291,6 +291,7 @@ export class SolutionTreeService {
                 type: nodeType,
                 name: child.name,
                 nodeId: child.nodeId,
+                contextValue: child.contextValue,
                 isLoaded: child.isLoaded,
                 hasChildren: child.hasChildren || !!child.children?.length,
                 expanded: child.expanded,
