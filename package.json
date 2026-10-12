@@ -40,6 +40,31 @@
         }
       }
     },
+    "taskDefinitions": [
+      {
+        "type": "shinobi-dotnet",
+        "required": [
+          "action",
+          "target"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "build",
+              "rebuild",
+              "clean",
+              "restore"
+            ],
+            "description": "The dotnet action to run"
+          },
+          "target": {
+            "type": "string",
+            "description": "Absolute path of the solution or project file"
+          }
+        }
+      }
+    ],
     "views": {
       "shinobi-solution-explorer": [
         {
