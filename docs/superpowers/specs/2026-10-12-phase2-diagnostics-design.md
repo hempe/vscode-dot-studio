@@ -10,9 +10,9 @@ Roadmap: README "Phase 2: Errors in the Problems Panel and the Solution Explorer
 
 ## 1. Build tasks
 
-New `src/services/dotnetTaskProvider.ts`, registered in `extension.ts` with `vscode.tasks.registerTaskProvider('dotnet-studio', ...)`.
+New `src/services/dotnetTaskProvider.ts`, registered in `extension.ts` with `vscode.tasks.registerTaskProvider('shinobi-dotnet', ...)`.
 
-- `package.json` `contributes.taskDefinitions`: type `dotnet-studio`, required `action` (`build` | `rebuild` | `clean` | `restore`) and `target` (absolute path to the solution or project file).
+- `package.json` `contributes.taskDefinitions`: type `shinobi-dotnet`, required `action` (`build` | `rebuild` | `clean` | `restore`) and `target` (absolute path to the solution or project file).
 - `provideTasks` returns all four actions for the active solution and for each of its projects. All tasks use group `vscode.TaskGroup.Build`. The solution `build` task has `group.isDefault = true`, so Ctrl+Shift+B runs it unless the user's `tasks.json` defines its own default build task.
 - `resolveTask` builds the task from its definition, so tasks referenced in `tasks.json` work too.
 - Task name: `<action> <TargetName>`, e.g. `build MySolution`.
