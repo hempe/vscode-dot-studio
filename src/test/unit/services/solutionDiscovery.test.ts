@@ -95,17 +95,17 @@ describe('SolutionDiscovery', () => {
 
             const expectedItems = [
                 {
-                    label: 'Solution1',
+                    label: 'Solution1.sln',
                     description: '/workspace',
                     solutionPath: '/workspace/Solution1.sln'
                 },
                 {
-                    label: 'Solution2',
+                    label: 'Solution2.sln',
                     description: '/workspace/subfolder',
                     solutionPath: '/workspace/subfolder/Solution2.sln'
                 },
                 {
-                    label: 'MyApp',
+                    label: 'MyApp.sln',
                     description: '/workspace',
                     solutionPath: '/workspace/MyApp.sln'
                 }

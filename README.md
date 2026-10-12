@@ -33,7 +33,6 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Package details, versions, dependencies and README
 
 ## Known Issues
-- [ ] 6 failing unit tests (`fileNesting.spec.ts`, `solutionDiscovery.test.ts`); file nesting shows `Form1.cs` twice when `Form1.resx` exists
 - [ ] `launch.json` / `tasks.json` are read with `JSON.parse`; a file with comments (JSONC) fails to parse and is replaced (a `.backup` is kept)
 - [ ] "Add New Project" is a stub
 - [ ] The .slnx parser silently ignores nested `<Folder>` elements and folder names without leading/trailing `/`, which `dotnet` rejects; it should report the file as invalid instead of editing it
@@ -44,7 +43,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cover web apps and SOAP clients; phases 5–7 are conveniences for which the `dotnet` CLI already works in the meantime.
 
 ### Phase 1: Stabilize
-- [ ] Fix the failing tests and the file nesting duplication
+- [x] Fix the failing tests and the file nesting duplication
 - [ ] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
 - [ ] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features

@@ -7,262 +7,220 @@ export interface NestedFile {
     isParent?: boolean;
 }
 
+type FileEntry = { name: string; path: string };
+
+/** Files whose dependents are named `<file>.<anything>` (Index.cshtml.cs, Counter.razor.css) */
+const markupExtensions = ['.razor', '.cshtml', '.vbhtml', '.aspx', '.ascx', '.master', '.xaml'];
+
+/** Generators whose output has the same base name (Model.tt -> Model.cs) */
+const generatorExtensions = ['.tt', '.svcmap'];
+
+const codeExtensions = ['.cs', '.vb'];
+
+const suffixPatterns = [
+    /\.Dto$/i, /\.Dtos$/i,
+    /\.Model$/i, /\.Models$/i,
+    /\.Entity$/i, /\.Entities$/i,
+    /\.Request$/i, /\.Response$/i,
+    /\.Command$/i, /\.Query$/i,
+    /\.Validator$/i, /\.Validation$/i,
+    /\.Handler$/i, /\.Handlers$/i,
+    /\.Service$/i, /\.Services$/i,
+    /\.Repository$/i, /\.Repositories$/i,
+    /\.Extensions$/i, /\.Extension$/i,
+    /\.Helpers$/i, /\.Helper$/i,
+    /\.Utils$/i, /\.Util$/i,
+    /\.Constants$/i, /\.Constant$/i,
+    /\.Config$/i, /\.Configuration$/i,
+    /\.Settings$/i, /\.Setting$/i,
+    /\.Tests$/i, /\.Test$/i
+];
+
+/** Files of one directory, looked up by name */
+class Directory {
+    private readonly exact = new Map<string, FileEntry>();
+    private readonly ignoreCase = new Map<string, FileEntry>();
+
+    add(file: FileEntry): void {
+        this.exact.set(file.name, file);
+        this.ignoreCase.set(file.name.toLowerCase(), file);
+    }
+
+    find(name: string, ignoreCase = false): FileEntry | undefined {
+        return ignoreCase ? this.ignoreCase.get(name.toLowerCase()) : this.exact.get(name);
+    }
+}
+
 export class FileNestingService {
-    
+
     /**
      * Groups files into nested structure based on naming patterns
      */
-    static nestFiles(files: { name: string; path: string }[]): NestedFile[] {
-        const fileMap = new Map<string, NestedFile>();
-        const result: NestedFile[] = [];
-        
-        // First pass: create all file entries
+    static nestFiles(files: FileEntry[]): NestedFile[] {
+        const directories = new Map<string, Directory>();
         for (const file of files) {
-            fileMap.set(file.path, {
-                name: file.name,
-                path: file.path,
-                children: []
-            });
+            const dir = path.dirname(file.path);
+            if (!directories.has(dir)) {
+                directories.set(dir, new Directory());
+            }
+            directories.get(dir)!.add(file);
         }
-        
-        // Second pass: determine nesting relationships
+
+        const parentOf = new Map<string, string>();
         for (const file of files) {
-            const parent = this.findParentFile(file, files);
-            
+            const parent = this.findParentFile(file.name, directories.get(path.dirname(file.path))!);
             if (parent && parent.path !== file.path) {
-                const parentNode = fileMap.get(parent.path);
-                const childNode = fileMap.get(file.path);
-                
-                if (parentNode && childNode) {
-                    parentNode.children = parentNode.children || [];
-                    parentNode.children.push(childNode);
-                    parentNode.isParent = true;
-                    
-                    // Mark child as nested (don't add to root)
-                    childNode.isParent = false;
-                }
+                parentOf.set(file.path, parent.path);
             }
         }
-        
-        // Third pass: add only root files to result
+
+        // A file that would end up nested under itself stays at the root
         for (const file of files) {
-            const node = fileMap.get(file.path);
-            if (node && node.isParent !== false) { // Include parents and standalone files
+            const seen = new Set([file.path]);
+            for (let p = parentOf.get(file.path); p; p = parentOf.get(p)) {
+                if (seen.has(p)) {
+                    parentOf.delete(file.path);
+                    break;
+                }
+                seen.add(p);
+            }
+        }
+
+        const nodes = new Map<string, NestedFile>();
+        for (const file of files) {
+            nodes.set(file.path, { name: file.name, path: file.path, children: [] });
+        }
+
+        const result: NestedFile[] = [];
+        for (const file of files) {
+            const node = nodes.get(file.path)!;
+            const parentPath = parentOf.get(file.path);
+            if (parentPath) {
+                const parentNode = nodes.get(parentPath)!;
+                parentNode.children!.push(node);
+                parentNode.isParent = true;
+            } else {
                 result.push(node);
             }
         }
-        
-        // Sort children within each parent
-        for (const node of result) {
+
+        return this.sortNodes(result);
+    }
+
+    private static sortNodes(nodes: NestedFile[]): NestedFile[] {
+        for (const node of nodes) {
             if (node.children?.length) {
-                node.children.sort((a, b) => a.name.localeCompare(b.name));
+                this.sortNodes(node.children);
             }
         }
-        
-        return result.sort((a, b) => a.name.localeCompare(b.name));
+        return nodes.sort((a, b) => a.name.localeCompare(b.name));
     }
-    
+
     /**
      * Finds the parent file for a given file based on naming patterns
      */
-    private static findParentFile(
-        file: { name: string; path: string }, 
-        allFiles: { name: string; path: string }[]
-    ): { name: string; path: string } | null {
-        
-        const fileName = file.name;
-        const fileExt = path.extname(fileName);
-        
-        // Pattern 1: File.ext.cs (e.g., EditUser.cshtml.cs)
-        if (this.isCodeBehindFile(fileName)) {
-            const parentName = this.getCodeBehindParent(fileName);
-            if (parentName) {
-                const parent = allFiles.find(f => f.name === parentName);
-                if (parent) return parent;
-            }
-        }
-        
-        // Pattern 2: BaseFile.Suffix.ext (e.g., PrinterLayoutCacheEntryProvider.Dtos.cs)
-        if (this.hasSuffixPattern(fileName)) {
-            const parentName = this.getSuffixParent(fileName, allFiles);
-            if (parentName) {
-                const parent = allFiles.find(f => f.name === parentName);
-                if (parent) return parent;
-            }
-        }
-        
-        // Pattern 3: Designer files (e.g., Form1.Designer.cs)
-        if (fileName.includes('.Designer.')) {
-            const parentName = fileName.replace('.Designer.', '.');
-            const parent = allFiles.find(f => f.name === parentName);
-            if (parent) return parent;
-        }
-        
-        // Pattern 4: Configuration file variants (e.g., appsettings.Development.json -> appsettings.json)
-        if (this.isConfigurationVariant(fileName)) {
-            const parentName = this.getConfigurationParent(fileName, allFiles);
-            if (parentName) {
-                const parent = allFiles.find(f => f.name === parentName);
-                if (parent) return parent;
-            }
-        }
+    private static findParentFile(fileName: string, dir: Directory): FileEntry | null {
+        return this.findMarkupParent(fileName, dir)
+            ?? this.findDesignerParent(fileName, dir)
+            ?? this.findSuffixParent(fileName, dir)
+            ?? this.findConfigurationParent(fileName, dir)
+            ?? this.findResourceParent(fileName, dir)
+            ?? this.findDeclarationParent(fileName, dir)
+            ?? this.findGeneratorParent(fileName, dir)
+            ?? null;
+    }
 
-        // Pattern 5: Generated files (e.g., Reference.cs from Reference.svcmap)
-        const withoutExt = path.basename(fileName, fileExt);
-        for (const otherFile of allFiles) {
-            const otherWithoutExt = path.basename(otherFile.name, path.extname(otherFile.name));
-            if (otherWithoutExt === withoutExt && otherFile.name !== fileName) {
-                // Prefer non-cs files as parents
-                if (path.extname(otherFile.name) !== '.cs' && fileExt === '.cs') {
-                    return otherFile;
+    /**
+     * `<markup file>.<anything>` nests under the markup file
+     * (e.g. Index.cshtml.cs, Counter.razor.css, MainWindow.xaml.cs), using the longest matching prefix
+     */
+    private static findMarkupParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const segments = fileName.split('.');
+        for (let i = segments.length - 1; i >= 2; i--) {
+            const candidate = segments.slice(0, i).join('.');
+            if (markupExtensions.includes(path.extname(candidate).toLowerCase())) {
+                const parent = dir.find(candidate);
+                if (parent) {
+                    return parent;
                 }
             }
         }
-        
-        return null;
+        return undefined;
     }
-    
+
     /**
-     * Checks if a file is a code-behind file (e.g., .aspx.cs, .cshtml.cs, .xaml.cs)
+     * `X.Designer.cs` nests under X.cs (forms), X.resx (resources), X.settings or X.xsd (datasets)
      */
-    private static isCodeBehindFile(fileName: string): boolean {
-        const codeBehindPatterns = [
-            /\.aspx\.cs$/i,
-            /\.aspx\.vb$/i,
-            /\.cshtml\.cs$/i,
-            /\.vbhtml\.vb$/i,
-            /\.xaml\.cs$/i,
-            /\.xaml\.vb$/i,
-            /\.resx\.designer\.cs$/i,
-            /\.resx\.designer\.vb$/i,
-            /\.settings\.designer\.cs$/i,
-            /\.settings\.designer\.vb$/i
-        ];
-        
-        return codeBehindPatterns.some(pattern => pattern.test(fileName));
-    }
-    
-    /**
-     * Gets the parent file name for a code-behind file
-     */
-    private static getCodeBehindParent(fileName: string): string | null {
-        if (fileName.endsWith('.cs')) {
-            return fileName.substring(0, fileName.length - 3);
+    private static findDesignerParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const match = fileName.match(/^(.+)\.designer(\.cs|\.vb)$/i);
+        if (!match) {
+            return undefined;
         }
-        if (fileName.endsWith('.vb')) {
-            return fileName.substring(0, fileName.length - 3);
-        }
-        return null;
+        const [, baseName, ext] = match;
+        return [ext, '.resx', '.settings', '.xsd']
+            .map(parentExt => dir.find(baseName + parentExt))
+            .find(parent => parent !== undefined);
     }
-    
+
     /**
-     * Checks if file has a suffix pattern (e.g., BaseFile.Suffix.ext)
+     * `BaseFile.Suffix.ext` nests under `BaseFile.ext` (e.g. PrinterLayoutCacheEntryProvider.Dtos.cs)
      */
-    private static hasSuffixPattern(fileName: string): boolean {
+    private static findSuffixParent(fileName: string, dir: Directory): FileEntry | undefined {
         const ext = path.extname(fileName);
         const withoutExt = path.basename(fileName, ext);
-        
-        // Look for common suffixes
-        const suffixPatterns = [
-            /\.Dto$/i, /\.Dtos$/i,
-            /\.Model$/i, /\.Models$/i,
-            /\.Entity$/i, /\.Entities$/i,
-            /\.Request$/i, /\.Response$/i,
-            /\.Command$/i, /\.Query$/i,
-            /\.Validator$/i, /\.Validation$/i,
-            /\.Handler$/i, /\.Handlers$/i,
-            /\.Service$/i, /\.Services$/i,
-            /\.Repository$/i, /\.Repositories$/i,
-            /\.Extensions$/i, /\.Extension$/i,
-            /\.Helpers$/i, /\.Helper$/i,
-            /\.Utils$/i, /\.Util$/i,
-            /\.Constants$/i, /\.Constant$/i,
-            /\.Config$/i, /\.Configuration$/i,
-            /\.Settings$/i, /\.Setting$/i,
-            /\.Tests$/i, /\.Test$/i
-        ];
-        
-        return suffixPatterns.some(pattern => pattern.test(withoutExt));
-    }
-    
-    /**
-     * Gets the parent file name for a suffix-pattern file
-     */
-    private static getSuffixParent(fileName: string, allFiles: { name: string; path: string }[]): string | null {
-        const ext = path.extname(fileName);
-        const withoutExt = path.basename(fileName, ext);
-        
-        // Find the base name by removing common suffixes
-        const suffixPatterns = [
-            /\.Dto$/i, /\.Dtos$/i,
-            /\.Model$/i, /\.Models$/i,
-            /\.Entity$/i, /\.Entities$/i,
-            /\.Request$/i, /\.Response$/i,
-            /\.Command$/i, /\.Query$/i,
-            /\.Validator$/i, /\.Validation$/i,
-            /\.Handler$/i, /\.Handlers$/i,
-            /\.Service$/i, /\.Services$/i,
-            /\.Repository$/i, /\.Repositories$/i,
-            /\.Extensions$/i, /\.Extension$/i,
-            /\.Helpers$/i, /\.Helper$/i,
-            /\.Utils$/i, /\.Util$/i,
-            /\.Constants$/i, /\.Constant$/i,
-            /\.Config$/i, /\.Configuration$/i,
-            /\.Settings$/i, /\.Setting$/i,
-            /\.Tests$/i, /\.Test$/i
-        ];
-        
+
         for (const pattern of suffixPatterns) {
             if (pattern.test(withoutExt)) {
-                const baseName = withoutExt.replace(pattern, '');
-                const parentFileName = baseName + ext;
-                
-                // Check if parent file exists
-                const parent = allFiles.find(f => f.name === parentFileName);
+                const parent = dir.find(withoutExt.replace(pattern, '') + ext);
                 if (parent) {
-                    return parentFileName;
+                    return parent;
                 }
             }
         }
-        
-        return null;
+        return undefined;
     }
 
     /**
-     * Checks if a file is a configuration variant (e.g., appsettings.Development.json)
+     * Configuration variants nest under the base file
+     * (e.g. appsettings.Development.json -> appsettings.json, app.Debug.config -> app.config)
      */
-    private static isConfigurationVariant(fileName: string): boolean {
-        // Pattern: appsettings.{Environment}.json
-        if (/^appsettings\.[^.]+\.json$/i.test(fileName)) {
-            return true;
-        }
-
-        // Pattern: web.{Environment}.config
-        if (/^web\.[^.]+\.config$/i.test(fileName)) {
-            return true;
-        }
-
-        return false;
+    private static findConfigurationParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const match = fileName.match(/^(.+)\.[^.]+(\.json|\.config)$/i);
+        return match ? dir.find(match[1] + match[2], true) : undefined;
     }
 
     /**
-     * Gets the parent configuration file name
+     * `X.resx` nests under its code file `X.cs` (e.g. Form1.resx -> Form1.cs)
      */
-    private static getConfigurationParent(fileName: string, allFiles: { name: string; path: string }[]): string | null {
-        // For appsettings.{Environment}.json -> appsettings.json
-        if (/^appsettings\.[^.]+\.json$/i.test(fileName)) {
-            const parentName = 'appsettings.json';
-            const parent = allFiles.find(f => f.name.toLowerCase() === parentName.toLowerCase());
-            return parent ? parentName : null;
+    private static findResourceParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const match = fileName.match(/^(.+)\.resx$/i);
+        if (!match) {
+            return undefined;
         }
+        return codeExtensions
+            .map(ext => dir.find(match[1] + ext))
+            .find(parent => parent !== undefined);
+    }
 
-        // For web.{Environment}.config -> web.config
-        if (/^web\.[^.]+\.config$/i.test(fileName)) {
-            const parentName = 'web.config';
-            const parent = allFiles.find(f => f.name.toLowerCase() === parentName.toLowerCase());
-            return parent ? parentName : null;
+    /**
+     * TypeScript declarations nest under their source (utils.d.ts -> utils.ts)
+     */
+    private static findDeclarationParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const match = fileName.match(/^(.+)\.d\.ts$/);
+        return match ? dir.find(match[1] + '.ts') : undefined;
+    }
+
+    /**
+     * Generated code nests under its generator (e.g. Model.cs from Model.tt, Reference.cs from Reference.svcmap)
+     */
+    private static findGeneratorParent(fileName: string, dir: Directory): FileEntry | undefined {
+        const ext = path.extname(fileName);
+        if (!codeExtensions.includes(ext.toLowerCase())) {
+            return undefined;
         }
-
-        return null;
+        const baseName = path.basename(fileName, ext);
+        return generatorExtensions
+            .map(generatorExt => dir.find(baseName + generatorExt))
+            .find(parent => parent !== undefined);
     }
 }

@@ -48,7 +48,7 @@ export class SolutionDiscovery {
      */
     static async selectSolution(availableSolutions: string[]): Promise<string | null> {
         const items = availableSolutions.map(solutionPath => ({
-            label: solutionPath,
+            label: path.basename(solutionPath),
             description: path.dirname(solutionPath),
             solutionPath
         }));

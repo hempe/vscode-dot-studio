@@ -146,6 +146,64 @@ describe('FileNestingService', () => {
       ]);
     });
 
+    it('should nest Blazor scoped css/js and code-behind under the component', () => {
+      const files = [
+        { name: 'Counter.razor', path: '/project/Pages/Counter.razor' },
+        { name: 'Counter.razor.cs', path: '/project/Pages/Counter.razor.cs' },
+        { name: 'Counter.razor.css', path: '/project/Pages/Counter.razor.css' },
+        { name: 'Counter.razor.js', path: '/project/Pages/Counter.razor.js' }
+      ];
+
+      const result = FileNestingService.nestFiles(files);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].children!.map(c => c.name)).toEqual([
+        'Counter.razor.cs',
+        'Counter.razor.css',
+        'Counter.razor.js'
+      ]);
+    });
+
+    it('should nest Resources.Designer.cs under Resources.resx', () => {
+      const files = [
+        { name: 'Resources.resx', path: '/project/Properties/Resources.resx' },
+        { name: 'Resources.Designer.cs', path: '/project/Properties/Resources.Designer.cs' }
+      ];
+
+      const result = FileNestingService.nestFiles(files);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Resources.resx');
+      expect(result[0].children!.map(c => c.name)).toEqual(['Resources.Designer.cs']);
+    });
+
+    it('should nest T4 output under the template', () => {
+      const files = [
+        { name: 'Model.tt', path: '/project/Model.tt' },
+        { name: 'Model.cs', path: '/project/Model.cs' }
+      ];
+
+      const result = FileNestingService.nestFiles(files);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Model.tt');
+      expect(result[0].children!.map(c => c.name)).toEqual(['Model.cs']);
+    });
+
+    it('should keep a nested file out of the root when it has children itself', () => {
+      const files = [
+        { name: 'Model.tt', path: '/project/Model.tt' },
+        { name: 'Model.cs', path: '/project/Model.cs' },
+        { name: 'Model.Designer.cs', path: '/project/Model.Designer.cs' }
+      ];
+
+      const result = FileNestingService.nestFiles(files);
+
+      expect(result.map(f => f.name)).toEqual(['Model.tt']);
+      const modelCs = result[0].children!.find(c => c.name === 'Model.cs');
+      expect(modelCs!.children!.map(c => c.name)).toEqual(['Model.Designer.cs']);
+    });
+
     it('should handle empty file list', () => {
       const result = FileNestingService.nestFiles([]);
       expect(result).toHaveLength(0);
