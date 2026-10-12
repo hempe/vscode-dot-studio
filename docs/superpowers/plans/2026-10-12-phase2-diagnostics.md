@@ -33,7 +33,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 | `src/services/solutionActionService.ts` (modify) | Build/Rebuild/Clean/Restore and Restore Dependencies run tasks instead of terminals |
 | `src/webview/providers/SolutionWebviewProvider.ts` (modify) | Receives `DiagnosticsService`, sends `diagnostics` after `solutionData` and on change |
 | `src/extension.ts` (modify) | Creates `DiagnosticsService`, registers the task provider |
-| `package.json` (modify) | `taskDefinitions`, setting `dotnet.solutionExplorer.diagnostics.showInfos` |
+| `package.json` (modify) | `taskDefinitions`, setting `shinobi.solutionExplorer.diagnostics.showInfos` |
 | `src/webview/solution-view/components/TreeNode/diagnosticMarker.ts` (create) | Browser-safe helpers `markerCount`, `describeMarker` |
 | `src/webview/solution-view/hooks/useVsCodeApi.ts`, `App.tsx`, `components/SolutionTree.tsx`, `components/TreeNode/TreeNode.tsx`, `types/index.ts` (modify) | Keep markers in state, pass them down, render them |
 | `src/webview/providers/views/SolutionWebview.ts` (modify) | CSS for marker colours, badge and dot |
@@ -427,7 +427,7 @@ import { DiagnosticCounts } from '../types';
 import { FileCounts, normalizePath } from './diagnosticsRollup';
 import { SimpleDebounceManager } from './debounceManager';
 
-const CONFIG_SECTION = 'dotnet.solutionExplorer';
+const CONFIG_SECTION = 'shinobi.solutionExplorer';
 const SHOW_INFOS_KEY = 'diagnostics.showInfos';
 
 /** `$msCompile` appends the project to the message: `... [/repo/Api/Api.csproj]` */
@@ -949,10 +949,10 @@ and pass it as the 4th constructor argument:
 
 - [ ] **Step 3: Add the setting to `package.json`**
 
-In `contributes.configuration.properties`, after `dotnet.solutionExplorer.location`:
+In `contributes.configuration.properties`, after `shinobi.solutionExplorer.location`:
 
 ```json
-"dotnet.solutionExplorer.diagnostics.showInfos": {
+"shinobi.solutionExplorer.diagnostics.showInfos": {
   "type": "boolean",
   "default": false,
   "description": "Also mark files with info diagnostics in the Solution Explorer (errors and warnings are always marked)"
@@ -1260,7 +1260,7 @@ Tick off these items (`- [ ]` → `- [x]`):
 In the features part of the README (where Build/Rebuild/Clean are described), add:
 
 ```markdown
-- **Errors in the tree**: files with errors or warnings are coloured and show a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos are hidden unless `dotnet.solutionExplorer.diagnostics.showInfos` is on.
+- **Errors in the tree**: files with errors or warnings are coloured and show a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on.
 - **Build tasks**: Build, Rebuild, Clean and Restore run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher, so errors land in the Problems panel. Ctrl+Shift+B (Run Build Task) offers them; the solution build is the default unless your `tasks.json` defines one.
 ```
 
@@ -1278,7 +1278,7 @@ Run `npm run build:dev`, press F5 in VS Code, and open a solution from `src/__fi
 2. The file name turns red with a count, and its folder, project, solution folder and the solution show red dots, including while collapsed.
 3. Fix the error and build again. The markers disappear.
 4. Ctrl+Shift+B. The picker offers the `shinobi-dotnet` tasks, or runs `build <Solution>` directly if VS Code honours the provided default. Note which one happens and put it in the README sentence above.
-5. Toggle `dotnet.solutionExplorer.diagnostics.showInfos` and check that info markers appear and disappear.
+5. Toggle `shinobi.solutionExplorer.diagnostics.showInfos` and check that info markers appear and disappear.
 
 - [ ] **Step 3: Commit and push**
 

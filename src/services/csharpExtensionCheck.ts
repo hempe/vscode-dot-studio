@@ -14,7 +14,7 @@ export const CSHARP_EXTENSIONS = {
     openSource: 'muhammad-sammy.csharp',
 } as const;
 
-const DISMISSED_KEY = 'dotnet.csharpExtensionCheck.dismissed';
+const DISMISSED_KEY = 'shinobi.csharpExtensionCheck.dismissed';
 
 export function hasCSharpExtension(): boolean {
     return Object.values(CSHARP_EXTENSIONS).some(id => vscode.extensions.getExtension(id) !== undefined);

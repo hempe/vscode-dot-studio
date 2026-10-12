@@ -27,8 +27,8 @@ describe('contextMenus', () => {
             }
         }
 
-        expect(bound.get('delete on file')).toBe('dotnet.solutionExplorer.deleteFile');
-        expect(bound.get('delete on solutionFolder')).toBe('dotnet.solutionExplorer.removeSolutionFolder');
+        expect(bound.get('delete on file')).toBe('shinobi.solutionExplorer.deleteFile');
+        expect(bound.get('delete on solutionFolder')).toBe('shinobi.solutionExplorer.removeSolutionFolder');
         expect(bound.get('delete on project')).toBeUndefined();
     });
 
@@ -37,9 +37,9 @@ describe('contextMenus', () => {
             .filter(entry => entry.when.endsWith(`nodeType == 'project'`));
 
         expect(projectEntries.slice(0, 3)).toEqual([
-            expect.objectContaining({ command: 'dotnet.solutionExplorer.openFile', group: '1_group@1' }),
-            expect.objectContaining({ command: 'dotnet.solutionExplorer.addFile', group: '2_group@1' }),
-            expect.objectContaining({ command: 'dotnet.solutionExplorer.addFolder', group: '2_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.openFile', group: '1_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFolder', group: '2_group@2' }),
         ]);
     });
 
@@ -49,10 +49,10 @@ describe('contextMenus', () => {
             .map(entry => `${entry.when.match(/contextValue == '(\w+)'/)?.[1]}: ${entry.command}`);
 
         expect(categoryEntries).toEqual([
-            'packages: dotnet.solutionExplorer.manageNuGetPackages',
-            'packages: dotnet.solutionExplorer.restoreDependencies',
-            'projects: dotnet.solutionExplorer.addProjectReference',
-            'assemblies: dotnet.solutionExplorer.addAssemblyReference',
+            'packages: shinobi.solutionExplorer.manageNuGetPackages',
+            'packages: shinobi.solutionExplorer.restoreDependencies',
+            'projects: shinobi.solutionExplorer.addProjectReference',
+            'assemblies: shinobi.solutionExplorer.addAssemblyReference',
         ]);
     });
 });

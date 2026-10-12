@@ -633,7 +633,7 @@ export class SolutionActionService {
             log.info(`Managing NuGet packages for project: ${projectPath}`);
 
             // Open NuGet Package Manager in the main editor area for this specific project
-            await vscode.commands.executeCommand('dotnet.openNuGetManager', projectPath);
+            await vscode.commands.executeCommand('shinobi.openNuGetManager', projectPath);
             log.info(`Opened NuGet Package Manager for: ${projectPath}`);
         } catch (error) {
             log.error('Error opening NuGet webview:', error);
@@ -654,7 +654,7 @@ export class SolutionActionService {
             log.info(`Managing NuGet packages for solution: ${solutionPath}`);
 
             // Open NuGet Package Manager in the main editor area for the entire solution
-            await vscode.commands.executeCommand('dotnet.openNuGetManagerForSolution', solutionPath);
+            await vscode.commands.executeCommand('shinobi.openNuGetManagerForSolution', solutionPath);
             log.info(`Opened NuGet Package Manager for solution: ${solutionPath}`);
         } catch (error) {
             log.error('Error opening solution NuGet manager:', error);

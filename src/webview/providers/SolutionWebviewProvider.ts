@@ -21,7 +21,7 @@ const log = logger('SolutionWebviewProvider');
 
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'dotnet-solution-webview';
+    public static readonly viewType = 'shinobi-solution-webview';
 
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;

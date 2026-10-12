@@ -33,7 +33,7 @@ New `src/services/diagnosticsService.ts` (extension host).
 - Subscribes to `vscode.languages.onDidChangeDiagnostics`, debounced by about 300 ms, and reads `vscode.languages.getDiagnostics()`. The result merges `$msCompile` build output with the C# language server.
 - Per-file counts: `Map<normalizedPath, { errors, warnings, infos }>`.
   - Duplicates are removed per file by (start line, code, message). This handles the same error from both the build and the language server, and repeated errors from multi-target builds.
-  - Error and Warning always count. Information counts only when the `dotnet.solutionExplorer.diagnostics.showInfos` setting is on (boolean, default `false`). Hint never counts.
+  - Error and Warning always count. Information counts only when the `shinobi.solutionExplorer.diagnostics.showInfos` setting is on (boolean, default `false`). Hint never counts.
   - Only `file:` URIs count.
 - Fires an `onDidChange` event after each recompute. Changing the setting also triggers a recompute.
 

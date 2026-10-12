@@ -28,14 +28,14 @@ describe('registerNativeContextMenuCommands', () => {
 
     test('registers a command per menu action', () => {
         expect([...registered.keys()].sort()).toEqual(
-            Object.keys(menuCommands).map(action => `dotnet.solutionExplorer.${action}`).sort()
+            Object.keys(menuCommands).map(action => `shinobi.solutionExplorer.${action}`).sort()
         );
     });
 
     test('uses the node from the context menu', async () => {
         provider.focusedNodeId = 'focused' as NodeIdString;
 
-        await registered.get('dotnet.solutionExplorer.build')!({ webviewSection: 'node', nodeType: 'project', nodeId: 'clicked' });
+        await registered.get('shinobi.solutionExplorer.build')!({ webviewSection: 'node', nodeType: 'project', nodeId: 'clicked' });
 
         expect(provider.runNodeAction).toHaveBeenCalledWith('build', 'clicked');
     });
@@ -43,13 +43,13 @@ describe('registerNativeContextMenuCommands', () => {
     test('falls back to the focused node when invoked by a key binding', async () => {
         provider.focusedNodeId = 'focused' as NodeIdString;
 
-        await registered.get('dotnet.solutionExplorer.rename')!();
+        await registered.get('shinobi.solutionExplorer.rename')!();
 
         expect(provider.runNodeAction).toHaveBeenCalledWith('rename', 'focused');
     });
 
     test('does nothing without a node', async () => {
-        await registered.get('dotnet.solutionExplorer.deleteFile')!();
+        await registered.get('shinobi.solutionExplorer.deleteFile')!();
 
         expect(provider.runNodeAction).not.toHaveBeenCalled();
     });

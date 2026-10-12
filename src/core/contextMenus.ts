@@ -16,10 +16,10 @@ export interface MenuCommand {
     readonly mac?: string;
 }
 
-export const COMMAND_PREFIX = 'dotnet.solutionExplorer.';
+export const COMMAND_PREFIX = 'shinobi.solutionExplorer.';
 
 /** Context key holding the type of the focused tree node, empty when the tree isn't focused or a rename is in progress */
-export const FOCUSED_NODE_TYPE_CONTEXT = 'dotnet.solutionExplorer.focusedNodeType';
+export const FOCUSED_NODE_TYPE_CONTEXT = 'shinobi.solutionExplorer.focusedNodeType';
 
 export const menuCommands = {
     openFile: { title: 'Open' },
@@ -133,7 +133,7 @@ function menuEntries() {
 
 /** Builds the package.json `contributes` entries for the context menus */
 export function buildMenuContributions() {
-    const webviewWhen = 'webviewId =~ /^dotnet-solution-webview/ && webviewSection == \'node\'';
+    const webviewWhen = 'webviewId =~ /^shinobi-solution-webview/ && webviewSection == \'node\'';
     const actions = Object.keys(menuCommands) as MenuCommandAction[];
     const nodeTypesWith = (action: MenuCommandAction) => [...new Set(menuEntries()
         .filter(({ menu }) => menu.some(group => group.includes(action)))

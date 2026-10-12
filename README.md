@@ -1,4 +1,6 @@
-# .NET Extension for VS Code
+<img src="icon.png" width="96" align="right" alt="Shinobi">
+
+# Shinobi .NET for VS Code
 
 A Visual Studio–style Solution Explorer, NuGet package manager and project tooling for .NET in VS Code. The goal is to replace Visual Studio (and Windows) for day-to-day work on modern .NET: ASP.NET web apps, device-bridge services that talk to local hardware and the cloud, and SOAP service clients. It aims for parity with Visual Studio on the basics, not on everything.
 
@@ -141,4 +143,4 @@ src/
 
 ## License
 
-[License information to be determined]
+[MIT](LICENCE.md)

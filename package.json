@@ -1,8 +1,15 @@
 {
-  "name": "dotnet-extension",
-  "displayName": ".NET Extension",
+  "name": "dotnet",
+  "displayName": "Shinobi .NET",
   "description": "Enhanced .NET development features including NuGet UI, solution support, and project management",
   "version": "0.0.1",
+  "publisher": "shinobi",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hempe/vscode-dot-studio"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -16,9 +23,9 @@
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": ".NET Extension",
+      "title": "Shinobi .NET",
       "properties": {
-        "dotnet.solutionExplorer.location": {
+        "shinobi.solutionExplorer.location": {
           "type": "string",
           "enum": [
             "sidebar",
@@ -34,36 +41,36 @@
       }
     },
     "views": {
-      "solution-explorer": [
+      "shinobi-solution-explorer": [
         {
-          "id": "dotnet-solution-webview",
+          "id": "shinobi-solution-webview",
           "name": "Solution Explorer",
           "icon": "$(folder-library)",
           "type": "webview",
-          "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location != 'secondary-sidebar'"
+          "when": "shinobi.workspaceHasDotnetFiles && config.shinobi.solutionExplorer.location != 'secondary-sidebar'"
         }
       ],
-      "solution-explorer-secondary-sidebar": [
+      "shinobi-solution-explorer-secondary-sidebar": [
         {
-          "id": "dotnet-solution-webview-secondary-sidebar",
+          "id": "shinobi-solution-webview-secondary-sidebar",
           "name": "Solution Explorer",
           "icon": "$(folder-library)",
           "type": "webview",
-          "when": "workspaceHasDotnetFiles && config.dotnet.solutionExplorer.location == 'secondary-sidebar'"
+          "when": "shinobi.workspaceHasDotnetFiles && config.shinobi.solutionExplorer.location == 'secondary-sidebar'"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "solution-explorer",
+          "id": "shinobi-solution-explorer",
           "title": "Solution",
           "icon": "$(folder-library)"
         }
       ],
       "secondarySidebar": [
         {
-          "id": "solution-explorer-secondary-sidebar",
+          "id": "shinobi-solution-explorer-secondary-sidebar",
           "title": "Solution",
           "icon": "$(folder-library)"
         }
@@ -71,7 +78,7 @@
     },
     "customEditors": [
       {
-        "viewType": "dotnet.nugetPackageManager",
+        "viewType": "shinobi.nugetPackageManager",
         "displayName": "NuGet Package Manager",
         "selector": [
           {
@@ -82,162 +89,162 @@
     ],
     "commands": [
       {
-        "command": "dotnet.openNuGetManager",
+        "command": "shinobi.openNuGetManager",
         "title": "Open NuGet Package Manager",
         "category": ".NET"
       },
       {
-        "command": "dotnet.openNuGetManagerForSolution",
+        "command": "shinobi.openNuGetManagerForSolution",
         "title": "Open NuGet Package Manager for Solution",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solution.selectFramework",
+        "command": "shinobi.solution.selectFramework",
         "title": "Select Framework",
         "icon": "$(symbol-namespace)"
       },
       {
-        "command": "dotnet.solution.debug",
+        "command": "shinobi.solution.debug",
         "title": "Start Debugging",
         "icon": "$(debug-start)"
       },
       {
-        "command": "dotnet.solutionExplorer.openFile",
+        "command": "shinobi.solutionExplorer.openFile",
         "title": "Open",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addNewProject",
+        "command": "shinobi.solutionExplorer.addNewProject",
         "title": "Add New Project...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addExistingProject",
+        "command": "shinobi.solutionExplorer.addExistingProject",
         "title": "Add Existing Project...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addSolutionFolder",
+        "command": "shinobi.solutionExplorer.addSolutionFolder",
         "title": "Add Solution Folder",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addSolutionItem",
+        "command": "shinobi.solutionExplorer.addSolutionItem",
         "title": "Add Solution Item...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addFile",
+        "command": "shinobi.solutionExplorer.addFile",
         "title": "Add File...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addFolder",
+        "command": "shinobi.solutionExplorer.addFolder",
         "title": "Add Folder...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addProjectReference",
+        "command": "shinobi.solutionExplorer.addProjectReference",
         "title": "Add Project Reference...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.addAssemblyReference",
+        "command": "shinobi.solutionExplorer.addAssemblyReference",
         "title": "Add Assembly Reference...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.manageNuGetPackages",
+        "command": "shinobi.solutionExplorer.manageNuGetPackages",
         "title": "Manage NuGet Packages...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
+        "command": "shinobi.solutionExplorer.manageNuGetPackagesForSolution",
         "title": "Manage NuGet Packages...",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.restoreNugets",
+        "command": "shinobi.solutionExplorer.restoreNugets",
         "title": "Restore NuGet Packages",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.restoreDependencies",
+        "command": "shinobi.solutionExplorer.restoreDependencies",
         "title": "Restore Dependencies",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.setStartupProject",
+        "command": "shinobi.solutionExplorer.setStartupProject",
         "title": "Set as Startup Project",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.build",
+        "command": "shinobi.solutionExplorer.build",
         "title": "Build",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.rebuild",
+        "command": "shinobi.solutionExplorer.rebuild",
         "title": "Rebuild",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.clean",
+        "command": "shinobi.solutionExplorer.clean",
         "title": "Clean",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.copy",
+        "command": "shinobi.solutionExplorer.copy",
         "title": "Copy",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.cut",
+        "command": "shinobi.solutionExplorer.cut",
         "title": "Cut",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.paste",
+        "command": "shinobi.solutionExplorer.paste",
         "title": "Paste",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.rename",
+        "command": "shinobi.solutionExplorer.rename",
         "title": "Rename",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.deleteFile",
+        "command": "shinobi.solutionExplorer.deleteFile",
         "title": "Delete",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.deleteProject",
+        "command": "shinobi.solutionExplorer.deleteProject",
         "title": "Delete",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.removeProject",
+        "command": "shinobi.solutionExplorer.removeProject",
         "title": "Remove from Solution",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.removeSolutionFolder",
+        "command": "shinobi.solutionExplorer.removeSolutionFolder",
         "title": "Remove",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.removeSolutionItem",
+        "command": "shinobi.solutionExplorer.removeSolutionItem",
         "title": "Remove from Solution",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.removeDependency",
+        "command": "shinobi.solutionExplorer.removeDependency",
         "title": "Remove",
         "category": ".NET"
       },
       {
-        "command": "dotnet.solutionExplorer.revealInExplorer",
+        "command": "shinobi.solutionExplorer.revealInExplorer",
         "title": "Reveal in Explorer",
         "category": ".NET"
       }
@@ -245,465 +252,465 @@
     "menus": {
       "view/title": [
         {
-          "command": "dotnet.solution.selectFramework",
-          "when": "view == dotnet-solution-webview || view == dotnet-solution-webview-secondary-sidebar",
+          "command": "shinobi.solution.selectFramework",
+          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@1"
         },
         {
-          "command": "dotnet.solution.debug",
-          "when": "view == dotnet-solution-webview || view == dotnet-solution-webview-secondary-sidebar",
+          "command": "shinobi.solution.debug",
+          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@2"
         }
       ],
       "webview/context": [
         {
-          "command": "dotnet.solutionExplorer.addNewProject",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.addNewProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addExistingProject",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.addExistingProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "1_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionFolder",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.addSolutionFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "1_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionItem",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "1_group@4"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.manageNuGetPackagesForSolution",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.build",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.build",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.rebuild",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.rebuild",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "3_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.clean",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.clean",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "3_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.restoreNugets",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.restoreNugets",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "3_group@4"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "4_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "5_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionFolder",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "command": "shinobi.solutionExplorer.addSolutionFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionItem",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.removeSolutionFolder",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "command": "shinobi.solutionExplorer.removeSolutionFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.openFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.openFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.addFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addFolder",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.addFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.paste",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.paste",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.setStartupProject",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.setStartupProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "4_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackages",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "5_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "6_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.removeProject",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.removeProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "6_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.deleteProject",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.deleteProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "6_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.build",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.build",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "7_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.rebuild",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.rebuild",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "7_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.clean",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.clean",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "7_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "8_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.addFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addFolder",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.addFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "1_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.copy",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.copy",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.cut",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.cut",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.paste",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.paste",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "2_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.deleteFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.deleteFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "3_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "4_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.openFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.openFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.copy",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.copy",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.cut",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.cut",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.paste",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.paste",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "2_group@3"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.deleteFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.deleteFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "3_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
           "group": "4_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackages",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "command": "shinobi.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addProjectReference",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "command": "shinobi.solutionExplorer.addProjectReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addAssemblyReference",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "command": "shinobi.solutionExplorer.addAssemblyReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.restoreDependencies",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "command": "shinobi.solutionExplorer.restoreDependencies",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
           "group": "3_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.removeDependency",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependency'",
+          "command": "shinobi.solutionExplorer.removeDependency",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependency'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackages",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
+          "command": "shinobi.solutionExplorer.manageNuGetPackages",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.restoreDependencies",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
+          "command": "shinobi.solutionExplorer.restoreDependencies",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'packages'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addProjectReference",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'projects'",
+          "command": "shinobi.solutionExplorer.addProjectReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'projects'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.addAssemblyReference",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'assemblies'",
+          "command": "shinobi.solutionExplorer.addAssemblyReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencyCategory' && contextValue == 'assemblies'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.openFile",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "command": "shinobi.solutionExplorer.openFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
           "group": "1_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "command": "shinobi.solutionExplorer.rename",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
           "group": "2_group@1"
         },
         {
-          "command": "dotnet.solutionExplorer.removeSolutionItem",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "command": "shinobi.solutionExplorer.removeSolutionItem",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
           "group": "2_group@2"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^dotnet-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionItem'",
           "group": "3_group@1"
         }
       ],
       "commandPalette": [
         {
-          "command": "dotnet.solutionExplorer.openFile",
+          "command": "shinobi.solutionExplorer.openFile",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addNewProject",
+          "command": "shinobi.solutionExplorer.addNewProject",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addExistingProject",
+          "command": "shinobi.solutionExplorer.addExistingProject",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionFolder",
+          "command": "shinobi.solutionExplorer.addSolutionFolder",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addSolutionItem",
+          "command": "shinobi.solutionExplorer.addSolutionItem",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addFile",
+          "command": "shinobi.solutionExplorer.addFile",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addFolder",
+          "command": "shinobi.solutionExplorer.addFolder",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addProjectReference",
+          "command": "shinobi.solutionExplorer.addProjectReference",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.addAssemblyReference",
+          "command": "shinobi.solutionExplorer.addAssemblyReference",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackages",
+          "command": "shinobi.solutionExplorer.manageNuGetPackages",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.manageNuGetPackagesForSolution",
+          "command": "shinobi.solutionExplorer.manageNuGetPackagesForSolution",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.restoreNugets",
+          "command": "shinobi.solutionExplorer.restoreNugets",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.restoreDependencies",
+          "command": "shinobi.solutionExplorer.restoreDependencies",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.setStartupProject",
+          "command": "shinobi.solutionExplorer.setStartupProject",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.build",
+          "command": "shinobi.solutionExplorer.build",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.rebuild",
+          "command": "shinobi.solutionExplorer.rebuild",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.clean",
+          "command": "shinobi.solutionExplorer.clean",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.copy",
+          "command": "shinobi.solutionExplorer.copy",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.cut",
+          "command": "shinobi.solutionExplorer.cut",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.paste",
+          "command": "shinobi.solutionExplorer.paste",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.rename",
+          "command": "shinobi.solutionExplorer.rename",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.deleteFile",
+          "command": "shinobi.solutionExplorer.deleteFile",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.deleteProject",
+          "command": "shinobi.solutionExplorer.deleteProject",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.removeProject",
+          "command": "shinobi.solutionExplorer.removeProject",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.removeSolutionFolder",
+          "command": "shinobi.solutionExplorer.removeSolutionFolder",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.removeSolutionItem",
+          "command": "shinobi.solutionExplorer.removeSolutionItem",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.removeDependency",
+          "command": "shinobi.solutionExplorer.removeDependency",
           "when": "false"
         },
         {
-          "command": "dotnet.solutionExplorer.revealInExplorer",
+          "command": "shinobi.solutionExplorer.revealInExplorer",
           "when": "false"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "dotnet.solutionExplorer.copy",
+        "command": "shinobi.solutionExplorer.copy",
         "key": "ctrl+c",
         "mac": "cmd+c",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.cut",
+        "command": "shinobi.solutionExplorer.cut",
         "key": "ctrl+x",
         "mac": "cmd+x",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.paste",
+        "command": "shinobi.solutionExplorer.paste",
         "key": "ctrl+v",
         "mac": "cmd+v",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(project|folder|file)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(project|folder|file)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.rename",
+        "command": "shinobi.solutionExplorer.rename",
         "key": "f2",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solution|solutionFolder|project|folder|file|solutionItem)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(solution|solutionFolder|project|folder|file|solutionItem)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.deleteFile",
+        "command": "shinobi.solutionExplorer.deleteFile",
         "key": "delete",
         "mac": "cmd+backspace",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(folder|file)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.removeSolutionFolder",
+        "command": "shinobi.solutionExplorer.removeSolutionFolder",
         "key": "delete",
         "mac": "cmd+backspace",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solutionFolder)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(solutionFolder)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.removeSolutionItem",
+        "command": "shinobi.solutionExplorer.removeSolutionItem",
         "key": "delete",
         "mac": "cmd+backspace",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(solutionItem)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(solutionItem)$/"
       },
       {
-        "command": "dotnet.solutionExplorer.removeDependency",
+        "command": "shinobi.solutionExplorer.removeDependency",
         "key": "delete",
         "mac": "cmd+backspace",
-        "when": "dotnet.solutionExplorer.focusedNodeType =~ /^(dependency)$/"
+        "when": "shinobi.solutionExplorer.focusedNodeType =~ /^(dependency)$/"
       }
     ]
   },

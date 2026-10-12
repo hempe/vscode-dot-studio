@@ -18,7 +18,7 @@ const log = logger('NuGetCustomEditorProvider');
  * Custom editor provider for NuGet Package Manager that opens in the main editor area
  */
 export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvider {
-    public static readonly viewType = 'dotnet.nugetPackageManager';
+    public static readonly viewType = 'shinobi.nugetPackageManager';
     private readonly _webviewPanels = new Map<string, vscode.WebviewPanel>();
 
     constructor(

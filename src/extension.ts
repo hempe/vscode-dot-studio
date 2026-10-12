@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     // Set context for when workspace has .NET files
-    vscode.commands.executeCommand('setContext', 'workspaceHasDotnetFiles', true);
+    vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
 
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();
@@ -67,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
             solutionWebviewProvider
         ),
         vscode.window.registerWebviewViewProvider(
-            'dotnet-solution-webview-secondary-sidebar',
+            'shinobi-solution-webview-secondary-sidebar',
             solutionWebviewProvider
         )
     );
@@ -82,13 +82,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('dotnet.openNuGetManager', (projectPath?: string) => {
+        vscode.commands.registerCommand('shinobi.openNuGetManager', (projectPath?: string) => {
             NuGetCustomEditorProvider.openNuGetManager(projectPath);
         }),
-        vscode.commands.registerCommand('dotnet.openNuGetManagerForSolution', (solutionPath?: string) => {
+        vscode.commands.registerCommand('shinobi.openNuGetManagerForSolution', (solutionPath?: string) => {
             NuGetCustomEditorProvider.openNuGetManagerForSolution(solutionPath);
         }),
-        vscode.commands.registerCommand('dotnet.solution.selectFramework', async () => {
+        vscode.commands.registerCommand('shinobi.solution.selectFramework', async () => {
             const frameworkOptions = frameworkDropdownService.getFrameworkOptions();
             const currentFramework = frameworkDropdownService.getActiveFramework();
 
@@ -109,10 +109,10 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Framework changed to: ${selection.label}`);
             }
         }),
-        vscode.commands.registerCommand('dotnet.solution.debug', async () => {
+        vscode.commands.registerCommand('shinobi.solution.debug', async () => {
             await startDebugWithStartupProject();
         }),
-        vscode.commands.registerCommand('dotnet.internal.refreshSolution', () => {
+        vscode.commands.registerCommand('shinobi.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)
             solutionWebviewProvider.refresh();
         }),
