@@ -7,6 +7,7 @@ import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
 import { logger } from '../core/logger';
 import { DebugConfigService } from './debugConfigService';
+import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
 
 const log = logger('SolutionService');
 
@@ -134,6 +135,7 @@ export class SolutionService {
 
             this.lastLoadError = undefined;
             this.activeSolution = solution;
+            checkOmniSharpForSlnx(solutionPath).catch(error => log.error('Error checking the C# language server:', error));
             log.info(`Initialized solution: ${path.basename(solutionPath)}`);
 
             return solution;

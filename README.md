@@ -44,7 +44,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Fix the failing tests and the file nesting duplication
 - [x] Reject .slnx files that `dotnet` rejects (folder names without `/`, duplicates, missing paths) and show the reason instead of an empty tree
 - [x] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
-- [ ] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
+- [x] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features
 
 ### Phase 2: Errors in the Problems Panel and the Solution Explorer
@@ -117,6 +117,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - VS Code 1.74.0 or higher
 - .NET SDK 6.0 or higher
 - A C# extension, for debugging and namespace updates: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium and other Open VSX editors. C# Dev Kit is not required.
+- With `muhammad-sammy.csharp` and .slnx solutions, use the Roslyn language server (`"dotnet.server.useOmnisharp": false`); its default, OmniSharp, cannot load .slnx. The extension offers to switch.
 
 ### Build from Source
 ```bash

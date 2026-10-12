@@ -17,6 +17,7 @@ jest.mock('vscode', () => {
         workspace: {
             createFileSystemWatcher: () => watcher,
             workspaceFolders: undefined,
+            getConfiguration: () => ({ get: () => undefined }),
         },
         window: {
             showErrorMessage: async (message: string) => { ui.errors.push(message); },

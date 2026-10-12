@@ -51,3 +51,42 @@ export async function checkCSharpExtension(context: vscode.ExtensionContext): Pr
         await context.globalState.update(DISMISSED_KEY, true);
     }
 }
+
+/** Solutions already warned about in this window */
+const omniSharpWarnedFor = new Set<string>();
+
+/**
+ * OmniSharp (the default language server of muhammad-sammy.csharp) cannot load .slnx files;
+ * offers to switch the workspace to the Roslyn language server, which ships with the same extension.
+ */
+export async function checkOmniSharpForSlnx(solutionPath: string): Promise<void> {
+    if (!solutionPath.toLowerCase().endsWith('.slnx') || omniSharpWarnedFor.has(solutionPath)) {
+        return;
+    }
+
+    const config = vscode.workspace.getConfiguration('dotnet');
+    // undefined without a C# extension, false for Microsoft's (Roslyn is its default)
+    if (config.get<boolean>('server.useOmnisharp') !== true) {
+        return;
+    }
+
+    omniSharpWarnedFor.add(solutionPath);
+    log.info(`OmniSharp is enabled but the solution is .slnx: ${solutionPath}`);
+
+    const useRoslyn = 'Use Roslyn';
+    const choice = await vscode.window.showWarningMessage(
+        'OmniSharp cannot load .slnx solutions, so C# IntelliSense will not work. ' +
+        'Switch this workspace to the Roslyn language server ("dotnet.server.useOmnisharp": false)?',
+        useRoslyn
+    );
+    if (choice !== useRoslyn) {
+        return;
+    }
+
+    await config.update('server.useOmnisharp', false, vscode.ConfigurationTarget.Workspace);
+
+    const reload = 'Reload Window';
+    if (await vscode.window.showInformationMessage('Reload the window to start the Roslyn language server.', reload) === reload) {
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
+}
