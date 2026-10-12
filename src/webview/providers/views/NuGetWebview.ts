@@ -32,6 +32,13 @@ export class NuGetWebview {
                 transform: translateX(calc(100vw + 100%));
             }
         }
+
+        /* vscrui's Dropdown caps both the listbox (200px) and its list (222px) and lets
+           both scroll, so long version lists get two scroll bars; let only the listbox scroll */
+        .vscrui-dropdown .vscrui-checkbox__listbox ul {
+            max-height: none;
+            overflow: visible;
+        }
     </style>
 </head>
 <body>
