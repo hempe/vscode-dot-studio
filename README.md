@@ -25,6 +25,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Add files and folders with inline naming
 - Copy, cut, paste, rename and delete
 - Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
+- Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running)
 - Reveal in file explorer
 
 ### NuGet Package Manager
@@ -90,6 +91,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] "Add New Project": pick a template from `dotnet new list`, name and location, then add it to the solution
 - [ ] "Add New Item": class, interface, enum, record, controller, Razor page/component, test class, config files
 - [ ] Generate namespaces from `RootNamespace` and the folder structure (reuse `namespaceService`)
+- [ ] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx)
 
 ### Phase 6: Test Integration
 **Goal**: Test discovery and execution through the VS Code Test Explorer.

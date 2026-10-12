@@ -9,6 +9,7 @@ import { ProjectActionCmd } from '../types/commands/project-action';
 import { NodeIdString } from '../types/nodeId';
 import { sln } from '../core/utils';
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
+import { renameFileAndType } from './typeRename';
 
 const log = logger('SolutionActionService');
 
@@ -210,10 +211,11 @@ export class SolutionActionService {
 
                 const newPath = path.join(path.dirname(oldPath), newName);
 
-                const oldUri = vscode.Uri.file(oldPath);
-                const newUri = vscode.Uri.file(newPath);
-
-                await vscode.workspace.fs.rename(oldUri, newUri);
+                if (nodeId.type === 'file') {
+                    await renameFileAndType(oldPath, newPath);
+                } else {
+                    await vscode.workspace.fs.rename(vscode.Uri.file(oldPath), vscode.Uri.file(newPath));
+                }
                 log.info(`File/folder renamed from ${oldPath} to ${newPath}`);
 
                 // Check if namespace updates are needed after rename
