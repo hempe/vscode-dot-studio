@@ -16,6 +16,8 @@ import { BackendCmd } from '../../types/commands/backend';
 import { ProjectActionCmd } from '../../types/commands/project-action';
 import { sln } from '../../core/utils';
 import { FOCUSED_NODE_TYPE_CONTEXT } from '../../core/contextMenus';
+import { DiagnosticsService } from '../../services/diagnosticsService';
+import { computeMarkers } from '../../services/diagnosticsRollup';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -29,6 +31,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
     private _solutionChangeListener?: vscode.Disposable;
     private _activeEditorListener?: vscode.Disposable;
+    private readonly _diagnosticsListener: vscode.Disposable;
 
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ProjectNode[];
@@ -41,7 +44,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
-        private readonly _frameworkService: FrameworkDropdownService
+        private readonly _frameworkService: FrameworkDropdownService,
+        private readonly _diagnostics: DiagnosticsService
     ) {
         SolutionWebviewProvider.Instance = this;
         this._updateViewDebouncer = new SimpleDebounceManager(async () => {
@@ -72,6 +76,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 sendToUi(this.webview, { type: 'hideLoading', });
             }
         }, 100);
+        this._diagnosticsListener = _diagnostics.onDidChange(() => this._sendDiagnostics());
     }
 
     public resolveWebviewView(
@@ -378,6 +383,18 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             type: 'solutionData',
             payload: data
         });
+        this._sendDiagnostics(projects);
+    }
+
+    /** Sends the error/warning markers for the given (or last sent) tree */
+    private _sendDiagnostics(projects: ProjectNode[] | undefined = this._cachedSolutionData): void {
+        if (!this._view || !projects) {
+            return;
+        }
+        sendToUi(this.webview, {
+            type: 'diagnostics',
+            payload: { markers: computeMarkers(projects, this._diagnostics.counts) }
+        });
     }
 
     /**
@@ -573,6 +590,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      * Dispose of resources
      */
     dispose(): void {
+        this._diagnosticsListener.dispose();
         if (this._solutionChangeListener) {
             this._solutionChangeListener.dispose();
             this._solutionChangeListener = undefined;

@@ -37,6 +37,11 @@
           ],
           "default": "sidebar",
           "description": "Choose where the Solution Explorer appears"
+        },
+        "shinobi.solutionExplorer.diagnostics.showInfos": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also mark files with info diagnostics in the Solution Explorer (errors and warnings are always marked)"
         }
       }
     },

@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
+import { DiagnosticsService } from './services/diagnosticsService';
+import { DotnetTaskProvider, DOTNET_TASK_TYPE } from './services/dotnetTaskProvider';
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { isExcluded } from './core/constants';
@@ -48,10 +50,17 @@ export function activate(context: vscode.ExtensionContext) {
     const frameworkDropdownService = new FrameworkDropdownService();
 
     // Create and register webview providers
+    const diagnosticsService = new DiagnosticsService();
+    context.subscriptions.push(
+        diagnosticsService,
+        vscode.tasks.registerTaskProvider(DOTNET_TASK_TYPE, new DotnetTaskProvider())
+    );
+
     const solutionWebviewProvider = new SolutionWebviewProvider(
         context.extensionUri,
         context,
-        frameworkDropdownService
+        frameworkDropdownService,
+        diagnosticsService
     );
 
     // Create NuGet custom editor provider
