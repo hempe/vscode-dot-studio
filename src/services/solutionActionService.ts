@@ -1244,12 +1244,8 @@ export class SolutionActionService {
             if (wasFileMoved) {
                 log.info(`Triggering namespace check for moved C# file: ${destinationPath}`);
 
-                // Extract project path from the original clipboard nodeId
-                const originalNodeId = this.clipboard?.nodeId;
-                const path = originalNodeId ? NodeIdService.parse(originalNodeId).path : null;
-                log.debug(`Extracted project path from original nodeId: ${path}`);
-
-                await this._checkAndUpdateNamespace(destinationPath, 'File moved', path);
+                // The expected namespace comes from the project the file was moved into
+                await this._checkAndUpdateNamespace(destinationPath, 'File moved');
             } else {
                 log.debug(`Namespace check skipped - not a moved C# file`);
             }
