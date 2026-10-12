@@ -7,7 +7,7 @@ import { NodeId, NodeIdService } from './nodeIdService';
 import { NamespaceService } from './namespaceService';
 import { ProjectActionCmd } from '../types/commands/project-action';
 import { NodeIdString } from '../types/nodeId';
-import { sln } from '../core/utils';
+import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 
@@ -252,10 +252,9 @@ export class SolutionActionService {
         log.info(`Solution item reference updated to ${newPath}`);
     }
 
-    private static async _handleBuild(nodeId: NodeId, action: 'build' | 'rebuild' | 'clean' | 'restore'): Promise<void> {
+    private static async _handleBuild(nodeId: NodeId, action: DotnetTaskAction): Promise<void> {
         try {
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
+            if (!SolutionService.getActiveSolution()) {
                 vscode.window.showErrorMessage('No active solution found');
                 return;
             }
@@ -267,33 +266,8 @@ export class SolutionActionService {
                 return;
             }
 
-            // Determine if this is a solution or project
-            const solutionExt = sln(targetPath);
-
-            const targetName = path.basename(targetPath, solutionExt ?? path.extname(targetPath));
-            const targetType = solutionExt ? 'Solution' : 'Project';
-
-            const terminal = vscode.window.createTerminal(`${action} ${targetType}: ${targetName}`);
-            terminal.show();
-
-            let command = '';
-            switch (action) {
-                case 'build':
-                    command = `dotnet build "${targetPath}"`;
-                    break;
-                case 'rebuild':
-                    command = `dotnet clean "${targetPath}" && dotnet build "${targetPath}"`;
-                    break;
-                case 'clean':
-                    command = `dotnet clean "${targetPath}"`;
-                    break;
-                case 'restore':
-                    command = `dotnet restore "${targetPath}"`;
-                    break;
-            }
-
-            terminal.sendText(command);
-            log.info(`Executed ${action} command for ${targetType}: ${command}`);
+            await vscode.tasks.executeTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action, target: targetPath }));
+            log.info(`Started ${action} task for ${targetPath}`);
         } catch (error) {
             log.error(`Error during ${action}:`, error);
             vscode.window.showErrorMessage(`Error during ${action}: ${error}`);
@@ -774,15 +748,8 @@ export class SolutionActionService {
             }
             log.info(`Restoring dependencies for project: ${projectPath}`);
 
-            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
-            const terminal = vscode.window.createTerminal(`Restore: ${projectName}`);
-            terminal.show();
-
-            const command = `dotnet restore "${projectPath}"`;
-            terminal.sendText(command);
-
-            log.info(`Executed restore command: ${command}`);
-            vscode.window.showInformationMessage(`Restoring dependencies for ${projectName}...`);
+            await vscode.tasks.executeTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'restore', target: projectPath }));
+            log.info(`Started restore task for ${projectPath}`);
         } catch (error) {
             log.error('Error restoring dependencies:', error);
             vscode.window.showErrorMessage(`Error restoring dependencies: ${error}`);
