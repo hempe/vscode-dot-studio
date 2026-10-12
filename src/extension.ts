@@ -6,6 +6,7 @@ import { registerNativeContextMenuCommands } from './webview/providers/nativeCon
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
+import { checkCSharpExtension } from './services/csharpExtensionCheck';
 
 const logger = loggerFn('Extensions');
 
@@ -21,6 +22,8 @@ async function startDebugWithStartupProject(): Promise<void> {
 
 export function activate(context: vscode.ExtensionContext) {
     logger.info('.NET Extension is now active!');
+
+    void checkCSharpExtension(context);
 
     const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
         ? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;

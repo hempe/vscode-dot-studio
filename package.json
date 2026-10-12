@@ -9,9 +9,6 @@
   "categories": [
     "Other"
   ],
-  "extensionDependencies": [
-    "muhammad-sammy.csharp"
-  ],
   "activationEvents": [
     "workspaceContains:*.sln",
     "workspaceContains:*.slnx"

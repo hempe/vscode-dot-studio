@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-VS Code extension providing a Visual Studio–style Solution Explorer (.sln and .slnx), NuGet package manager UI, and project/file operations for .NET. Depends on the `muhammad-sammy.csharp` extension; activates on `workspaceContains:*.sln`.
+VS Code extension providing a Visual Studio–style Solution Explorer (.sln and .slnx), NuGet package manager UI, and project/file operations for .NET. Needs a C# extension (`ms-dotnettools.csharp` or `muhammad-sammy.csharp`) for the `coreclr` debugger and C# rename; `package.json` can't require one of two, so `services/csharpExtensionCheck.ts` warns at activation if neither is installed. Activates on `workspaceContains:*.sln`.
 
 ## Commands
 

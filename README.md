@@ -103,7 +103,7 @@ A comprehensive Visual Studio Code extension for .NET development with Solution 
 ### Prerequisites
 - VS Code 1.74.0 or higher
 - .NET SDK 6.0 or higher
-- C# extension (muhammad-sammy.csharp)
+- A C# extension, for debugging and namespace updates: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium and other Open VSX editors. C# Dev Kit is not required.
 
 ### Build from Source
 ```bash
