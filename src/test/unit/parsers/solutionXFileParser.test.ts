@@ -164,6 +164,49 @@ describe('SolutionXFileParser', () => {
                 'Invalid .slnx file: missing <Solution> root element'
             );
         });
+
+        // Same rules as `dotnet sln list` (Microsoft.VisualStudio.SolutionPersistence)
+        test.each([
+            ['folder name without slashes', '<Solution><Folder Name="Inner" /></Solution>', "Solution folder name 'Inner' must start and end with '/'"],
+            ['folder name without trailing slash', '<Solution><Folder Name="/a" /></Solution>', "Solution folder name '/a' must start and end with '/'"],
+            ['root folder name', '<Solution><Folder Name="/" /></Solution>', "Solution folder name '/' must start and end with '/'"],
+            ['folder without name', '<Solution><Folder /></Solution>', "Missing 'Name' on <Folder>"],
+            ['duplicate folder (case-insensitive)', '<Solution><Folder Name="/a/" /><Folder Name="/A/" /></Solution>', "Duplicate folder '/A/'"],
+            ['project without path', '<Solution><Project /></Solution>', "Missing 'Path' on <Project>"],
+            ['duplicate project', '<Solution><Project Path="A/A.csproj" /><Project Path="A/A.csproj" /></Solution>', "Duplicate project 'A/A.csproj'"],
+            ['duplicate project (case and separator)', '<Solution><Project Path="A/A.csproj" /><Project Path="a\\A.csproj" /></Solution>', "Duplicate project 'a\\A.csproj'"],
+            ['duplicate project across folders', '<Solution><Folder Name="/x/"><Project Path="A/A.csproj" /></Folder><Project Path="A/A.csproj" /></Solution>', "Duplicate project 'A/A.csproj'"],
+        ])('should reject invalid .slnx that dotnet rejects (%s)', async (_, content, message) => {
+            await expect(SolutionXFileParser.parse(content)).rejects.toThrow(`Invalid .slnx file: ${message}`);
+        });
+
+        test('should reject hand-nested folders with bare names', async () => {
+            const content = `<Solution>
+  <Project Path="ConsoleApp\\ConsoleApp.csproj" />
+  <Folder Name="Solution Items">
+    <Folder Name="Inner">
+      <File Path="nuget.config" />
+    </Folder>
+  </Folder>
+</Solution>`;
+
+            await expect(SolutionXFileParser.parse(content)).rejects.toThrow(
+                "Invalid .slnx file: Solution folder name 'Solution Items' must start and end with '/'"
+            );
+        });
+
+        test('should accept what dotnet accepts but ignores', async () => {
+            const content = `<Solution>
+  <Properties><Property Name="x" Value="y" /></Properties>
+  <Folder Name="/a/"><Folder Name="/a/b/" /></Folder>
+  <Folder Name="/c/d/" />
+  <Project Path="A/A.csproj" Id="{9C6F4E8B-5678-4B6C-AD9E-2F3G4B5C6D7E}" />
+</Solution>`;
+
+            const result = await SolutionXFileParser.parse(content);
+
+            expect(result.projects.map(p => p.name).sort()).toEqual(['A', 'a', 'c', 'd']);
+        });
     });
 
     describe('utility methods', () => {

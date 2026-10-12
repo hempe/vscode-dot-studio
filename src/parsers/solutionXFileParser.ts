@@ -5,6 +5,11 @@ import { logger } from '../core/logger';
 
 const log = logger('SolutionXFileParser');
 
+/** Errors for files that `dotnet` would refuse to load */
+function invalid(reason: string): Error {
+    return new Error(`Invalid .slnx file: ${reason}`);
+}
+
 /**
  * Parser for .slnx (XML-based) solution files
  *
@@ -39,94 +44,107 @@ export class SolutionXFileParser {
      * @returns A SolutionFile object compatible with .sln format
      */
     public static async parse(content: string): Promise<SolutionFile> {
-        try {
-            log.debug('Parsing .slnx XML content');
+        log.debug('Parsing .slnx XML content');
 
+        let result: any;
+        try {
             const parser = new xml2js.Parser({
                 explicitArray: true,
                 mergeAttrs: false
             });
+            result = await parser.parseStringPromise(content);
+        } catch (error) {
+            throw invalid(error instanceof Error ? error.message : String(error));
+        }
 
-            const result = await parser.parseStringPromise(content);
+        if (!result || !('Solution' in result)) {
+            throw invalid('missing <Solution> root element');
+        }
 
-            if (!result || !('Solution' in result)) {
-                throw new Error('Invalid .slnx file: missing <Solution> root element');
+        // Empty elements (<Solution />, <Solution></Solution>) are parsed as strings
+        const solutionXml = typeof result.Solution === 'object' ? result.Solution : {};
+
+        const solution: SolutionFile = {
+            formatVersion: '1.0', // .slnx uses different versioning
+            projects: [],
+            globalSections: [],
+            nestedProjects: []
+        };
+
+        // Folder path ("a/b") -> folder entry
+        const folders = new Map<string, SolutionProject>();
+        const declaredFolders = new Set<string>();
+        const projectPaths = new Set<string>();
+
+        const addProject = (projectXml: any, parent?: SolutionProject) => {
+            const project = this.parseProject(projectXml);
+            const key = project.path.toLowerCase();
+            if (projectPaths.has(key)) {
+                throw invalid(`Duplicate project '${projectXml.$.Path}'`);
+            }
+            projectPaths.add(key);
+            solution.projects.push(project);
+            if (parent) {
+                solution.nestedProjects.push({ childGuid: project.guid, parentGuid: parent.guid });
+            }
+        };
+
+        // Nested <Folder> elements are not part of the format; like dotnet, only top-level ones count
+        for (const folderXml of solutionXml.Folder ?? []) {
+            const name: string | undefined = folderXml.$?.Name;
+            if (!name) {
+                throw invalid("Missing 'Name' on <Folder>");
             }
 
-            // Empty elements (<Solution />, <Solution></Solution>) are parsed as strings
-            const solutionXml = typeof result.Solution === 'object' ? result.Solution : {};
-
-            const solution: SolutionFile = {
-                formatVersion: '1.0', // .slnx uses different versioning
-                projects: [],
-                globalSections: [],
-                nestedProjects: []
-            };
-
-            // Folder path ("a/b") -> folder entry
-            const folders = new Map<string, SolutionProject>();
-
-            for (const folderXml of solutionXml.Folder ?? []) {
-                const name: string | undefined = folderXml.$?.Name;
-                if (!name) {
-                    continue;
-                }
-
-                const segments = name.split('/').filter(s => s.length > 0);
-                if (segments.length === 0) {
-                    continue;
-                }
-
-                const folder = this.ensureFolder(segments, folders, solution, folderXml.$.Id);
-
-                const items: Record<string, string> = {};
-                for (const fileXml of folderXml.File ?? []) {
-                    const filePath = fileXml.$?.Path;
-                    if (filePath) {
-                        items[filePath] = filePath;
-                    }
-                }
-                if (Object.keys(items).length > 0) {
-                    folder.projectSections!.push({
-                        name: 'SolutionItems',
-                        type: 'preProject',
-                        items
-                    });
-                }
-
-                for (const projectXml of folderXml.Project ?? []) {
-                    const project = this.parseProject(projectXml);
-                    if (project) {
-                        solution.projects.push(project);
-                        solution.nestedProjects.push({ childGuid: project.guid, parentGuid: folder.guid });
-                    }
-                }
+            const segments = name.split('/').filter(s => s.length > 0);
+            if (!name.startsWith('/') || !name.endsWith('/') || segments.length === 0) {
+                throw invalid(`Solution folder name '${name}' must start and end with '/'`);
             }
 
-            for (const projectXml of solutionXml.Project ?? []) {
-                const project = this.parseProject(projectXml);
-                if (project) {
-                    solution.projects.push(project);
+            const key = segments.join('/').toLowerCase();
+            if (declaredFolders.has(key)) {
+                throw invalid(`Duplicate folder '${name}'`);
+            }
+            declaredFolders.add(key);
+
+            const folder = this.ensureFolder(segments, folders, solution, folderXml.$.Id);
+
+            const items: Record<string, string> = {};
+            for (const fileXml of folderXml.File ?? []) {
+                const filePath = fileXml.$?.Path;
+                if (filePath) {
+                    items[filePath] = filePath;
                 }
             }
-
-            const configurations = this.parseConfigurations(solutionXml.Configurations?.[0]);
-            if (configurations) {
-                solution.globalSections.push({
-                    name: 'SolutionConfigurationPlatforms',
-                    type: 'preSolution',
-                    items: configurations
+            if (Object.keys(items).length > 0) {
+                folder.projectSections!.push({
+                    name: 'SolutionItems',
+                    type: 'preProject',
+                    items
                 });
             }
 
-            log.info(`Parsed .slnx with ${solution.projects.length} projects and ${solution.nestedProjects.length} nested items`);
-
-            return solution;
-
-        } catch (error) {
-            log.error('Error parsing .slnx file:', error);
-            throw new Error(`Failed to parse .slnx file: ${error}`);
+            for (const projectXml of folderXml.Project ?? []) {
+                addProject(projectXml, folder);
+            }
         }
+
+        for (const projectXml of solutionXml.Project ?? []) {
+            addProject(projectXml);
+        }
+
+        const configurations = this.parseConfigurations(solutionXml.Configurations?.[0]);
+        if (configurations) {
+            solution.globalSections.push({
+                name: 'SolutionConfigurationPlatforms',
+                type: 'preSolution',
+                items: configurations
+            });
+        }
+
+        log.info(`Parsed .slnx with ${solution.projects.length} projects and ${solution.nestedProjects.length} nested items`);
+
+        return solution;
     }
 
     /**
@@ -139,7 +157,7 @@ export class SolutionXFileParser {
         id?: string
     ): SolutionProject {
         const key = segments.join('/');
-        const existing = folders.get(key);
+        const existing = folders.get(key.toLowerCase());
         if (existing) {
             return existing;
         }
@@ -157,7 +175,7 @@ export class SolutionXFileParser {
             projectSections: []
         };
 
-        folders.set(key, folder);
+        folders.set(key.toLowerCase(), folder);
         solution.projects.push(folder);
         if (parent) {
             solution.nestedProjects.push({ childGuid: folder.guid, parentGuid: parent.guid });
@@ -167,10 +185,10 @@ export class SolutionXFileParser {
         return folder;
     }
 
-    private static parseProject(projectXml: any): SolutionProject | null {
+    private static parseProject(projectXml: any): SolutionProject {
         const rawPath: string | undefined = projectXml.$?.Path;
         if (!rawPath) {
-            return null;
+            throw invalid("Missing 'Path' on <Project>");
         }
 
         const projectPath = rawPath.replace(/\\/g, '/');

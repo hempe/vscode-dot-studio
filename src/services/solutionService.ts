@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SolutionFileParser } from '../parsers/solutionFileParser';
@@ -15,6 +16,8 @@ const log = logger('SolutionService');
  */
 export class SolutionService {
     private static activeSolution?: Solution;
+    /** Last load error shown, so repeated refreshes don't show the same error again */
+    private static lastLoadError?: string;
 
     /**
      * Reads and parses a solution file with caching, including framework detection
@@ -121,17 +124,15 @@ export class SolutionService {
             // Create and initialize the Solution instance
             const solution = new Solution(solutionPath);
 
-            // Wait for initialization to complete
-            let retries = 0;
-            while (!solution.isInitialized && retries < 50) { // Wait up to 5 seconds
-                await new Promise(resolve => setTimeout(resolve, 100));
-                retries++;
+            try {
+                await solution.ready;
+            } catch (error) {
+                solution.dispose();
+                this.reportLoadError(solutionPath, error);
+                return null;
             }
 
-            if (!solution.isInitialized) {
-                throw new Error('Solution initialization timed out');
-            }
-
+            this.lastLoadError = undefined;
             this.activeSolution = solution;
             log.info(`Initialized solution: ${path.basename(solutionPath)}`);
 
@@ -139,6 +140,16 @@ export class SolutionService {
         } catch (error) {
             log.error('Error discovering and initializing solution:', error);
             return null;
+        }
+    }
+
+    private static reportLoadError(solutionPath: string, error: unknown): void {
+        const reason = error instanceof Error ? error.message : String(error);
+        const message = `Could not load ${path.basename(solutionPath)}: ${reason}`;
+        log.error(message);
+        if (message !== this.lastLoadError) {
+            this.lastLoadError = message;
+            vscode.window.showErrorMessage(message);
         }
     }
 

@@ -48,6 +48,9 @@ export class Solution {
 
     public readonly onDidChange = this._changeEmitter.event;
 
+    /** Settles when the solution is loaded; rejects with the reason if it could not be loaded */
+    public readonly ready: Promise<void>;
+
     constructor(private readonly _solutionPath: string) {
         // Create the appropriate file handler based on file extension
         this._handler = createSolutionFileHandler(_solutionPath);
@@ -66,7 +69,9 @@ export class Solution {
             }
         }, 100);
 
-        this.initialize();
+        this.ready = this.initialize();
+        // Callers that need the outcome await `ready`; don't report an unhandled rejection meanwhile
+        this.ready.catch(() => undefined);
     }
 
     get solutionPath(): string {
@@ -190,6 +195,8 @@ export class Solution {
 
         } catch (error) {
             log.error('Error handling solution file change:', error);
+            const reason = error instanceof Error ? error.message : String(error);
+            vscode.window.showWarningMessage(`Could not reload ${path.basename(this._solutionPath)}: ${reason}`);
         }
     }
 
