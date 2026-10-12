@@ -5,12 +5,13 @@ A comprehensive Visual Studio Code extension for .NET development with Solution 
 ## Current Features
 
 ### Solution Explorer
-- Full hierarchical solution (.sln) and project tree view
+- Full hierarchical solution (.sln and .slnx) and project tree view
 - Solution folders and solution items support
 - Intelligent file nesting (Visual Studio-style)
 - Dependencies view (PackageReferences, ProjectReferences, Framework assemblies)
 - Startup project management
 - Real-time file watchers
+- Modern .slnx format support (in progress - parsing implemented, mutation pending)
 
 ### Solution & Project Operations
 - Build/Rebuild/Clean for solutions and projects

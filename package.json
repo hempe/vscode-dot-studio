@@ -13,7 +13,8 @@
     "muhammad-sammy.csharp"
   ],
   "activationEvents": [
-    "workspaceContains:*.sln"
+    "workspaceContains:*.sln",
+    "workspaceContains:*.slnx"
   ],
   "main": "./out/extension.js",
   "contributes": {

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { SolutionFileParser } from '../parsers/solutionFileParser';
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
+import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
 import { DebugConfigService } from '../services/debugConfigService';
 import { Project } from './Project';
 import { logger } from './logger';
@@ -33,6 +33,7 @@ export class Solution {
     private _projects: Map<string, Project> = new Map();
     private _fileTree: Record<string, SolutionFileTreeNode> = {}; // Solution files tree structure
     private _isInitialized = false;
+    private _handler: ISolutionFileHandler;
 
     // Cached startup project and framework from launch.json
     private _cachedStartupProject: string | null = null;
@@ -44,6 +45,8 @@ export class Solution {
     public readonly onDidChange = this._changeEmitter.event;
 
     constructor(private readonly _solutionPath: string) {
+        // Create the appropriate file handler based on file extension
+        this._handler = createSolutionFileHandler(_solutionPath);
         // Initialize debouncer for launch.json changes
         this._launchJsonDebouncer = new SimpleDebounceManager(async () => {
             log.info('launch.json changed, refreshing startup project and framework cache...');
@@ -193,8 +196,8 @@ export class Solution {
 
     private async parseSolutionFile(): Promise<void> {
         try {
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
-            this._solutionFile = await SolutionFileParser.parse(solutionContent, path.dirname(this._solutionPath));
+            const solutionContent = await this._handler.read();
+            this._solutionFile = await this._handler.parse(solutionContent);
 
             // Build file tree for solution folders and solution items
             this.buildSolutionFileTree();
@@ -379,14 +382,29 @@ export class Solution {
     }
 
     /**
+     * Checks if solution file mutations are supported for the current file type
+     * NOTE: Line-by-line mutation only works for .sln files, not .slnx
+     */
+    private checkMutationSupport(): void {
+        if (this._handler.fileType === '.slnx') {
+            throw new Error(
+                'Solution file mutation is not yet supported for .slnx files. ' +
+                '.slnx support requires XML-based manipulation which is not yet implemented.'
+            );
+        }
+    }
+
+    /**
      * Adds a solution folder to the solution file
+     * NOTE: Currently only works for .sln files
      */
     async addSolutionFolder(folderName: string, parentNode?: SolutionFolderNodeId): Promise<void> {
+        this.checkMutationSupport();
         log.info(`Adding solution folder: ${folderName}${parentNode?.name ? ` under ${parentNode.name}` : ''}`);
 
         try {
             // Read the current solution file
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
 
             // Generate a new GUID for the solution folder
@@ -435,7 +453,7 @@ export class Solution {
 
             // Write the updated solution file
             const updatedContent = newLines.join('\n');
-            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+            await this._handler.write(updatedContent);
 
             log.info(`Successfully added solution folder "${folderName}" to solution`);
 
@@ -522,8 +540,10 @@ export class Solution {
 
     /**
      * Removes a solution folder from the solution file
+     * NOTE: Currently only works for .sln files
      */
     async removeSolutionFolder(folderName: string): Promise<void> {
+        this.checkMutationSupport();
         log.info(`Removing solution folder: ${folderName}`);
 
         try {
@@ -536,7 +556,7 @@ export class Solution {
             // Note: folder info captured but not currently used for event firing
 
             // Read the current solution file
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
 
             // Find all child items (projects and folders) that need to be removed recursively
@@ -571,7 +591,7 @@ export class Solution {
 
             // Write the updated solution file
             const updatedContent = newLines.join('\n');
-            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+            await this._handler.write(updatedContent);
 
             log.info(`Successfully removed solution folder "${folderName}" and ${allItemsToRemove.length} child items from solution`);
 
@@ -588,8 +608,10 @@ export class Solution {
 
     /**
      * Renames a solution folder in the solution file
+     * NOTE: Currently only works for .sln files
      */
     async renameSolutionFolder(oldName: string, newName: string): Promise<void> {
+        this.checkMutationSupport();
         log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
 
         try {
@@ -600,7 +622,7 @@ export class Solution {
             }
 
             // Read the current solution file
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
 
             // Find and update the Project line for this solution folder
@@ -622,7 +644,7 @@ export class Solution {
 
             // Write the updated solution file
             const updatedContent = updatedLines.join('\n');
-            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+            await this._handler.write(updatedContent);
 
             log.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
 
@@ -639,8 +661,10 @@ export class Solution {
 
     /**
      * Adds a solution item (file) to a solution folder
+     * NOTE: Currently only works for .sln files
      */
     async addSolutionItem(folderGuid: string, filePath: string): Promise<void> {
+        this.checkMutationSupport();
         log.info(`Adding solution item "${filePath}" to folder "${folderGuid}"`);
 
         try {
@@ -650,7 +674,7 @@ export class Solution {
             }
 
             // Read the current solution file
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
 
             // Calculate relative path from solution directory
@@ -662,7 +686,7 @@ export class Solution {
 
             // Write the updated solution file
             const updatedContent = updatedLines.join('\n');
-            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+            await this._handler.write(updatedContent);
 
             log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderGuid}"`);
 
@@ -677,12 +701,17 @@ export class Solution {
         }
     }
 
+    /**
+     * Removes a solution item (file) from a solution folder
+     * NOTE: Currently only works for .sln files
+     */
     async removeSolutionItem(filePath: string): Promise<void> {
+        this.checkMutationSupport();
         log.info(`Removing solution item from solution: ${filePath}`);
 
         try {
             // Read the current solution file
-            const solutionContent = await fs.promises.readFile(this._solutionPath, 'utf8');
+            const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
 
             // Calculate relative path from solution directory
@@ -694,7 +723,7 @@ export class Solution {
 
             // Write the updated solution file
             const updatedContent = updatedLines.join('\n');
-            await fs.promises.writeFile(this._solutionPath, updatedContent, 'utf8');
+            await this._handler.write(updatedContent);
 
             log.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
 
