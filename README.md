@@ -16,9 +16,10 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Startup project selection
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
+- Errors in the tree: files with errors or warnings are coloured and show a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
 
 ### Solution & Project Operations
-- Build, Rebuild, Clean and Restore for solutions and projects (run in a terminal)
+- Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
 - Add existing projects; remove or delete projects
 - Add and remove project and assembly references
 - Target framework selection for the startup project; generates a `Startup` debug configuration in `launch.json`
@@ -38,6 +39,8 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 ## Known Issues
 - [ ] "Add New Project" is a stub
 - [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
+- [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
+- [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 
 ## Roadmap
 
@@ -54,15 +57,15 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 **Goal**: An equivalent of Visual Studio's Error List, and of the [Solution Error Visualizer](https://marketplace.visualstudio.com/items?itemName=VisualStudioPlatformTeam.SolutionErrorVisualizer) extension showing in the tree where errors, warnings and infos are. The tree markers are a must-have.
 
 **Solution Explorer markers**:
-- [ ] Mark files with errors, warnings and infos (icon/colour and count, like VS Code's explorer decorations)
-- [ ] Roll the most severe state up to nested parent files, folders, projects, solution folders and the solution
-- [ ] Update live as diagnostics change
-- [ ] Build output (`$msCompile`) is the primary source, as in Visual Studio where the markers are only reliable after a (re)build; live language-server errors for open files come on top. Optionally mention `dotnet.backgroundAnalysis.compilerDiagnosticsScope: fullSolution` for live errors in all files
+- [x] Mark files with errors, warnings and infos (icon/colour and count, like VS Code's explorer decorations)
+- [x] Roll the most severe state up to nested parent files, folders, projects, solution folders and the solution
+- [x] Update live as diagnostics change
+- [x] Build output (`$msCompile`) is the primary source, as in Visual Studio where the markers are only reliable after a (re)build; live language-server errors for open files come on top. Optionally mention `dotnet.backgroundAnalysis.compilerDiagnosticsScope: fullSolution` for live errors in all files
 
 **Build**:
-- [ ] Run Build/Rebuild/Clean/Restore as VS Code tasks with the `$msCompile` problem matcher instead of `terminal.sendText`
-- [ ] Errors and warnings link to file and line
-- [ ] Build solution from the command palette / a key binding (Ctrl+Shift+B)
+- [x] Run Build/Rebuild/Clean/Restore as VS Code tasks with the `$msCompile` problem matcher instead of `terminal.sendText`
+- [x] Errors and warnings link to file and line
+- [x] Build solution from the command palette / a key binding (Ctrl+Shift+B)
 
 **Implementation Notes**:
 - Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks
