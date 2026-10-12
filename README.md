@@ -1,102 +1,106 @@
 # .NET Extension for VS Code
 
-A comprehensive Visual Studio Code extension for .NET development with Solution Explorer, NuGet management, and productivity tools.
+A Visual Studio–style Solution Explorer, NuGet package manager and project tooling for .NET in VS Code. The goal is to replace Visual Studio (and Windows) for day-to-day work on modern .NET: ASP.NET web apps, device-bridge services that talk to local hardware and the cloud, and SOAP service clients. It aims for parity with Visual Studio on the basics, not on everything.
+
+**Out of scope:** .NET Framework 4.x and old-style (non-SDK) projects. Legacy code is only read for reference when porting, and any plain text editor is fine for that.
 
 ## Current Features
 
 ### Solution Explorer
-- Full hierarchical solution (.sln and .slnx) and project tree view
-- Solution folders and solution items support
-- Intelligent file nesting (Visual Studio-style)
-- Dependencies view (PackageReferences, ProjectReferences, Framework assemblies)
-- Startup project management
-- Real-time file watchers
-- Modern .slnx format support
+- Hierarchical solution (.sln and .slnx) and project tree
+- Solution folders and solution items (add, remove, rename)
+- Visual Studio–style file nesting
+- Dependencies node (PackageReference, ProjectReference, framework and assembly references)
+- Startup project selection
+- Live updates through file watchers
+- Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
 
 ### Solution & Project Operations
-- Build/Rebuild/Clean for solutions and projects
-- Create new projects from templates
-- Add/remove projects and manage references
-- Target framework selection and debug configuration
-- Standard keyboard shortcuts (Ctrl+B, F2, Delete)
+- Build, Rebuild, Clean and Restore for solutions and projects (run in a terminal)
+- Add existing projects; remove or delete projects
+- Add and remove project and assembly references
+- Target framework selection for the startup project; generates a `Startup` debug configuration in `launch.json`
 
 ### File Operations
-- Complete file management (copy, paste, rename, delete)
-- Add new files and folders with inline editing
-- Context actions (Reveal in Explorer, Open in Terminal, Copy Path)
+- Add files and folders with inline naming
+- Copy, cut, paste, rename and delete
+- Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
+- Reveal in file explorer
 
 ### NuGet Package Manager
-- Browse and search packages from nuget.org
-- Install packages to multiple projects
-- Azure DevOps private feed support
-- Package details, versions, and dependencies
+- Browse and search packages, install to multiple projects, update and consolidate
+- Private feeds (e.g. Azure DevOps) via `ClearTextPassword` credentials in `NuGet.Config`
+- Package details, versions, dependencies and README
 
-## Development Roadmap
+## Known Issues
+- [ ] 6 failing unit tests (`fileNesting.spec.ts`, `solutionDiscovery.test.ts`); file nesting shows `Form1.cs` twice when `Form1.resx` exists
+- [ ] `launch.json` / `tasks.json` are read with `JSON.parse`; a file with comments (JSONC) fails to parse and is replaced (a `.backup` is kept)
+- [ ] "Add New Project" is a stub
+- [ ] The .slnx parser silently ignores nested `<Folder>` elements and folder names without leading/trailing `/`, which `dotnet` rejects; it should report the file as invalid instead of editing it
+- [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
 
-### Phase 1: Test Integration
-**Goal**: Native test discovery and execution through VS Code Test Explorer
+## Roadmap
 
-- [ ] Integrate with VS Code Test Explorer API
-- [ ] Auto-discover MSTest, xUnit, and NUnit tests
-- [ ] Hierarchical test organization (solution → project → namespace → class → test)
-- [ ] Run/Debug individual tests or entire projects
-- [ ] Real-time test results display
-- [ ] Test output integration
-- [ ] Code lens for running tests from editor
-- [ ] Test filtering and search
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cover web apps and SOAP clients; phases 5–7 are conveniences for which the `dotnet` CLI already works in the meantime.
 
-**Implementation Notes**:
-- Use `vscode.TestController` API
-- Parse `dotnet test --list-tests` output for discovery
-- Execute tests via `dotnet test --filter`
-- Parse test results (TRX format) for status updates
+### Phase 1: Stabilize
+- [ ] Fix the failing tests and the file nesting duplication
+- [ ] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
+- [ ] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
+- [ ] Keep this README in line with the actual features
 
-### Phase 2: File Templates & Quick File Creation
-**Goal**: Rapid file creation with intelligent defaults
+### Phase 2: Build Errors in the Problems Panel
+**Goal**: An equivalent of Visual Studio's Error List.
 
-**Quick Add (Shift+F2)**:
-- [ ] Keyboard shortcut to quick-add files to current location
-- [ ] Template selection dialog with search/filter
-- [ ] Inline file naming with Enter to confirm
+- [ ] Run Build/Rebuild/Clean/Restore as VS Code tasks with the `$msCompile` problem matcher instead of `terminal.sendText`
+- [ ] Errors and warnings link to file and line
+- [ ] Build solution from the command palette / a key binding (Ctrl+Shift+B)
 
-**Templates**:
-- [ ] C# class with namespace generation
-- [ ] C# interface
-- [ ] C# enum
-- [ ] C# record
-- [ ] ASP.NET Core controller
-- [ ] Razor page
-- [ ] Razor component (Blazor)
-- [ ] JSON/XML configuration files
-- [ ] xUnit/NUnit/MSTest test class
+### Phase 3: Run & Debug Web Apps (F5)
+**Goal**: F5 on an ASP.NET project behaves like Visual Studio.
 
-**Namespace Intelligence**:
-- [ ] Auto-generate namespace based on folder structure
-- [ ] Respect project root namespace from .csproj
-- [ ] Handle nested folders correctly
+- [ ] Use the selected `launchSettings.json` profile: `applicationUrl`, `environmentVariables`, `commandLineArgs`
+- [ ] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
+- [ ] Choose the launch profile (like Visual Studio's run dropdown)
+- [ ] Resolve the output path through MSBuild instead of hardcoding `bin/Debug/<tfm>/` (respects Release, `OutputPath`, artifacts layout)
+- [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
+
+### Phase 4: Connected Services (SOAP)
+**Goal**: The "Add Service Reference / Connected Service" workflow for WCF/SOAP clients.
+
+- [ ] "Add Service Reference…" on a project: WSDL URL or file, namespace, service name
+- [ ] Generate the client into `Connected Services/<Name>/` and add the `System.ServiceModel.*` packages
+- [ ] "Update Service Reference" and "Remove" on the generated node
+- [ ] Detect a missing `dotnet-svcutil` and offer to install it
 
 **Implementation Notes**:
-- Store templates in `src/templates/` directory
-- Use placeholder variables: `{{NAMESPACE}}`, `{{CLASS_NAME}}`, `{{FILE_NAME}}`
-- Parse .csproj for `<RootNamespace>` property
-- Calculate namespace from relative path
+- Visual Studio's WCF Web Service Reference provider is a UI over `dotnet-svcutil`, which runs on Linux
+- `dotnet-svcutil` writes `dotnet-svcutil.params.json`; updating re-runs it with `--update`
 
-### Phase 3: Code Navigation & IntelliSense
-**Goal**: Enhanced code navigation within Solution Explorer
+### Phase 5: New Project & New Item Templates
+- [ ] "Add New Project": pick a template from `dotnet new list`, name and location, then add it to the solution
+- [ ] "Add New Item": class, interface, enum, record, controller, Razor page/component, test class, config files
+- [ ] Generate namespaces from `RootNamespace` and the folder structure (reuse `namespaceService`)
 
-- [ ] "Go to Definition" from Solution Explorer
-- [ ] "Find All References" context menu
-- [ ] Symbol search across solution
-- [ ] Quick file search (Ctrl+P-style within solution)
-- [ ] Recent files list
-- [ ] Code outline/document symbols in sidebar
-- [ ] Navigate to related files (e.g., .cs ↔ .cshtml)
+### Phase 6: Test Integration
+**Goal**: Test discovery and execution through the VS Code Test Explorer.
+
+- [ ] `vscode.TestController` with solution → project → namespace → class → test hierarchy
+- [ ] Discover MSTest, xUnit and NUnit tests; run and debug single tests or whole projects
+- [ ] Show results and output
 
 **Implementation Notes**:
-- Leverage existing C# language server for symbol resolution
-- Use `vscode.executeDefinitionProvider`
-- Use `vscode.executeReferenceProvider`
-- Create custom quick pick for solution-scoped file search
+- Discovery via `dotnet test --list-tests`, execution via `dotnet test --filter`, results from TRX
+
+### Phase 7: Device & Deployment
+- [ ] Remote debugging on devices over SSH (`pipeTransport` launch configurations)
+- [ ] Publish (`dotnet publish`) with runtime identifier and self-contained options
+- [ ] Encrypted NuGet credentials
+
+### Not Planned
+- .NET Framework 4.x / Mono build and debug support
+- `packages.config` and old-style project files
+- Code navigation features that the C# extension already provides (Go to Definition, Find References, symbol search)
 
 ## Installation
 
@@ -114,23 +118,14 @@ npm run build
 ## Project Structure
 ```
 src/
-├── extension.ts              # Entry point
-├── core/                     # Solution & Project models
-├── parsers/                  # .sln and .csproj parsers
-├── services/                 # Business logic
-│   ├── solutionService.ts
-│   ├── nuget/
-│   └── testing/              # [NEW] Test discovery & execution
-├── templates/                # [NEW] File templates
-└── webview/                  # React UI components
+├── extension.ts      # Entry point
+├── core/             # Solution & Project models, context menu definitions
+├── handlers/         # .sln / .slnx file handlers
+├── parsers/          # .sln, .slnx and project file parsers/editors
+├── services/         # Solution tree, actions, debug config, NuGet
+├── types/            # Webview ⇄ extension message types
+└── webview/          # React UI (Solution Explorer, NuGet manager) and providers
 ```
-
-## Contributing
-
-This project welcomes contributions! Key areas:
-- Test integration implementation
-- New file templates
-- Bug fixes and performance improvements
 
 ## License
 
