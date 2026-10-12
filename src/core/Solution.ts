@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { SolutionFileParser } from '../parsers/solutionFileParser';
+import { SolutionXFileEditor } from '../parsers/solutionXFileEditor';
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
 import { DebugConfigService } from '../services/debugConfigService';
@@ -381,28 +382,52 @@ export class Solution {
         return SolutionFileParser.isDotNetProject(project);
     }
 
+    private get isSlnx(): boolean {
+        return this._handler.fileType === '.slnx';
+    }
+
     /**
-     * Checks if solution file mutations are supported for the current file type
-     * NOTE: Line-by-line mutation only works for .sln files, not .slnx
+     * Returns the path segments of a solution folder (e.g. ['src', 'libs']) by walking up the nesting
      */
-    private checkMutationSupport(): void {
-        if (this._handler.fileType === '.slnx') {
-            throw new Error(
-                'Solution file mutation is not yet supported for .slnx files. ' +
-                '.slnx support requires XML-based manipulation which is not yet implemented.'
-            );
+    private getSolutionFolderSegments(folderGuid: string): string[] {
+        const segments: string[] = [];
+        let guid: string | undefined = folderGuid;
+
+        while (guid) {
+            const folder = this._solutionFile?.projects.find(p => p.guid === guid && SolutionFileParser.isSolutionFolder(p));
+            if (!folder) {
+                throw new Error(`Solution folder "${guid}" not found`);
+            }
+            segments.unshift(folder.name);
+            guid = this._solutionFile?.nestedProjects.find(n => n.childGuid === guid)?.parentGuid;
         }
+
+        return segments;
+    }
+
+    /**
+     * Applies a text edit to the .slnx file and re-parses it
+     */
+    private async editSlnx(edit: (content: string) => string): Promise<void> {
+        const content = await this._handler.read();
+        await this._handler.write(edit(content));
+        await this.parseSolutionFile();
     }
 
     /**
      * Adds a solution folder to the solution file
-     * NOTE: Currently only works for .sln files
      */
     async addSolutionFolder(folderName: string, parentNode?: SolutionFolderNodeId): Promise<void> {
-        this.checkMutationSupport();
         log.info(`Adding solution folder: ${folderName}${parentNode?.name ? ` under ${parentNode.name}` : ''}`);
 
         try {
+            if (this.isSlnx) {
+                const parentSegments = parentNode ? this.getSolutionFolderSegments(parentNode.guid) : [];
+                await this.editSlnx(content => SolutionXFileEditor.addFolder(content, [...parentSegments, folderName]));
+                log.info(`Successfully added solution folder "${folderName}" to solution`);
+                return;
+            }
+
             // Read the current solution file
             const solutionContent = await this._handler.read();
             const lines = solutionContent.split('\n');
@@ -540,10 +565,8 @@ export class Solution {
 
     /**
      * Removes a solution folder from the solution file
-     * NOTE: Currently only works for .sln files
      */
     async removeSolutionFolder(folderName: string): Promise<void> {
-        this.checkMutationSupport();
         log.info(`Removing solution folder: ${folderName}`);
 
         try {
@@ -551,6 +574,13 @@ export class Solution {
             const folderGuid = this.findSolutionFolderGuid(folderName);
             if (!folderGuid) {
                 throw new Error(`Solution folder "${folderName}" not found`);
+            }
+
+            if (this.isSlnx) {
+                const segments = this.getSolutionFolderSegments(folderGuid);
+                await this.editSlnx(content => SolutionXFileEditor.removeFolder(content, segments));
+                log.info(`Successfully removed solution folder "${folderName}" from solution`);
+                return;
             }
 
             // Note: folder info captured but not currently used for event firing
@@ -608,10 +638,8 @@ export class Solution {
 
     /**
      * Renames a solution folder in the solution file
-     * NOTE: Currently only works for .sln files
      */
     async renameSolutionFolder(oldName: string, newName: string): Promise<void> {
-        this.checkMutationSupport();
         log.info(`Renaming solution folder from "${oldName}" to "${newName}"`);
 
         try {
@@ -619,6 +647,13 @@ export class Solution {
             const folderGuid = this.findSolutionFolderGuid(oldName);
             if (!folderGuid) {
                 throw new Error(`Solution folder "${oldName}" not found`);
+            }
+
+            if (this.isSlnx) {
+                const segments = this.getSolutionFolderSegments(folderGuid);
+                await this.editSlnx(content => SolutionXFileEditor.renameFolder(content, segments, newName));
+                log.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
+                return;
             }
 
             // Read the current solution file
@@ -661,10 +696,8 @@ export class Solution {
 
     /**
      * Adds a solution item (file) to a solution folder
-     * NOTE: Currently only works for .sln files
      */
     async addSolutionItem(folderGuid: string, filePath: string): Promise<void> {
-        this.checkMutationSupport();
         log.info(`Adding solution item "${filePath}" to folder "${folderGuid}"`);
 
         try {
@@ -673,13 +706,20 @@ export class Solution {
                 throw new Error(`Solution folder "${folderGuid}" not found`);
             }
 
-            // Read the current solution file
-            const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
-
             // Calculate relative path from solution directory
             const solutionDir = path.dirname(this._solutionPath);
             const relativePath = path.relative(solutionDir, filePath).replace(/\\/g, '/');
+
+            if (this.isSlnx) {
+                const segments = this.getSolutionFolderSegments(folderGuid);
+                await this.editSlnx(content => SolutionXFileEditor.addFile(content, segments, relativePath));
+                log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderGuid}"`);
+                return;
+            }
+
+            // Read the current solution file
+            const solutionContent = await this._handler.read();
+            const lines = solutionContent.split('\n');
 
             // Find the solution folder's Project block and add the file to it
             const updatedLines = this.addSolutionItemToFolder(lines, folderGuid, relativePath);
@@ -703,20 +743,24 @@ export class Solution {
 
     /**
      * Removes a solution item (file) from a solution folder
-     * NOTE: Currently only works for .sln files
      */
     async removeSolutionItem(filePath: string): Promise<void> {
-        this.checkMutationSupport();
         log.info(`Removing solution item from solution: ${filePath}`);
 
         try {
-            // Read the current solution file
-            const solutionContent = await this._handler.read();
-            const lines = solutionContent.split('\n');
-
             // Calculate relative path from solution directory
             const solutionDir = path.dirname(this._solutionPath);
             const relativePath = path.relative(solutionDir, filePath).replace(/\\/g, '/');
+
+            if (this.isSlnx) {
+                await this.editSlnx(content => SolutionXFileEditor.removeFile(content, relativePath));
+                log.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
+                return;
+            }
+
+            // Read the current solution file
+            const solutionContent = await this._handler.read();
+            const lines = solutionContent.split('\n');
 
             // Remove the file reference from the solution file
             const updatedLines = this.removeSolutionItemFromFile(lines, relativePath);
