@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { parseStringPromise } from 'xml2js';
 import { VersionUtils } from './versionUtils';
+import { parseJsonc, upsertArrayItem } from '../core/jsonc';
 
 const log = logger('DebugConfigService');
 
@@ -25,12 +26,9 @@ export class DebugConfigService {
                 return null;
             }
 
-            const content = fs.readFileSync(launchJsonPath, 'utf8');
-            let launchConfig;
-            try {
-                launchConfig = JSON.parse(content);
-            } catch (parseError) {
-                log.error(`Failed to parse launch.json for reading startup project - invalid JSON (possibly trailing commas?):`, parseError);
+            const { value: launchConfig, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
+            if (errors.length > 0) {
+                log.error(`Failed to parse launch.json for reading startup project:`, errors);
                 return null;
             }
 
@@ -96,12 +94,9 @@ export class DebugConfigService {
                 return null;
             }
 
-            const content = fs.readFileSync(launchJsonPath, 'utf8');
-            let launchConfig;
-            try {
-                launchConfig = JSON.parse(content);
-            } catch (parseError) {
-                log.error(`Failed to parse launch.json for reading active framework - invalid JSON (possibly trailing commas?):`, parseError);
+            const { value: launchConfig, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
+            if (errors.length > 0) {
+                log.error(`Failed to parse launch.json for reading active framework:`, errors);
                 return null;
             }
 
@@ -216,63 +211,15 @@ export class DebugConfigService {
                 })
             };
 
-            let launchConfig;
-            if (fs.existsSync(launchJsonPath)) {
-                // Read existing launch.json
-                try {
-                    const content = fs.readFileSync(launchJsonPath, 'utf8');
-                    launchConfig = JSON.parse(content);
-                    log.info('Successfully parsed existing launch.json');
-                } catch (parseError) {
-                    log.error(`Failed to parse launch.json - invalid JSON (possibly trailing commas?):`, parseError);
-                    // Create backup and start fresh
-                    const backupPath = `${launchJsonPath}.backup`;
-                    fs.copyFileSync(launchJsonPath, backupPath);
-                    log.info(`Created backup at: ${backupPath}`);
-
-                    launchConfig = {
-                        version: '0.2.0',
-                        configurations: []
-                    };
-                }
-            } else {
-                // Create new launch.json
-                launchConfig = {
-                    version: '0.2.0',
-                    configurations: []
-                };
-            }
-
-            // Remove any existing "Startup" configuration
-            launchConfig.configurations = launchConfig.configurations.filter(
-                (config: any) => config.name !== 'Startup'
+            // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
+            this.upsertJsoncArrayItem(
+                launchJsonPath,
+                { version: '0.2.0', configurations: [] },
+                'configurations',
+                (config: any) => config?.name === 'Startup',
+                startupConfig,
+                'first'
             );
-
-            // Add the new "Startup" configuration at the beginning (makes it default)
-            launchConfig.configurations.unshift(startupConfig);
-
-            // Check if launch.json content actually changed before writing
-            const newLaunchContent = JSON.stringify(launchConfig, null, 2);
-            let shouldWriteLaunch = true;
-
-            if (fs.existsSync(launchJsonPath)) {
-                try {
-                    const existingContent = fs.readFileSync(launchJsonPath, 'utf8');
-                    if (existingContent === newLaunchContent) {
-                        shouldWriteLaunch = false;
-                        log.info('launch.json content unchanged, skipping write');
-                    }
-                } catch (error) {
-                    log.warn('Error reading existing launch.json for comparison:', error);
-                }
-            }
-
-            // Write back to launch.json only if content changed
-            if (shouldWriteLaunch) {
-                log.info(`Writing to launch.json at: ${launchJsonPath}`);
-                log.debug(`Launch config:`, newLaunchContent);
-                fs.writeFileSync(launchJsonPath, newLaunchContent, 'utf8');
-            }
 
             // Create/update tasks.json with the StartupPreBuild task
             await this.updateTasksJson(tasksJsonPath, relativeProjectPath, selectedFramework || undefined);
@@ -412,67 +359,55 @@ export class DebugConfigService {
                 problemMatcher: '$msCompile'
             };
 
-            let tasksConfig;
-            if (fs.existsSync(tasksJsonPath)) {
-                // Read existing tasks.json
-                try {
-                    const content = fs.readFileSync(tasksJsonPath, 'utf8');
-                    tasksConfig = JSON.parse(content);
-                } catch (parseError) {
-                    log.error(`Failed to parse tasks.json - invalid JSON:`, parseError);
-                    // Create backup and start fresh
-                    const backupPath = `${tasksJsonPath}.backup`;
-                    fs.copyFileSync(tasksJsonPath, backupPath);
-                    log.info(`Created backup at: ${backupPath}`);
-
-                    tasksConfig = {
-                        version: '2.0.0',
-                        tasks: []
-                    };
-                }
-            } else {
-                // Create new tasks.json
-                tasksConfig = {
-                    version: '2.0.0',
-                    tasks: []
-                };
-            }
-
-            // Remove any existing StartupPreBuild task
-            tasksConfig.tasks = tasksConfig.tasks.filter(
-                (task: any) => task.label !== 'StartupPreBuild'
+            this.upsertJsoncArrayItem(
+                tasksJsonPath,
+                { version: '2.0.0', tasks: [] },
+                'tasks',
+                (task: any) => task?.label === 'StartupPreBuild',
+                prebuildTask,
+                'last'
             );
-
-            // Add the new StartupPreBuild task
-            tasksConfig.tasks.push(prebuildTask);
-
-            // Check if tasks.json content actually changed before writing
-            const newTasksContent = JSON.stringify(tasksConfig, null, 2);
-            let shouldWriteTasks = true;
-
-            if (fs.existsSync(tasksJsonPath)) {
-                try {
-                    const existingContent = fs.readFileSync(tasksJsonPath, 'utf8');
-                    if (existingContent === newTasksContent) {
-                        shouldWriteTasks = false;
-                        log.info('tasks.json content unchanged, skipping write');
-                    }
-                } catch (error) {
-                    log.warn('Error reading existing tasks.json for comparison:', error);
-                }
-            }
-
-            // Write back to tasks.json only if content changed
-            if (shouldWriteTasks) {
-                log.info(`Writing to tasks.json at: ${tasksJsonPath}`);
-                fs.writeFileSync(tasksJsonPath, newTasksContent, 'utf8');
-                log.info(`Updated StartupPreBuild task for project: ${projectPath}, framework: ${framework || 'auto'}`);
-            } else {
-                log.info(`StartupPreBuild task already up to date for project: ${projectPath}, framework: ${framework || 'auto'}`);
-            }
         } catch (error) {
             log.error('Error updating tasks.json:', error);
         }
+    }
+
+    /**
+     * Writes `item` into the array `arrayKey` of a launch.json/tasks.json-style file, replacing the entry
+     * matched by `isMatch`. Comments and all other content are kept; a file with syntax errors is left alone.
+     */
+    private static upsertJsoncArrayItem(
+        filePath: string,
+        emptyFile: Record<string, unknown>,
+        arrayKey: string,
+        isMatch: (item: any) => boolean,
+        item: unknown,
+        position: 'first' | 'last'
+    ): void {
+        const fileName = path.basename(filePath);
+
+        if (!fs.existsSync(filePath)) {
+            log.info(`Creating ${filePath}`);
+            fs.writeFileSync(filePath, JSON.stringify({ ...emptyFile, [arrayKey]: [item] }, null, 4) + '\n', 'utf8');
+            return;
+        }
+
+        const text = fs.readFileSync(filePath, 'utf8');
+        const { errors } = parseJsonc(text);
+        if (errors.length > 0) {
+            log.error(`Not updating ${filePath}, it has syntax errors:`, errors);
+            vscode.window.showWarningMessage(`.vscode/${fileName} has syntax errors and was not updated. Fix them and select the startup project again.`);
+            return;
+        }
+
+        const updated = upsertArrayItem(text, arrayKey, isMatch, item, position);
+        if (updated === text) {
+            log.info(`${fileName} already up to date`);
+            return;
+        }
+
+        log.info(`Writing ${filePath}`);
+        fs.writeFileSync(filePath, updated, 'utf8');
     }
 
     /**
@@ -542,12 +477,9 @@ export class DebugConfigService {
                 return {};
             }
 
-            const content = fs.readFileSync(launchSettingsPath, 'utf8');
-            let launchSettings;
-            try {
-                launchSettings = JSON.parse(content);
-            } catch (parseError) {
-                log.error(`Failed to parse launchSettings.json:`, parseError);
+            const { value: launchSettings, errors } = parseJsonc(fs.readFileSync(launchSettingsPath, 'utf8'));
+            if (errors.length > 0) {
+                log.error(`Failed to parse launchSettings.json:`, errors);
                 return {};
             }
 

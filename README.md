@@ -33,7 +33,6 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Package details, versions, dependencies and README
 
 ## Known Issues
-- [ ] `launch.json` / `tasks.json` are read with `JSON.parse`; a file with comments (JSONC) fails to parse and is replaced (a `.backup` is kept)
 - [ ] "Add New Project" is a stub
 - [ ] The .slnx parser silently ignores nested `<Folder>` elements and folder names without leading/trailing `/`, which `dotnet` rejects; it should report the file as invalid instead of editing it
 - [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
@@ -44,7 +43,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
-- [ ] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
+- [x] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
 - [ ] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features
 
