@@ -143,6 +143,49 @@ export class SolutionWebView {
                         .node-name.startup-project {
                             font-weight: bold;
                         }
+
+                        .node-name.diagnostic-error {
+                            color: var(--vscode-list-errorForeground);
+                        }
+
+                        .node-name.diagnostic-warning {
+                            color: var(--vscode-list-warningForeground);
+                        }
+
+                        .diagnostic-badge,
+                        .diagnostic-dot {
+                            margin-left: auto;
+                            padding-left: 8px;
+                            margin-right: 8px;
+                            flex-shrink: 0;
+                        }
+
+                        .diagnostic-badge {
+                            font-size: 11px;
+                        }
+
+                        .diagnostic-dot {
+                            width: 6px;
+                            height: 6px;
+                            padding-left: 0;
+                            border-radius: 50%;
+                            background-color: currentColor;
+                        }
+
+                        .diagnostic-badge.diagnostic-error,
+                        .diagnostic-dot.diagnostic-error {
+                            color: var(--vscode-list-errorForeground);
+                        }
+
+                        .diagnostic-badge.diagnostic-warning,
+                        .diagnostic-dot.diagnostic-warning {
+                            color: var(--vscode-list-warningForeground);
+                        }
+
+                        .diagnostic-badge.diagnostic-info,
+                        .diagnostic-dot.diagnostic-info {
+                            color: var(--vscode-editorInfo-foreground);
+                        }
     
                         .expand-icon {
                             margin-right: 4px;

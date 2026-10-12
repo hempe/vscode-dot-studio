@@ -5,6 +5,7 @@ import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
+import { describeMarker, markerCount } from './diagnosticMarker';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -19,7 +20,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onRenameCancel,
     selectedNodeId,
     focusedNodeId,
-    renamingNodeId
+    renamingNodeId,
+    markers
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
@@ -263,6 +265,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const paddingLeft = level * 16;
     const isSelected = selectedNodeId === nodeIdentifier;
     const isFocused = focusedNodeId === nodeIdentifier;
+    const marker = markers?.[nodeIdentifier];
+    const markerTitle = marker ? describeMarker(marker) : undefined;
 
     // Memoize icon configuration to prevent multiple calls during render
     const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, nodeIdentifier, node.expanded]);
@@ -348,7 +352,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                         onCancel={handleRenameCancelLocal}
                     />
                 ) : (
-                    <span className={`node-name ${node.isStartupProject ? 'startup-project' : ''}`}>{node.name}</span>
+                    <>
+                        <span
+                            className={`node-name ${node.isStartupProject ? 'startup-project' : ''} ${marker ? `diagnostic-${marker.severity}` : ''}`}
+                            title={markerTitle}
+                        >{node.name}</span>
+                        {marker && (node.type === 'file' || node.type === 'solutionItem'
+                            ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} title={markerTitle}>{markerCount(marker)}</span>
+                            : <span className={`diagnostic-dot diagnostic-${marker.severity}`} title={markerTitle} />)}
+                    </>
                 )}
             </div>
             {node.expanded && node.children && (
@@ -368,6 +380,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             selectedNodeId={selectedNodeId}
                             focusedNodeId={focusedNodeId}
                             renamingNodeId={renamingNodeId}
+                            markers={markers}
                         />
                     ))}
                 </div>

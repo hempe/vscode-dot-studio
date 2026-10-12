@@ -6,7 +6,7 @@ import { sendToBackend } from '../nuget-view/shared';
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loading, refreshing, activeFilePath, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loading, refreshing, activeFilePath, markers, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
@@ -57,6 +57,7 @@ export const App: React.FC = React.memo(() => {
                     onProjectAction={handleProjectAction}
                     onExpandNode={expandNode}
                     onCollapseNode={collapseNode}
+                    markers={markers}
                 />
                 {refreshing && (
                     <div className="refresh-indicator" style={{

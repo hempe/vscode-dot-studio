@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { logger } from '../../shared/logger';
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
-import { NodeType, ProjectNode, SolutionData } from '../../../types';
+import { DiagnosticMarkers, NodeType, ProjectNode, SolutionData } from '../../../types';
 import { UICmd } from '../../../types/commands/ui';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
 
@@ -198,6 +198,7 @@ export const useVsCodeApi = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
+    const [markers, setMarkers] = useState<DiagnosticMarkers>({} as DiagnosticMarkers);
 
     useEffect(() => {
         log.info('Hook initialized, requesting solution data');
@@ -254,6 +255,9 @@ export const useVsCodeApi = () => {
                     log.info('Active file changed:', message.payload.filePath);
                     setActiveFilePath(message.payload.filePath);
                     break;
+                case 'diagnostics':
+                    setMarkers(message.payload.markers);
+                    break;
                 default:
                     log.info('Unknown message command:', message.payload);
             }
@@ -303,6 +307,7 @@ export const useVsCodeApi = () => {
         loading,
         refreshing,
         activeFilePath,
+        markers,
         handleFrameworkChange,
         handleProjectAction,
         expandNode,

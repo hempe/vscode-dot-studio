@@ -1,4 +1,4 @@
-import { NodeType, ProjectNode } from "../../../types";
+import { DiagnosticMarkers, NodeType, ProjectNode } from "../../../types";
 import { NodeIdString } from "../../../types/nodeId";
 import { ProjectActionCmd } from "../../../types/commands/project-action";
 
@@ -16,6 +16,7 @@ export interface TreeNodeProps {
     selectedNodeId?: NodeIdString; // Node ID for selection
     focusedNodeId?: NodeIdString; // Node ID for focus
     renamingNodeId?: NodeIdString; // Node ID for renaming
+    markers?: DiagnosticMarkers; // Error/warning markers by node ID
 }
 
 export interface SolutionTreeProps {
@@ -24,6 +25,7 @@ export interface SolutionTreeProps {
     onProjectAction: (action: ProjectActionCmd) => void;
     onExpandNode?: (nodeId: NodeIdString) => void;
     onCollapseNode?: (nodeId: NodeIdString) => void;
+    markers?: DiagnosticMarkers;
 }
 
 export interface FrameworkSelectorProps {

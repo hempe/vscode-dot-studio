@@ -11,7 +11,7 @@ import { UICmd } from '../../../types/commands/ui';
 import { sendToBackend } from '../../nuget-view/shared';
 
 const log = logger('SolutionTree');
-export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode }) => {
+export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
     const [selectedNodeId, setSelectedNodeId] = useState<NodeIdString | undefined>();
@@ -379,6 +379,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     selectedNodeId={selectedNodeId}
                     focusedNodeId={focusedNodeId}
                     renamingNodeId={renamingNodeId}
+                    markers={markers}
                 />
             ))}
         </div>
