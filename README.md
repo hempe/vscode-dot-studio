@@ -47,12 +47,23 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features
 
-### Phase 2: Build Errors in the Problems Panel
-**Goal**: An equivalent of Visual Studio's Error List.
+### Phase 2: Errors in the Problems Panel and the Solution Explorer
+**Goal**: An equivalent of Visual Studio's Error List, and of the [Solution Error Visualizer](https://marketplace.visualstudio.com/items?itemName=VisualStudioPlatformTeam.SolutionErrorVisualizer) extension showing in the tree where errors, warnings and infos are. The tree markers are a must-have.
 
+**Solution Explorer markers**:
+- [ ] Mark files with errors, warnings and infos (icon/colour and count, like VS Code's explorer decorations)
+- [ ] Roll the most severe state up to nested parent files, folders, projects, solution folders and the solution
+- [ ] Update live as diagnostics change
+- [ ] Offer to set `dotnet.backgroundAnalysis.compilerDiagnosticsScope` (and optionally `analyzerDiagnosticsScope`) to `fullSolution`; the default `openFiles` means only open files report errors
+
+**Build**:
 - [ ] Run Build/Rebuild/Clean/Restore as VS Code tasks with the `$msCompile` problem matcher instead of `terminal.sendText`
 - [ ] Errors and warnings link to file and line
 - [ ] Build solution from the command palette / a key binding (Ctrl+Shift+B)
+
+**Implementation Notes**:
+- Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges the C# language server and `$msCompile` build output
+- Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
 
 ### Phase 3: Run & Debug Web Apps (F5)
 **Goal**: F5 on an ASP.NET project behaves like Visual Studio.
