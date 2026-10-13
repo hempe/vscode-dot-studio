@@ -120,9 +120,7 @@ export declare type AddTemporaryNodeCmd = {
     readonly payload: {
         readonly nodeId: NodeIdString,
         readonly nodeType: NodeType,
-        readonly parentNodeId: NodeIdString,
-        /** Prefilled name, e.g. Class1.cs for Add New Item */
-        readonly name?: string
+        readonly parentNodeId: NodeIdString
     }
 }
 

@@ -25,7 +25,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
-- Add new projects from `dotnet new` templates and existing projects (also into solution folders); remove or delete projects
+- Add New Project wizard with the template's settings (any `dotnet new` template), add existing projects (also into solution folders); remove or delete projects
 - Add and remove project and assembly references
 
 ### Run & Debug (F5)
@@ -38,7 +38,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### File Operations
 - Add files and folders with inline naming
-- Add New Item: built-in C# types with the folder's namespace, or any `dotnet new` item template
+- Add New Item wizard: built-in C# types with the folder's namespace, or any `dotnet new` item template with its settings
 - Copy, cut, paste, rename and delete
 - Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
 - Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running); files nested under it (Designer, code-behind, resources) are renamed with it
@@ -124,8 +124,8 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Generating runs `dotnet-svcutil --update` on a params file made from `ConnectedService.json` in a temporary folder under `obj/`; svcutil's own package edits (`System.ServiceModel.*` `4.10.*`) are undone
 
 ### Phase 5: New Project & New Item Templates
-- [x] "Add New Project" on the solution or a solution folder: pick a template from `dotnet new list` (recently used first), name and location (next to the other projects), the solution's most common target framework, then add it to the solution (folder)
-- [x] "Add New Item" on projects and folders: Class, Interface, Record, Enum, Struct built in; controllers, Razor items, test classes, config files and your own item templates from `dotnet new`; named inline in the tree
+- [x] "Add New Project" wizard on the solution or a solution folder: pick a template (search, categories, recently used first), then name, location (next to the other projects) and the template's own settings (framework preselected from the solution, authentication, HTTPS, controllers, …), Create adds it to the solution (folder)
+- [x] "Add New Item" wizard on projects and folders: Class, Interface, Record, Enum, Struct built in; controllers, Razor items, test classes, config files and your own `dotnet new` item templates, with their settings
 - [x] Generate namespaces from `RootNamespace` and the folder structure (folder names made valid identifiers, `Connected Services` → `Connected_Services`)
 - [x] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx; Index.cshtml → Index.cshtml.cs)
 

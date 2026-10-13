@@ -5,9 +5,6 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 
 const ui = {
-    picks: [] as string[],
-    inputs: [] as (string | undefined)[],
-    prefilled: [] as (string | undefined)[],
     errors: [] as string[],
 };
 
@@ -23,15 +20,6 @@ jest.mock('vscode', () => {
         ProgressLocation: { Notification: 15, Window: 10 },
         workspace: { createFileSystemWatcher: () => watcher, workspaceFolders: undefined },
         window: {
-            showQuickPick: async (items: { label: string; kind?: number }[]) => {
-                const label = ui.picks.shift();
-                return items.find(item => item.kind === undefined && item.label === label);
-            },
-            showInputBox: async (options: { value?: string }) => {
-                ui.prefilled.push(options.value);
-                const input = ui.inputs.shift();
-                return input === undefined ? options.value : input;
-            },
             withProgress: async (_options: unknown, task: () => Promise<unknown>) => task(),
             createOutputChannel: () => ({ appendLine: () => { }, show: () => { } }),
             showInformationMessage: async () => undefined,
@@ -49,7 +37,8 @@ jest.mock('../../../../core/constants', () => ({
 
 import { Solution } from '../../../../core/Solution';
 import { SolutionService } from '../../../../services/solutionService';
-import { addNewProject, createItem } from '../../../../services/templates/templateService';
+import { createItem, createProject, newItemWizard, newProjectWizard } from '../../../../services/templates/templateService';
+import { initialValues } from '../../../../webview/template-wizard/App';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 
@@ -60,9 +49,6 @@ describe('templates with dotnet new', () => {
     let libProject: string;
 
     beforeEach(async () => {
-        ui.picks = [];
-        ui.inputs = [];
-        ui.prefilled = [];
         ui.errors = [];
         dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-tpl-'));
         libProject = path.join(dir, 'src', 'Lib', 'Lib.csproj');
@@ -79,40 +65,48 @@ describe('templates with dotnet new', () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    withDotnet('creates a project next to the others, for their framework, in the solution folder', async () => {
-        ui.picks = ['Class Library'];
-        ui.inputs = ['Utils', undefined];
+    withDotnet('creates a project with the chosen options next to the others, in the solution folder', async () => {
+        const wizard = await newProjectWizard('Libs');
+        expect(wizard).toMatchObject({ kind: 'project', location: 'src', preferredValues: { framework: 'net8.0' } });
+        const classlib = wizard.templates.find(t => t.shortName === 'classlib')!;
+        expect(classlib.language).toBe('C#');
+        const values = initialValues(classlib, wizard.preferredValues);
+        expect(values.framework).toBe('net8.0');
 
-        await addNewProject('Libs');
+        expect(await createProject(classlib.id, 'Utils', 'src/Utils', values, 'Libs')).toBeUndefined();
 
-        expect(ui.errors).toEqual([]);
-        expect(ui.prefilled[1]).toBe(path.join('src', 'Utils'));
-        const project = fs.readFileSync(path.join(dir, 'src', 'Utils', 'Utils.csproj'), 'utf8');
-        expect(project).toContain('<TargetFramework>net8.0</TargetFramework>');
+        expect(fs.readFileSync(path.join(dir, 'src', 'Utils', 'Utils.csproj'), 'utf8')).toContain('<TargetFramework>net8.0</TargetFramework>');
         expect(fs.readFileSync(path.join(dir, 'App.slnx'), 'utf8')).toMatch(/<Folder Name="\/Libs\/">[\s\S]*Utils\.csproj[\s\S]*<\/Folder>/);
+        expect(await createProject(classlib.id, 'Lib', 'src/Lib2', values)).toBe('The solution already has a project Lib.');
     });
 
-    it('writes built-in items with the folder namespace', async () => {
+    withDotnet('writes built-in items with the folder namespace', async () => {
         const models = path.join(dir, 'src', 'Lib', 'Models');
         fs.mkdirSync(models);
+        const wizard = await newItemWizard(models, libProject);
+        expect(wizard.templates.slice(0, 5).map(t => t.name)).toEqual(['Class', 'Interface', 'Record', 'Enum', 'Struct']);
 
-        const file = await createItem({ kind: 'builtin', item: 'class', defaultName: 'Class1.cs' }, models, 'Customer', libProject);
+        const result = await createItem('builtin:class', models, 'Customer', libProject, {});
 
-        expect(file).toBe(path.join(models, 'Customer.cs'));
-        expect(fs.readFileSync(file!, 'utf8')).toBe('namespace Lib.Models;\n\npublic class Customer\n{\n}\n');
-        expect(await createItem({ kind: 'builtin', item: 'class', defaultName: 'Class1.cs' }, models, 'Customer.cs', libProject)).toBeUndefined();
-        expect(ui.errors).toEqual(['Customer.cs already exists.']);
+        expect(result.file).toBe(path.join(models, 'Customer.cs'));
+        expect(fs.readFileSync(result.file!, 'utf8')).toBe('namespace Lib.Models;\n\npublic class Customer\n{\n}\n');
+        expect(await createItem('builtin:class', models, 'Customer.cs', libProject, {})).toEqual({ error: 'Customer.cs already exists.' });
     });
 
-    withDotnet('gives dotnet new items the folder namespace', async () => {
+    withDotnet('passes template options and the folder namespace to dotnet new items', async () => {
         const controllers = path.join(dir, 'src', 'Lib', 'Controllers');
         fs.mkdirSync(controllers);
-        const template = { name: 'API Controller', shortNames: ['apicontroller'], languages: ['C#'], defaultLanguage: 'C#', tags: ['Web', 'ASP.NET'] };
+        const wizard = await newItemWizard(controllers, libProject);
+        expect(wizard.preferredValues).toEqual({ namespace: 'Lib.Controllers' });
+        const apicontroller = wizard.templates.find(t => t.shortName === 'apicontroller')!;
+        const values = { ...initialValues(apicontroller, wizard.preferredValues), actions: true };
 
-        const file = await createItem({ kind: 'template', template, language: 'C#', defaultName: 'APIController1' }, controllers, 'ValuesController.cs', libProject);
+        const result = await createItem(apicontroller.id, controllers, 'ValuesController.cs', libProject, values);
 
-        expect(ui.errors).toEqual([]);
-        expect(file).toBe(path.join(controllers, 'ValuesController.cs'));
-        expect(fs.readFileSync(file!, 'utf8')).toMatch(/namespace Lib\.Controllers\b/);
+        expect(result.error).toBeUndefined();
+        expect(result.file).toBe(path.join(controllers, 'ValuesController.cs'));
+        const code = fs.readFileSync(result.file!, 'utf8');
+        expect(code).toMatch(/namespace Lib\.Controllers\b/);
+        expect(code).toContain('[HttpPost]');
     });
 });

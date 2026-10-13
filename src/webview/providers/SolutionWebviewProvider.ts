@@ -22,7 +22,8 @@ import { IconThemeService } from '../../services/iconThemeService';
 import { BuildConfiguration, solutionConfigurations } from '../../services/buildConfiguration';
 import { DebugConfigService } from '../../services/debugConfigService';
 import { Solution } from '../../core/Solution';
-import { createItem, ItemChoice, itemNeedsName, pickItemTemplate, projectForPath } from '../../services/templates/templateService';
+import { projectForPath } from '../../services/templates/templateService';
+import { openNewItemWizard } from './TemplateWizardPanel';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -41,8 +42,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /** The webview has the current icon theme; reset when the webview (re)loads or the theme changes */
     private _iconThemeSent = false;
     private _localResourceRoots?: string;
-    /** Add New Item templates waiting for their inline name, by temporary node id */
-    private readonly _pendingItems = new Map<NodeIdString, ItemChoice>();
 
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ProjectNode[];
@@ -186,20 +185,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
                     if (message.payload.action === 'addFile') {
-                        const pendingItem = this._pendingItems.get(message.payload.nodeId);
-                        if (message.payload.data?.confirmed && pendingItem) {
-                            this._pendingItems.delete(message.payload.nodeId);
-                            await this._createItem(pendingItem, NodeIdService.parse(message.payload.nodeId).path, message.payload.data.name);
-                        } else if (message.payload.data?.confirmed) {
+                        if (message.payload.data?.confirmed) {
                             await this._handleCreateFileAction(message.payload.nodeId, message.payload.data.name);
                         } else {
                             await this._handleAddFileAction(message.payload.nodeId);
                         }
                     } else if (message.payload.action === 'addNewItem') {
                         await this._handleAddNewItemAction(message.payload.nodeId);
-                    } else if (message.payload.action === 'cancelTemporaryNode') {
-                        this._pendingItems.delete(message.payload.nodeId);
-                        await SolutionActionService.handleProjectAction(message.payload);
+
                     } else if (message.payload.action === 'addFolder') {
                         if (message.payload.data?.confirmed) {
                             await this._handleCreateFolderAction(message.payload.nodeId, message.payload.data.name);
@@ -480,7 +473,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /**
      * Handles the addFile action by creating a temporary node in edit mode
      */
-    /** "Add New Item...": pick a template, then name it inline like a new file (config templates need no name) */
+    /** "Add New Item...": the template wizard for the folder (or project root) */
     private async _handleAddNewItemAction(parentNodeId: NodeIdString): Promise<void> {
         const parentDir = this._getContainerDirectory(parentNodeId);
         const projectPath = parentDir && projectForPath(parentDir);
@@ -488,36 +481,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.error('Add New Item: no project for', parentNodeId);
             return;
         }
-        const choice = await pickItemTemplate(projectPath);
-        if (!choice) {
-            return;
-        }
-        if (!itemNeedsName(choice)) {
-            await this._createItem(choice, parentDir, '');
-            return;
-        }
-        const nodeId = NodeIdService.generateTemporaryId('file', parentDir);
-        this._pendingItems.set(nodeId, choice);
-        sendToUi(this.webview, {
-            type: 'addTemporaryNode',
-            payload: { parentNodeId, nodeId, nodeType: 'file', name: choice.defaultName }
-        });
-    }
-
-    private async _createItem(choice: ItemChoice, folder: string | undefined, name: string): Promise<void> {
-        const projectPath = folder && projectForPath(folder);
-        if (!folder || !projectPath) {
-            return;
-        }
-        try {
-            const file = await createItem(choice, folder, name, projectPath);
-            if (file) {
-                await vscode.window.showTextDocument(vscode.Uri.file(file));
-            }
-        } catch (error) {
-            log.error('Error adding new item:', error);
-            vscode.window.showErrorMessage(`Error adding new item: ${error}`);
-        }
+        openNewItemWizard(parentDir, projectPath);
     }
 
     private async _handleAddFileAction(parentNodeId: NodeIdString): Promise<void> {

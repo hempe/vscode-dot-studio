@@ -1,5 +1,13 @@
 # Phase 5: New Project & New Item Templates — Design
 
+> **Revised:** both commands open a template wizard (webview in an editor tab, like Visual Studio's dialogs) with the template's own settings, instead of quick picks and inline naming. Templates and their options come from the template engine's cache (`~/.templateengine/dotnetcli/<sdk>/templatecache.json`, refreshed by `dotnet new list`): typed parameters with defaults, choices and CLI names (`dotnetcli.host.json`), hidden ones left out; the versions of a template are merged like `dotnet new` does (`--framework net8.0` picks the 8.0 template). Only values that differ from the defaults are passed.
+>
+> - **Add New Project:** page 1 template list (search, category, recently used first, description); page 2 name, location (`<folder of the other projects>/<name>`, follows the name until edited), the template's choices and switches, text options under "More options"; Create, Back, Cancel. The solution's most common framework is preselected.
+> - **Add New Item:** one page: list (Class, Interface, Record, Enum, Struct first), name (not for config templates), the template's options with `--namespace` prefilled with the folder's namespace; Add.
+> - Errors (dotnet output, invalid or duplicate names, non-empty folders) show in the wizard, which stays open.
+>
+> Sections 1 and 2 below describe the first version.
+
 ## Findings (SDK 10.0.111)
 
 - `dotnet new list --type project` / `--type item` print a table (`Template Name`, `Short Name`, `Language`, `Tags`) whose column widths follow the dashed line under the header. The default language is shown in brackets (`[C#],F#,VB`); config templates (`gitignore`, `editorconfig`, `nugetconfig`, `globaljson`, `tool-manifest`, `buildprops`, ...) have no language.

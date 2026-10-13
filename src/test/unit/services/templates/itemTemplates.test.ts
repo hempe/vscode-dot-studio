@@ -1,5 +1,5 @@
 import {
-    BUILTIN_ITEMS, builtinItemContent, defaultTemplateItemName, itemBaseName, namespaceSegment, projectLanguage, replaceNamespace,
+    BUILTIN_ITEMS, builtinItemContent, itemBaseName, namespaceSegment, projectLanguage, replaceNamespace,
 } from '../../../../services/templates/itemTemplates';
 
 describe('built-in items', () => {
@@ -16,11 +16,6 @@ describe('built-in items', () => {
 });
 
 describe('names', () => {
-    it('default names for dotnet new templates', () => {
-        expect(defaultTemplateItemName({ name: 'API Controller', shortNames: ['apicontroller'], languages: ['C#'], tags: [] })).toBe('APIController1');
-        expect(defaultTemplateItemName({ name: 'Razor Component', shortNames: ['razorcomponent'], languages: ['C#'], tags: [] })).toBe('RazorComponent1');
-    });
-
     it('drops a typed extension', () => {
         expect(itemBaseName('Counter.razor')).toBe('Counter');
         expect(itemBaseName('ValuesController.cs')).toBe('ValuesController');

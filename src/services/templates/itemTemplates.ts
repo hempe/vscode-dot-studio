@@ -1,5 +1,4 @@
 import * as path from 'path';
-import { DotnetTemplate } from './dotnetNewList';
 
 export type BuiltinItemKind = 'class' | 'interface' | 'record' | 'enum' | 'struct';
 
@@ -14,11 +13,6 @@ export const BUILTIN_ITEMS: readonly { readonly kind: BuiltinItemKind; readonly 
 
 export function builtinItemContent(kind: BuiltinItemKind, name: string, namespace: string, eol = '\n'): string {
     return [`namespace ${namespace};`, '', `public ${kind} ${name}`, '{', '}', ''].join(eol);
-}
-
-/** `API Controller` → `APIController1` */
-export function defaultTemplateItemName(template: DotnetTemplate): string {
-    return `${template.name.replace(/[^A-Za-z0-9]/g, '')}1`;
 }
 
 /** The name `dotnet new -n` expects: without a typed extension */

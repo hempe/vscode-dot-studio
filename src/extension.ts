@@ -15,6 +15,7 @@ import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
+import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
 
 const logger = loggerFn('Extensions');
 
@@ -54,6 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     BuildConfiguration.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
+    TemplateWizardPanel.extensionUri = context.extensionUri;
 
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();

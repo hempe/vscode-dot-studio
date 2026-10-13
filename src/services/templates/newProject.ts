@@ -30,26 +30,6 @@ export function isValidProjectName(name: string): boolean {
     return /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(name);
 }
 
-/** The choices of the `--framework` option in `dotnet new <template> -h` */
-export function frameworkChoices(helpOutput: string): string[] {
-    const lines = helpOutput.split(/\r?\n/);
-    const option = lines.findIndex(line => /--framework\b/.test(line));
-    if (option < 0) {
-        return [];
-    }
-    const choices: string[] = [];
-    for (const line of lines.slice(option + 1)) {
-        if (/^\s*-{1,2}\w/.test(line) || /^\s*Default:/.test(line)) {
-            break;
-        }
-        const choice = /^\s{4,}(net[\w.]+)\s/.exec(line);
-        if (choice) {
-            choices.push(choice[1]);
-        }
-    }
-    return choices;
-}
-
 export function findProjectFile(dir: string): string | undefined {
     const file = fs.existsSync(dir) ? fs.readdirSync(dir).find(name => /\.(cs|fs|vb)proj$/i.test(name)) : undefined;
     return file ? path.join(dir, file) : undefined;

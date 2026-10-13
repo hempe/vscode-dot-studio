@@ -1,20 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { defaultProjectLocation, findProjectFile, frameworkChoices, isValidProjectName, mostCommonFramework } from '../../../../services/templates/newProject';
-
-const classlibHelp = `Class Library (C#)
-Template options:
-  -f, --framework <choice>     The target framework for the project.
-                               Type: choice
-                                 net10.0         Target net10.0
-                                 netstandard2.1  Target netstandard2.1
-                                 netstandard2.0  Target netstandard2.0
-                                 net8.0          Target net8.0
-                               Default: net10.0
-  --langVersion <langVersion>  Sets the LangVersion property in the created project file
-                               Type: text
-`;
+import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework } from '../../../../services/templates/newProject';
 
 describe('new project defaults', () => {
     const sln = path.join('/repo');
@@ -33,11 +20,6 @@ describe('new project defaults', () => {
         expect(mostCommonFramework([['net8.0'], ['net10.0'], ['net8.0', 'netstandard2.0']])).toBe('net8.0');
         expect(mostCommonFramework([['net8.0'], ['net10.0']])).toBe('net10.0');
         expect(mostCommonFramework([])).toBeUndefined();
-    });
-
-    it('reads the framework choices from the template help', () => {
-        expect(frameworkChoices(classlibHelp)).toEqual(['net10.0', 'netstandard2.1', 'netstandard2.0', 'net8.0']);
-        expect(frameworkChoices('Template options:\n  (No options)')).toEqual([]);
     });
 
     it('validates names', () => {

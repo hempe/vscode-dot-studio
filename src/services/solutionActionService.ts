@@ -12,7 +12,7 @@ import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
-import { addNewProject } from './templates/templateService';
+import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 
 const log = logger('SolutionActionService');
@@ -85,7 +85,7 @@ export class SolutionActionService {
                 break;
 
             case 'addNewProject':
-                await addNewProject(nodeId.type === 'solutionFolder' ? this._solutionFolderPathOf(nodeId) : undefined);
+                openNewProjectWizard(nodeId.type === 'solutionFolder' ? this._solutionFolderPathOf(nodeId) : undefined);
                 break;
 
             case 'manageNuGetPackages':
