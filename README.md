@@ -195,6 +195,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Multiple startup projects (e.g. API plus worker or frontend), each with its own launch profile, like Visual Studio's "Configure Startup Projects"
 - [ ] Start without debugging (Ctrl+F5) and Hot Reload (`dotnet watch`)
 - [ ] HTTPS development certificate: detect an untrusted one and help trust it (`dotnet dev-certs https --trust`, fiddly on Linux)
+- [ ] Attach to Process: pick a running .NET process (by name, project or port) and attach the C# debugger, like Visual Studio's Debug > Attach to Process
 
 ### Phase 12: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
@@ -222,6 +223,8 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - .NET Framework 4.x / Mono build and debug support
 - `packages.config` and old-style project files
 - Code navigation features that the C# extension already provides (Go to Definition, Find References, symbol search)
+- Diagnostic Tools / profiler UI (the `dotnet-trace`, `dotnet-counters` and `dotnet-gcdump` CLI tools cover it)
+- A `.resx` resource editor
 
 ## Installation
 
