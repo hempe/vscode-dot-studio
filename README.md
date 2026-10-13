@@ -67,6 +67,11 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Errors and warnings link to file and line
 - [x] Build solution from the command palette / a key binding (Ctrl+Shift+B)
 
+**Error List** (like Visual Studio's; the Problems panel never shows hints, which is how Roslyn reports suggestions):
+- [ ] Native "Error List" view in the panel: errors, warnings and messages (infos and suggestions), grouped by project and file
+- [ ] Toggle errors, warnings and messages; click an entry to jump to its file and line
+- [ ] Error count badge on the view
+
 **Implementation Notes**:
 - Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks
 - Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
