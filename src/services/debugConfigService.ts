@@ -131,9 +131,11 @@ export class DebugConfigService {
     }
 
     /**
-     * Updates the workspace launch.json with the "Startup" configuration
+     * Updates the workspace launch.json with the "Startup" configuration.
+     * `askForProfile` (Set as Startup Project) lets the user pick the launch profile when the project has
+     * several; otherwise the profile already in the configuration is kept. Cancelling the pick changes nothing.
      */
-    static async updateStartupConfiguration(startupProjectPath: string, framework?: string): Promise<void> {
+    static async updateStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false): Promise<void> {
         try {
             log.info(`updateStartupConfiguration called with project: ${startupProjectPath}, framework: ${framework}`);
 
@@ -150,15 +152,20 @@ export class DebugConfigService {
             const launchJsonPath = path.join(vscodeFolder, 'launch.json');
             const tasksJsonPath = path.join(vscodeFolder, 'tasks.json');
 
+            const absoluteProjectPath = path.isAbsolute(startupProjectPath)
+                ? startupProjectPath
+                : path.join(workspacePath, startupProjectPath);
+            const profile = await this.chooseLaunchProfile(path.dirname(absoluteProjectPath), launchJsonPath, askForProfile);
+            if (profile === null) {
+                log.info('Launch profile choice cancelled, startup configuration unchanged');
+                return;
+            }
+
             // Ensure .vscode folder exists
             if (!fs.existsSync(vscodeFolder)) {
                 fs.mkdirSync(vscodeFolder, { recursive: true });
             }
 
-            // Convert relative path to absolute path
-            const absoluteProjectPath = path.isAbsolute(startupProjectPath)
-                ? startupProjectPath
-                : path.join(workspacePath, startupProjectPath);
 
             // Get project directory and assembly name
             const projectDir = path.dirname(absoluteProjectPath);
@@ -191,24 +198,19 @@ export class DebugConfigService {
                 debugType = 'coreclr';
             }
 
-            // Read launch settings to get command line arguments and other settings
-            const launchSettings = await this.readLaunchSettings(projectDir);
-            log.info(`Launch settings loaded:`, launchSettings);
-
-            // Create the "Startup" configuration
+            // Create the "Startup" configuration. With a launch profile the C# debugger applies its
+            // applicationUrl, environmentVariables and commandLineArgs from launchSettings.json at launch time
             const startupConfig = {
                 name: 'Startup',
                 type: debugType,
                 request: 'launch',
                 program: `\${workspaceFolder}/${relativeProjectDir}/bin/Debug/${frameworkPath}/${projectName}.${programExtension}`,
-                args: launchSettings.commandLineArgs || [],
+                ...(profile ? { launchSettingsProfile: profile.name } : { args: [] }),
                 cwd: `\${workspaceFolder}/${relativeProjectDir}`,
                 console: 'integratedTerminal',
                 ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
                 preLaunchTask: 'StartupPreBuild',
-                ...(launchSettings.environmentVariables && Object.keys(launchSettings.environmentVariables).length > 0 && {
-                    env: launchSettings.environmentVariables
-                })
+                ...(profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
             };
 
             // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
@@ -459,130 +461,79 @@ export class DebugConfigService {
     }
 
     /**
-     * Reads launchSettings.json from the Properties folder of a project
+     * The launch profile for the "Startup" configuration: the user's pick when `ask` is set and the project
+     * has several, else the profile already configured (if it still exists), else the first one.
+     * Returns undefined without profiles and null when the user cancels the pick.
      */
-    private static async readLaunchSettings(projectDir: string): Promise<{
-        commandLineArgs?: string[];
-        environmentVariables?: Record<string, string>;
-        workingDirectory?: string;
-        launchBrowser?: boolean;
-        launchUrl?: string;
-    }> {
-        try {
-            const launchSettingsPath = path.join(projectDir, 'Properties', 'launchSettings.json');
-
-            if (!fs.existsSync(launchSettingsPath)) {
-                log.info(`No launchSettings.json found at: ${launchSettingsPath}`);
-                return {};
-            }
-
-            const { value: launchSettings, errors } = parseJsonc(fs.readFileSync(launchSettingsPath, 'utf8'));
-            if (errors.length > 0) {
-                log.error(`Failed to parse launchSettings.json:`, errors);
-                return {};
-            }
-
-            // Extract settings from the default profile or the first available profile
-            let selectedProfile;
-
-            // Try to find the project name profile first (most common default)
-            const projectName = path.basename(projectDir);
-            if (launchSettings.profiles && launchSettings.profiles[projectName]) {
-                selectedProfile = launchSettings.profiles[projectName];
-                log.info(`Using launch profile: ${projectName}`);
-            }
-            // Try "Project" profile
-            else if (launchSettings.profiles && launchSettings.profiles['Project']) {
-                selectedProfile = launchSettings.profiles['Project'];
-                log.info(`Using launch profile: Project`);
-            }
-            // Use the first available profile
-            else if (launchSettings.profiles) {
-                const firstProfileKey = Object.keys(launchSettings.profiles)[0];
-                if (firstProfileKey) {
-                    selectedProfile = launchSettings.profiles[firstProfileKey];
-                    log.info(`Using first available launch profile: ${firstProfileKey}`);
-                }
-            }
-
-            if (!selectedProfile) {
-                log.info('No suitable launch profile found in launchSettings.json');
-                return {};
-            }
-
-            const result: any = {};
-
-            // Extract command line arguments
-            if (selectedProfile.commandLineArgs) {
-                // Parse command line args string into array
-                result.commandLineArgs = this.parseCommandLineArgs(selectedProfile.commandLineArgs);
-            }
-
-            // Extract environment variables
-            if (selectedProfile.environmentVariables && typeof selectedProfile.environmentVariables === 'object') {
-                result.environmentVariables = selectedProfile.environmentVariables;
-            }
-
-            // Extract working directory
-            if (selectedProfile.workingDirectory) {
-                result.workingDirectory = selectedProfile.workingDirectory;
-            }
-
-            // Extract browser settings (for web projects)
-            if (selectedProfile.launchBrowser !== undefined) {
-                result.launchBrowser = selectedProfile.launchBrowser;
-            }
-
-            if (selectedProfile.launchUrl) {
-                result.launchUrl = selectedProfile.launchUrl;
-            }
-
-            log.info(`Extracted launch settings:`, result);
-            return result;
-
-        } catch (error) {
-            log.error(`Error reading launchSettings.json from ${projectDir}:`, error);
-            return {};
+    private static async chooseLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean): Promise<LaunchProfile | undefined | null> {
+        const profiles = this.readLaunchProfiles(projectDir);
+        if (profiles.length <= 1) {
+            return profiles[0];
         }
+
+        if (ask) {
+            const picked = await vscode.window.showQuickPick(
+                profiles.map(profile => ({ label: profile.name, description: profile.applicationUrl, profile })),
+                { placeHolder: `Launch profile for ${path.basename(projectDir)}`, ignoreFocusOut: true }
+            );
+            return picked ? picked.profile : null;
+        }
+
+        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile;
+        return profiles.find(profile => profile.name === current) ?? profiles[0];
+    }
+
+    /** The "Startup" configuration currently in launch.json, if any */
+    private static readStartupConfig(launchJsonPath: string): any {
+        if (!fs.existsSync(launchJsonPath)) {
+            return undefined;
+        }
+        const { value } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
+        return value?.configurations?.find((config: any) => config?.name === 'Startup');
     }
 
     /**
-     * Parses command line arguments string into an array
+     * Profiles of Properties/launchSettings.json that `dotnet run` can launch (`commandName: "Project"`);
+     * IIS Express, Docker and similar profiles don't apply
      */
-    private static parseCommandLineArgs(argsString: string): string[] {
-        if (!argsString || typeof argsString !== 'string') {
+    private static readLaunchProfiles(projectDir: string): LaunchProfile[] {
+        const launchSettingsPath = path.join(projectDir, 'Properties', 'launchSettings.json');
+        if (!fs.existsSync(launchSettingsPath)) {
             return [];
         }
 
-        // Simple parsing - split by spaces but respect quoted arguments
-        const args: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        let quoteChar = '';
-
-        for (let i = 0; i < argsString.length; i++) {
-            const char = argsString[i];
-
-            if (!inQuotes && (char === '"' || char === "'")) {
-                inQuotes = true;
-                quoteChar = char;
-            } else if (inQuotes && char === quoteChar) {
-                inQuotes = false;
-                quoteChar = '';
-            } else if (!inQuotes && char === ' ') {
-                if (current.trim()) {
-                    args.push(current.trim());
-                    current = '';
-                }
-            } else {
-                current += char;
-            }
+        const { value, errors } = parseJsonc(fs.readFileSync(launchSettingsPath, 'utf8'));
+        if (errors.length > 0 || !value?.profiles || typeof value.profiles !== 'object') {
+            log.warn(`Ignoring ${launchSettingsPath}: ${errors.join(', ') || 'no profiles'}`);
+            return [];
         }
 
-        if (current.trim()) {
-            args.push(current.trim());
-        }
-
-        return args;
+        return Object.entries(value.profiles as Record<string, any>)
+            .filter(([, profile]) => profile?.commandName === 'Project')
+            .map(([name, profile]) => ({
+                name,
+                applicationUrl: typeof profile.applicationUrl === 'string' ? profile.applicationUrl : undefined,
+                launchBrowser: profile.launchBrowser === true,
+                launchUrl: typeof profile.launchUrl === 'string' ? profile.launchUrl : undefined,
+            }));
     }
+
+    /**
+     * Opens the browser once the app logs its first URL, like Visual Studio's launchBrowser:
+     * at `launchUrl` relative to that URL, or at `launchUrl` itself when it is absolute
+     */
+    private static browserAction(launchUrl: string | undefined) {
+        return {
+            action: 'openExternally',
+            pattern: '\\bNow listening on:\\s+(https?://\\S+)',
+            uriFormat: !launchUrl ? '%s' : /^https?:\/\//i.test(launchUrl) ? launchUrl : `%s/${launchUrl.replace(/^\//, '')}`,
+        };
+    }
+}
+
+interface LaunchProfile {
+    readonly name: string;
+    readonly applicationUrl?: string;
+    readonly launchBrowser: boolean;
+    readonly launchUrl?: string;
 }

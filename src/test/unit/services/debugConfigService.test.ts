@@ -5,6 +5,9 @@ import * as path from 'path';
 const env = {
     workspacePath: '',
     warnings: [] as string[],
+    /** Label the quick pick returns; undefined cancels */
+    pick: undefined as string | undefined,
+    pickItems: undefined as undefined | { label: string; description?: string }[],
 };
 
 jest.mock('vscode', () => ({
@@ -13,6 +16,10 @@ jest.mock('vscode', () => ({
     },
     window: {
         showWarningMessage: async (message: string) => { env.warnings.push(message); },
+        showQuickPick: async (items: { label: string }[]) => {
+            env.pickItems = items;
+            return items.find(item => item.label === env.pick);
+        },
     },
 }), { virtual: true });
 
@@ -27,6 +34,8 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
     beforeEach(() => {
         env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'debugconfig-'));
         env.warnings = [];
+        env.pick = undefined;
+        env.pickItems = undefined;
         fs.mkdirSync(path.join(env.workspacePath, '.vscode'));
         fs.mkdirSync(path.join(env.workspacePath, 'App'));
         projectPath = path.join(env.workspacePath, 'App', 'App.csproj');
@@ -110,5 +119,90 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
 
         expect(fs.statSync(launchJsonPath).mtimeMs).not.toBe(before);
         expect(fs.statSync(launchJsonPath).mtimeMs).toBe(0);
+    });
+
+    describe('launch profiles', () => {
+        const writeLaunchSettings = (profiles: Record<string, object>) => {
+            fs.mkdirSync(path.join(env.workspacePath, 'App', 'Properties'));
+            fs.writeFileSync(path.join(env.workspacePath, 'App', 'Properties', 'launchSettings.json'), JSON.stringify({ profiles }));
+        };
+        const startup = () => parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations[0];
+
+        beforeEach(() => writeLaunchSettings({
+            http: { commandName: 'Project', launchBrowser: true, launchUrl: 'launch-info', applicationUrl: 'http://localhost:5181', environmentVariables: { ASPNETCORE_ENVIRONMENT: 'Development' } },
+            https: { commandName: 'Project', launchBrowser: true, applicationUrl: 'https://localhost:7275;http://localhost:5181' },
+            'Staging (no browser)': { commandName: 'Project', launchBrowser: false, applicationUrl: 'http://localhost:5190', commandLineArgs: '--Greeting hi' },
+            'IIS Express': { commandName: 'IISExpress', launchBrowser: true },
+        }));
+
+        it('asks which Project profile to use and lets the debugger apply it', async () => {
+            env.pick = 'Staging (no browser)';
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+
+            expect(env.pickItems?.map(item => [item.label, item.description])).toEqual([
+                ['http', 'http://localhost:5181'],
+                ['https', 'https://localhost:7275;http://localhost:5181'],
+                ['Staging (no browser)', 'http://localhost:5190'],
+            ]);
+            const config = startup();
+            expect(config.launchSettingsProfile).toBe('Staging (no browser)');
+            // The profile's args and environment come from launchSettings.json at launch time
+            expect(config.args).toBeUndefined();
+            expect(config.env).toBeUndefined();
+            expect(config.serverReadyAction).toBeUndefined();
+        });
+
+        it('opens the browser at the launchUrl for profiles with launchBrowser', async () => {
+            env.pick = 'http';
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+
+            expect(startup().serverReadyAction).toEqual({
+                action: 'openExternally',
+                pattern: '\\bNow listening on:\\s+(https?://\\S+)',
+                uriFormat: '%s/launch-info',
+            });
+        });
+
+        it('opens the listening URL itself without a launchUrl', async () => {
+            env.pick = 'https';
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+            expect(startup().serverReadyAction.uriFormat).toBe('%s');
+        });
+
+        it('cancelling the profile choice changes nothing', async () => {
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+            expect(fs.existsSync(launchJsonPath)).toBe(false);
+        });
+
+        it('keeps the chosen profile when the configuration is rewritten, e.g. for another framework', async () => {
+            env.pick = 'Staging (no browser)';
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+            env.pickItems = undefined;
+
+            await DebugConfigService.updateStartupConfiguration(projectPath, 'net10.0');
+
+            expect(env.pickItems).toBeUndefined();
+            expect(startup().launchSettingsProfile).toBe('Staging (no browser)');
+        });
+
+        it('uses the only Project profile without asking', async () => {
+            fs.rmSync(path.join(env.workspacePath, 'App', 'Properties'), { recursive: true });
+            writeLaunchSettings({ App: { commandName: 'Project' }, Docker: { commandName: 'Docker' } });
+
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+
+            expect(env.pickItems).toBeUndefined();
+            expect(startup().launchSettingsProfile).toBe('App');
+        });
+
+        it('without launch profiles the configuration has none', async () => {
+            fs.rmSync(path.join(env.workspacePath, 'App', 'Properties'), { recursive: true });
+
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+
+            expect(env.pickItems).toBeUndefined();
+            expect(startup().launchSettingsProfile).toBeUndefined();
+            expect(startup().args).toEqual([]);
+        });
     });
 });

@@ -88,9 +88,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 ### Phase 3: Run & Debug Web Apps (F5)
 **Goal**: F5 on an ASP.NET project behaves like Visual Studio.
 
-- [ ] Use the selected `launchSettings.json` profile: `applicationUrl`, `environmentVariables`, `commandLineArgs`
-- [ ] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
-- [ ] Choose the launch profile (like Visual Studio's run dropdown)
+- [x] Use the selected `launchSettings.json` profile: `applicationUrl`, `environmentVariables`, `commandLineArgs` (via the C# debugger's `launchSettingsProfile`; only `commandName: "Project"` profiles)
+- [x] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
+- [ ] Choose the launch profile (like Visual Studio's run dropdown); for now a quick pick asks on "Set as Startup Project" when there are several
 - [ ] Resolve the output path through MSBuild instead of hardcoding `bin/Debug/<tfm>/` (respects Release, `OutputPath`, artifacts layout)
 - [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
 

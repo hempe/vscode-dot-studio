@@ -1225,7 +1225,7 @@ export class Solution {
 
             // Update launch.json with the new startup project (this is now the source of truth)
             log.info(`About to update launch.json with startup project: ${projectPath}`);
-            await DebugConfigService.updateStartupConfiguration(projectPath);
+            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
             log.info(`Finished updating launch.json`);
 
             // Note: No need to emit change event here - the launch.json file watcher will handle UI updates
