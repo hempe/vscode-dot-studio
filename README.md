@@ -86,7 +86,7 @@ Useful settings of the C# extension:
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds; phase 8 collects conveniences, phase 9 is publishing, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds; phase 8 collects conveniences, phase 9 is publishing, phase 10 code cleanup and refactoring, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -182,6 +182,14 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Container registry target (the SDK's container publish, credentials from `docker login`)
 - [ ] Azure App Service target (ZIP deploy, sign-in through the Azure CLI)
 - [ ] FTP target (upload after a folder publish); IIS Web Deploy only on Windows, where `msdeploy` exists
+
+### Phase 10: Code Cleanup & Refactoring
+**Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
+
+- [ ] Code Cleanup on the solution, a project, folder or file: fix all errors, warnings and/or infos, format, remove and sort usings (`dotnet format`)
+- [ ] Fix all occurrences of a diagnostic (e.g. IDE0090) in the project or solution, from the Error List
+- [ ] Sync Namespaces on a project or folder: every namespace matches its folder, as in Visual Studio
+- [ ] Check which refactorings the C# extension covers in VS Code (Extract Interface, Move Type to File, Change Signature, Fix All in document/project/solution) and fill the gaps, e.g. Visual Studio's dialogs for Extract Interface and Change Signature
 
 ### Phase 20: Later
 - [ ] Encrypted NuGet credentials (`Password` is Windows DPAPI; on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens)
