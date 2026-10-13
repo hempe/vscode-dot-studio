@@ -158,6 +158,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 
 ### Phase 7: Device & Deployment
 - [ ] Encrypted NuGet credentials
+- [ ] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
