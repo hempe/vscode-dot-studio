@@ -144,12 +144,27 @@ export class SolutionWebView {
                             font-weight: bold;
                         }
 
+                        /* Squiggles like the editor's: wavy for errors and warnings, dotted for infos/suggestions */
+                        .node-name.diagnostic-error,
+                        .node-name.diagnostic-warning,
+                        .node-name.diagnostic-info {
+                            text-decoration-line: underline;
+                            text-decoration-style: wavy;
+                            text-decoration-skip-ink: none;
+                            text-underline-offset: 2px;
+                        }
+
                         .node-name.diagnostic-error {
-                            color: var(--vscode-list-errorForeground);
+                            text-decoration-color: var(--vscode-editorError-foreground);
                         }
 
                         .node-name.diagnostic-warning {
-                            color: var(--vscode-list-warningForeground);
+                            text-decoration-color: var(--vscode-editorWarning-foreground);
+                        }
+
+                        .node-name.diagnostic-info {
+                            text-decoration-style: dotted;
+                            text-decoration-color: var(--vscode-editorInfo-foreground);
                         }
 
                         .diagnostic-badge,
@@ -174,12 +189,12 @@ export class SolutionWebView {
 
                         .diagnostic-badge.diagnostic-error,
                         .diagnostic-dot.diagnostic-error {
-                            color: var(--vscode-list-errorForeground);
+                            color: var(--vscode-editorError-foreground);
                         }
 
                         .diagnostic-badge.diagnostic-warning,
                         .diagnostic-dot.diagnostic-warning {
-                            color: var(--vscode-list-warningForeground);
+                            color: var(--vscode-editorWarning-foreground);
                         }
 
                         .diagnostic-badge.diagnostic-info,
