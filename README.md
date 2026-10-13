@@ -128,7 +128,6 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] "Add New Item" on projects and folders: Class, Interface, Record, Enum, Struct built in; controllers, Razor items, test classes, config files and your own item templates from `dotnet new`; named inline in the tree
 - [x] Generate namespaces from `RootNamespace` and the folder structure (folder names made valid identifiers, `Connected Services` → `Connected_Services`)
 - [x] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx; Index.cshtml → Index.cshtml.cs)
-- [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 
 ### Phase 6: Test Integration
 **Goal**: Test discovery and execution through the VS Code Test Explorer.
@@ -136,6 +135,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] `vscode.TestController` with solution → project → namespace → class → test hierarchy
 - [ ] Discover MSTest, xUnit and NUnit tests; run and debug single tests or whole projects
 - [ ] Show results and output
+- [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 
 **Implementation Notes**:
 - Discovery via `dotnet test --list-tests`, execution via `dotnet test --filter`, results from TRX
