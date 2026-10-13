@@ -105,6 +105,11 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks
 - Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
 
+### Phase 2.5: Error List like Visual Studio
+- [ ] A table instead of a tree: severity, Code, Description, Project, File, Line
+- [ ] Sort by any column; search box; filter Code, Project and File by their values (like Visual Studio's column filters); codes link to their documentation
+- [ ] The Errors / Warnings / Messages toggles are shared settings (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`) that also decide which markers the Solution Explorer shows
+
 ### Phase 3: Run & Debug Web Apps (F5)
 **Goal**: F5 on an ASP.NET project behaves like Visual Studio.
 
