@@ -94,6 +94,13 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         expect(parseJsonc(fs.readFileSync(tasksJsonPath, 'utf8')).value.tasks.map((t: any) => t.label)).toEqual(['StartupPreBuild']);
     });
 
+    it('keeps StartupPreBuild out of the build group so Ctrl+Shift+B builds the solution', async () => {
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+
+        const [task] = parseJsonc(fs.readFileSync(tasksJsonPath, 'utf8')).value.tasks;
+        expect(task.group).toBeUndefined();
+    });
+
     it('does not rewrite files that are already up to date', async () => {
         await DebugConfigService.updateStartupConfiguration(projectPath);
         const before = fs.statSync(launchJsonPath).mtimeMs;

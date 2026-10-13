@@ -352,7 +352,6 @@ export class DebugConfigService {
                     '/property:GenerateFullPaths=true',
                     '/consoleloggerparameters:NoSummary'
                 ],
-                group: 'build',
                 presentation: {
                     reveal: 'silent'
                 },
