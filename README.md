@@ -143,6 +143,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Show results (failure message, stack trace, expected/actual where the framework reports them) and output
 - [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 - [ ] Test Phase 5 (template wizards) in VS Code with ApiDotNetTestProject: Add New Project on the solution and on a solution folder (settings, framework, location), Add New Item on a folder (built-in class, API Controller with read/write actions, a config file), rename a file with nested files
+- [ ] Test Phase 6 (Test Explorer) in VS Code with `Shared.Tests` in ApiDotNetTestProject: tests appear after a build, run all and single tests, the failing test shows its message and jumps to its line, debug a test with a breakpoint
 
 **Implementation Notes**:
 - Microsoft.Testing.Platform's server mode: the test app (`dotnet <TargetPath> --server --client-port <port>`) connects to the extension and speaks JSON-RPC (`testing/discoverTests`, `testing/runTests`, `testing/testUpdates/tests`), which brings file and line of every test
