@@ -14,7 +14,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Visual Studio–style file nesting
 - File and folder icons from your file icon theme (`workbench.iconTheme`: Seti, Material Icon Theme, vscode-icons, …), with built-in icons for dependency nodes, and for solution and project nodes unless the theme has icons for `.sln`/`.slnx`/`.csproj`…
 - Dependencies node (PackageReference, ProjectReference, framework and assembly references)
-- Startup project selection
+- Startup project selection, offered only on projects that can be started (console, desktop, web, worker and Aspire host projects; not libraries or test projects)
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
 - Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
@@ -27,7 +27,14 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
 - Add existing projects; remove or delete projects
 - Add and remove project and assembly references
-- Target framework selection for the startup project; generates a `Startup` debug configuration in `launch.json`
+
+### Run & Debug (F5)
+- "Set as Startup Project" generates a `Startup` debug configuration in `launch.json` and a `StartupPreBuild` task in `tasks.json`, keeping your other configurations and comments
+- Launch profiles from `Properties/launchSettings.json`: picked when you set the startup project, changed later with "Set Launch Profile..." on it; the profile's URLs, environment variables and arguments apply, and the browser opens at `launchUrl` once the app listens
+- Debug/Release switch in the Solution Explorer title bar for builds and F5, with the solution's own configurations; the active configuration and framework show next to the view title
+- Target framework selection for multi-targeted startup projects
+- The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work
+- Edits to `launchSettings.json` are picked up; a removed or renamed profile falls back to another
 
 ### File Operations
 - Add files and folders with inline naming
@@ -56,7 +63,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Reject .slnx files that `dotnet` rejects (folder names without `/`, duplicates, missing paths) and show the reason instead of an empty tree
 - [x] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
 - [x] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
-- [ ] Keep this README in line with the actual features
+- [ ] Keep this README in line with the actual features (ongoing, never ticked)
 - [x] Add existing projects into solution folders ("Add Existing Project…" on a solution folder; a project file picked as solution item is added as a project); projects added at the solution root stay there instead of getting folders that mirror their directories
 
 ### Phase 1.5: Look like VS Code
