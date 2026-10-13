@@ -43,6 +43,11 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running)
 - Reveal in file explorer
 
+### Connected Services (SOAP)
+- "Add Service Reference…" on a project: from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`, with the WCF client packages
+- "Update Service Reference" and "Remove Service Reference" on the reference folder; references created in Visual Studio (`ConnectedService.json`) work both ways, and options such as `messageContract` are edited there as in Visual Studio
+- Offers to install `dotnet-svcutil` for the repository (tool manifest, same version for the team) or globally
+
 ### NuGet Package Manager
 - Browse and search packages, install to multiple projects, update and consolidate
 - Private feeds (e.g. Azure DevOps) via `ClearTextPassword` credentials in `NuGet.Config`
@@ -53,6 +58,8 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
 - [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
+- [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
+- [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
 
 ## Roadmap
 
@@ -106,14 +113,15 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 ### Phase 4: Connected Services (SOAP)
 **Goal**: The "Add Service Reference / Connected Service" workflow for WCF/SOAP clients.
 
-- [ ] "Add Service Reference…" on a project: WSDL URL or file, namespace, service name
-- [ ] Generate the client into `Connected Services/<Name>/` and add the `System.ServiceModel.*` packages
-- [ ] "Update Service Reference" and "Remove" on the generated node
-- [ ] Detect a missing `dotnet-svcutil` and offer to install it
+- [x] "Add Service Reference…" on a project or its Connected Services folder: WSDL URL or file, name, namespace
+- [x] Generate the client into `Connected Services/<Name>/` (Visual Studio's `ConnectedService.json` and `WCFMetadata` item) and add the current `System.ServiceModel.Http`/`Primitives` packages
+- [x] "Update Service Reference" and "Remove Service Reference" on the reference folder, also for references Visual Studio created; updating regenerates for the project's current target framework
+- [x] Detect a missing `dotnet-svcutil` and offer to install it for the repository (tool manifest) or globally
 
 **Implementation Notes**:
 - Visual Studio's WCF Web Service Reference provider is a UI over `dotnet-svcutil`, which runs on Linux
-- `dotnet-svcutil` writes `dotnet-svcutil.params.json`; updating re-runs it with `--update`
+- `dotnet-svcutil` 8.0.0 needs .NET 9; it runs with `DOTNET_ROLL_FORWARD=Major` on newer runtimes
+- Generating runs `dotnet-svcutil --update` on a params file made from `ConnectedService.json` in a temporary folder under `obj/`; svcutil's own package edits (`System.ServiceModel.*` `4.10.*`) are undone
 
 ### Phase 5: New Project & New Item Templates
 - [ ] "Add New Project": pick a template from `dotnet new list`, name and location, then add it to the solution
