@@ -259,6 +259,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.chooseLaunchProfile",
+        "title": "Set Launch Profile...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.build",
         "title": "Build",
         "category": ".NET"
@@ -524,6 +529,11 @@
           "group": "4_group@1"
         },
         {
+          "command": "shinobi.solutionExplorer.chooseLaunchProfile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startupWithProfiles'",
+          "group": "4_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.addFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "1_group@1"
@@ -719,6 +729,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.setStartupProject",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.chooseLaunchProfile",
           "when": "false"
         },
         {

@@ -155,7 +155,7 @@ export class DebugConfigService {
             const absoluteProjectPath = path.isAbsolute(startupProjectPath)
                 ? startupProjectPath
                 : path.join(workspacePath, startupProjectPath);
-            const profile = await this.chooseLaunchProfile(path.dirname(absoluteProjectPath), launchJsonPath, askForProfile);
+            const profile = await this.pickLaunchProfile(path.dirname(absoluteProjectPath), launchJsonPath, askForProfile);
             if (profile === null) {
                 log.info('Launch profile choice cancelled, startup configuration unchanged');
                 return;
@@ -465,22 +465,36 @@ export class DebugConfigService {
      * has several, else the profile already configured (if it still exists), else the first one.
      * Returns undefined without profiles and null when the user cancels the pick.
      */
-    private static async chooseLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean): Promise<LaunchProfile | undefined | null> {
+    private static async pickLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean): Promise<LaunchProfile | undefined | null> {
         const profiles = this.readLaunchProfiles(projectDir);
         if (profiles.length <= 1) {
             return profiles[0];
         }
 
+        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile;
         if (ask) {
             const picked = await vscode.window.showQuickPick(
-                profiles.map(profile => ({ label: profile.name, description: profile.applicationUrl, profile })),
+                profiles.map(profile => ({
+                    label: profile.name,
+                    description: profile.name === current ? `${profile.applicationUrl ?? ''} (current)`.trim() : profile.applicationUrl,
+                    profile,
+                })),
                 { placeHolder: `Launch profile for ${path.basename(projectDir)}`, ignoreFocusOut: true }
             );
             return picked ? picked.profile : null;
         }
 
-        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile;
         return profiles.find(profile => profile.name === current) ?? profiles[0];
+    }
+
+    /** Whether the project has several launch profiles to choose from */
+    static hasLaunchProfileChoice(projectPath: string): boolean {
+        return this.readLaunchProfiles(path.dirname(projectPath)).length > 1;
+    }
+
+    /** Asks for another launch profile of the startup project, keeping its framework */
+    static async chooseLaunchProfile(projectPath: string): Promise<void> {
+        await this.updateStartupConfiguration(projectPath, this.getActiveFrameworkFromLaunchJson() ?? undefined, true);
     }
 
     /** The "Startup" configuration currently in launch.json, if any */

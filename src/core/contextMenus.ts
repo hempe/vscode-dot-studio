@@ -21,6 +21,8 @@ export const COMMAND_PREFIX = 'shinobi.solutionExplorer.';
 /** Context key holding the type of the focused tree node, empty when the tree isn't focused or a rename is in progress */
 /** `contextValue` of project nodes that can be the startup project */
 export const EXECUTABLE_PROJECT = 'executable';
+/** `contextValue` of the startup project when it has several launch profiles */
+export const STARTUP_PROJECT_WITH_PROFILES = 'startupWithProfiles';
 
 export const FOCUSED_NODE_TYPE_CONTEXT = 'shinobi.solutionExplorer.focusedNodeType';
 
@@ -39,6 +41,7 @@ export const menuCommands = {
     restoreNugets: { title: 'Restore NuGet Packages' },
     restoreDependencies: { title: 'Restore Dependencies' },
     setStartupProject: { title: 'Set as Startup Project' },
+    chooseLaunchProfile: { title: 'Set Launch Profile...' },
     build: { title: 'Build' },
     rebuild: { title: 'Rebuild' },
     clean: { title: 'Clean' },
@@ -81,17 +84,21 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['openFile'],
         ['addFile', 'addFolder'],
         ['paste'],
-        [], // setStartupProject, for executable projects only
+        [], // setStartupProject or chooseLaunchProfile, see below
         ['manageNuGetPackages'],
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean'],
         ['revealInExplorer'],
     ],
-    // Only projects that can be started; libraries can't be the startup project.
+    // Only projects that can be started and aren't already the startup project; libraries can't be.
     // The empty groups keep the item in its slot in the project menu.
     [`project.${EXECUTABLE_PROJECT}`]: [
         [], [], [],
         ['setStartupProject'],
+    ],
+    [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: [
+        [], [], [],
+        ['chooseLaunchProfile'],
     ],
     folder: [
         ['addFile', 'addFolder'],

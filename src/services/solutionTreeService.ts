@@ -4,7 +4,8 @@ import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
-import { EXECUTABLE_PROJECT } from '../core/contextMenus';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT_WITH_PROFILES } from '../core/contextMenus';
+import { DebugConfigService } from './debugConfigService';
 import { NodeIdString } from '../types/nodeId';
 
 const log = logger('SolutionTreeService');
@@ -148,7 +149,11 @@ export class SolutionTreeService {
                         const hasFiles = await projectInstance.hasAnyChildren();
                         itemNode.hasChildren = hasFiles;
                         log.info(`Project ${project.name} has children: ${hasFiles}`);
-                        if (projectInstance.isExecutable) {
+                        if (itemNode.isStartupProject) {
+                            if (DebugConfigService.hasLaunchProfileChoice(absolutePath)) {
+                                itemNode.contextValue = STARTUP_PROJECT_WITH_PROFILES;
+                            }
+                        } else if (projectInstance.isExecutable) {
                             itemNode.contextValue = EXECUTABLE_PROJECT;
                         }
                     } else {

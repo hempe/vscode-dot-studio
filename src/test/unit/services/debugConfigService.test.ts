@@ -185,6 +185,31 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
             expect(startup().launchSettingsProfile).toBe('Staging (no browser)');
         });
 
+        it('offers a profile choice only for several Project profiles', () => {
+            expect(DebugConfigService.hasLaunchProfileChoice(projectPath)).toBe(true);
+
+            fs.rmSync(path.join(env.workspacePath, 'App', 'Properties'), { recursive: true });
+            writeLaunchSettings({ App: { commandName: 'Project' }, Docker: { commandName: 'Docker' } });
+            expect(DebugConfigService.hasLaunchProfileChoice(projectPath)).toBe(false);
+        });
+
+        it('changing the profile of the startup project marks the current one and keeps the framework', async () => {
+            fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks></PropertyGroup></Project>');
+            env.pick = 'http';
+            await DebugConfigService.updateStartupConfiguration(projectPath, 'net8.0', true);
+
+            env.pick = 'https';
+            await DebugConfigService.chooseLaunchProfile(projectPath);
+
+            expect(env.pickItems?.map(item => item.description)).toEqual([
+                'http://localhost:5181 (current)',
+                'https://localhost:7275;http://localhost:5181',
+                'http://localhost:5190',
+            ]);
+            expect(startup().launchSettingsProfile).toBe('https');
+            expect(startup().program).toBe('${workspaceFolder}/App/bin/Debug/net8.0/App.dll');
+        });
+
         it('uses the only Project profile without asking', async () => {
             fs.rmSync(path.join(env.workspacePath, 'App', 'Properties'), { recursive: true });
             writeLaunchSettings({ App: { commandName: 'Project' }, Docker: { commandName: 'Docker' } });

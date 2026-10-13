@@ -10,6 +10,7 @@ import { NodeIdString } from '../types/nodeId';
 import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
+import { DebugConfigService } from './debugConfigService';
 
 const log = logger('SolutionActionService');
 
@@ -130,6 +131,10 @@ export class SolutionActionService {
 
             case 'setStartupProject':
                 await this._handleSetStartupProject(nodeId);
+                break;
+
+            case 'chooseLaunchProfile':
+                await DebugConfigService.chooseLaunchProfile(nodeId.path);
                 break;
 
             case 'copy':

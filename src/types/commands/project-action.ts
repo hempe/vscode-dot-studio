@@ -96,6 +96,11 @@ export declare type SetStartupProjectActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type ChooseLaunchProfileActionCmd = {
+    readonly action: 'chooseLaunchProfile';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type PasteActionCmd = {
     readonly action: 'paste';
     readonly nodeId: NodeIdString;
@@ -192,6 +197,7 @@ export type ProjectActionCmd =
     | RemoveProjectActionCmd
     | DeleteProjectActionCmd
     | SetStartupProjectActionCmd
+    | ChooseLaunchProfileActionCmd
     | PasteActionCmd
     | StartRenameActionCmd
     | CollapseParentActionCmd
