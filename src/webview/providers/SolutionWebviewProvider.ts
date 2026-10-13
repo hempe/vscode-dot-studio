@@ -18,6 +18,7 @@ import { sln } from '../../core/utils';
 import { FOCUSED_NODE_TYPE_CONTEXT } from '../../core/contextMenus';
 import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
+import { IconThemeService } from '../../services/iconThemeService';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -32,6 +33,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _solutionChangeListener?: vscode.Disposable;
     private _activeEditorListener?: vscode.Disposable;
     private readonly _diagnosticsListener: vscode.Disposable;
+    private readonly _iconThemeListener: vscode.Disposable;
+    /** The webview has the current icon theme; reset when the webview (re)loads or the theme changes */
+    private _iconThemeSent = false;
+    private _localResourceRoots?: string;
 
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ProjectNode[];
@@ -45,7 +50,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext,
         private readonly _frameworkService: FrameworkDropdownService,
-        private readonly _diagnostics: DiagnosticsService
+        private readonly _diagnostics: DiagnosticsService,
+        private readonly _iconTheme: IconThemeService
     ) {
         SolutionWebviewProvider.Instance = this;
         this._updateViewDebouncer = new SimpleDebounceManager(async () => {
@@ -77,6 +83,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
         }, 100);
         this._diagnosticsListener = _diagnostics.onDidChange(() => this._sendDiagnostics());
+        this._iconThemeListener = _iconTheme.onDidChange(() => {
+            this._iconThemeSent = false;
+            this._sendIconTheme();
+        });
     }
 
     public resolveWebviewView(
@@ -85,13 +95,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
+        this._iconThemeSent = false;
+        this._localResourceRoots = undefined;
 
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'out', 'webview')
-            ]
-        };
+        this._applyWebviewOptions();
 
         webviewView.webview.html = SolutionWebView.getHtmlForWebview(this._extensionUri, webviewView.webview);
 
@@ -384,6 +391,39 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             payload: data
         });
         this._sendDiagnostics(projects);
+        if (!this._iconThemeSent) {
+            this._sendIconTheme();
+        }
+    }
+
+    /** Lets the webview load our bundle and the files of the user's icon theme */
+    private _applyWebviewOptions(): void {
+        if (!this._view) {
+            return;
+        }
+        const themeRoot = this._iconTheme.themeRoot;
+        const localResourceRoots = [
+            vscode.Uri.joinPath(this._extensionUri, 'out', 'webview'),
+            ...(themeRoot ? [themeRoot] : [])
+        ];
+        const key = localResourceRoots.map(uri => uri.toString()).join('|');
+        if (key !== this._localResourceRoots) {
+            this._localResourceRoots = key;
+            this._view.webview.options = { enableScripts: true, localResourceRoots };
+        }
+    }
+
+    /** Sends the user's file icon theme; the webview falls back to its own icons without one */
+    private _sendIconTheme(): void {
+        if (!this._view) {
+            return;
+        }
+        this._applyWebviewOptions();
+        this._iconThemeSent = true;
+        sendToUi(this.webview, {
+            type: 'iconTheme',
+            payload: { theme: this._iconTheme.payloadFor(this._view.webview) }
+        });
     }
 
     /** Sends the error/warning markers for the given (or last sent) tree */
@@ -591,6 +631,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      */
     dispose(): void {
         this._diagnosticsListener.dispose();
+        this._iconThemeListener.dispose();
         if (this._solutionChangeListener) {
             this._solutionChangeListener.dispose();
             this._solutionChangeListener = undefined;

@@ -2,6 +2,7 @@ import { DiagnosticMarkers, NodeType, ProjectNode } from ".."
 import { NuGetPackage, ProjectInfo } from "../../services/nuget/types"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
 import { NodeIdString } from "../nodeId"
+import { IconThemePayload } from "../iconTheme"
 
 export declare type ErrorCmd = {
     readonly type: 'error',
@@ -144,6 +145,13 @@ export declare type DiagnosticsCmd = {
     }
 }
 
+export declare type IconThemeCmd = {
+    readonly type: 'iconTheme',
+    readonly payload: {
+        readonly theme: IconThemePayload | null,
+    }
+}
+
 export declare type UICmd =
     ErrorCmd |
     SearchResultsCmd |
@@ -162,4 +170,5 @@ export declare type UICmd =
     AddTemporaryNodeCmd |
     RemoveTemporaryNodesCmd |
     StartRenameCmd |
-    DiagnosticsCmd;
+    DiagnosticsCmd |
+    IconThemeCmd;

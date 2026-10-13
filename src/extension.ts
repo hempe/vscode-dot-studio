@@ -3,6 +3,7 @@ import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
 import { DiagnosticsService } from './services/diagnosticsService';
+import { IconThemeService } from './services/iconThemeService';
 import { DotnetTaskProvider, DOTNET_TASK_TYPE } from './services/dotnetTaskProvider';
 import { ErrorListProvider, ERROR_LIST_SEVERITIES, ERROR_LIST_VIEW, ErrorListSeverity } from './services/errorListProvider';
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
@@ -68,11 +69,15 @@ export function activate(context: vscode.ExtensionContext) {
         ...ERROR_LIST_SEVERITIES.flatMap(severity => [toggleCommand(severity, 'show'), toggleCommand(severity, 'hide')])
     );
 
+    const iconThemeService = new IconThemeService();
+    context.subscriptions.push(iconThemeService);
+
     const solutionWebviewProvider = new SolutionWebviewProvider(
         context.extensionUri,
         context,
         frameworkDropdownService,
-        diagnosticsService
+        diagnosticsService,
+        iconThemeService
     );
 
     // Create NuGet custom editor provider

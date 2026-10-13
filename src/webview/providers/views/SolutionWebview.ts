@@ -20,7 +20,7 @@ export class SolutionWebView {
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'unsafe-eval'; connect-src https: data:;">
+                    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource}; img-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'unsafe-eval'; connect-src https: data:;">
                     <title>Solution Explorer</title>
                     <link rel="stylesheet" type="text/css" href="${codiconsCss}">
                     <style>
@@ -138,6 +138,16 @@ export class SolutionWebView {
     
                         .node-name {
                             font-size: var(--vscode-font-size);
+                        }
+
+                        /* Glyphs of font-based icon themes (e.g. Seti) size relative to the text, as in the explorer */
+                        .node-icon .theme-glyph {
+                            font-size: var(--vscode-font-size);
+                            line-height: 1;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            -webkit-font-smoothing: antialiased;
                         }
 
                         .node-name.startup-project {

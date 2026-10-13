@@ -12,6 +12,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Hierarchical solution (.sln and .slnx) and project tree
 - Solution folders and solution items (add, remove, rename)
 - Visual Studio–style file nesting
+- File and folder icons from your file icon theme (`workbench.iconTheme`: Seti, Material Icon Theme, vscode-icons, …), with built-in icons for solution, project and dependency nodes
 - Dependencies node (PackageReference, ProjectReference, framework and assembly references)
 - Startup project selection
 - Live updates through file watchers
@@ -58,7 +59,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Keep this README in line with the actual features
 
 ### Phase 1.5: Look like VS Code
-- [ ] Files and folders in the Solution Explorer use the user's file icon theme (`workbench.iconTheme`, e.g. Seti, Material Icon Theme, vscode-icons); `@iconify` stays as the fallback and for solution/project/dependency nodes
+- [x] Files and folders in the Solution Explorer use the user's file icon theme (`workbench.iconTheme`, e.g. Seti, Material Icon Theme, vscode-icons); `@iconify` stays as the fallback and for solution/project/dependency nodes
 
 ### Phase 2: Errors in the Problems Panel and the Solution Explorer
 **Goal**: An equivalent of Visual Studio's Error List, and of the [Solution Error Visualizer](https://marketplace.visualstudio.com/items?itemName=VisualStudioPlatformTeam.SolutionErrorVisualizer) extension showing in the tree where errors, warnings and infos are. The tree markers are a must-have.

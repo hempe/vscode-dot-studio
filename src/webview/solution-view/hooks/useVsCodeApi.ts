@@ -4,6 +4,7 @@ import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
 import { DiagnosticMarkers, NodeType, ProjectNode, SolutionData } from '../../../types';
 import { UICmd } from '../../../types/commands/ui';
+import { IconThemePayload } from '../../../types/iconTheme';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
 
 // Helper function to update a node in the tree structure
@@ -199,6 +200,7 @@ export const useVsCodeApi = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
     const [markers, setMarkers] = useState<DiagnosticMarkers>({} as DiagnosticMarkers);
+    const [iconTheme, setIconTheme] = useState<IconThemePayload | null>(null);
 
     useEffect(() => {
         log.info('Hook initialized, requesting solution data');
@@ -258,6 +260,9 @@ export const useVsCodeApi = () => {
                 case 'diagnostics':
                     setMarkers(message.payload.markers);
                     break;
+                case 'iconTheme':
+                    setIconTheme(message.payload.theme);
+                    break;
                 default:
                     log.info('Unknown message command:', message.payload);
             }
@@ -308,6 +313,7 @@ export const useVsCodeApi = () => {
         refreshing,
         activeFilePath,
         markers,
+        iconTheme,
         handleFrameworkChange,
         handleProjectAction,
         expandNode,

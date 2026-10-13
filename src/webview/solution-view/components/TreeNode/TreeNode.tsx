@@ -6,6 +6,8 @@ import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
 import { describeMarker, markerCount } from './diagnosticMarker';
+import { IconThemeContext, themeFontFamily } from './IconThemeContext';
+import { fontGlyph, resolveThemeIcon } from '../../../shared/iconTheme';
 
 const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -271,6 +273,18 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     // Memoize icon configuration to prevent multiple calls during render
     const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, nodeIdentifier, node.expanded]);
 
+    // Files and folders use the user's file icon theme when it has an icon for them
+    const iconTheme = React.useContext(IconThemeContext);
+    const themeIcon = React.useMemo(() => {
+        const kind = node.type === 'file' || node.type === 'solutionItem' ? 'file'
+            : node.type === 'folder' || node.type === 'solutionFolder' ? 'folder'
+                : undefined;
+        return kind && resolveThemeIcon(iconTheme, node.name, kind, !!node.expanded);
+    }, [iconTheme, node.type, node.name, node.expanded]);
+    const themeFont = themeIcon?.fontCharacter
+        ? iconTheme?.fonts.find(font => font.id === themeIcon.fontId) ?? iconTheme?.fonts[0]
+        : undefined;
+
     return (
         <div>
             <div
@@ -327,23 +341,31 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                         })
                     }}
                 >
-                    <Icon
-                        icon={iconConfig.icon}
-                        width={iconConfig.border ? "15" : "16"}
-                        height={iconConfig.border ? "15" : "16"}
-                        style={{
-                            color: iconConfig.color,
-                            display: 'block',
-                            minWidth: iconConfig.border ? "15px" : "16px",
-                            minHeight: iconConfig.border ? "15px" : "16px",
-                            ...(iconConfig.border && {
-                                position: 'absolute',
-                                bottom: '-6px',
-                                left: '0px',
-                                background: 'var(--vscode-editor-background)'
-                            })
-                        }}
-                    />
+                    {themeIcon?.svg ? (
+                        <img src={themeIcon.svg} width="16" height="16" alt="" style={{ display: 'block' }} />
+                    ) : themeIcon?.fontCharacter && themeFont ? (
+                        <span className="theme-glyph" style={{ fontFamily: themeFontFamily(themeFont.id), color: themeIcon.fontColor }}>
+                            <span style={{ fontSize: themeIcon.fontSize ?? themeFont.size }}>{fontGlyph(themeIcon.fontCharacter)}</span>
+                        </span>
+                    ) : (
+                        <Icon
+                            icon={iconConfig.icon}
+                            width={iconConfig.border ? "15" : "16"}
+                            height={iconConfig.border ? "15" : "16"}
+                            style={{
+                                color: iconConfig.color,
+                                display: 'block',
+                                minWidth: iconConfig.border ? "15px" : "16px",
+                                minHeight: iconConfig.border ? "15px" : "16px",
+                                ...(iconConfig.border && {
+                                    position: 'absolute',
+                                    bottom: '-6px',
+                                    left: '0px',
+                                    background: 'var(--vscode-editor-background)'
+                                })
+                            }}
+                        />
+                    )}
                 </div>
                 {isRenaming ? (
                     <RenameInput

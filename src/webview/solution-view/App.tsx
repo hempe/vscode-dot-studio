@@ -3,10 +3,11 @@ import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
 import { sendToBackend } from '../nuget-view/shared';
+import { IconThemeContext, IconThemeFonts } from './components/TreeNode/IconThemeContext';
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loading, refreshing, activeFilePath, markers, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loading, refreshing, activeFilePath, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
@@ -48,33 +49,36 @@ export const App: React.FC = React.memo(() => {
     }
 
     return (
-        <div className="solution-explorer" style={{ position: 'relative' }}>
-            <LoadingBar visible={refreshing} />
-            <div className="content">
-                <SolutionTree
-                    projects={solutionData.projects}
-                    activeFilePath={activeFilePath}
-                    onProjectAction={handleProjectAction}
-                    onExpandNode={expandNode}
-                    onCollapseNode={collapseNode}
-                    markers={markers}
-                />
-                {refreshing && (
-                    <div className="refresh-indicator" style={{
-                        position: 'absolute',
-                        bottom: '10px',
-                        right: '10px',
-                        background: 'var(--vscode-badge-background)',
-                        color: 'var(--vscode-badge-foreground)',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        opacity: '0.8'
-                    }}>
-                        Updating solution...
-                    </div>
-                )}
+        <IconThemeContext.Provider value={iconTheme}>
+            <div className="solution-explorer" style={{ position: 'relative' }}>
+                <IconThemeFonts theme={iconTheme} />
+                <LoadingBar visible={refreshing} />
+                <div className="content">
+                    <SolutionTree
+                        projects={solutionData.projects}
+                        activeFilePath={activeFilePath}
+                        onProjectAction={handleProjectAction}
+                        onExpandNode={expandNode}
+                        onCollapseNode={collapseNode}
+                        markers={markers}
+                    />
+                    {refreshing && (
+                        <div className="refresh-indicator" style={{
+                            position: 'absolute',
+                            bottom: '10px',
+                            right: '10px',
+                            background: 'var(--vscode-badge-background)',
+                            color: 'var(--vscode-badge-foreground)',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            opacity: '0.8'
+                        }}>
+                            Updating solution...
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </IconThemeContext.Provider>
     );
 });
