@@ -177,12 +177,15 @@ export async function createProject(
     return undefined;
 }
 
+/** All files below `folder` (readdir's `recursive` needs Node 20, older VS Code versions run Node 16/18) */
 function listFiles(folder: string): string[] {
-    return fs.existsSync(folder)
-        ? fs.readdirSync(folder, { recursive: true, withFileTypes: true })
-            .filter(entry => entry.isFile())
-            .map(entry => path.join(entry.parentPath, entry.name))
-        : [];
+    if (!fs.existsSync(folder)) {
+        return [];
+    }
+    return fs.readdirSync(folder, { withFileTypes: true }).flatMap(entry => {
+        const entryPath = path.join(folder, entry.name);
+        return entry.isDirectory() ? listFiles(entryPath) : entry.isFile() ? [entryPath] : [];
+    });
 }
 
 /**

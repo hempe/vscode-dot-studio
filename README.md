@@ -2,7 +2,7 @@
 
 # Shinobi .NET for VS Code
 
-A Visual Studio–style Solution Explorer, NuGet package manager and project tooling for .NET in VS Code. The goal is to replace Visual Studio (and Windows) for day-to-day work on modern .NET: ASP.NET web apps, device-bridge services that talk to local hardware and the cloud, and SOAP service clients. It aims for parity with Visual Studio on the basics, not on everything.
+A Visual Studio–style Solution Explorer, NuGet package manager and project tooling for .NET in VS Code. The goal is to replace Visual Studio (and Windows) for day-to-day work on modern .NET: ASP.NET web apps, services, and SOAP service clients. It aims for parity with Visual Studio on the basics, not on everything, and works in VS Code as well as in VSCodium and other Open VSX editors.
 
 **Out of scope:** .NET Framework 4.x and old-style (non-SDK) projects. Legacy code is only read for reference when porting, and any plain text editor is fine for that.
 
@@ -51,7 +51,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Offers to install `dotnet-svcutil` for the repository (tool manifest, same version for the team) or globally
 
 ### Tests
-- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner): tests grouped by project, namespace and class, with gutter icons in the editor
+- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner): tests grouped by project, namespace and class, with gutter icons in the editor. Classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters) are not listed yet
 - Run and debug single tests, classes or projects; results with failure messages and stack traces
 - Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
 - The C# extension's own "Run Test | Debug Test" code lenses stay; turn them off with `"dotnet.codeLens.enableTestsCodeLens": false` if the gutter icons are enough
@@ -62,8 +62,23 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - When a feed rejects its credentials (expired token): a message with the file and line of the credentials, what to do for that kind of feed, and "Enter New Token..." to store a new one
 - Package details, versions, dependencies and README
 
+## Settings
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.solutionExplorer.location` | `sidebar` | Solution Explorer in the primary or the secondary side bar |
+| `shinobi.diagnostics.showErrors` | `true` | Errors in the Error List and the Solution Explorer (the Error List's Errors toggle) |
+| `shinobi.diagnostics.showWarnings` | `true` | Warnings, likewise (Warnings toggle) |
+| `shinobi.diagnostics.showInfos` | `false` | Infos and suggestions, Visual Studio's "Messages" (Messages toggle); replaces `shinobi.solutionExplorer.diagnostics.showInfos` |
+
+Useful settings of the C# extension:
+- `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`: live errors for all files, not only open ones
+- `"dotnet.codeLens.enableTestsCodeLens": false`: no "Run Test | Debug Test" code lenses next to the Test Explorer's gutter icons
+- `"dotnet.server.useOmnisharp": false` (with `muhammad-sammy.csharp`): the Roslyn language server, needed for .slnx
+
 ## Known Issues
-- [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
+- [ ] Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used; store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
+- [ ] The Test Explorer doesn't list classic VSTest projects yet (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
@@ -71,7 +86,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cover web apps and SOAP clients; phases 5–8 are conveniences for which the `dotnet` CLI already works in the meantime.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds; phase 8 collects conveniences, phase 9 is publishing, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -148,10 +163,6 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] `vscode.TestController` with project → namespace → class → test (→ parameterized cases) hierarchy, linked to file and line
 - [x] Discover Microsoft.Testing.Platform tests (xUnit v3, MSTest runner, TUnit, NUnit runner); run and debug single tests, classes or whole projects; re-discover after builds
 - [x] Show results (failure message, stack trace, expected/actual where the framework reports them) and output
-- [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
-- [ ] Test Phase 5 (template wizards) in VS Code with ApiDotNetTestProject: Add New Project on the solution and on a solution folder (settings, framework, location), Add New Item on a folder (built-in class, API Controller with read/write actions, a config file), rename a file with nested files
-- [x] Test Phase 6 (Test Explorer) in VS Code with `Shared.Tests` in ApiDotNetTestProject: tests appear after a build, run all and single tests, the failing test shows its message and jumps to its line, debug a test with a breakpoint
-- [ ] Test Phase 2.5 (Error List table) in VS Code: sort, search, column filters, code links, double-click to the line; toggling warnings also removes their markers from the Solution Explorer
 
 **Implementation Notes**:
 - Microsoft.Testing.Platform's server mode: the test app (`dotnet <TargetPath> --server --client-port <port>`) connects to the extension and speaks JSON-RPC (`testing/discoverTests`, `testing/runTests`, `testing/testUpdates/tests`), which brings file and line of every test
@@ -184,8 +195,8 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 ## Installation
 
 ### Prerequisites
-- VS Code 1.74.0 or higher
-- .NET SDK 6.0 or higher
+- VS Code 1.74.0 or higher (or VSCodium / another Open VSX editor)
+- .NET SDK 8.0 or higher (.slnx solutions need 9.0.200 or higher)
 - A C# extension, for debugging and namespace updates: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium and other Open VSX editors. C# Dev Kit is not required.
 - With `muhammad-sammy.csharp` and .slnx solutions, use the Roslyn language server (`"dotnet.server.useOmnisharp": false`); its default, OmniSharp, cannot load .slnx. The extension offers to switch.
 
@@ -198,13 +209,17 @@ npm run build
 ## Project Structure
 ```
 src/
-├── extension.ts      # Entry point
-├── core/             # Solution & Project models, context menu definitions
-├── handlers/         # .sln / .slnx file handlers
-├── parsers/          # .sln, .slnx and project file parsers/editors
-├── services/         # Solution tree, actions, debug config, NuGet
-├── types/            # Webview ⇄ extension message types
-└── webview/          # React UI (Solution Explorer, NuGet manager) and providers
+├── extension.ts            # Entry point
+├── core/                   # Solution & Project models, context menu definitions
+├── handlers/               # .sln / .slnx file handlers
+├── parsers/                # .sln, .slnx and project file parsers/editors
+├── services/               # Solution tree, actions, build tasks, debug config, diagnostics
+│   ├── nuget/              # NuGet feeds, credentials, package operations
+│   ├── serviceReferences/  # Connected Services (dotnet-svcutil)
+│   ├── templates/          # dotnet new templates, Add New Project / Item
+│   └── testing/            # Test Explorer (Microsoft.Testing.Platform)
+├── types/                  # Webview ⇄ extension message types
+└── webview/                # React UIs (Solution Explorer, NuGet manager, Error List, template wizard) and their providers
 ```
 
 ## License
