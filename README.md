@@ -136,6 +136,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Discover MSTest, xUnit and NUnit tests; run and debug single tests or whole projects
 - [ ] Show results and output
 - [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
+- [ ] Test Phase 5 (template wizards) in VS Code with ApiDotNetTestProject: Add New Project on the solution and on a solution folder (settings, framework, location), Add New Item on a folder (built-in class, API Controller with read/write actions, a config file), rename a file with nested files
 
 **Implementation Notes**:
 - Discovery via `dotnet test --list-tests`, execution via `dotnet test --filter`, results from TRX
