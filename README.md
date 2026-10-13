@@ -49,7 +49,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cover web apps and SOAP clients; phases 5–7 are conveniences for which the `dotnet` CLI already works in the meantime.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cover web apps and SOAP clients; phases 5–8 are conveniences for which the `dotnet` CLI already works in the meantime.
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -92,7 +92,6 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
 - [ ] Choose the launch profile (like Visual Studio's run dropdown); for now a quick pick asks on "Set as Startup Project" when there are several
 - [ ] Resolve the output path through MSBuild instead of hardcoding `bin/Debug/<tfm>/` (respects Release, `OutputPath`, artifacts layout)
-- [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Phase 4: Connected Services (SOAP)
 **Goal**: The "Add Service Reference / Connected Service" workflow for WCF/SOAP clients.
@@ -126,6 +125,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Remote debugging on devices over SSH (`pipeTransport` launch configurations)
 - [ ] Publish (`dotnet publish`) with runtime identifier and self-contained options
 - [ ] Encrypted NuGet credentials
+
+### Phase 8: Nice to Have
+- [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Not Planned
 - .NET Framework 4.x / Mono build and debug support
