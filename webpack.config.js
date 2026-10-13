@@ -45,7 +45,8 @@ module.exports = [
         entry: {
             'solution-view': './src/webview/solution-view/index.tsx',
             'nuget-view': './src/webview/nuget-view/index.tsx',
-            'template-wizard': './src/webview/template-wizard/index.tsx'
+            'template-wizard': './src/webview/template-wizard/index.tsx',
+            'error-list': './src/webview/error-list/index.tsx'
         },
         output: {
             path: path.resolve(__dirname, 'out/webview'),

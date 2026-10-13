@@ -1,13 +1,13 @@
 import * as path from 'path';
-import { buildErrorList, MISCELLANEOUS_FILES, summarizeErrorList } from '../../../services/errorList';
+import { buildErrorRows, MISCELLANEOUS_FILES, summarizeErrorList } from '../../../services/errorList';
 import { normalizePath } from '../../../services/diagnosticsRollup';
 import { FileDiagnostics, ListedDiagnostic, ListedSeverity } from '../../../services/diagnosticsService';
 
 const root = path.resolve('/repo');
 const p = (...parts: string[]) => path.join(root, ...parts);
 
-const diag = (severity: ListedSeverity, line: number, character = 0): ListedDiagnostic =>
-    ({ severity, message: `${severity} at ${line}`, code: 'X1', range: { start: { line, character } } }) as ListedDiagnostic;
+const diag = (severity: ListedSeverity, line: number, character = 0, code = 'X1'): ListedDiagnostic =>
+    ({ severity, message: `${severity} at ${line}`, code, range: { start: { line, character } } }) as ListedDiagnostic;
 
 const files = (entries: Record<string, ListedDiagnostic[]>) =>
     new Map<string, FileDiagnostics>(Object.entries(entries).map(([file, diagnostics]) =>
@@ -19,49 +19,38 @@ const projects = [
     { name: 'Api.Tests', path: p('Api', 'Tests', 'Api.Tests.csproj') },
 ];
 
-const all = { errors: true, warnings: true, messages: true };
+describe('buildErrorRows', () => {
+    test('one row per diagnostic with project, file relative to it, 1-based position', () => {
+        const rows = buildErrorRows(files({ [p('Api', 'Controllers', 'Values.cs')]: [{ ...diag('warning', 4, 2, 'CS0168'), codeUrl: 'https://docs/cs0168' }] }), projects);
+        expect(rows).toEqual([{
+            id: expect.any(String), severity: 'warning', code: 'CS0168', codeUrl: 'https://docs/cs0168', message: 'warning at 4',
+            project: 'Api', file: path.join('Controllers', 'Values.cs'), filePath: p('Api', 'Controllers', 'Values.cs'), line: 5, column: 3,
+        }]);
+    });
 
-describe('buildErrorList', () => {
-    test('groups files by project, sorted by name, with unmatched files last', () => {
-        const list = buildErrorList(files({
-            [p('Domain', 'Order.cs')]: [diag('warning', 1)],
-            [p('Api', 'Program.cs')]: [diag('error', 3)],
+    test('a file belongs to the innermost project directory; others are Miscellaneous Files', () => {
+        const rows = buildErrorRows(files({
+            [p('Api', 'Tests', 'UserTests.cs')]: [diag('error', 1)],
             [p('build', 'tool.cs')]: [diag('error', 1)],
-        }), projects, all);
-        expect(list.map(project => [project.name, project.files.map(f => path.basename(f.uri.fsPath))])).toEqual([
-            ['Api', ['Program.cs']],
-            ['Domain', ['Order.cs']],
-            [MISCELLANEOUS_FILES, ['tool.cs']],
+        }), projects);
+        expect(rows.map(r => [r.project, r.file])).toEqual([['Api.Tests', 'UserTests.cs'], [MISCELLANEOUS_FILES, 'tool.cs']]);
+    });
+
+    test('sorted by severity, project, file and position', () => {
+        const rows = buildErrorRows(files({
+            [p('Domain', 'Order.cs')]: [diag('info', 1), diag('error', 9)],
+            [p('Api', 'Program.cs')]: [diag('warning', 2, 5), diag('error', 3), diag('warning', 2, 1)],
+        }), projects);
+        expect(rows.map(r => `${r.severity} ${r.project} ${r.line}:${r.column}`)).toEqual([
+            'error Api 4:1', 'error Domain 10:1', 'warning Api 3:2', 'warning Api 3:6', 'info Domain 2:1',
         ]);
-    });
-
-    test('a file belongs to the innermost project directory', () => {
-        const list = buildErrorList(files({ [p('Api', 'Tests', 'UserTests.cs')]: [diag('error', 1)] }), projects, all);
-        expect(list.map(project => project.name)).toEqual(['Api.Tests']);
-    });
-
-    test('sorts diagnostics by line and column', () => {
-        const list = buildErrorList(files({
-            [p('Api', 'Program.cs')]: [diag('warning', 9), diag('error', 2, 5), diag('error', 2, 1)],
-        }), projects, all);
-        expect(list[0].files[0].diagnostics.map(d => [d.range.start.line, d.range.start.character])).toEqual([[2, 1], [2, 5], [9, 0]]);
-    });
-
-    test('filters severities and drops files and projects left empty', () => {
-        const list = buildErrorList(files({
-            [p('Api', 'Program.cs')]: [diag('error', 1), diag('info', 2)],
-            [p('Domain', 'Order.cs')]: [diag('info', 1)],
-        }), projects, { errors: true, warnings: true, messages: false });
-        expect(list.map(project => project.name)).toEqual(['Api']);
-        expect(list[0].files[0].diagnostics.map(d => d.severity)).toEqual(['error']);
+        expect(new Set(rows.map(r => r.id)).size).toBe(rows.length);
     });
 });
 
 describe('summarizeErrorList', () => {
-    test('counts every severity regardless of the filter', () => {
-        expect(summarizeErrorList(files({
-            [p('Api', 'Program.cs')]: [diag('error', 1), diag('info', 2), diag('info', 3)],
-            [p('Domain', 'Order.cs')]: [diag('warning', 1)],
-        }))).toEqual({ errors: 1, warnings: 1, messages: 2 });
+    test('counts every severity', () => {
+        expect(summarizeErrorList(files({ [p('Api', 'A.cs')]: [diag('error', 1), diag('info', 2), diag('info', 3)] })))
+            .toEqual({ errors: 1, warnings: 0, infos: 2 });
     });
 });

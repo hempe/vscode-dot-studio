@@ -38,10 +38,27 @@
           "default": "sidebar",
           "description": "Choose where the Solution Explorer appears"
         },
+        "shinobi.diagnostics.showErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show errors in the Error List and mark them in the Solution Explorer (the Error List's Errors toggle)"
+        },
+        "shinobi.diagnostics.showWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings in the Error List and mark them in the Solution Explorer (the Error List's Warnings toggle)"
+        },
+        "shinobi.diagnostics.showInfos": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Error List and mark them in the Solution Explorer (the Error List's Messages toggle)"
+        },
         "shinobi.solutionExplorer.diagnostics.showInfos": {
           "type": "boolean",
           "default": false,
-          "description": "Also mark infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Solution Explorer; errors and warnings are always marked"
+          "description": "Also mark infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Solution Explorer; errors and warnings are always marked",
+          "deprecationMessage": "Use shinobi.diagnostics.showInfos, which the Error List toggles share with the Solution Explorer.",
+          "markdownDeprecationMessage": "Use `#shinobi.diagnostics.showInfos#`, which the Error List toggles share with the Solution Explorer."
         }
       }
     },
@@ -97,7 +114,8 @@
         {
           "id": "shinobi.errorList",
           "name": "Error List",
-          "when": "shinobi.workspaceHasDotnetFiles"
+          "when": "shinobi.workspaceHasDotnetFiles",
+          "type": "webview"
         }
       ]
     },
@@ -176,42 +194,6 @@
         "command": "shinobi.solution.debug",
         "title": "Start Debugging",
         "icon": "$(debug-start)"
-      },
-      {
-        "command": "shinobi.errorList.hideErrors",
-        "title": "Hide Errors",
-        "category": "Error List",
-        "icon": "$(error)"
-      },
-      {
-        "command": "shinobi.errorList.showErrors",
-        "title": "Show Errors",
-        "category": "Error List",
-        "icon": "$(circle-slash)"
-      },
-      {
-        "command": "shinobi.errorList.hideWarnings",
-        "title": "Hide Warnings",
-        "category": "Error List",
-        "icon": "$(warning)"
-      },
-      {
-        "command": "shinobi.errorList.showWarnings",
-        "title": "Show Warnings",
-        "category": "Error List",
-        "icon": "$(circle-slash)"
-      },
-      {
-        "command": "shinobi.errorList.hideMessages",
-        "title": "Hide Messages",
-        "category": "Error List",
-        "icon": "$(info)"
-      },
-      {
-        "command": "shinobi.errorList.showMessages",
-        "title": "Show Messages",
-        "category": "Error List",
-        "icon": "$(circle-slash)"
       },
       {
         "command": "shinobi.solutionExplorer.openFile",
@@ -402,36 +384,6 @@
           "command": "shinobi.solution.debug",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@2"
-        },
-        {
-          "command": "shinobi.errorList.hideErrors",
-          "when": "view == shinobi.errorList && shinobi.errorList.errorsShown",
-          "group": "navigation@1"
-        },
-        {
-          "command": "shinobi.errorList.showErrors",
-          "when": "view == shinobi.errorList && !shinobi.errorList.errorsShown",
-          "group": "navigation@1"
-        },
-        {
-          "command": "shinobi.errorList.hideWarnings",
-          "when": "view == shinobi.errorList && shinobi.errorList.warningsShown",
-          "group": "navigation@2"
-        },
-        {
-          "command": "shinobi.errorList.showWarnings",
-          "when": "view == shinobi.errorList && !shinobi.errorList.warningsShown",
-          "group": "navigation@2"
-        },
-        {
-          "command": "shinobi.errorList.hideMessages",
-          "when": "view == shinobi.errorList && shinobi.errorList.messagesShown",
-          "group": "navigation@3"
-        },
-        {
-          "command": "shinobi.errorList.showMessages",
-          "when": "view == shinobi.errorList && !shinobi.errorList.messagesShown",
-          "group": "navigation@3"
         }
       ],
       "shinobi.solution.configurations": [

@@ -2,9 +2,8 @@ import * as vscode from 'vscode';
 import { DiagnosticCounts } from '../types';
 import { FileCounts, normalizePath } from './diagnosticsRollup';
 import { SimpleDebounceManager } from './debounceManager';
+import { affectsSeverityFilter, readSeverityFilter, SeverityFilter } from './diagnosticsFilter';
 
-const CONFIG_SECTION = 'shinobi.solutionExplorer';
-const SHOW_INFOS_KEY = 'diagnostics.showInfos';
 
 /** `$msCompile` appends the project to the message: `... [/repo/Api/Api.csproj]` */
 const PROJECT_SUFFIX = /\s+\[[^\]]+\]$/;
@@ -16,7 +15,22 @@ export interface ListedDiagnostic {
     readonly severity: ListedSeverity;
     readonly message: string;
     readonly code?: string;
+    /** Documentation of the code: the analyzer's own link, or the docs page by prefix (CS, IDE, CA, NETSDK) */
+    readonly codeUrl?: string;
     readonly range: vscode.Range;
+}
+
+const DOCS: [RegExp, (code: string) => string][] = [
+    [/^CS\d+$/i, code => `https://learn.microsoft.com/dotnet/csharp/language-reference/compiler-messages/${code.toLowerCase()}`],
+    [/^IDE\d+$/i, code => `https://learn.microsoft.com/dotnet/fundamentals/code-analysis/style-rules/${code.toLowerCase()}`],
+    [/^CA\d+$/i, code => `https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/${code.toLowerCase()}`],
+    [/^NETSDK\d+$/i, code => `https://learn.microsoft.com/dotnet/core/tools/sdk-errors/${code.toLowerCase()}`],
+];
+
+/** The docs page for a diagnostic code, where its prefix has one */
+export function documentationUrl(code: string | undefined): string | undefined {
+    const docs = code ? DOCS.find(([pattern]) => pattern.test(code)) : undefined;
+    return docs && code ? docs[1](code) : undefined;
 }
 
 export interface FileDiagnostics {
@@ -61,6 +75,7 @@ export function collectDiagnostics(
 
             const rawCode = typeof diagnostic.code === 'object' ? diagnostic.code.value : diagnostic.code;
             const code = rawCode === undefined ? undefined : String(rawCode);
+            const codeUrl = (typeof diagnostic.code === 'object' ? diagnostic.code.target?.toString() : undefined) ?? documentationUrl(code);
             const message = diagnostic.message.replace(PROJECT_SUFFIX, '');
             const key = [severity, diagnostic.range.start.line, code ?? '', message].join('|');
 
@@ -71,20 +86,20 @@ export function collectDiagnostics(
             }
             if (!entry.seen.has(key)) {
                 entry.seen.add(key);
-                entry.diagnostics.push({ severity, message, code, range: diagnostic.range });
+                entry.diagnostics.push({ severity, message, code, ...(codeUrl ? { codeUrl } : {}), range: diagnostic.range });
             }
         }
     }
     return new Map([...result].map(([file, { uri, diagnostics }]) => [file, { uri, diagnostics }]));
 }
 
-/** Counts collected diagnostics per file; infos only count when `showInfos` is on */
-export function countFiles(files: CollectedDiagnostics, showInfos: boolean): Map<string, DiagnosticCounts> {
+/** Counts collected diagnostics per file, for the severities the filter shows */
+export function countFiles(files: CollectedDiagnostics, filter: SeverityFilter): Map<string, DiagnosticCounts> {
     const result = new Map<string, DiagnosticCounts>();
     for (const [file, { diagnostics }] of files) {
-        const errors = diagnostics.filter(d => d.severity === 'error').length;
-        const warnings = diagnostics.filter(d => d.severity === 'warning').length;
-        const infos = showInfos ? diagnostics.filter(d => d.severity === 'info').length : 0;
+        const errors = filter.errors ? diagnostics.filter(d => d.severity === 'error').length : 0;
+        const warnings = filter.warnings ? diagnostics.filter(d => d.severity === 'warning').length : 0;
+        const infos = filter.infos ? diagnostics.filter(d => d.severity === 'info').length : 0;
         if (errors || warnings || infos) {
             result.set(file, { errors, warnings, infos });
         }
@@ -92,12 +107,12 @@ export function countFiles(files: CollectedDiagnostics, showInfos: boolean): Map
     return result;
 }
 
-/** Counts errors, warnings and (optionally) infos and suggestions per file, without duplicates */
+/** Counts errors, warnings and infos and suggestions per file, without duplicates, for the severities the filter shows */
 export function countDiagnostics(
     entries: ReadonlyArray<readonly [vscode.Uri, readonly vscode.Diagnostic[]]>,
-    showInfos: boolean
+    filter: SeverityFilter
 ): Map<string, DiagnosticCounts> {
-    return countFiles(collectDiagnostics(entries), showInfos);
+    return countFiles(collectDiagnostics(entries), filter);
 }
 
 /** Keeps per-file diagnostics and counts up to date and fires `onDidChange` after each recompute */
@@ -115,7 +130,7 @@ export class DiagnosticsService implements vscode.Disposable {
             this._onDidChange,
             vscode.languages.onDidChangeDiagnostics(() => this._debouncer.trigger()),
             vscode.workspace.onDidChangeConfiguration(e => {
-                if (e.affectsConfiguration(`${CONFIG_SECTION}.${SHOW_INFOS_KEY}`)) {
+                if (affectsSeverityFilter(e)) {
                     this._debouncer.trigger();
                 }
             })
@@ -123,7 +138,7 @@ export class DiagnosticsService implements vscode.Disposable {
         this.recompute();
     }
 
-    /** Per-file counts for the tree markers (infos depend on the setting) */
+    /** Per-file counts for the tree markers, for the severities the shared filter shows */
     get counts(): FileCounts {
         return this._counts;
     }
@@ -134,9 +149,8 @@ export class DiagnosticsService implements vscode.Disposable {
     }
 
     recompute(): void {
-        const showInfos = vscode.workspace.getConfiguration(CONFIG_SECTION).get<boolean>(SHOW_INFOS_KEY, false);
         this._files = collectDiagnostics(vscode.languages.getDiagnostics());
-        this._counts = countFiles(this._files, showInfos);
+        this._counts = countFiles(this._files, readSeverityFilter());
         this._onDidChange.fire();
     }
 

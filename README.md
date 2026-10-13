@@ -17,11 +17,12 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Startup project selection, offered only on projects that can be started (console, desktop, web, worker and Aspire host projects; not libraries or test projects)
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
-- Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
+- Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`); infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are off by default
 
 ### Error List
-- Visual Studio–style Error List in the panel: errors, warnings and messages (infos and suggestions, which the Problems panel never shows), grouped by project and file, deduplicated across build output and the language server
-- Toggle each severity from the view's title bar; click an entry to jump to its file and line; the tab badge shows the error count
+- Visual Studio–style Error List in the panel: a table of errors, warnings and messages (infos and suggestions, which the Problems panel never shows) with Code, Description, Project, File and Line, deduplicated across build output and the language server
+- Sort by any column, search, and filter Code, Project and File by their values; codes link to their documentation; double-click or Enter jumps to the file and line; the tab badge shows the error count
+- The Errors / Warnings / Messages toggles also decide which markers the Solution Explorer shows
 
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
@@ -98,7 +99,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 
 **Error List** (like Visual Studio's; the Problems panel never shows hints, which is how Roslyn reports suggestions):
 - [x] Native "Error List" view in the panel: errors, warnings and messages (infos and suggestions), grouped by project and file
-- [x] Toggle errors, warnings and messages; click an entry to jump to its file and line
+- [x] Toggle errors, warnings and messages; click an entry to jump to its file and line (now a table, see Phase 2.5)
 - [x] Error count badge on the view
 
 **Implementation Notes**:
@@ -106,9 +107,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
 
 ### Phase 2.5: Error List like Visual Studio
-- [ ] A table instead of a tree: severity, Code, Description, Project, File, Line
-- [ ] Sort by any column; search box; filter Code, Project and File by their values (like Visual Studio's column filters); codes link to their documentation
-- [ ] The Errors / Warnings / Messages toggles are shared settings (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`) that also decide which markers the Solution Explorer shows
+- [x] A table instead of a tree: severity, Code, Description, Project, File, Line
+- [x] Sort by any column; search box; filter Code, Project and File by their values (like Visual Studio's column filters); codes link to their documentation
+- [x] The Errors / Warnings / Messages toggles are shared settings (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`) that also decide which markers the Solution Explorer shows
 
 ### Phase 3: Run & Debug Web Apps (F5)
 **Goal**: F5 on an ASP.NET project behaves like Visual Studio.

@@ -6,7 +6,7 @@ import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProv
 import { DiagnosticsService } from './services/diagnosticsService';
 import { IconThemeService } from './services/iconThemeService';
 import { DotnetTaskProvider, DOTNET_TASK_TYPE } from './services/dotnetTaskProvider';
-import { ErrorListProvider, ERROR_LIST_SEVERITIES, ERROR_LIST_VIEW, ErrorListSeverity } from './services/errorListProvider';
+import { ErrorListViewProvider, ERROR_LIST_VIEW } from './webview/providers/ErrorListViewProvider';
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { isExcluded } from './core/constants';
@@ -74,15 +74,10 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.tasks.registerTaskProvider(DOTNET_TASK_TYPE, new DotnetTaskProvider())
     );
 
-    const errorList = new ErrorListProvider(diagnosticsService, context.workspaceState);
-    const errorListView = vscode.window.createTreeView(ERROR_LIST_VIEW, { treeDataProvider: errorList, showCollapseAll: true });
-    errorList.attach(errorListView);
-    const toggleCommand = (severity: ErrorListSeverity, verb: 'show' | 'hide') =>
-        vscode.commands.registerCommand(`shinobi.errorList.${verb}${severity[0].toUpperCase()}${severity.slice(1)}`, () => errorList.toggle(severity));
+    const errorList = new ErrorListViewProvider(context.extensionUri, diagnosticsService);
     context.subscriptions.push(
         errorList,
-        errorListView,
-        ...ERROR_LIST_SEVERITIES.flatMap(severity => [toggleCommand(severity, 'show'), toggleCommand(severity, 'hide')])
+        vscode.window.registerWebviewViewProvider(ERROR_LIST_VIEW, errorList, { webviewOptions: { retainContextWhenHidden: true } })
     );
 
     const iconThemeService = new IconThemeService();

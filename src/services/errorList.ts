@@ -1,69 +1,64 @@
 import * as path from 'path';
-import type { CollectedDiagnostics, FileDiagnostics, ListedDiagnostic } from './diagnosticsService';
+import type { CollectedDiagnostics, ListedSeverity } from './diagnosticsService';
 import { normalizePath } from './diagnosticsRollup';
+import type { ErrorListRow, ErrorListSummary } from '../types/errorList';
 
-/** Group for files that belong to no project, as in Visual Studio */
+/** Project column for files that belong to no project, as in Visual Studio */
 export const MISCELLANEOUS_FILES = 'Miscellaneous Files';
 
-export interface ErrorListFilter {
-    readonly errors: boolean;
-    readonly warnings: boolean;
-    readonly messages: boolean;
-}
+const SEVERITY_ORDER: Record<ListedSeverity, number> = { error: 0, warning: 1, info: 2 };
 
-export interface ErrorListSummary {
-    readonly errors: number;
-    readonly warnings: number;
-    readonly messages: number;
-}
-
-export interface ErrorListProject {
-    readonly name: string;
-    readonly files: readonly FileDiagnostics[];
-}
-
-/** Groups the diagnostics that pass the filter by project (innermost project directory) and file */
-export function buildErrorList(
+/**
+ * One row per diagnostic, like Visual Studio's Error List: the project is the innermost project directory
+ * the file is in, the file is shown relative to it. Sorted by severity, project, file and position.
+ */
+export function buildErrorRows(
     files: CollectedDiagnostics,
-    projects: readonly { readonly name: string; readonly path: string }[],
-    filter: ErrorListFilter
-): ErrorListProject[] {
+    projects: readonly { readonly name: string; readonly path: string }[]
+): ErrorListRow[] {
     const directories = projects
-        .map(project => ({ name: project.name, prefix: normalizePath(path.dirname(project.path) + path.sep) }))
+        .map(project => ({ name: project.name, dir: path.dirname(project.path), prefix: normalizePath(path.dirname(project.path) + path.sep) }))
         .sort((a, b) => b.prefix.length - a.prefix.length);
 
-    const groups = new Map<string, FileDiagnostics[]>();
+    const rows: ErrorListRow[] = [];
     for (const [file, { uri, diagnostics }] of files) {
-        const shown = diagnostics.filter(d => isShown(d, filter)).sort(byPosition);
-        if (shown.length === 0) {
-            continue;
+        const project = directories.find(d => file.startsWith(d.prefix));
+        const shownFile = project ? path.relative(project.dir, uri.fsPath) : path.basename(uri.fsPath);
+        for (const diagnostic of diagnostics) {
+            const line = diagnostic.range.start.line + 1;
+            const column = diagnostic.range.start.character + 1;
+            rows.push({
+                id: `${file}|${diagnostic.severity}|${line}|${column}|${diagnostic.code ?? ''}|${diagnostic.message}`,
+                severity: diagnostic.severity,
+                ...(diagnostic.code ? { code: diagnostic.code } : {}),
+                ...(diagnostic.codeUrl ? { codeUrl: diagnostic.codeUrl } : {}),
+                message: diagnostic.message,
+                project: project?.name ?? MISCELLANEOUS_FILES,
+                file: shownFile,
+                filePath: uri.fsPath,
+                line,
+                column,
+            });
         }
-        const name = directories.find(d => file.startsWith(d.prefix))?.name ?? MISCELLANEOUS_FILES;
-        groups.set(name, [...(groups.get(name) ?? []), { uri, diagnostics: shown }]);
     }
-
-    return [...groups]
-        .map(([name, groupFiles]) => ({ name, files: groupFiles.sort((a, b) => a.uri.fsPath.localeCompare(b.uri.fsPath)) }))
-        .sort((a, b) => (a.name === MISCELLANEOUS_FILES ? 1 : 0) - (b.name === MISCELLANEOUS_FILES ? 1 : 0) || a.name.localeCompare(b.name));
+    return rows.sort((a, b) =>
+        SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
+        || (a.project === MISCELLANEOUS_FILES ? 1 : 0) - (b.project === MISCELLANEOUS_FILES ? 1 : 0)
+        || a.project.localeCompare(b.project)
+        || a.file.localeCompare(b.file)
+        || a.line - b.line
+        || a.column - b.column);
 }
 
-/** Total errors, warnings and messages, ignoring the filter */
+/** Total errors, warnings and messages, whatever the filter */
 export function summarizeErrorList(files: CollectedDiagnostics): ErrorListSummary {
-    let errors = 0, warnings = 0, messages = 0;
+    let errors = 0, warnings = 0, infos = 0;
     for (const { diagnostics } of files.values()) {
         for (const { severity } of diagnostics) {
             if (severity === 'error') errors++;
             else if (severity === 'warning') warnings++;
-            else messages++;
+            else infos++;
         }
     }
-    return { errors, warnings, messages };
-}
-
-function isShown({ severity }: ListedDiagnostic, filter: ErrorListFilter): boolean {
-    return severity === 'error' ? filter.errors : severity === 'warning' ? filter.warnings : filter.messages;
-}
-
-function byPosition(a: ListedDiagnostic, b: ListedDiagnostic): number {
-    return a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character;
+    return { errors, warnings, infos };
 }
