@@ -88,6 +88,13 @@
           "type": "webview",
           "when": "shinobi.workspaceHasDotnetFiles && config.shinobi.solutionExplorer.location == 'secondary-sidebar'"
         }
+      ],
+      "shinobi-error-list": [
+        {
+          "id": "shinobi.errorList",
+          "name": "Error List",
+          "when": "shinobi.workspaceHasDotnetFiles"
+        }
       ]
     },
     "viewsContainers": {
@@ -103,6 +110,13 @@
           "id": "shinobi-solution-explorer-secondary-sidebar",
           "title": "Solution",
           "icon": "$(folder-library)"
+        }
+      ],
+      "panel": [
+        {
+          "id": "shinobi-error-list",
+          "title": "Error List",
+          "icon": "$(checklist)"
         }
       ]
     },
@@ -137,6 +151,42 @@
         "command": "shinobi.solution.debug",
         "title": "Start Debugging",
         "icon": "$(debug-start)"
+      },
+      {
+        "command": "shinobi.errorList.hideErrors",
+        "title": "Hide Errors",
+        "category": "Error List",
+        "icon": "$(error)"
+      },
+      {
+        "command": "shinobi.errorList.showErrors",
+        "title": "Show Errors",
+        "category": "Error List",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "shinobi.errorList.hideWarnings",
+        "title": "Hide Warnings",
+        "category": "Error List",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "shinobi.errorList.showWarnings",
+        "title": "Show Warnings",
+        "category": "Error List",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "shinobi.errorList.hideMessages",
+        "title": "Hide Messages",
+        "category": "Error List",
+        "icon": "$(info)"
+      },
+      {
+        "command": "shinobi.errorList.showMessages",
+        "title": "Show Messages",
+        "category": "Error List",
+        "icon": "$(circle-slash)"
       },
       {
         "command": "shinobi.solutionExplorer.openFile",
@@ -290,6 +340,36 @@
           "command": "shinobi.solution.debug",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@2"
+        },
+        {
+          "command": "shinobi.errorList.hideErrors",
+          "when": "view == shinobi.errorList && shinobi.errorList.errorsShown",
+          "group": "navigation@1"
+        },
+        {
+          "command": "shinobi.errorList.showErrors",
+          "when": "view == shinobi.errorList && !shinobi.errorList.errorsShown",
+          "group": "navigation@1"
+        },
+        {
+          "command": "shinobi.errorList.hideWarnings",
+          "when": "view == shinobi.errorList && shinobi.errorList.warningsShown",
+          "group": "navigation@2"
+        },
+        {
+          "command": "shinobi.errorList.showWarnings",
+          "when": "view == shinobi.errorList && !shinobi.errorList.warningsShown",
+          "group": "navigation@2"
+        },
+        {
+          "command": "shinobi.errorList.hideMessages",
+          "when": "view == shinobi.errorList && shinobi.errorList.messagesShown",
+          "group": "navigation@3"
+        },
+        {
+          "command": "shinobi.errorList.showMessages",
+          "when": "view == shinobi.errorList && !shinobi.errorList.messagesShown",
+          "group": "navigation@3"
         }
       ],
       "webview/context": [

@@ -18,6 +18,10 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
 - Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
 
+### Error List
+- Visual Studio–style Error List in the panel: errors, warnings and messages (infos and suggestions, which the Problems panel never shows), grouped by project and file, deduplicated across build output and the language server
+- Toggle each severity from the view's title bar; click an entry to jump to its file and line; the tab badge shows the error count
+
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
 - Add existing projects; remove or delete projects
@@ -68,9 +72,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Build solution from the command palette / a key binding (Ctrl+Shift+B)
 
 **Error List** (like Visual Studio's; the Problems panel never shows hints, which is how Roslyn reports suggestions):
-- [ ] Native "Error List" view in the panel: errors, warnings and messages (infos and suggestions), grouped by project and file
-- [ ] Toggle errors, warnings and messages; click an entry to jump to its file and line
-- [ ] Error count badge on the view
+- [x] Native "Error List" view in the panel: errors, warnings and messages (infos and suggestions), grouped by project and file
+- [x] Toggle errors, warnings and messages; click an entry to jump to its file and line
+- [x] Error count badge on the view
 
 **Implementation Notes**:
 - Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks

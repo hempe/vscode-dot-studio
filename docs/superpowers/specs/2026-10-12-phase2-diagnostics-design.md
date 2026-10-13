@@ -90,6 +90,17 @@ The provider (`SolutionWebviewProvider`) builds the descriptors from the loaded 
   - Build group, default only for the solution build
 - `TreeNode`: renders the colour class, badge and dot, and the tooltip text.
 
+## 6. Error List (added during implementation)
+
+The Problems panel never shows hints, and Roslyn reports suggestions (VS "Messages") as hints. So the extension adds its own Error List.
+
+- Native tree view `shinobi.errorList` in its own panel container ("Error List"). `services/errorListProvider.ts`.
+- Grouping is project → file → diagnostic. A file belongs to the project with the innermost directory that contains it. Files outside all projects go under "Miscellaneous Files", listed last.
+- Data comes from `DiagnosticsService.files`, which holds the same deduplicated list the tree counts from (`collectDiagnostics`). Messages are infos plus hints, without hints tagged `Unnecessary`.
+- Title-bar toggles `shinobi.errorList.show/hide{Errors,Warnings,Messages}`. The context keys `shinobi.errorList.<severity>Shown` choose which button of each pair is visible. The filter is stored in `workspaceState`.
+- The view description shows the totals ("1 error, 2 warnings, 5 messages") and the badge shows the error count. When the list is empty, a message explains whether that's because of the filter or because there are no diagnostics.
+- Clicking an entry opens the file at the diagnostic's range.
+
 ## Known limitations
 
 - VS Code clears `$msCompile` problems per task run. Building one project does not clear stale build errors that an earlier solution build left on other projects.
