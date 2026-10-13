@@ -11,6 +11,7 @@ import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTa
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { DebugConfigService } from './debugConfigService';
+import { dependentRenames } from './templates/dependentRenames';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 
 const log = logger('SolutionActionService');
@@ -230,7 +231,21 @@ export class SolutionActionService {
                 const newPath = path.join(path.dirname(oldPath), newName);
 
                 if (nodeId.type === 'file') {
+                    // Nested files (Form1.Designer.cs, Index.cshtml.cs) move with their parent
+                    const directory = path.dirname(oldPath);
+                    const dependents = dependentRenames(
+                        (await fs.promises.readdir(directory, { withFileTypes: true })).filter(entry => entry.isFile()).map(entry => path.join(directory, entry.name)),
+                        oldPath,
+                        newName
+                    );
                     await renameFileAndType(oldPath, newPath);
+                    for (const [from, to] of dependents) {
+                        if (fs.existsSync(to)) {
+                            log.warn(`Not renaming ${from}: ${to} already exists`);
+                            continue;
+                        }
+                        await vscode.workspace.fs.rename(vscode.Uri.file(from), vscode.Uri.file(to));
+                    }
                 } else {
                     await vscode.workspace.fs.rename(vscode.Uri.file(oldPath), vscode.Uri.file(newPath));
                 }
