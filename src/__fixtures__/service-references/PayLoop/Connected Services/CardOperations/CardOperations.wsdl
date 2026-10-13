@@ -1,0 +1,1433 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://www.prepay-services.com" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" targetNamespace="http://www.prepay-services.com" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://www.prepay-services.com">
+      <s:element name="CheckBalance">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDateString" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CheckBalanceResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="CheckBalanceResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDateString" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BalanceCheckEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BalanceCheckExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="BalanceCheckExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Reservation">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pin" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ReservationResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ReservationResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ReservationEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ReservationExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ReservationExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CompleteReservation">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="operation" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CompleteReservationResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="CompleteReservationResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CompleteReservationEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="reservationTransactionID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="operation" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CompleteReservationExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="CompleteReservationExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Spend">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SpendResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="SpendResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SpendEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SpendExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="SpendExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RequestCard">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypeCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" nillable="true" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RequestCardResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RequestCardResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pin" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Activate">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ActivateResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ActivateResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Recharge">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RechargeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RechargeResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RechargeEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyISO4217NumericCode" nillable="true" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RechargeExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RechargeExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Refund">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTransactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" nillable="true" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RefundResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RefundResult" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" nillable="true" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTrxCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTrxCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="originalTrxCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RefundEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTransactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RefundExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RefundExResult" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTrxCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTrxCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="originalTrxCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Batch">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionIDs" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="amounts" type="tns:ArrayOfDecimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217Codes" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyISO4217NumericCodes" type="tns:ArrayOfShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfString">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="string" nillable="true" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfDecimal">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="decimal" type="s:decimal" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfShort">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="short" type="s:short" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="BatchResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="BatchResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Void">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTransactionID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="VoidResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="VoidResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="VoidEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="originalTransactionID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="thirdPartyNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="VoidExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="VoidExResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="transactionID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="1" maxOccurs="1" name="balanceInCardCurrency" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCurrencyISO4217Code" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="cardCurrencyISO4217NumericCode" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="expiryDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ActivateRechargeMultipleCards">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypes" type="tns:ArrayOfCardType" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfCardType">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="CardType" nillable="true" type="tns:CardType" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="CardType">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="CardTypeCode" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Operation" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="Count" nillable="true" type="s:int" />
+          <s:element minOccurs="1" maxOccurs="1" name="Amount" type="s:decimal" />
+          <s:element minOccurs="0" maxOccurs="1" name="CurrencyISO4217Codes" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CurrencyISO4217Code" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="CurrencyISO4217NumericCodes" nillable="true" type="s:short" />
+          <s:element minOccurs="1" maxOccurs="1" name="CurrencyISO4217NumericCode" nillable="true" type="s:short" />
+          <s:element minOccurs="1" maxOccurs="1" name="NotValidBeforeHours" nillable="true" type="s:int" />
+          <s:element minOccurs="1" maxOccurs="1" name="IsActivated" type="s:boolean" />
+          <s:element minOccurs="0" maxOccurs="1" name="Packages" type="tns:ArrayOfPackage" />
+          <s:element minOccurs="0" maxOccurs="1" name="CardCode" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfPackage">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Package" nillable="true" type="tns:Package" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="Package">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Number" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="SerialNumberFrom" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="SerialNumberTo" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="ActivateRechargeMultipleCardsResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ActivateRechargeMultipleCardsResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypes" type="tns:ArrayOfCardType" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ActivateCardCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="code" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ActivateCardCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ActivateCardCodeResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BlockCardCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="code" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BlockCardCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="BlockCardCodeResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="UnblockCardCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardTypeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="code" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="UnblockCardCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="UnblockCardCodeResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RequestCardCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardType" type="tns:CardType" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RequestCardCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RequestCardCodeResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardType" type="tns:CardType" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="OrderCard">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="productID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="customerName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="customerEmail" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="deliveryName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="deliveryAddress" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="deliveryZIP" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="deliveryPlace" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="deliveryCountry" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="OrderCardResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="OrderCardResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ManageUserCards">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="timestamp" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardData" type="tns:CardData" />
+            <s:element minOccurs="0" maxOccurs="1" name="signature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="CardData">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="FirstName" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="LastName" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CardHolderNumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Address" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="StartDate" type="s:dateTime" />
+          <s:element minOccurs="1" maxOccurs="1" name="EndDate" nillable="true" type="s:dateTime" />
+          <s:element minOccurs="1" maxOccurs="1" name="EnableMaxValue" type="s:boolean" />
+          <s:element minOccurs="1" maxOccurs="1" name="MaxValue" nillable="true" type="s:decimal" />
+          <s:element minOccurs="0" maxOccurs="1" name="MaxValueCurrencyISO4217Code" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="WelcomeGiftCardAmount" nillable="true" type="s:decimal" />
+          <s:element minOccurs="0" maxOccurs="1" name="WelcomeGiftCardAmountCurrencyISO4217Code" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CardType" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Delivery" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="CardNumber" nillable="true" type="s:unsignedLong" />
+          <s:element minOccurs="1" maxOccurs="1" name="Action" type="tns:Actions" />
+          <s:element minOccurs="0" maxOccurs="1" name="DocID" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Country" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:simpleType name="Actions">
+        <s:restriction base="s:string">
+          <s:enumeration value="Reactivate" />
+          <s:enumeration value="Update" />
+          <s:enumeration value="Renew" />
+          <s:enumeration value="Deaktive" />
+          <s:enumeration value="Active" />
+          <s:enumeration value="Order" />
+          <s:enumeration value="New" />
+          <s:enumeration value="Reprint" />
+        </s:restriction>
+      </s:simpleType>
+      <s:element name="ManageUserCardsResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ManageUserCardsResult" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardData" type="tns:CardData" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="resultSignature" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="CheckBalanceSoapIn">
+    <wsdl:part name="parameters" element="tns:CheckBalance" />
+  </wsdl:message>
+  <wsdl:message name="CheckBalanceSoapOut">
+    <wsdl:part name="parameters" element="tns:CheckBalanceResponse" />
+  </wsdl:message>
+  <wsdl:message name="BalanceCheckExSoapIn">
+    <wsdl:part name="parameters" element="tns:BalanceCheckEx" />
+  </wsdl:message>
+  <wsdl:message name="BalanceCheckExSoapOut">
+    <wsdl:part name="parameters" element="tns:BalanceCheckExResponse" />
+  </wsdl:message>
+  <wsdl:message name="ReservationSoapIn">
+    <wsdl:part name="parameters" element="tns:Reservation" />
+  </wsdl:message>
+  <wsdl:message name="ReservationSoapOut">
+    <wsdl:part name="parameters" element="tns:ReservationResponse" />
+  </wsdl:message>
+  <wsdl:message name="ReservationExSoapIn">
+    <wsdl:part name="parameters" element="tns:ReservationEx" />
+  </wsdl:message>
+  <wsdl:message name="ReservationExSoapOut">
+    <wsdl:part name="parameters" element="tns:ReservationExResponse" />
+  </wsdl:message>
+  <wsdl:message name="CompleteReservationSoapIn">
+    <wsdl:part name="parameters" element="tns:CompleteReservation" />
+  </wsdl:message>
+  <wsdl:message name="CompleteReservationSoapOut">
+    <wsdl:part name="parameters" element="tns:CompleteReservationResponse" />
+  </wsdl:message>
+  <wsdl:message name="CompleteReservationExSoapIn">
+    <wsdl:part name="parameters" element="tns:CompleteReservationEx" />
+  </wsdl:message>
+  <wsdl:message name="CompleteReservationExSoapOut">
+    <wsdl:part name="parameters" element="tns:CompleteReservationExResponse" />
+  </wsdl:message>
+  <wsdl:message name="SpendSoapIn">
+    <wsdl:part name="parameters" element="tns:Spend" />
+  </wsdl:message>
+  <wsdl:message name="SpendSoapOut">
+    <wsdl:part name="parameters" element="tns:SpendResponse" />
+  </wsdl:message>
+  <wsdl:message name="SpendExSoapIn">
+    <wsdl:part name="parameters" element="tns:SpendEx" />
+  </wsdl:message>
+  <wsdl:message name="SpendExSoapOut">
+    <wsdl:part name="parameters" element="tns:SpendExResponse" />
+  </wsdl:message>
+  <wsdl:message name="RequestCardSoapIn">
+    <wsdl:part name="parameters" element="tns:RequestCard" />
+  </wsdl:message>
+  <wsdl:message name="RequestCardSoapOut">
+    <wsdl:part name="parameters" element="tns:RequestCardResponse" />
+  </wsdl:message>
+  <wsdl:message name="ActivateSoapIn">
+    <wsdl:part name="parameters" element="tns:Activate" />
+  </wsdl:message>
+  <wsdl:message name="ActivateSoapOut">
+    <wsdl:part name="parameters" element="tns:ActivateResponse" />
+  </wsdl:message>
+  <wsdl:message name="RechargeSoapIn">
+    <wsdl:part name="parameters" element="tns:Recharge" />
+  </wsdl:message>
+  <wsdl:message name="RechargeSoapOut">
+    <wsdl:part name="parameters" element="tns:RechargeResponse" />
+  </wsdl:message>
+  <wsdl:message name="RechargeExSoapIn">
+    <wsdl:part name="parameters" element="tns:RechargeEx" />
+  </wsdl:message>
+  <wsdl:message name="RechargeExSoapOut">
+    <wsdl:part name="parameters" element="tns:RechargeExResponse" />
+  </wsdl:message>
+  <wsdl:message name="RefundSoapIn">
+    <wsdl:part name="parameters" element="tns:Refund" />
+  </wsdl:message>
+  <wsdl:message name="RefundSoapOut">
+    <wsdl:part name="parameters" element="tns:RefundResponse" />
+  </wsdl:message>
+  <wsdl:message name="RefundExSoapIn">
+    <wsdl:part name="parameters" element="tns:RefundEx" />
+  </wsdl:message>
+  <wsdl:message name="RefundExSoapOut">
+    <wsdl:part name="parameters" element="tns:RefundExResponse" />
+  </wsdl:message>
+  <wsdl:message name="BatchSoapIn">
+    <wsdl:part name="parameters" element="tns:Batch" />
+  </wsdl:message>
+  <wsdl:message name="BatchSoapOut">
+    <wsdl:part name="parameters" element="tns:BatchResponse" />
+  </wsdl:message>
+  <wsdl:message name="VoidSoapIn">
+    <wsdl:part name="parameters" element="tns:Void" />
+  </wsdl:message>
+  <wsdl:message name="VoidSoapOut">
+    <wsdl:part name="parameters" element="tns:VoidResponse" />
+  </wsdl:message>
+  <wsdl:message name="VoidExSoapIn">
+    <wsdl:part name="parameters" element="tns:VoidEx" />
+  </wsdl:message>
+  <wsdl:message name="VoidExSoapOut">
+    <wsdl:part name="parameters" element="tns:VoidExResponse" />
+  </wsdl:message>
+  <wsdl:message name="ActivateRechargeMultipleCardsSoapIn">
+    <wsdl:part name="parameters" element="tns:ActivateRechargeMultipleCards" />
+  </wsdl:message>
+  <wsdl:message name="ActivateRechargeMultipleCardsSoapOut">
+    <wsdl:part name="parameters" element="tns:ActivateRechargeMultipleCardsResponse" />
+  </wsdl:message>
+  <wsdl:message name="ActivateCardCodeSoapIn">
+    <wsdl:part name="parameters" element="tns:ActivateCardCode" />
+  </wsdl:message>
+  <wsdl:message name="ActivateCardCodeSoapOut">
+    <wsdl:part name="parameters" element="tns:ActivateCardCodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="BlockCardCodeSoapIn">
+    <wsdl:part name="parameters" element="tns:BlockCardCode" />
+  </wsdl:message>
+  <wsdl:message name="BlockCardCodeSoapOut">
+    <wsdl:part name="parameters" element="tns:BlockCardCodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="UnblockCardCodeSoapIn">
+    <wsdl:part name="parameters" element="tns:UnblockCardCode" />
+  </wsdl:message>
+  <wsdl:message name="UnblockCardCodeSoapOut">
+    <wsdl:part name="parameters" element="tns:UnblockCardCodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="RequestCardCodeSoapIn">
+    <wsdl:part name="parameters" element="tns:RequestCardCode" />
+  </wsdl:message>
+  <wsdl:message name="RequestCardCodeSoapOut">
+    <wsdl:part name="parameters" element="tns:RequestCardCodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="OrderCardSoapIn">
+    <wsdl:part name="parameters" element="tns:OrderCard" />
+  </wsdl:message>
+  <wsdl:message name="OrderCardSoapOut">
+    <wsdl:part name="parameters" element="tns:OrderCardResponse" />
+  </wsdl:message>
+  <wsdl:message name="ManageUserCardsSoapIn">
+    <wsdl:part name="parameters" element="tns:ManageUserCards" />
+  </wsdl:message>
+  <wsdl:message name="ManageUserCardsSoapOut">
+    <wsdl:part name="parameters" element="tns:ManageUserCardsResponse" />
+  </wsdl:message>
+  <wsdl:portType name="CardOperationsSoap">
+    <wsdl:operation name="CheckBalance">
+      <wsdl:input message="tns:CheckBalanceSoapIn" />
+      <wsdl:output message="tns:CheckBalanceSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BalanceCheckEx">
+      <wsdl:input message="tns:BalanceCheckExSoapIn" />
+      <wsdl:output message="tns:BalanceCheckExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Reservation">
+      <wsdl:input message="tns:ReservationSoapIn" />
+      <wsdl:output message="tns:ReservationSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ReservationEx">
+      <wsdl:input message="tns:ReservationExSoapIn" />
+      <wsdl:output message="tns:ReservationExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservation">
+      <wsdl:input message="tns:CompleteReservationSoapIn" />
+      <wsdl:output message="tns:CompleteReservationSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservationEx">
+      <wsdl:input message="tns:CompleteReservationExSoapIn" />
+      <wsdl:output message="tns:CompleteReservationExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Spend">
+      <wsdl:input message="tns:SpendSoapIn" />
+      <wsdl:output message="tns:SpendSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="SpendEx">
+      <wsdl:input message="tns:SpendExSoapIn" />
+      <wsdl:output message="tns:SpendExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="RequestCard">
+      <wsdl:input message="tns:RequestCardSoapIn" />
+      <wsdl:output message="tns:RequestCardSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Activate">
+      <wsdl:input message="tns:ActivateSoapIn" />
+      <wsdl:output message="tns:ActivateSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Recharge">
+      <wsdl:input message="tns:RechargeSoapIn" />
+      <wsdl:output message="tns:RechargeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="RechargeEx">
+      <wsdl:input message="tns:RechargeExSoapIn" />
+      <wsdl:output message="tns:RechargeExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Refund">
+      <wsdl:input message="tns:RefundSoapIn" />
+      <wsdl:output message="tns:RefundSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="RefundEx">
+      <wsdl:input message="tns:RefundExSoapIn" />
+      <wsdl:output message="tns:RefundExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Batch">
+      <wsdl:input message="tns:BatchSoapIn" />
+      <wsdl:output message="tns:BatchSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Void">
+      <wsdl:input message="tns:VoidSoapIn" />
+      <wsdl:output message="tns:VoidSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="VoidEx">
+      <wsdl:input message="tns:VoidExSoapIn" />
+      <wsdl:output message="tns:VoidExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ActivateRechargeMultipleCards">
+      <wsdl:input message="tns:ActivateRechargeMultipleCardsSoapIn" />
+      <wsdl:output message="tns:ActivateRechargeMultipleCardsSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ActivateCardCode">
+      <wsdl:input message="tns:ActivateCardCodeSoapIn" />
+      <wsdl:output message="tns:ActivateCardCodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BlockCardCode">
+      <wsdl:input message="tns:BlockCardCodeSoapIn" />
+      <wsdl:output message="tns:BlockCardCodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="UnblockCardCode">
+      <wsdl:input message="tns:UnblockCardCodeSoapIn" />
+      <wsdl:output message="tns:UnblockCardCodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="RequestCardCode">
+      <wsdl:input message="tns:RequestCardCodeSoapIn" />
+      <wsdl:output message="tns:RequestCardCodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="OrderCard">
+      <wsdl:input message="tns:OrderCardSoapIn" />
+      <wsdl:output message="tns:OrderCardSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ManageUserCards">
+      <wsdl:input message="tns:ManageUserCardsSoapIn" />
+      <wsdl:output message="tns:ManageUserCardsSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="CardOperationsSoap" type="tns:CardOperationsSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="CheckBalance">
+      <soap:operation soapAction="http://www.prepay-services.com/CheckBalance" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BalanceCheckEx">
+      <soap:operation soapAction="http://www.prepay-services.com/BalanceCheckEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Reservation">
+      <soap:operation soapAction="http://www.prepay-services.com/Reservation" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ReservationEx">
+      <soap:operation soapAction="http://www.prepay-services.com/ReservationEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservation">
+      <soap:operation soapAction="http://www.prepay-services.com/CompleteReservation" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservationEx">
+      <soap:operation soapAction="http://www.prepay-services.com/CompleteReservationEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Spend">
+      <soap:operation soapAction="http://www.prepay-services.com/Spend" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SpendEx">
+      <soap:operation soapAction="http://www.prepay-services.com/SpendEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RequestCard">
+      <soap:operation soapAction="http://www.prepay-services.com/RequestCard" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Activate">
+      <soap:operation soapAction="http://www.prepay-services.com/Activate" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Recharge">
+      <soap:operation soapAction="http://www.prepay-services.com/Recharge" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RechargeEx">
+      <soap:operation soapAction="http://www.prepay-services.com/RechargeEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Refund">
+      <soap:operation soapAction="http://www.prepay-services.com/Refund" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RefundEx">
+      <soap:operation soapAction="http://www.prepay-services.com/RefundEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Batch">
+      <soap:operation soapAction="http://www.prepay-services.com/Batch" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Void">
+      <soap:operation soapAction="http://www.prepay-services.com/Void" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VoidEx">
+      <soap:operation soapAction="http://www.prepay-services.com/VoidEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ActivateRechargeMultipleCards">
+      <soap:operation soapAction="http://www.prepay-services.com/ActivateRechargeMultipleCards" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ActivateCardCode">
+      <soap:operation soapAction="http://www.prepay-services.com/ActivateCardCode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BlockCardCode">
+      <soap:operation soapAction="http://www.prepay-services.com/BlockCardCode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="UnblockCardCode">
+      <soap:operation soapAction="http://www.prepay-services.com/UnblockCardCode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RequestCardCode">
+      <soap:operation soapAction="http://www.prepay-services.com/RequestCardCode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="OrderCard">
+      <soap:operation soapAction="http://www.prepay-services.com/OrderCard" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ManageUserCards">
+      <soap:operation soapAction="http://www.prepay-services.com/ManageUserCards" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="CardOperationsSoap12" type="tns:CardOperationsSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="CheckBalance">
+      <soap12:operation soapAction="http://www.prepay-services.com/CheckBalance" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BalanceCheckEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/BalanceCheckEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Reservation">
+      <soap12:operation soapAction="http://www.prepay-services.com/Reservation" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ReservationEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/ReservationEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservation">
+      <soap12:operation soapAction="http://www.prepay-services.com/CompleteReservation" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CompleteReservationEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/CompleteReservationEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Spend">
+      <soap12:operation soapAction="http://www.prepay-services.com/Spend" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="SpendEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/SpendEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RequestCard">
+      <soap12:operation soapAction="http://www.prepay-services.com/RequestCard" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Activate">
+      <soap12:operation soapAction="http://www.prepay-services.com/Activate" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Recharge">
+      <soap12:operation soapAction="http://www.prepay-services.com/Recharge" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RechargeEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/RechargeEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Refund">
+      <soap12:operation soapAction="http://www.prepay-services.com/Refund" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RefundEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/RefundEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Batch">
+      <soap12:operation soapAction="http://www.prepay-services.com/Batch" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Void">
+      <soap12:operation soapAction="http://www.prepay-services.com/Void" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VoidEx">
+      <soap12:operation soapAction="http://www.prepay-services.com/VoidEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ActivateRechargeMultipleCards">
+      <soap12:operation soapAction="http://www.prepay-services.com/ActivateRechargeMultipleCards" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ActivateCardCode">
+      <soap12:operation soapAction="http://www.prepay-services.com/ActivateCardCode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BlockCardCode">
+      <soap12:operation soapAction="http://www.prepay-services.com/BlockCardCode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="UnblockCardCode">
+      <soap12:operation soapAction="http://www.prepay-services.com/UnblockCardCode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="RequestCardCode">
+      <soap12:operation soapAction="http://www.prepay-services.com/RequestCardCode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="OrderCard">
+      <soap12:operation soapAction="http://www.prepay-services.com/OrderCard" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ManageUserCards">
+      <soap12:operation soapAction="http://www.prepay-services.com/ManageUserCards" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="CardOperations">
+    <wsdl:port name="CardOperationsSoap" binding="tns:CardOperationsSoap">
+      <soap:address location="http://test.payloop.com/CardsWebFront/Services/CardOperations.asmx" />
+    </wsdl:port>
+    <wsdl:port name="CardOperationsSoap12" binding="tns:CardOperationsSoap12">
+      <soap12:address location="http://test.payloop.com/CardsWebFront/Services/CardOperations.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

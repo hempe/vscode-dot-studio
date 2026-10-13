@@ -27,7 +27,14 @@ Visual Studio reference (from a real project):
 }
 ```
 
-The project file has `<WCFMetadata Include="Connected Services" />`.
+The project file has `<WCFMetadata Include="Connected Services" />`. The same project ported to net10.0 by hand keeps it and references exactly `System.ServiceModel.Primitives` and `System.ServiceModel.Http` `10.0.652802` (fixed versions), which is what step 7 below adds.
+
+Fixtures: `src/__fixtures__/service-references/PayLoop/` (the net471 project, its `ConnectedService.json` and the CardOperations WSDL with SOAP 1.1 and 1.2 bindings).
+
+Generated code compared with Visual Studio's `Reference.cs` for the same WSDL and options: identical structure (message contracts, `ArrayOfString : List<string>`, `Package[]`, both endpoint configurations). Differences:
+- `GeneratedCodeAttribute("Microsoft.Tools.ServiceModel.Svcutil", ...)` says `8.0.0` instead of Visual Studio's `2.0.2`, on every type.
+- svcutil 8.0.0 wraps the generated `CloseAsync()` in `#if !NET6_0_OR_GREATER`; with the 2.0.2 output it hides `ClientBase<T>.CloseAsync()` on modern .NET (CS0108, which the real project had to suppress with `NoWarn`).
+- svcutil 8.0.0 writes a UTF-8 BOM.
 
 ## 1. Solution Explorer
 
