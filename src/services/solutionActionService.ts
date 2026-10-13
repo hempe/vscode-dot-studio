@@ -77,7 +77,7 @@ export class SolutionActionService {
                 break;
 
             case 'addExistingProject':
-                await this._handleAddExistingProject();
+                await this._handleAddExistingProject(nodeId);
                 break;
 
             case 'addNewProject':
@@ -359,7 +359,17 @@ export class SolutionActionService {
         }
     }
 
-    private static async _handleAddExistingProject(): Promise<void> {
+    /** Matches the project files `dotnet sln add` accepts */
+    private static readonly _projectFile = /\.(cs|vb|fs)proj$/i;
+
+    /** `dotnet sln add --solution-folder` path of a solution folder node; undefined for the solution root */
+    private static _solutionFolderPathOf(nodeId: NodeId): string | undefined {
+        return nodeId.type === 'solutionFolder'
+            ? SolutionService.getActiveSolution()?.getSolutionFolderPath(nodeId.guid)
+            : undefined;
+    }
+
+    private static async _handleAddExistingProject(nodeId: NodeId): Promise<void> {
         try {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
@@ -378,7 +388,7 @@ export class SolutionActionService {
             });
 
             if (projectFiles && projectFiles[0]) {
-                await solution.addProject(projectFiles[0].fsPath);
+                await solution.addProject(projectFiles[0].fsPath, this._solutionFolderPathOf(nodeId));
                 log.info(`Existing project added: ${projectFiles[0].fsPath}`);
                 vscode.window.showInformationMessage(`Project added: ${path.basename(projectFiles[0].fsPath)}`);
             }
@@ -484,6 +494,13 @@ export class SolutionActionService {
                 canSelectFolders: false,
                 openLabel: 'Add to Solution'
             });
+
+            // A project file belongs in the solution as a project, not as a plain item
+            if (fileUri?.[0] && this._projectFile.test(fileUri[0].fsPath)) {
+                await solution.addProject(fileUri[0].fsPath, this._solutionFolderPathOf(nodeId));
+                vscode.window.showInformationMessage(`Project added: ${path.basename(fileUri[0].fsPath)}`);
+                return;
+            }
 
             if (fileUri && fileUri[0]) {
                 // Check if we're adding to the solution root or to a specific folder

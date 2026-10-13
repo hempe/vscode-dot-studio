@@ -1077,24 +1077,49 @@ export class Solution {
     }
 
     /**
-     * Adds a project to the solution file
+     * Path of a solution folder as `dotnet sln add --solution-folder` expects it, e.g. `Libs/Inner`
      */
-    async addProject(projectPath: string): Promise<void> {
-        log.info(`Adding project to solution: ${projectPath}`);
+    getSolutionFolderPath(folderGuid: string): string | undefined {
+        const solutionFile = this._solutionFile;
+        if (!solutionFile) {
+            return undefined;
+        }
+        const same = (a: string | undefined, b: string) => a?.toUpperCase() === b.toUpperCase();
+        const names: string[] = [];
+        const seen = new Set<string>();
+        let guid: string | undefined = folderGuid;
+        while (guid && !seen.has(guid.toUpperCase())) {
+            seen.add(guid.toUpperCase());
+            const current: string = guid;
+            const folder = solutionFile.projects.find(p => same(p.guid, current));
+            if (!folder) {
+                return undefined;
+            }
+            names.unshift(folder.name);
+            guid = solutionFile.nestedProjects.find(n => same(n.childGuid, current))?.parentGuid;
+        }
+        return names.join('/');
+    }
+
+    /**
+     * Adds a project to the solution file, at the root or into a solution folder (`Libs/Inner`).
+     * Like Visual Studio, a project added at the root stays there; `dotnet sln add` alone would
+     * create solution folders mirroring the project's directories.
+     */
+    async addProject(projectPath: string, solutionFolderPath?: string): Promise<void> {
+        log.info(`Adding project to solution: ${projectPath}${solutionFolderPath ? ` (folder ${solutionFolderPath})` : ''}`);
 
         try {
-            // Use the dotnet CLI command to add the project
-            const relativePath = path.relative(path.dirname(this._solutionPath), projectPath);
-            const command = `dotnet sln "${this._solutionPath}" add "${relativePath}"`;
-
-            log.debug(`Executing: ${command}`);
-
-            const { exec } = require('child_process');
-            const { promisify } = require('util');
-            const execAsync = promisify(exec);
             const solutionDir = path.dirname(this._solutionPath);
+            const args = [
+                'sln', this._solutionPath, 'add', path.relative(solutionDir, projectPath),
+                ...(solutionFolderPath ? ['--solution-folder', solutionFolderPath] : ['--in-root'])
+            ];
+            log.debug(`Executing: dotnet ${args.join(' ')}`);
 
-            await execAsync(command, { cwd: solutionDir });
+            const { execFile } = require('child_process');
+            const { promisify } = require('util');
+            await promisify(execFile)('dotnet', args, { cwd: solutionDir });
 
             log.info(`Successfully added project to solution: ${projectPath}`);
 

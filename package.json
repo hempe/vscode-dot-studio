@@ -429,14 +429,19 @@
           "group": "5_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addSolutionFolder",
+          "command": "shinobi.solutionExplorer.addExistingProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "command": "shinobi.solutionExplorer.addSolutionFolder",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@2"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "1_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.removeSolutionFolder",

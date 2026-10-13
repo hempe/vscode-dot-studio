@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { spawnSync } from 'child_process';
 
 const ui = {
     inputBox: undefined as string | undefined,
@@ -83,6 +84,9 @@ const slnxContent = `<Solution>
 </Solution>
 `;
 
+// Adding projects runs `dotnet sln add`
+const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
+
 const variants: [string, string, string][] = [
     ['.sln', 'App.sln', slnContent],
     ['.sln with CRLF line endings', 'App.sln', slnContent.replace(/\n/g, '\r\n')],
@@ -139,6 +143,50 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
         solution.dispose();
         fs.rmSync(dir, { recursive: true, force: true });
     });
+
+    const createProject = (name: string) => {
+        const projectPath = path.join(dir, 'src', name, `${name}.csproj`);
+        fs.mkdirSync(path.dirname(projectPath), { recursive: true });
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
+        return projectPath;
+    };
+
+    withDotnet('adds an existing project into a nested solution folder', async () => {
+        ui.inputBox = 'Inner';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        ui.openDialog = createProject('Api');
+        await run({ action: 'addExistingProject', nodeId: (await find('solutionFolder', 'Libs', 'Inner')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  solutionFolder: Inner',
+            '    project: Api',
+            '  project: Lib',
+        ]);
+    }, 60000);
+
+    withDotnet('an existing project added to the solution stays at the root', async () => {
+        ui.openDialog = createProject('Api');
+        await run({ action: 'addExistingProject', nodeId: (await find('solution')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  project: Lib',
+            'project: Api',
+        ]);
+    }, 60000);
+
+    withDotnet('a project file picked as solution item is added as a project', async () => {
+        ui.openDialog = createProject('Api');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+
+        expect(await outline()).toEqual([
+            'solutionFolder: Libs',
+            '  project: Api',
+            '  project: Lib',
+        ]);
+    }, 60000);
 
     test('adds solution folders at the root and nested', async () => {
         ui.inputBox = 'Docs';

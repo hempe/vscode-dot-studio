@@ -57,6 +57,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
 - [x] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features
+- [x] Add existing projects into solution folders ("Add Existing Project…" on a solution folder; a project file picked as solution item is added as a project); projects added at the solution root stay there instead of getting folders that mirror their directories
 
 ### Phase 1.5: Look like VS Code
 - [x] Files and folders in the Solution Explorer use the user's file icon theme (`workbench.iconTheme`, e.g. Seti, Material Icon Theme, vscode-icons); `@iconify` stays as the fallback, for dependency nodes, and for solutions/projects the theme has no dedicated icon for

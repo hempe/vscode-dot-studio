@@ -70,7 +70,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['revealInExplorer'],
     ],
     solutionFolder: [
-        ['addSolutionFolder', 'addSolutionItem'],
+        ['addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
         ['removeSolutionFolder', 'rename'],
         ['revealInExplorer'],
     ],
