@@ -36,10 +36,11 @@ describe('contextMenus', () => {
         const projectEntries = buildMenuContributions().webviewContext
             .filter(entry => entry.when.endsWith(`nodeType == 'project'`));
 
-        expect(projectEntries.slice(0, 3)).toEqual([
+        expect(projectEntries.slice(0, 4)).toEqual([
             expect.objectContaining({ command: 'shinobi.solutionExplorer.openFile', group: '1_group@1' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@1' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFolder', group: '2_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addNewItem', group: '2_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFolder', group: '2_group@3' }),
         ]);
     });
 

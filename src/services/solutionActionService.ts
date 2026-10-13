@@ -12,6 +12,7 @@ import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
+import { addNewProject } from './templates/templateService';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 
 const log = logger('SolutionActionService');
@@ -84,7 +85,7 @@ export class SolutionActionService {
                 break;
 
             case 'addNewProject':
-                await this._handleAddNewProject();
+                await addNewProject(nodeId.type === 'solutionFolder' ? this._solutionFolderPathOf(nodeId) : undefined);
                 break;
 
             case 'manageNuGetPackages':
@@ -165,6 +166,7 @@ export class SolutionActionService {
 
             case 'addFile':
             case 'addFolder':
+            case 'addNewItem':
             case 'cancelTemporaryNode':
                 // These actions are handled by the webview provider, not here
                 log.info(`${cmd.action} action is handled by webview provider`);
@@ -428,23 +430,6 @@ export class SolutionActionService {
         } catch (error) {
             log.error('Error adding existing project:', error);
             vscode.window.showErrorMessage(`Error adding existing project: ${error}`);
-        }
-    }
-
-    private static async _handleAddNewProject(): Promise<void> {
-        try {
-            const solution = SolutionService.getActiveSolution();
-            if (!solution) {
-                vscode.window.showErrorMessage('No active solution found');
-                return;
-            }
-
-            // Show a simple message for now - full implementation would require template selection
-            vscode.window.showInformationMessage('Add new project functionality would be implemented here');
-            log.info('Add new project action triggered');
-        } catch (error) {
-            log.error('Error adding new project:', error);
-            vscode.window.showErrorMessage(`Error adding new project: ${error}`);
         }
     }
 

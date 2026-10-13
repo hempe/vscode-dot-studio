@@ -244,6 +244,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.addNewItem",
+        "title": "Add New Item...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.addFolder",
         "title": "Add Folder...",
         "category": ".NET"
@@ -513,19 +518,24 @@
           "group": "5_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addExistingProject",
+          "command": "shinobi.solutionExplorer.addNewProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addSolutionFolder",
+          "command": "shinobi.solutionExplorer.addExistingProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@2"
         },
         {
-          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "command": "shinobi.solutionExplorer.addSolutionFolder",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
           "group": "1_group@3"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addSolutionItem",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
+          "group": "1_group@4"
         },
         {
           "command": "shinobi.solutionExplorer.removeSolutionFolder",
@@ -548,19 +558,24 @@
           "group": "1_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addFile",
+          "command": "shinobi.solutionExplorer.addNewItem",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "2_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addFolder",
+          "command": "shinobi.solutionExplorer.addFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "2_group@2"
         },
         {
-          "command": "shinobi.solutionExplorer.addServiceReference",
+          "command": "shinobi.solutionExplorer.addFolder",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "2_group@3"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "2_group@4"
         },
         {
           "command": "shinobi.solutionExplorer.paste",
@@ -633,14 +648,19 @@
           "group": "1_group@2"
         },
         {
-          "command": "shinobi.solutionExplorer.addFile",
+          "command": "shinobi.solutionExplorer.addNewItem",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "1_group@1"
         },
         {
-          "command": "shinobi.solutionExplorer.addFolder",
+          "command": "shinobi.solutionExplorer.addFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "1_group@2"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addFolder",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "1_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.copy",
@@ -812,6 +832,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.addFile",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addNewItem",
           "when": "false"
         },
         {

@@ -33,6 +33,7 @@ export const menuCommands = {
     addSolutionFolder: { title: 'Add Solution Folder' },
     addSolutionItem: { title: 'Add Solution Item...' },
     addFile: { title: 'Add File...' },
+    addNewItem: { title: 'Add New Item...' },
     addFolder: { title: 'Add Folder...' },
     addProjectReference: { title: 'Add Project Reference...' },
     addAssemblyReference: { title: 'Add Assembly Reference...' },
@@ -79,13 +80,13 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['revealInExplorer'],
     ],
     solutionFolder: [
-        ['addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
+        ['addNewProject', 'addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
         ['removeSolutionFolder', 'rename'],
         ['revealInExplorer'],
     ],
     project: [
         ['openFile'],
-        ['addFile', 'addFolder', 'addServiceReference'],
+        ['addNewItem', 'addFile', 'addFolder', 'addServiceReference'],
         ['paste'],
         [], // setStartupProject or chooseLaunchProfile, see below
         ['manageNuGetPackages'],
@@ -110,7 +111,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['updateServiceReference', 'removeServiceReference'],
     ],
     folder: [
-        ['addFile', 'addFolder'],
+        ['addNewItem', 'addFile', 'addFolder'],
         ['copy', 'cut', 'paste'],
         ['rename', 'deleteFile'],
         ['revealInExplorer'],

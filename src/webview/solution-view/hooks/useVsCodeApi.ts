@@ -97,11 +97,12 @@ const addTemporaryNodeToTree = (
     solutionData: SolutionData,
     parentNodeId: NodeIdString,
     nodeId: NodeIdString,
-    nodeType: NodeType): SolutionData => {
+    nodeType: NodeType,
+    name = ''): SolutionData => {
     const tempNode: ProjectNode = {
         nodeId: nodeId,
         type: nodeType,
-        name: '',
+        name,
         isTemporary: true,
         isEditing: true,
         hasChildren: false,
@@ -235,7 +236,7 @@ export const useVsCodeApi = () => {
                         const parentNodeId = message.payload.parentNodeId;
                         log.info('findNodeIdFromPath result for path:', message.payload.parentNodeId, 'nodeId:', parentNodeId);
                         if (parentNodeId) {
-                            return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeId, message.payload.nodeType);
+                            return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeId, message.payload.nodeType, message.payload.name);
                         } else {
                             log.error('Could not find nodeId for parentNodeId:', message.payload.parentNodeId);
                         }

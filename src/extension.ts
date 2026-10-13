@@ -14,6 +14,7 @@ import { logger as loggerFn } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { DebugConfigService } from './services/debugConfigService';
+import { initializeTemplates } from './services/templates/templateService';
 
 const logger = loggerFn('Extensions');
 
@@ -52,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
 
     BuildConfiguration.initialize(context.workspaceState);
+    initializeTemplates(context.globalState);
 
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();

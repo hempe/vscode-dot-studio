@@ -96,6 +96,11 @@ export declare type SetStartupProjectActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type AddNewItemActionCmd = {
+    readonly action: 'addNewItem';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type AddServiceReferenceActionCmd = {
     readonly action: 'addServiceReference';
     readonly nodeId: NodeIdString;
@@ -214,6 +219,7 @@ export type ProjectActionCmd =
     | SetStartupProjectActionCmd
     | ChooseLaunchProfileActionCmd
     | AddServiceReferenceActionCmd
+    | AddNewItemActionCmd
     | UpdateServiceReferenceActionCmd
     | RemoveServiceReferenceActionCmd
     | PasteActionCmd
