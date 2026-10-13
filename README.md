@@ -150,13 +150,15 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Debugging starts the test app in the C# debugger with the same arguments
 
 ### Phase 7: Device & Deployment
-- [ ] Remote debugging on devices over SSH (`pipeTransport` launch configurations)
 - [ ] Publish (`dotnet publish`) with runtime identifier and self-contained options
 - [ ] Encrypted NuGet credentials
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
+
+### Phase 20: Later
+- [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
 
 ### Not Planned
 - .NET Framework 4.x / Mono build and debug support
