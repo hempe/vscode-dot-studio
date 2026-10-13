@@ -150,12 +150,19 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Debugging starts the test app in the C# debugger with the same arguments
 
 ### Phase 7: Device & Deployment
-- [ ] Publish (`dotnet publish`) with runtime identifier and self-contained options
 - [ ] Encrypted NuGet credentials
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
+
+### Phase 9: Publish
+**Goal**: Visual Studio's Publish dialog: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.
+
+- [ ] "Publish..." on a project: the existing profiles, Publish button, new profile; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
+- [ ] Container registry target (the SDK's container publish, credentials from `docker login`)
+- [ ] Azure App Service target (ZIP deploy, sign-in through the Azure CLI)
+- [ ] FTP target (upload after a folder publish); IIS Web Deploy only on Windows, where `msdeploy` exists
 
 ### Phase 20: Later
 - [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
