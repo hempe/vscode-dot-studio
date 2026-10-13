@@ -49,6 +49,12 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - "Update Service Reference" and "Remove Service Reference" on the reference folder; references created in Visual Studio (`ConnectedService.json`) work both ways, and options such as `messageContract` are edited there as in Visual Studio
 - Offers to install `dotnet-svcutil` for the repository (tool manifest, same version for the team) or globally
 
+### Tests
+- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner): tests grouped by project, namespace and class, with gutter icons in the editor
+- Run and debug single tests, classes or projects; results with failure messages and stack traces
+- Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
+- The C# extension's own "Run Test | Debug Test" code lenses stay; turn them off with `"dotnet.codeLens.enableTestsCodeLens": false` if the gutter icons are enough
+
 ### NuGet Package Manager
 - Browse and search packages, install to multiple projects, update and consolidate
 - Private feeds (e.g. Azure DevOps) via `ClearTextPassword` credentials in `NuGet.Config`
@@ -132,14 +138,15 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 ### Phase 6: Test Integration
 **Goal**: Test discovery and execution through the VS Code Test Explorer.
 
-- [ ] `vscode.TestController` with solution → project → namespace → class → test hierarchy
-- [ ] Discover MSTest, xUnit and NUnit tests; run and debug single tests or whole projects
-- [ ] Show results and output
+- [x] `vscode.TestController` with project → namespace → class → test (→ parameterized cases) hierarchy, linked to file and line
+- [x] Discover Microsoft.Testing.Platform tests (xUnit v3, MSTest runner, TUnit, NUnit runner); run and debug single tests, classes or whole projects; re-discover after builds
+- [x] Show results (failure message, stack trace, expected/actual where the framework reports them) and output
 - [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 - [ ] Test Phase 5 (template wizards) in VS Code with ApiDotNetTestProject: Add New Project on the solution and on a solution folder (settings, framework, location), Add New Item on a folder (built-in class, API Controller with read/write actions, a config file), rename a file with nested files
 
 **Implementation Notes**:
-- Discovery via `dotnet test --list-tests`, execution via `dotnet test --filter`, results from TRX
+- Microsoft.Testing.Platform's server mode: the test app (`dotnet <TargetPath> --server --client-port <port>`) connects to the extension and speaks JSON-RPC (`testing/discoverTests`, `testing/runTests`, `testing/testUpdates/tests`), which brings file and line of every test
+- Debugging starts the test app in the C# debugger with the same arguments
 
 ### Phase 7: Device & Deployment
 - [ ] Remote debugging on devices over SSH (`pipeTransport` launch configurations)
@@ -147,6 +154,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] Encrypted NuGet credentials
 
 ### Phase 8: Nice to Have
+- [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Not Planned
