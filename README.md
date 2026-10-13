@@ -128,6 +128,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] "Add New Item": class, interface, enum, record, controller, Razor page/component, test class, config files
 - [ ] Generate namespaces from `RootNamespace` and the folder structure (reuse `namespaceService`)
 - [ ] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx)
+- [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 
 ### Phase 6: Test Integration
 **Goal**: Test discovery and execution through the VS Code Test Explorer.
