@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { namespaceSegment } from './templates/itemTemplates';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 
@@ -154,7 +155,7 @@ export class NamespaceService {
             }
 
             // Convert path separators to namespace separators
-            const namespaceParts = relativePath.split(path.sep).filter(part => part && part !== '.');
+            const namespaceParts = relativePath.split(path.sep).filter(part => part && part !== '.').map(namespaceSegment);
             const expectedNamespace = rootNamespace + '.' + namespaceParts.join('.');
             log.debug(`Expected namespace: ${expectedNamespace}`);
             return expectedNamespace;
@@ -218,8 +219,9 @@ export class NamespaceService {
             }
 
             // Default to project file name without extension
+            // MSBuild's default RootNamespace: the project name made a valid identifier
             const projectName = path.basename(projectPath, path.extname(projectPath));
-            return projectName;
+            return projectName.split('.').map(namespaceSegment).join('.');
 
         } catch (error) {
             log.error(`Error reading project file ${projectPath}:`, error);
