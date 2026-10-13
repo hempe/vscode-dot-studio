@@ -36,12 +36,19 @@ export class ProjectFileEditor {
             return content.slice(0, last.end) + nl + element(indent).join(nl) + content.slice(last.end);
         }
 
+        return this.appendItemGroup(content, element);
+    }
+
+    /** Appends a new ItemGroup with `items` before `</Project>`, SDK template style */
+    private static appendItemGroup(content: string, items: (indent: string) => string[]): string {
+        const nl = content.includes('\r\n') ? '\r\n' : '\n';
+        const unit = this.indentUnit(content);
         const projectEnd = content.lastIndexOf('</Project>');
         if (projectEnd < 0) {
             throw new Error('Invalid project file: missing </Project>');
         }
         const lineStart = content.lastIndexOf('\n', projectEnd - 1) + 1;
-        const group = [`${unit}<ItemGroup>`, ...element(unit + unit), `${unit}</ItemGroup>`].join(nl) + nl;
+        const group = [`${unit}<ItemGroup>`, ...items(unit + unit), `${unit}</ItemGroup>`].join(nl) + nl;
 
         if (content.slice(lineStart, projectEnd).trim() !== '') {
             // </Project> shares its line with other content
@@ -59,6 +66,40 @@ export class ProjectFileEditor {
         const separator = /\S/.test(lineAbove) ? nl : '';
 
         return content.slice(0, insertAt) + separator + group + content.slice(insertAt);
+    }
+
+    private static readonly WCF_METADATA_RE = /<WCFMetadata\s+Include\s*=\s*"Connected Services"\s*\/>/;
+
+    /** Adds `<WCFMetadata Include="Connected Services" />`, Visual Studio's marker for service references */
+    static ensureWcfMetadata(content: string): string {
+        if (this.WCF_METADATA_RE.test(content)) {
+            return content;
+        }
+        return this.appendItemGroup(content, indent => [`${indent}<WCFMetadata Include="Connected Services" />`]);
+    }
+
+    /** Removes the WCFMetadata item, with its ItemGroup (and an empty line above it) when nothing else is in it */
+    static removeWcfMetadata(content: string): string {
+        const match = this.WCF_METADATA_RE.exec(content);
+        if (!match) {
+            return content;
+        }
+        const lineStart = (index: number) => content.lastIndexOf('\n', index - 1) + 1;
+        const lineEnd = (index: number) => content.indexOf('\n', index) + 1 || content.length;
+
+        let start = lineStart(match.index);
+        let end = lineEnd(match.index + match[0].length);
+        const groupOpen = content.lastIndexOf('<ItemGroup', match.index);
+        const groupClose = content.indexOf('</ItemGroup>', match.index);
+        if (groupOpen >= 0 && groupClose >= 0 && content.slice(content.indexOf('>', groupOpen) + 1, groupClose).trim() === match[0]) {
+            start = lineStart(groupOpen);
+            end = lineEnd(groupClose);
+            const previousLine = lineStart(start - 1);
+            if (start > 0 && content.slice(previousLine, start).trim() === '') {
+                start = previousLine;
+            }
+        }
+        return content.slice(0, start) + content.slice(end);
     }
 
     /** Assembly references (`<Reference>` items) with the simple name from their Include */
