@@ -41,7 +41,7 @@
         "shinobi.solutionExplorer.diagnostics.showInfos": {
           "type": "boolean",
           "default": false,
-          "description": "Also mark files with info diagnostics in the Solution Explorer (errors and warnings are always marked)"
+          "description": "Also mark infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Solution Explorer; errors and warnings are always marked"
         }
       }
     },

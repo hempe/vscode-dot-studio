@@ -10,7 +10,7 @@ const SHOW_INFOS_KEY = 'diagnostics.showInfos';
 const PROJECT_SUFFIX = /\s+\[[^\]]+\]$/;
 
 /**
- * Counts errors, warnings and (optionally) infos per file. Duplicates — the same diagnostic
+ * Counts errors, warnings and (optionally) infos and suggestions per file. Duplicates — the same diagnostic
  * from build output and the language server, or from several target frameworks — count once.
  */
 export function countDiagnostics(
@@ -37,6 +37,11 @@ export function countDiagnostics(
                 case vscode.DiagnosticSeverity.Error: errors++; break;
                 case vscode.DiagnosticSeverity.Warning: warnings++; break;
                 case vscode.DiagnosticSeverity.Information: if (showInfos) infos++; break;
+                // Roslyn reports suggestions (VS "Messages", the editor's ··· dots) as hints;
+                // hints tagged Unnecessary only fade out unused code and are not listed in VS
+                case vscode.DiagnosticSeverity.Hint:
+                    if (showInfos && !diagnostic.tags?.includes(vscode.DiagnosticTag.Unnecessary)) infos++;
+                    break;
             }
         }
 

@@ -16,7 +16,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Startup project selection
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
-- Errors in the tree: files with errors or warnings are coloured and show a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
+- Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are hidden unless `shinobi.solutionExplorer.diagnostics.showInfos` is on
 
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
