@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
 import { isExecutableProject } from '../parsers/projectKind';
+import { serviceFolderKind } from '../services/serviceReferences/connectedService';
 import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
@@ -531,7 +532,8 @@ export class Project {
                         type: 'folder',
                         name: propertiesFolder.name,
                         hasChildren: propertiesFolder.hasChildren,
-                        nodeId: NodeIdService.generateFolderId(propertiesFolder.path)
+                        nodeId: NodeIdService.generateFolderId(propertiesFolder.path),
+                        contextValue: this.folderContextValue(propertiesFolder.path)
                     });
                 }
 
@@ -560,7 +562,8 @@ export class Project {
                         type: child.type as 'folder' | 'file',
                         name: child.name,
                         hasChildren: child.hasChildren,
-                        nodeId: nodeId
+                        nodeId: nodeId,
+                        contextValue: child.type === 'folder' ? this.folderContextValue(child.path) : undefined
                     });
                 }
             }
@@ -679,6 +682,11 @@ export class Project {
     /**
      * Gets children for a specific folder path within this project
      */
+    /** Marks `Connected Services` and the service reference folders in it for their context menus */
+    private folderContextValue(folderPath: string): string | undefined {
+        return serviceFolderKind(path.dirname(this._projectPath), folderPath);
+    }
+
     async getFolderChildren(folderPath: string): Promise<ProjectChild[]> {
         const items: ProjectChild[] = [];
 
@@ -694,7 +702,8 @@ export class Project {
                     type: child.type as 'folder' | 'file',
                     name: child.name,
                     hasChildren: child.hasChildren,
-                    nodeId: nodeId
+                    nodeId: nodeId,
+                    contextValue: child.type === 'folder' ? this.folderContextValue(child.path) : undefined
                 });
             }
 

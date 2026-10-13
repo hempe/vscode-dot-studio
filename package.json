@@ -289,6 +289,21 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.addServiceReference",
+        "title": "Add Service Reference...",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.updateServiceReference",
+        "title": "Update Service Reference",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.removeServiceReference",
+        "title": "Remove Service Reference",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.build",
         "title": "Build",
         "category": ".NET"
@@ -543,6 +558,11 @@
           "group": "2_group@2"
         },
         {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "2_group@3"
+        },
+        {
           "command": "shinobi.solutionExplorer.paste",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "3_group@1"
@@ -596,6 +616,21 @@
           "command": "shinobi.solutionExplorer.chooseLaunchProfile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startupWithProfiles'",
           "group": "4_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && contextValue == 'connectedServices'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && contextValue == 'serviceReference'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && contextValue == 'serviceReference'",
+          "group": "1_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.addFile",
@@ -813,6 +848,18 @@
         },
         {
           "command": "shinobi.solutionExplorer.chooseLaunchProfile",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateServiceReference",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeServiceReference",
           "when": "false"
         },
         {

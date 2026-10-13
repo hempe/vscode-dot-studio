@@ -11,6 +11,7 @@ import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTa
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { DebugConfigService } from './debugConfigService';
+import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 
 const log = logger('SolutionActionService');
 
@@ -135,6 +136,18 @@ export class SolutionActionService {
 
             case 'chooseLaunchProfile':
                 await DebugConfigService.chooseLaunchProfile(nodeId.path);
+                break;
+
+            case 'addServiceReference':
+                await addServiceReference(nodeId.path);
+                break;
+
+            case 'updateServiceReference':
+                await updateServiceReference(nodeId.path);
+                break;
+
+            case 'removeServiceReference':
+                await removeServiceReferenceWithConfirmation(nodeId.path);
                 break;
 
             case 'copy':

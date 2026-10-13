@@ -42,6 +42,9 @@ export const menuCommands = {
     restoreDependencies: { title: 'Restore Dependencies' },
     setStartupProject: { title: 'Set as Startup Project' },
     chooseLaunchProfile: { title: 'Set Launch Profile...' },
+    addServiceReference: { title: 'Add Service Reference...' },
+    updateServiceReference: { title: 'Update Service Reference' },
+    removeServiceReference: { title: 'Remove Service Reference' },
     build: { title: 'Build' },
     rebuild: { title: 'Rebuild' },
     clean: { title: 'Clean' },
@@ -82,7 +85,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     ],
     project: [
         ['openFile'],
-        ['addFile', 'addFolder'],
+        ['addFile', 'addFolder', 'addServiceReference'],
         ['paste'],
         [], // setStartupProject or chooseLaunchProfile, see below
         ['manageNuGetPackages'],
@@ -99,6 +102,12 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: [
         [], [], [],
         ['chooseLaunchProfile'],
+    ],
+    'folder.connectedServices': [
+        ['addServiceReference'],
+    ],
+    'folder.serviceReference': [
+        ['updateServiceReference', 'removeServiceReference'],
     ],
     folder: [
         ['addFile', 'addFolder'],

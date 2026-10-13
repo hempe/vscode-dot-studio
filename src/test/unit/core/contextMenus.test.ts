@@ -55,4 +55,15 @@ describe('contextMenus', () => {
             'assemblies: shinobi.solutionExplorer.addAssemblyReference',
         ]);
     });
+
+    it('offers service reference actions on projects, Connected Services and reference folders', () => {
+        const { webviewContext } = buildMenuContributions();
+        const when = (command: string) => webviewContext.filter(e => e.command === `shinobi.solutionExplorer.${command}`).map(e => e.when);
+        expect(when('addServiceReference')).toEqual(expect.arrayContaining([
+            expect.stringContaining("nodeType == 'project'"),
+            expect.stringContaining("contextValue == 'connectedServices'"),
+        ]));
+        expect(when('updateServiceReference')).toEqual([expect.stringContaining("nodeType == 'folder' && contextValue == 'serviceReference'")]);
+        expect(when('removeServiceReference')).toEqual([expect.stringContaining("contextValue == 'serviceReference'")]);
+    });
 });

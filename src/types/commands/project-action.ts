@@ -96,6 +96,21 @@ export declare type SetStartupProjectActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type AddServiceReferenceActionCmd = {
+    readonly action: 'addServiceReference';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type UpdateServiceReferenceActionCmd = {
+    readonly action: 'updateServiceReference';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type RemoveServiceReferenceActionCmd = {
+    readonly action: 'removeServiceReference';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type ChooseLaunchProfileActionCmd = {
     readonly action: 'chooseLaunchProfile';
     readonly nodeId: NodeIdString;
@@ -198,6 +213,9 @@ export type ProjectActionCmd =
     | DeleteProjectActionCmd
     | SetStartupProjectActionCmd
     | ChooseLaunchProfileActionCmd
+    | AddServiceReferenceActionCmd
+    | UpdateServiceReferenceActionCmd
+    | RemoveServiceReferenceActionCmd
     | PasteActionCmd
     | StartRenameActionCmd
     | CollapseParentActionCmd
