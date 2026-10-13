@@ -5,6 +5,7 @@ import { logger } from '../../core/logger';
 import { PackageInstallOptions, PackageOperationResult } from './types';
 
 const execAsync = promisify(exec);
+import { reportRejectedInOutput } from './feedAuth';
 const log = logger('PackageOperationsService');
 
 /**
@@ -58,6 +59,7 @@ export class PackageOperationsService {
                 };
             } else {
                 const errorMessage = stderr || stdout || 'Unknown error occurred';
+                void reportRejectedInOutput(`${stdout}\n${stderr}`);
                 log.error(`Failed to install ${options.packageId}:`, errorMessage);
                 return {
                     success: false,
@@ -69,6 +71,8 @@ export class PackageOperationsService {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            // dotnet exits with an error for NU1301 (feed not reachable / unauthorized)
+            void reportRejectedInOutput(`${errorMessage}\n${(error as { stdout?: string }).stdout ?? ''}\n${(error as { stderr?: string }).stderr ?? ''}`);
             log.error(`Error installing package ${options.packageId}:`, error);
             return {
                 success: false,

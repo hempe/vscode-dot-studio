@@ -6,6 +6,7 @@ import { PersistentCache } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
 import * as os from 'os';
+import { reportRejectedCredentials } from './feedAuth';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 
 const log = logger('NuGetV3Service');
@@ -427,6 +428,10 @@ export class NuGetV3Service {
                 } else if (result.statusCode >= 500) {
                     // Server error - remove from memory cache
                     this.requestCache.delete(cacheKey);
+                } else if (result.statusCode === 401 || result.statusCode === 403) {
+                    // Expired or missing token: explain what to do, and don't remember the answer
+                    this.requestCache.delete(cacheKey);
+                    void reportRejectedCredentials(url, result.statusCode);
                 }
                 return result;
             })
@@ -448,16 +453,8 @@ export class NuGetV3Service {
             };
 
             if (accessToken) {
-                // Azure DevOps uses Basic authentication with PAT
-                if (url.includes('dev.azure.com') || url.includes('visualstudio.com')) {
-                    // Basic auth format: base64(username:password)
-                    // Username can be anything for PAT authentication
-                    const credentials = Buffer.from(`:${accessToken}`).toString('base64');
-                    headers['Authorization'] = `Basic ${credentials}`;
-                } else {
-                    // Other feeds typically use Bearer tokens
-                    headers['Authorization'] = `Bearer ${accessToken}`;
-                }
+                // As NuGet sends stored credentials: Basic with base64(Username:ClearTextPassword)
+                headers['Authorization'] = `Basic ${accessToken}`;
             }
 
             // Add If-None-Match header if we have an ETag

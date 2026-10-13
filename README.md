@@ -58,7 +58,8 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### NuGet Package Manager
 - Browse and search packages, install to multiple projects, update and consolidate
-- Private feeds (e.g. Azure DevOps) via `ClearTextPassword` credentials in `NuGet.Config`
+- Private feeds (Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet, …) via `Username`/`ClearTextPassword` credentials in `NuGet.Config`, found like NuGet finds them (every NuGet.Config from the solution folder up, then the user config)
+- When a feed rejects its credentials (expired token): a message with the file and line of the credentials, what to do for that kind of feed, and "Enter New Token..." to store a new one
 - Package details, versions, dependencies and README
 
 ## Known Issues
@@ -158,7 +159,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 
 ### Phase 7: Device & Deployment
 - [ ] Encrypted NuGet credentials
-- [ ] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
+- [x] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
