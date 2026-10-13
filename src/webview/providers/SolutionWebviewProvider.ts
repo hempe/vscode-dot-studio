@@ -290,6 +290,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // Bring the startup configuration in line with the active configuration and the MSBuild
             // output path once per solution, e.g. when the configuration changed in another session
             void DebugConfigService.refreshStartupConfiguration();
+            void vscode.commands.executeCommand('shinobi.internal.refreshTests');
             this._solutionChangeListener = solution.onDidChange(() => {
                 log.info('Solution changed (including launch.json), updating tree...');
                 this._updateViewDebouncer.trigger();

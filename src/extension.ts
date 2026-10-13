@@ -16,6 +16,7 @@ import { BuildConfiguration } from './services/buildConfiguration';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
+import { TestExplorer } from './services/testing/testExplorer';
 
 const logger = loggerFn('Extensions');
 
@@ -56,6 +57,12 @@ export function activate(context: vscode.ExtensionContext) {
     BuildConfiguration.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
+    const testExplorer = new TestExplorer();
+    context.subscriptions.push(
+        testExplorer,
+        // The Solution Explorer calls this once the solution is loaded: tests of built projects show right away
+        vscode.commands.registerCommand('shinobi.internal.refreshTests', () => testExplorer.refresh(false))
+    );
 
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();
