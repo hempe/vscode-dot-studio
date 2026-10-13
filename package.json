@@ -115,7 +115,8 @@
           "id": "shinobi.errorList",
           "name": "Error List",
           "when": "shinobi.workspaceHasDotnetFiles",
-          "type": "webview"
+          "type": "webview",
+          "icon": "$(checklist)"
         }
       ]
     },
