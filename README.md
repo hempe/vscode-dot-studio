@@ -57,6 +57,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [ ] Keep this README in line with the actual features
 
+### Phase 1.5: Look like VS Code
+- [ ] Files and folders in the Solution Explorer use the user's file icon theme (`workbench.iconTheme`, e.g. Seti, Material Icon Theme, vscode-icons); `@iconify` stays as the fallback and for solution/project/dependency nodes
+
 ### Phase 2: Errors in the Problems Panel and the Solution Explorer
 **Goal**: An equivalent of Visual Studio's Error List, and of the [Solution Error Visualizer](https://marketplace.visualstudio.com/items?itemName=VisualStudioPlatformTeam.SolutionErrorVisualizer) extension showing in the tree where errors, warnings and infos are. The tree markers are a must-have.
 
