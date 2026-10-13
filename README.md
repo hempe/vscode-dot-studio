@@ -25,7 +25,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
-- Add existing projects; remove or delete projects
+- Add new projects from `dotnet new` templates and existing projects (also into solution folders); remove or delete projects
 - Add and remove project and assembly references
 
 ### Run & Debug (F5)
@@ -38,9 +38,10 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### File Operations
 - Add files and folders with inline naming
+- Add New Item: built-in C# types with the folder's namespace, or any `dotnet new` item template
 - Copy, cut, paste, rename and delete
 - Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
-- Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running)
+- Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running); files nested under it (Designer, code-behind, resources) are renamed with it
 - Reveal in file explorer
 
 ### Connected Services (SOAP)
@@ -54,7 +55,6 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Package details, versions, dependencies and README
 
 ## Known Issues
-- [ ] "Add New Project" is a stub
 - [ ] Encrypted NuGet feed passwords (`Password` instead of `ClearTextPassword`) are not supported
 - [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
@@ -124,10 +124,10 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Generating runs `dotnet-svcutil --update` on a params file made from `ConnectedService.json` in a temporary folder under `obj/`; svcutil's own package edits (`System.ServiceModel.*` `4.10.*`) are undone
 
 ### Phase 5: New Project & New Item Templates
-- [ ] "Add New Project": pick a template from `dotnet new list`, name and location, then add it to the solution
-- [ ] "Add New Item": class, interface, enum, record, controller, Razor page/component, test class, config files
-- [ ] Generate namespaces from `RootNamespace` and the folder structure (reuse `namespaceService`)
-- [ ] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx)
+- [x] "Add New Project" on the solution or a solution folder: pick a template from `dotnet new list` (recently used first), name and location (next to the other projects), the solution's most common target framework, then add it to the solution (folder)
+- [x] "Add New Item" on projects and folders: Class, Interface, Record, Enum, Struct built in; controllers, Razor items, test classes, config files and your own item templates from `dotnet new`; named inline in the tree
+- [x] Generate namespaces from `RootNamespace` and the folder structure (folder names made valid identifiers, `Connected Services` → `Connected_Services`)
+- [x] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx; Index.cshtml → Index.cshtml.cs)
 - [ ] Test Phase 4 (service references) in VS Code with the `SoapClient` project in ApiDotNetTestProject: add from `wsdl/CardOperations.wsdl`, update, remove, and update a reference Visual Studio created
 
 ### Phase 6: Test Integration
