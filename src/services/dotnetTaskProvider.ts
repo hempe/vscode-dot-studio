@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { SolutionService } from './solutionService';
 import { sln } from '../core/utils';
+import { BuildConfiguration } from './buildConfiguration';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -13,16 +14,19 @@ export interface DotnetTaskDefinition extends vscode.TaskDefinition {
     readonly action: DotnetTaskAction;
     /** Absolute path of the solution or project file */
     readonly target: string;
+    /** Debug, Release, ...; the active solution configuration when not set */
+    readonly configuration?: string;
 }
 
 const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
 
 /** `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve */
-export function dotnetTaskArgs(action: DotnetTaskAction, target: string): string[] {
+export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string): string[] {
+    const config = ['--configuration', configuration];
     switch (action) {
-        case 'build': return ['build', target, ...QUIET, '-property:GenerateFullPaths=true'];
-        case 'rebuild': return ['build', target, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true'];
-        case 'clean': return ['clean', target, ...QUIET];
+        case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true'];
+        case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true'];
+        case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
     }
 }
@@ -33,13 +37,14 @@ export function createDotnetTask(
     scope: vscode.WorkspaceFolder | vscode.TaskScope = vscode.workspace.workspaceFolders?.[0] ?? vscode.TaskScope.Workspace
 ): vscode.Task {
     const { action, target } = definition;
+    const configuration = definition.configuration ?? BuildConfiguration.active;
     const targetName = path.basename(target, sln(target) ?? path.extname(target));
     const task = new vscode.Task(
         definition,
         scope,
         `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target), { cwd: path.dirname(target) }),
+        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     task.group = action === 'build' && sln(target)

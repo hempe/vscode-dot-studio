@@ -165,11 +165,11 @@ export class Solution {
 
     private async refreshLaunchJsonCache(): Promise<void> {
         try {
-            log.debug('Calling DebugConfigService.getStartupProjectFromLaunchJson()...');
-            const startupProject = DebugConfigService.getStartupProjectFromLaunchJson();
+            log.debug('Calling DebugConfigService.getStartupProject()...');
+            const startupProject = DebugConfigService.getStartupProject();
             log.debug(`DebugConfigService returned startup project: ${startupProject}`);
 
-            const framework = DebugConfigService.getActiveFrameworkFromLaunchJson();
+            const framework = DebugConfigService.getActiveFramework();
             log.debug(`DebugConfigService returned framework: ${framework}`);
 
             this._cachedStartupProject = startupProject;
@@ -1244,7 +1244,7 @@ export class Solution {
         log.debug(`getStartupProject() called, cached value: ${this._cachedStartupProject}`);
 
         // Check if we need to refresh the cache synchronously
-        const freshStartupProject = DebugConfigService.getStartupProjectFromLaunchJson();
+        const freshStartupProject = DebugConfigService.getStartupProject();
         if (freshStartupProject !== this._cachedStartupProject) {
             log.debug(`Cache is stale (${this._cachedStartupProject} vs ${freshStartupProject}), updating...`);
             this._cachedStartupProject = freshStartupProject;

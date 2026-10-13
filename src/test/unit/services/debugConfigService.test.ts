@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { spawnSync } from 'child_process';
 
 const env = {
     workspacePath: '',
@@ -8,7 +9,10 @@ const env = {
     /** Label the quick pick returns; undefined cancels */
     pick: undefined as string | undefined,
     pickItems: undefined as undefined | { label: string; description?: string }[],
+    configuration: 'Debug',
 };
+
+const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 
 jest.mock('vscode', () => ({
     workspace: {
@@ -23,6 +27,10 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
+jest.mock('../../../services/buildConfiguration', () => ({
+    BuildConfiguration: { get active() { return env.configuration; } },
+}));
+
 import { DebugConfigService } from '../../../services/debugConfigService';
 import { parseJsonc } from '../../../core/jsonc';
 
@@ -36,6 +44,7 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         env.warnings = [];
         env.pick = undefined;
         env.pickItems = undefined;
+        env.configuration = 'Debug';
         fs.mkdirSync(path.join(env.workspacePath, '.vscode'));
         fs.mkdirSync(path.join(env.workspacePath, 'App'));
         projectPath = path.join(env.workspacePath, 'App', 'App.csproj');
@@ -82,8 +91,54 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         expect(parseJsonc(tasksText).value.tasks.map((t: any) => t.label)).toEqual(['build', 'StartupPreBuild']);
 
         expect(fs.existsSync(`${launchJsonPath}.backup`)).toBe(false);
-        expect(DebugConfigService.getStartupProjectFromLaunchJson()).toBe(projectPath);
-        expect(DebugConfigService.getActiveFrameworkFromLaunchJson()).toBe('net10.0');
+        expect(DebugConfigService.getStartupProject()).toBe(projectPath);
+        expect(DebugConfigService.getActiveFramework()).toBe('net10.0');
+    });
+
+    it('builds and runs the active configuration', async () => {
+        env.configuration = 'Release';
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+
+        const [config] = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations;
+        expect(config.program).toBe('${workspaceFolder}/App/bin/Release/net10.0/App.dll');
+        const [task] = parseJsonc(fs.readFileSync(tasksJsonPath, 'utf8')).value.tasks;
+        expect(task.args.slice(0, 6)).toEqual(['build', path.join('App', 'App.csproj'), '--framework', 'net10.0', '--configuration', 'Release']);
+        expect(DebugConfigService.getStartupProject()).toBe(projectPath);
+        expect(DebugConfigService.getActiveFramework()).toBe('net10.0');
+    });
+
+    withDotnet('takes the output path from MSBuild, e.g. the artifacts layout', async () => {
+        fs.writeFileSync(path.join(env.workspacePath, 'Directory.Build.props'),
+            '<Project><PropertyGroup><UseArtifactsOutput>true</UseArtifactsOutput><AssemblyName>Renamed</AssemblyName></PropertyGroup></Project>');
+
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+
+        const [config] = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations;
+        expect(config.program).toBe('${workspaceFolder}/artifacts/bin/App/debug/Renamed.dll');
+        expect(DebugConfigService.getStartupProject()).toBe(projectPath);
+    });
+
+    it('refreshing rewrites the startup configuration for the current configuration', async () => {
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+        env.configuration = 'Release';
+
+        await DebugConfigService.refreshStartupConfiguration();
+
+        const [config] = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations;
+        expect(config.program).toBe('${workspaceFolder}/App/bin/Release/net10.0/App.dll');
+    });
+
+    it('refreshing without a startup project writes nothing', async () => {
+        await DebugConfigService.refreshStartupConfiguration();
+        expect(fs.existsSync(launchJsonPath)).toBe(false);
+    });
+
+    it('reads startup configurations written before the configuration was part of the task', () => {
+        fs.writeFileSync(launchJsonPath, JSON.stringify({ configurations: [{ name: 'Startup', type: 'coreclr', program: '${workspaceFolder}/App/bin/Debug/net10.0/App.dll' }] }));
+        fs.writeFileSync(tasksJsonPath, JSON.stringify({ tasks: [{ label: 'StartupPreBuild', args: ['build', 'App/App.csproj', '--framework', 'net10.0', '/property:GenerateFullPaths=true'] }] }));
+
+        expect(DebugConfigService.getStartupProject()).toBe(projectPath);
+        expect(DebugConfigService.getActiveFramework()).toBe('net10.0');
     });
 
     it('leaves a launch.json with syntax errors untouched and warns', async () => {

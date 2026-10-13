@@ -19,6 +19,9 @@ import { FOCUSED_NODE_TYPE_CONTEXT } from '../../core/contextMenus';
 import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
 import { IconThemeService } from '../../services/iconThemeService';
+import { BuildConfiguration, solutionConfigurations } from '../../services/buildConfiguration';
+import { DebugConfigService } from '../../services/debugConfigService';
+import { Solution } from '../../core/Solution';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -275,8 +278,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return [];
         }
 
+        BuildConfiguration.setAvailable(solutionConfigurations(solution.solutionFile));
+
         // Set up solution change listener if not already set up
         if (!this._solutionChangeListener) {
+            // Bring the startup configuration in line with the active configuration and the MSBuild
+            // output path once per solution, e.g. when the configuration changed in another session
+            void DebugConfigService.refreshStartupConfiguration();
             this._solutionChangeListener = solution.onDidChange(() => {
                 log.info('Solution changed (including launch.json), updating tree...');
                 this._updateViewDebouncer.trigger();
@@ -295,9 +303,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         log.info('Got solution data:', solutionData);
 
         this._frameworkService.setSolution(solution);
+        this._updateDescription(solution);
 
         // Convert solution data to tree structure for the React component
         return await SolutionTreeService.buildSolutionTree(solution);
+    }
+
+    /** Shows the active configuration and framework next to the view title, like Visual Studio's toolbar */
+    private _updateDescription(solution: Solution) {
+        if (this._view) {
+            this._view.description = [BuildConfiguration.active, solution.getActiveFramework()].filter(Boolean).join(' · ');
+        }
     }
 
     public refresh() {

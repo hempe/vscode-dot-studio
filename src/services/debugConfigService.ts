@@ -5,128 +5,71 @@ import { logger } from '../core/logger';
 import { parseStringPromise } from 'xml2js';
 import { VersionUtils } from './versionUtils';
 import { parseJsonc, upsertArrayItem } from '../core/jsonc';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { BuildConfiguration } from './buildConfiguration';
+
+const execFileAsync = promisify(execFile);
 
 const log = logger('DebugConfigService');
 
 export class DebugConfigService {
     /**
-     * Gets the current startup project from launch.json
+     * The startup project: the project the "StartupPreBuild" task builds, as long as launch.json still
+     * has the "Startup" configuration. The program path can't tell, MSBuild decides where the output goes.
      */
-    static getStartupProjectFromLaunchJson(): string | null {
-        try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                return null;
-            }
+    static getStartupProject(): string | null {
+        const startup = this.readStartupBuild();
+        return startup ? startup.projectPath : null;
+    }
 
-            const workspacePath = workspaceFolder.uri.fsPath;
-            const launchJsonPath = path.join(workspacePath, '.vscode', 'launch.json');
-
-            if (!fs.existsSync(launchJsonPath)) {
-                return null;
-            }
-
-            const { value: launchConfig, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
-            if (errors.length > 0) {
-                log.error(`Failed to parse launch.json for reading startup project:`, errors);
-                return null;
-            }
-
-            // Find the "Startup" configuration
-            const startupConfig = launchConfig.configurations?.find(
-                (config: any) => config.name === 'Startup' && (config.type === 'coreclr' || config.type === 'clr' || config.type === 'mono')
-            );
-
-            if (!startupConfig) {
-                return null;
-            }
-
-            // Extract project path from the program path
-            // program format: "${workspaceFolder}/path/to/project/bin/Debug/net*/ProjectName.dll"
-            const programPath = startupConfig.program;
-            if (!programPath || typeof programPath !== 'string') {
-                return null;
-            }
-
-            // Extract project directory from program path
-            const match = programPath.match(/\$\{workspaceFolder\}\/(.+?)\/bin\/Debug/);
-            if (!match) {
-                return null;
-            }
-
-            const projectDir = match[1];
-
-            // Get project name from the program DLL name
-            const dllMatch = programPath.match(/\/([^\/]+)\.dll$/);
-            if (!dllMatch) {
-                return null;
-            }
-
-            const projectName = dllMatch[1];
-            const projectPath = `${projectDir}/${projectName}.csproj`;
-
-            // Convert to absolute path for comparison
-            const absoluteProjectPath = path.resolve(workspacePath, projectPath);
-
-            log.info(`Found startup project from launch.json: ${projectPath} -> ${absoluteProjectPath}`);
-            log.debug(`Program path was: ${programPath}`);
-            return absoluteProjectPath;
-        } catch (error) {
-            log.error('Error reading startup project from launch.json:', error);
-            return null;
-        }
+    /** The target framework the startup project builds and runs */
+    static getActiveFramework(): string | null {
+        return this.readStartupBuild()?.framework ?? null;
     }
 
     /**
-     * Gets the current active framework from launch.json
+     * Rewrites the "Startup" configuration of the current startup project, e.g. after the solution
+     * configuration or its launchSettings.json changed. Writes nothing when everything is up to date.
      */
-    static getActiveFrameworkFromLaunchJson(): string | null {
+    static async refreshStartupConfiguration(): Promise<void> {
+        const startupProject = this.getStartupProject();
+        if (startupProject) {
+            await this.updateStartupConfiguration(startupProject, this.getActiveFramework() ?? undefined);
+        }
+    }
+
+    /** Project and framework of the "StartupPreBuild" task (`dotnet build <project> --framework <tfm> ...`) */
+    private static readStartupBuild(): { projectPath: string; framework?: string } | undefined {
         try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                return null;
+            const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (!workspacePath) {
+                return undefined;
+            }
+            const vscodeFolder = path.join(workspacePath, '.vscode');
+            const startupConfig = this.readStartupConfig(path.join(vscodeFolder, 'launch.json'));
+            if (!startupConfig || !['coreclr', 'clr', 'mono'].includes(startupConfig.type)) {
+                return undefined;
             }
 
-            const workspacePath = workspaceFolder.uri.fsPath;
-            const launchJsonPath = path.join(workspacePath, '.vscode', 'launch.json');
-
-            if (!fs.existsSync(launchJsonPath)) {
-                return null;
+            const tasksJsonPath = path.join(vscodeFolder, 'tasks.json');
+            if (!fs.existsSync(tasksJsonPath)) {
+                return undefined;
+            }
+            const { value } = parseJsonc(fs.readFileSync(tasksJsonPath, 'utf8'));
+            const args = value?.tasks?.find((task: any) => task?.label === 'StartupPreBuild')?.args;
+            if (!Array.isArray(args) || args[0] !== 'build' || typeof args[1] !== 'string') {
+                return undefined;
             }
 
-            const { value: launchConfig, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
-            if (errors.length > 0) {
-                log.error(`Failed to parse launch.json for reading active framework:`, errors);
-                return null;
-            }
-
-            // Find the "Startup" configuration
-            const startupConfig = launchConfig.configurations?.find(
-                (config: any) => config.name === 'Startup' && (config.type === 'coreclr' || config.type === 'clr' || config.type === 'mono')
-            );
-
-            if (!startupConfig) {
-                return null;
-            }
-
-            // Extract framework from the program path
-            // program format: "${workspaceFolder}/path/to/project/bin/Debug/net8.0/ProjectName.dll"
-            const programPath = startupConfig.program;
-            if (!programPath || typeof programPath !== 'string') {
-                return null;
-            }
-
-            const frameworkMatch = programPath.match(/\/bin\/Debug\/([^\/]+)\//);
-            if (frameworkMatch) {
-                const framework = frameworkMatch[1];
-                log.info(`Found active framework from launch.json: ${framework}`);
-                return framework;
-            }
-
-            return null;
+            const frameworkIndex = args.indexOf('--framework');
+            return {
+                projectPath: path.resolve(workspacePath, args[1]),
+                framework: frameworkIndex > 0 && typeof args[frameworkIndex + 1] === 'string' ? args[frameworkIndex + 1] : undefined,
+            };
         } catch (error) {
-            log.error('Error reading active framework from launch.json:', error);
-            return null;
+            log.error('Error reading the startup project:', error);
+            return undefined;
         }
     }
 
@@ -177,12 +120,14 @@ export class DebugConfigService {
             const selectedFramework = await this.determineTargetFramework(absoluteProjectPath, framework);
             log.info(`Selected framework for startup project: ${selectedFramework}`);
 
-            // Determine framework path - use specific framework if selected, otherwise use wildcard
-            const frameworkPath = selectedFramework || 'net*';
+            const configuration = BuildConfiguration.active;
+            const targetPath = await this.resolveTargetPath(absoluteProjectPath, configuration, selectedFramework);
+            const relativeTargetPath = path.relative(workspacePath, targetPath);
+            const program = relativeTargetPath.startsWith('..') || path.isAbsolute(relativeTargetPath)
+                ? targetPath
+                : `\${workspaceFolder}/${relativeTargetPath.split(path.sep).join('/')}`;
 
-            // Determine if we should use .exe or .dll based on framework type
             const isNetFramework = this.isNetFramework(selectedFramework);
-            const programExtension = isNetFramework ? 'exe' : 'dll';
 
             // Determine debug type based on framework and platform
             let debugType: string;
@@ -204,7 +149,7 @@ export class DebugConfigService {
                 name: 'Startup',
                 type: debugType,
                 request: 'launch',
-                program: `\${workspaceFolder}/${relativeProjectDir}/bin/Debug/${frameworkPath}/${projectName}.${programExtension}`,
+                program,
                 ...(profile ? { launchSettingsProfile: profile.name } : { args: [] }),
                 cwd: `\${workspaceFolder}/${relativeProjectDir}`,
                 console: 'integratedTerminal',
@@ -212,6 +157,9 @@ export class DebugConfigService {
                 preLaunchTask: 'StartupPreBuild',
                 ...(profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
             };
+
+            // tasks.json first: it names the startup project, which is read back when launch.json changes
+            await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined);
 
             // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
             this.upsertJsoncArrayItem(
@@ -223,10 +171,7 @@ export class DebugConfigService {
                 'first'
             );
 
-            // Create/update tasks.json with the StartupPreBuild task
-            await this.updateTasksJson(tasksJsonPath, relativeProjectPath, selectedFramework || undefined);
-
-            log.info(`Updated "Startup" configuration: project=${projectName}, framework=${selectedFramework || 'auto'}`);
+            log.info(`Updated "Startup" configuration: project=${projectName}, configuration=${configuration}, framework=${selectedFramework || 'auto'}`);
 
             // Set the "Startup" configuration as the active debug configuration
             await this.setActiveDebugConfiguration(workspaceFolder, 'Startup');
@@ -242,6 +187,32 @@ export class DebugConfigService {
         // Since we place the "Startup" configuration first in the launch.json array,
         // VS Code will automatically select it as the default. No additional action needed.
         log.info(`"${configName}" configuration is first in launch.json and will be selected by default`);
+    }
+
+    /**
+     * The assembly the project builds for a configuration and framework, as MSBuild evaluates it
+     * (`TargetPath`): respects OutputPath, AssemblyName, the artifacts layout and Directory.Build.props.
+     * Falls back to the default `bin/<configuration>/<framework>/<project>.dll` when evaluation fails.
+     */
+    private static async resolveTargetPath(projectPath: string, configuration: string, framework: string | null): Promise<string> {
+        const projectDir = path.dirname(projectPath);
+        const fallback = path.join(projectDir, 'bin', configuration, framework || 'net*',
+            `${path.basename(projectPath, path.extname(projectPath))}.${this.isNetFramework(framework) ? 'exe' : 'dll'}`);
+        try {
+            const { stdout } = await execFileAsync('dotnet', [
+                'msbuild', projectPath, '-nologo', '-getProperty:TargetPath',
+                `-property:Configuration=${configuration}`,
+                ...(framework ? [`-property:TargetFramework=${framework}`] : []),
+            ], { cwd: projectDir, timeout: 60000 });
+            const targetPath = stdout.trim().split(/\r?\n/).pop()?.trim();
+            if (targetPath && path.isAbsolute(targetPath)) {
+                return targetPath;
+            }
+            log.warn(`MSBuild returned no TargetPath for ${projectPath}, using ${fallback}`);
+        } catch (error) {
+            log.warn(`Could not evaluate the output path of ${projectPath}, using ${fallback}:`, error);
+        }
+        return fallback;
     }
 
     /**
@@ -340,7 +311,7 @@ export class DebugConfigService {
     /**
      * Updates tasks.json with the StartupPreBuild task
      */
-    private static async updateTasksJson(tasksJsonPath: string, projectPath: string, framework?: string | undefined): Promise<void> {
+    private static async updateTasksJson(tasksJsonPath: string, projectPath: string, configuration: string, framework?: string | undefined): Promise<void> {
         try {
             // Create the StartupPreBuild task
             const prebuildTask = {
@@ -351,6 +322,7 @@ export class DebugConfigService {
                     'build',
                     projectPath,
                     ...(framework ? ['--framework', framework] : []),
+                    '--configuration', configuration,
                     '/property:GenerateFullPaths=true',
                     '/consoleloggerparameters:NoSummary'
                 ],
@@ -494,7 +466,7 @@ export class DebugConfigService {
 
     /** Asks for another launch profile of the startup project, keeping its framework */
     static async chooseLaunchProfile(projectPath: string): Promise<void> {
-        await this.updateStartupConfiguration(projectPath, this.getActiveFrameworkFromLaunchJson() ?? undefined, true);
+        await this.updateStartupConfiguration(projectPath, this.getActiveFramework() ?? undefined, true);
     }
 
     /** The "Startup" configuration currently in launch.json, if any */

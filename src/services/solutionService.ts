@@ -182,7 +182,7 @@ export class SolutionService {
         startupProject: string | null;
     }> {
         const solutionFile = await this.parseSolutionFile(solutionPath);
-        const startupProject = await DebugConfigService.getStartupProjectFromLaunchJson();
+        const startupProject = await DebugConfigService.getStartupProject();
 
         return {
             totalProjects: solutionFile.projects.length,

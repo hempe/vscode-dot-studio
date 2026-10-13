@@ -92,7 +92,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [x] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
 - [x] Offer "Set as Startup Project" only on projects that can be started (`OutputType` Exe/WinExe, or the Web, Worker or Aspire AppHost SDK; not class libraries or test projects)
 - [x] Choose the launch profile: "Set as Startup Project" asks when there are several; on the startup project "Set Launch Profile..." changes it
-- [ ] Resolve the output path through MSBuild instead of hardcoding `bin/Debug/<tfm>/` (respects Release, `OutputPath`, artifacts layout)
+- [x] Resolve the output path through MSBuild (`TargetPath`) instead of hardcoding `bin/Debug/<tfm>/` (respects `OutputPath`, `AssemblyName`, artifacts layout)
+- [x] Debug/Release switch in the Solution Explorer title bar, for builds and F5 (configurations from the solution file; kept per user; the active one shows next to the view title)
+- [x] Follow changes to `launchSettings.json`: a removed or renamed profile falls back to another, and "Set Launch Profile..." appears once there are several
 
 ### Phase 4: Connected Services (SOAP)
 **Goal**: The "Add Service Reference / Connected Service" workflow for WCF/SOAP clients.

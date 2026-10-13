@@ -1,5 +1,6 @@
 const env = {
     solution: undefined as undefined | { solutionPath: string; projects: Map<string, unknown> },
+    configuration: 'Debug',
 };
 
 jest.mock('vscode', () => {
@@ -30,17 +31,21 @@ jest.mock('../../../services/solutionService', () => ({
     SolutionService: { getActiveSolution: () => env.solution },
 }));
 
+jest.mock('../../../services/buildConfiguration', () => ({
+    BuildConfiguration: { get active() { return env.configuration; } },
+}));
+
 import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvider, DOTNET_TASK_TYPE } from '../../../services/dotnetTaskProvider';
 
 describe('dotnetTaskArgs', () => {
     test('build, rebuild, clean and restore', () => {
-        expect(dotnetTaskArgs('build', '/repo/All.sln')).toEqual(
-            ['build', '/repo/All.sln', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
-        expect(dotnetTaskArgs('rebuild', '/repo/All.sln')).toEqual(
-            ['build', '/repo/All.sln', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
-        expect(dotnetTaskArgs('clean', '/repo/All.sln')).toEqual(
-            ['clean', '/repo/All.sln', '-nologo', '-consoleLoggerParameters:NoSummary']);
-        expect(dotnetTaskArgs('restore', '/repo/All.sln')).toEqual(['restore', '/repo/All.sln']);
+        expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug')).toEqual(
+            ['build', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+        expect(dotnetTaskArgs('rebuild', '/repo/All.sln', 'Release')).toEqual(
+            ['build', '/repo/All.sln', '--configuration', 'Release', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+        expect(dotnetTaskArgs('clean', '/repo/All.sln', 'Debug')).toEqual(
+            ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary']);
+        expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
     });
 });
 
@@ -60,6 +65,16 @@ describe('createDotnetTask', () => {
         const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/All.slnx' }) as any;
         expect(task.name).toBe('build All');
         expect(task.group).toEqual({ id: 'build', isDefault: true });
+    });
+
+    test('uses the active solution configuration unless the definition names one', () => {
+        env.configuration = 'Release';
+        const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/All.sln' }) as any;
+        expect(task.execution.args).toContain('Release');
+
+        const pinned = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/All.sln', configuration: 'Debug' }) as any;
+        expect(pinned.execution.args.slice(2, 4)).toEqual(['--configuration', 'Debug']);
+        env.configuration = 'Debug';
     });
 
     test('restore has no problem matcher', () => {

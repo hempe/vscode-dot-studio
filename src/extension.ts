@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { FrameworkDropdownService } from './services/frameworkDropdownService';
 import { SolutionService } from './services/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
@@ -11,6 +12,8 @@ import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditor
 import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
+import { BuildConfiguration } from './services/buildConfiguration';
+import { DebugConfigService } from './services/debugConfigService';
 
 const logger = loggerFn('Extensions');
 
@@ -47,6 +50,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Set context for when workspace has .NET files
     vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
+
+    BuildConfiguration.initialize(context.workspaceState);
 
     // Initialize framework dropdown service
     const frameworkDropdownService = new FrameworkDropdownService();
@@ -135,6 +140,25 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Framework changed to: ${selection.label}`);
             }
         }),
+        vscode.commands.registerCommand('shinobi.solution.configuration.debug', () => BuildConfiguration.set('Debug')),
+        vscode.commands.registerCommand('shinobi.solution.configuration.release', () => BuildConfiguration.set('Release')),
+        // The checked entries of the configuration menu; choosing the active configuration again does nothing
+        vscode.commands.registerCommand('shinobi.solution.configuration.debug.active', () => { }),
+        vscode.commands.registerCommand('shinobi.solution.configuration.release.active', () => { }),
+        vscode.commands.registerCommand('shinobi.solution.selectConfiguration', async () => {
+            const active = BuildConfiguration.active;
+            const picked = await vscode.window.showQuickPick(
+                BuildConfiguration.available.map(name => ({ label: name, description: name === active ? '(current)' : undefined })),
+                { placeHolder: 'Solution configuration' }
+            );
+            if (picked) {
+                await BuildConfiguration.set(picked.label);
+            }
+        }),
+        BuildConfiguration.onDidChange(async () => {
+            await DebugConfigService.refreshStartupConfiguration();
+            solutionWebviewProvider.refresh();
+        }),
         vscode.commands.registerCommand('shinobi.solution.debug', async () => {
             await startDebugWithStartupProject();
         }),
@@ -159,9 +183,27 @@ export function activate(context: vscode.ExtensionContext) {
     projectWatcher.onDidDelete((uri) => handleFileChange(uri, 'deleted'));
 
 
+    // Launch profiles: the startup configuration follows its launchSettings.json, and the tree shows
+    // "Set Launch Profile..." only while the startup project has several profiles
+    const launchSettingsWatcher = vscode.workspace.createFileSystemWatcher('**/Properties/launchSettings.json');
+    const handleLaunchSettingsChange = async (uri: vscode.Uri) => {
+        if (isExcluded(uri.fsPath, workspaceRoot)) {
+            return;
+        }
+        const startupProject = DebugConfigService.getStartupProject();
+        if (startupProject && path.dirname(path.dirname(uri.fsPath)) === path.dirname(startupProject)) {
+            await DebugConfigService.refreshStartupConfiguration();
+        }
+        solutionWebviewProvider.refresh();
+    };
+    launchSettingsWatcher.onDidCreate(handleLaunchSettingsChange);
+    launchSettingsWatcher.onDidChange(handleLaunchSettingsChange);
+    launchSettingsWatcher.onDidDelete(handleLaunchSettingsChange);
+
     // Add watchers to subscriptions
     context.subscriptions.push(solutionWatcher);
     context.subscriptions.push(projectWatcher);
+    context.subscriptions.push(launchSettingsWatcher);
 
     logger.info('.NET Extension activation complete!');
 }

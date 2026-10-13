@@ -66,6 +66,10 @@
           "target": {
             "type": "string",
             "description": "Absolute path of the solution or project file"
+          },
+          "configuration": {
+            "type": "string",
+            "description": "Build configuration (Debug, Release, ...); the active solution configuration when not set"
           }
         }
       }
@@ -146,6 +150,27 @@
         "command": "shinobi.solution.selectFramework",
         "title": "Select Framework",
         "icon": "$(symbol-namespace)"
+      },
+      {
+        "command": "shinobi.solution.configuration.debug",
+        "title": "Debug"
+      },
+      {
+        "command": "shinobi.solution.configuration.debug.active",
+        "title": "✓ Debug"
+      },
+      {
+        "command": "shinobi.solution.configuration.release",
+        "title": "Release"
+      },
+      {
+        "command": "shinobi.solution.configuration.release.active",
+        "title": "✓ Release"
+      },
+      {
+        "command": "shinobi.solution.selectConfiguration",
+        "title": "Select Solution Configuration...",
+        "category": ".NET"
       },
       {
         "command": "shinobi.solution.debug",
@@ -334,8 +359,20 @@
         "category": ".NET"
       }
     ],
+    "submenus": [
+      {
+        "id": "shinobi.solution.configurations",
+        "label": "Solution Configuration",
+        "icon": "$(settings-gear)"
+      }
+    ],
     "menus": {
       "view/title": [
+        {
+          "submenu": "shinobi.solution.configurations",
+          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
+          "group": "navigation@0"
+        },
         {
           "command": "shinobi.solution.selectFramework",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
@@ -375,6 +412,33 @@
           "command": "shinobi.errorList.showMessages",
           "when": "view == shinobi.errorList && !shinobi.errorList.messagesShown",
           "group": "navigation@3"
+        }
+      ],
+      "shinobi.solution.configurations": [
+        {
+          "command": "shinobi.solution.configuration.debug",
+          "when": "'Debug' in shinobi.solution.availableConfigurations && shinobi.solution.configuration != 'Debug'",
+          "group": "1_configurations@1"
+        },
+        {
+          "command": "shinobi.solution.configuration.debug.active",
+          "when": "shinobi.solution.configuration == 'Debug'",
+          "group": "1_configurations@1"
+        },
+        {
+          "command": "shinobi.solution.configuration.release",
+          "when": "'Release' in shinobi.solution.availableConfigurations && shinobi.solution.configuration != 'Release'",
+          "group": "1_configurations@2"
+        },
+        {
+          "command": "shinobi.solution.configuration.release.active",
+          "when": "shinobi.solution.configuration == 'Release'",
+          "group": "1_configurations@2"
+        },
+        {
+          "command": "shinobi.solution.selectConfiguration",
+          "when": "shinobi.solution.hasOtherConfigurations",
+          "group": "2_other@1"
         }
       ],
       "webview/context": [
@@ -675,6 +739,22 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "shinobi.solution.configuration.release.active",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solution.configuration.release",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solution.configuration.debug.active",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solution.configuration.debug",
+          "when": "false"
+        },
         {
           "command": "shinobi.solutionExplorer.openFile",
           "when": "false"
