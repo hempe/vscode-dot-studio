@@ -19,6 +19,9 @@ export interface MenuCommand {
 export const COMMAND_PREFIX = 'shinobi.solutionExplorer.';
 
 /** Context key holding the type of the focused tree node, empty when the tree isn't focused or a rename is in progress */
+/** `contextValue` of project nodes that can be the startup project */
+export const EXECUTABLE_PROJECT = 'executable';
+
 export const FOCUSED_NODE_TYPE_CONTEXT = 'shinobi.solutionExplorer.focusedNodeType';
 
 export const menuCommands = {
@@ -78,11 +81,17 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['openFile'],
         ['addFile', 'addFolder'],
         ['paste'],
-        ['setStartupProject'],
+        [], // setStartupProject, for executable projects only
         ['manageNuGetPackages'],
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean'],
         ['revealInExplorer'],
+    ],
+    // Only projects that can be started; libraries can't be the startup project.
+    // The empty groups keep the item in its slot in the project menu.
+    [`project.${EXECUTABLE_PROJECT}`]: [
+        [], [], [],
+        ['setStartupProject'],
     ],
     folder: [
         ['addFile', 'addFolder'],

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
+import { isExecutableProject } from '../parsers/projectKind';
 import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
@@ -32,6 +33,7 @@ export class Project {
     private _fileTree?: ProjectFileNode;
     private _dependencies: ProjectDependency[] = [];
     private _frameworks: string[] = [];
+    private _isExecutable = false;
     private _changeEmitter = new vscode.EventEmitter<void>();
     private _isInitialized = false;
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
@@ -60,6 +62,11 @@ export class Project {
 
     get dependencies(): ProjectDependency[] {
         return this._dependencies;
+    }
+
+    /** Whether the project can be started, i.e. can be the startup project */
+    get isExecutable(): boolean {
+        return this._isExecutable;
     }
 
     get frameworks(): string[] {
@@ -220,12 +227,14 @@ export class Project {
             this._projectStructure = await parser.parseProjectFiles(this._projectPath);
             this._dependencies = this._projectStructure.dependencies || [];
             this._frameworks = this._solutionProject.targetFrameworks || [];
+            this._isExecutable = isExecutableProject(await fs.promises.readFile(this._projectPath, 'utf8'));
 
             log.debug(`Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);
         } catch (error) {
             log.error(`Error parsing project file ${this.name}:`, error);
             this._dependencies = [];
             this._frameworks = [];
+            this._isExecutable = false;
         }
     }
 

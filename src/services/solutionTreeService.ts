@@ -4,6 +4,7 @@ import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
+import { EXECUTABLE_PROJECT } from '../core/contextMenus';
 import { NodeIdString } from '../types/nodeId';
 
 const log = logger('SolutionTreeService');
@@ -147,6 +148,9 @@ export class SolutionTreeService {
                         const hasFiles = await projectInstance.hasAnyChildren();
                         itemNode.hasChildren = hasFiles;
                         log.info(`Project ${project.name} has children: ${hasFiles}`);
+                        if (projectInstance.isExecutable) {
+                            itemNode.contextValue = EXECUTABLE_PROJECT;
+                        }
                     } else {
                         log.warn(`Could not find project instance for: ${absolutePath}`);
                         // For projects, assume they have children if we can't check

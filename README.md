@@ -90,6 +90,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 
 - [x] Use the selected `launchSettings.json` profile: `applicationUrl`, `environmentVariables`, `commandLineArgs` (via the C# debugger's `launchSettingsProfile`; only `commandName: "Project"` profiles)
 - [x] Open the browser when the app is ready (`serverReadyAction`, driven by `launchBrowser`)
+- [x] Offer "Set as Startup Project" only on projects that can be started (`OutputType` Exe/WinExe, or the Web, Worker or Aspire AppHost SDK; not class libraries or test projects)
 - [ ] Choose the launch profile (like Visual Studio's run dropdown); for now a quick pick asks on "Set as Startup Project" when there are several
 - [ ] Resolve the output path through MSBuild instead of hardcoding `bin/Debug/<tfm>/` (respects Release, `OutputPath`, artifacts layout)
 
