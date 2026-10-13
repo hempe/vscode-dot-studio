@@ -101,6 +101,7 @@ module.exports = [
                 ]
             })
         ],
-        devtool: 'eval-source-map'
+        // No eval: the webviews' Content Security Policy doesn't allow it
+        devtool: 'source-map'
     }
 ];
