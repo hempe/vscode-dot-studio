@@ -42,6 +42,8 @@ export interface ProjectNode {
     readonly isLoading?: boolean;
     readonly isStartupProject?: boolean;
     readonly nodeId: NodeIdString;
+    /** File name of solution and project nodes (`Api.csproj`), whose `name` has no extension */
+    readonly fileName?: string;
     readonly isTemporary?: boolean;
     readonly isEditing?: boolean;
     /** Distinguishes nodes of the same type for context menus, e.g. the dependency category */

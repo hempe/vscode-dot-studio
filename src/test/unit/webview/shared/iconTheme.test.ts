@@ -46,6 +46,12 @@ describe('resolveThemeIcon', () => {
         expect(resolveThemeIcon(theme, 'Models', 'folder', true)).toEqual({ svg: 'folder-open.svg' });
     });
 
+    test('specificOnly accepts only file name and extension matches', () => {
+        expect(resolveThemeIcon(theme, 'Api.TS', 'file', false, true)).toEqual({ svg: 'ts.svg' });
+        expect(resolveThemeIcon(theme, 'Api.cs', 'file', false, true)).toBeUndefined();
+        expect(resolveThemeIcon(theme, 'README', 'file', false, true)).toBeUndefined();
+    });
+
     test('no icon without a theme or without default icons', () => {
         expect(resolveThemeIcon(null, 'a.ts', 'file')).toBeUndefined();
         expect(resolveThemeIcon({ ...theme, folder: undefined, folderExpanded: undefined }, 'Models', 'folder')).toBeUndefined();

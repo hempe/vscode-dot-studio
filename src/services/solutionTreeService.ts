@@ -51,6 +51,7 @@ export class SolutionTreeService {
         const solutionNode: Mutable<ProjectNode> = {
             type: 'solution',
             name: path.basename(solutionPath, path.extname(solutionPath)),
+            fileName: path.basename(solutionPath),
             nodeId: NodeIdService.generateSolutionId(solutionPath),
             children: []
         };
@@ -126,6 +127,7 @@ export class SolutionTreeService {
                 type: itemType,
                 name: project.name || path.basename(project.path || '', path.extname(project.path || '')),
                 nodeId: nodeId,
+                fileName: itemType === 'project' ? path.basename(absolutePath) : undefined,
                 children: [],
                 // Add framework information if available
                 frameworks: project.targetFrameworks || [],

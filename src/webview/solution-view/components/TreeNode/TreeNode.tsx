@@ -273,14 +273,24 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     // Memoize icon configuration to prevent multiple calls during render
     const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, nodeIdentifier, node.expanded]);
 
-    // Files and folders use the user's file icon theme when it has an icon for them
+    // Files and folders use the user's file icon theme when it has an icon for them; solutions and
+    // projects only when the theme has one for their file type, otherwise the built-in icons are nicer
     const iconTheme = React.useContext(IconThemeContext);
     const themeIcon = React.useMemo(() => {
-        const kind = node.type === 'file' || node.type === 'solutionItem' ? 'file'
-            : node.type === 'folder' || node.type === 'solutionFolder' ? 'folder'
-                : undefined;
-        return kind && resolveThemeIcon(iconTheme, node.name, kind, !!node.expanded);
-    }, [iconTheme, node.type, node.name, node.expanded]);
+        switch (node.type) {
+            case 'file':
+            case 'solutionItem':
+                return resolveThemeIcon(iconTheme, node.name, 'file');
+            case 'folder':
+            case 'solutionFolder':
+                return resolveThemeIcon(iconTheme, node.name, 'folder', !!node.expanded);
+            case 'solution':
+            case 'project':
+                return node.fileName ? resolveThemeIcon(iconTheme, node.fileName, 'file', false, true) : undefined;
+            default:
+                return undefined;
+        }
+    }, [iconTheme, node.type, node.name, node.fileName, node.expanded]);
     const themeFont = themeIcon?.fontCharacter
         ? iconTheme?.fonts.find(font => font.id === themeIcon.fontId) ?? iconTheme?.fonts[0]
         : undefined;
@@ -320,7 +330,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 <div
                     className="node-icon"
                     style={{
-                        ...(iconConfig.border ? {
+                        ...(iconConfig.border && !themeIcon ? {
                             width: '16px',
                             height: '9px',
                             position: 'relative',

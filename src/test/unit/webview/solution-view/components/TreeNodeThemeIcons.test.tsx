@@ -10,10 +10,14 @@ const theme: IconThemePayload = {
         _cs: { svg: 'https://theme/cs.svg' },
         _json: { fontCharacter: '\\E055', fontColor: '#cbcb41', fontId: 'seti', fontSize: '120%' },
         _folder: { svg: 'https://theme/folder.svg' },
+        _csproj: { svg: 'https://theme/csproj.svg' },
+        _sln: { svg: 'https://theme/sln.svg' },
+        _file: { svg: 'https://theme/file.svg' },
     },
     fonts: [{ id: 'seti', src: 'https://theme/seti.woff' }],
     folder: '_folder',
-    fileNames: {}, fileExtensions: { cs: '_cs', json: '_json' }, folderNames: {}, folderNamesExpanded: {},
+    file: '_file',
+    fileNames: {}, fileExtensions: { cs: '_cs', json: '_json', csproj: '_csproj', slnx: '_sln' }, folderNames: {}, folderNamesExpanded: {},
     languageFileNames: {}, languageFileExtensions: {},
 };
 
@@ -56,8 +60,15 @@ describe('TreeNode theme icons', () => {
         }
     });
 
-    test('projects keep the built-in icon', () => {
-        const { container } = renderWithTheme(node('project', 'Api.csproj'));
+    test('projects and solutions use the theme icon when the theme has one for their file', () => {
+        const { container: project } = renderWithTheme({ ...node('project', 'Api'), fileName: 'Api.csproj' });
+        expect(project.querySelector('.node-icon img')).toHaveAttribute('src', 'https://theme/csproj.svg');
+        const { container: solution } = renderWithTheme({ ...node('solution', 'All'), fileName: 'All.slnx' });
+        expect(solution.querySelector('.node-icon img')).toHaveAttribute('src', 'https://theme/sln.svg');
+    });
+
+    test('projects keep the built-in icon when the theme only has its default file icon for them', () => {
+        const { container } = renderWithTheme({ ...node('project', 'Api'), fileName: 'Api.vbproj' });
         expect(container.querySelector('.node-icon img, .node-icon .theme-glyph')).toBeNull();
     });
 
