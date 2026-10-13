@@ -157,8 +157,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - Microsoft.Testing.Platform's server mode: the test app (`dotnet <TargetPath> --server --client-port <port>`) connects to the extension and speaks JSON-RPC (`testing/discoverTests`, `testing/runTests`, `testing/testUpdates/tests`), which brings file and line of every test
 - Debugging starts the test app in the C# debugger with the same arguments
 
-### Phase 7: Device & Deployment
-- [ ] Encrypted NuGet credentials
+### Phase 7: Private NuGet Feeds
 - [x] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
 
 ### Phase 8: Nice to Have
@@ -174,6 +173,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–4 cov
 - [ ] FTP target (upload after a folder publish); IIS Web Deploy only on Windows, where `msdeploy` exists
 
 ### Phase 20: Later
+- [ ] Encrypted NuGet credentials (`Password` is Windows DPAPI; on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens)
 - [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
 
 ### Not Planned
