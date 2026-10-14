@@ -96,7 +96,7 @@ Useful settings of the C# extension:
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 code cleanup and refactoring, phases 11–14 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, configurations, coverage), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -207,7 +207,16 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Azure App Service target (ZIP deploy, sign-in through the Azure CLI)
 - [ ] FTP target (upload after a folder publish); IIS Web Deploy only on Windows, where `msdeploy` exists
 
-### Phase 10: Code Cleanup & Refactoring
+### Phase 10: Visual Studio Basics, Part 2
+**Goal**: The larger everyday features of Visual Studio that are still missing.
+
+- [ ] Open and switch solutions: "Open Solution..." and recently opened solutions, like Visual Studio's File > Open > Solution and File > Recent; the Solution Explorer loads the chosen solution instead of the current one. Today the choice comes once, at startup, when the workspace has several solution files
+- [ ] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
+- [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
+- [ ] Code coverage: Visual Studio's "Analyze Code Coverage" (in Community since Visual Studio 2022 17.14): run tests with coverage through Microsoft.Testing.Platform's code coverage extension; covered and uncovered lines in the editor, percentages per project, file and class in VS Code's coverage view
+- [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release
+
+### Phase 11: Code Cleanup & Refactoring
 **Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
 
 - [ ] Code Cleanup on the solution, a project, folder or file: fix all errors, warnings and/or infos, format, remove and sort usings (`dotnet format`)
@@ -215,24 +224,25 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Sync Namespaces on a project or folder: every namespace matches its folder, as in Visual Studio
 - [ ] Check which refactorings the C# extension covers in VS Code (Extract Interface, Move Type to File, Change Signature, Fix All in document/project/solution) and fill the gaps, e.g. Visual Studio's dialogs for Extract Interface and Change Signature
 
-### Phase 11: Run & Debug, Part 2
+### Phase 12: Run & Debug, Part 2
 - [ ] Multiple startup projects (e.g. API plus worker or frontend), each with its own launch profile, like Visual Studio's "Configure Startup Projects"
 - [ ] Hot Reload (`dotnet watch`)
 - [ ] HTTPS development certificate: detect an untrusted one and help trust it (`dotnet dev-certs https --trust`, fiddly on Linux)
 - [ ] Attach to Process: pick a running .NET process (by name, project or port) and attach the C# debugger, like Visual Studio's Debug > Attach to Process
 
-### Phase 12: Solution Explorer, Part 2
+### Phase 13: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
 - [ ] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
 - [ ] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
 - [ ] Drag & drop of files, folders and projects
 - [ ] The diagnostic rules of each analyzer under Dependencies > Analyzers, like Visual Studio
 - [ ] Project Properties: target framework, nullable, implicit usings, version and the like as a form instead of editing the project file
+- [ ] Launch Profiles editor: Visual Studio's "Launch Profiles" dialog (Project Properties > Debug), a form for the profiles of `launchSettings.json` (command line arguments, environment variables, URLs, browser) instead of editing the JSON
 
-### Phase 13: NuGet, Part 2
+### Phase 14: NuGet, Part 2
 - [ ] Central Package Management (`Directory.Packages.props`): install, update and consolidate put versions where they belong
 
-### Phase 14: Connected Services, Part 2
+### Phase 15: Connected Services, Part 2
 - [ ] OpenAPI (REST) clients: Visual Studio's "Add Connected Service > OpenAPI" (NSwag / `dotnet-openapi`)
 - [ ] gRPC clients from `.proto` files (Visual Studio's "Add Connected Service > gRPC")
 
@@ -243,6 +253,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Docker / docker-compose launch profiles
 - [ ] Encrypted NuGet credentials (`Password` is Windows DPAPI; on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens)
 - [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
+- [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them, like Visual Studio; restore already warns about vulnerable packages (NuGet Audit) in the Error List
 - [ ] NuGet package sources like Visual Studio: a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
 
