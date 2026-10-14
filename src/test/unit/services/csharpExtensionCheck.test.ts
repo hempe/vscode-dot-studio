@@ -116,3 +116,10 @@ describe('checkOmniSharpForSlnx', () => {
         expect(env.updates).toEqual([]);
     });
 });
+
+describe('language server default', () => {
+    it('makes the Roslyn language server the default, so muhammad-sammy.csharp loads .slnx without OmniSharp', () => {
+        const packageJson = require('../../../../package.json');
+        expect(packageJson.contributes.configurationDefaults).toEqual(expect.objectContaining({ 'dotnet.server.useOmnisharp': false }));
+    });
+});

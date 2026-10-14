@@ -62,6 +62,9 @@
         }
       }
     },
+    "configurationDefaults": {
+      "dotnet.server.useOmnisharp": false
+    },
     "taskDefinitions": [
       {
         "type": "shinobi-dotnet",

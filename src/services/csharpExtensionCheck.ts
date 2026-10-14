@@ -56,8 +56,9 @@ export async function checkCSharpExtension(context: vscode.ExtensionContext): Pr
 const omniSharpWarnedFor = new Set<string>();
 
 /**
- * OmniSharp (the default language server of muhammad-sammy.csharp) cannot load .slnx files;
- * offers to switch the workspace to the Roslyn language server, which ships with the same extension.
+ * OmniSharp (muhammad-sammy.csharp's own default) cannot load .slnx files. package.json makes the
+ * Roslyn language server the default (`configurationDefaults`), so this only fires when OmniSharp was
+ * chosen in the settings; it offers to switch the workspace to Roslyn, which ships with the same extension.
  */
 export async function checkOmniSharpForSlnx(solutionPath: string): Promise<void> {
     if (!solutionPath.toLowerCase().endsWith('.slnx') || omniSharpWarnedFor.has(solutionPath)) {

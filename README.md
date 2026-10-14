@@ -82,7 +82,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 Useful settings of the C# extension:
 - `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`: live errors for all files, not only open ones
 - `"dotnet.codeLens.enableTestsCodeLens": false`: no "Run Test | Debug Test" code lenses next to the Test Explorer's gutter icons
-- `"dotnet.server.useOmnisharp": false` (with `muhammad-sammy.csharp`): the Roslyn language server, needed for .slnx
+- `"dotnet.server.useOmnisharp"`: this extension makes `false` the default, so `muhammad-sammy.csharp` runs the Roslyn language server (Visual Studio's, needed for .slnx) instead of OmniSharp; set it to `true` to keep OmniSharp
 
 ## Known Issues
 - [ ] Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used; store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
@@ -253,7 +253,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - VS Code 1.74.0 or higher (or VSCodium / another Open VSX editor)
 - .NET SDK 8.0 or higher (.slnx solutions need 9.0.200 or higher)
 - A C# extension, for debugging and namespace updates: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium and other Open VSX editors. C# Dev Kit is not required.
-- With `muhammad-sammy.csharp` and .slnx solutions, use the Roslyn language server (`"dotnet.server.useOmnisharp": false`); its default, OmniSharp, cannot load .slnx. The extension offers to switch.
+- With `muhammad-sammy.csharp`, this extension switches the default language server from OmniSharp, which is in maintenance mode and cannot load .slnx, to the Roslyn language server that ships with it (`"dotnet.server.useOmnisharp": false`). If you set `true` yourself, the extension offers to switch back for .slnx solutions.
 
 ### Build from Source
 ```bash
