@@ -251,6 +251,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - Code navigation features that the C# extension already provides (Go to Definition, Find References, symbol search)
 - Diagnostic Tools / profiler UI (the `dotnet-trace`, `dotnet-counters` and `dotnet-gcdump` CLI tools cover it)
 - A `.resx` resource editor
+- Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
 
 ## Installation
 
