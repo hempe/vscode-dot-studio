@@ -141,6 +141,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 **Goal**: The larger everyday features of Visual Studio that are still missing.
 
 - [ ] Open and switch solutions: "Open Solution..." and recently opened solutions, like Visual Studio's File > Open > Solution and File > Recent; the Solution Explorer loads the chosen solution instead of the current one. Today the choice comes once, at startup, when the workspace has several solution files
+- [x] Convert .sln to .slnx: opening a .sln offers to convert it (`dotnet sln migrate`), then to delete the .sln, and opens the .slnx; "Don't Ask Again" per solution
 - [ ] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
 - [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
 - [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release

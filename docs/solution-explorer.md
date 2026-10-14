@@ -64,6 +64,15 @@ Files with errors or warnings get a red or yellow squiggly underline and a count
 
 The markers come from the last build, as in Visual Studio, plus the C# language server's live errors for open files. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles. See [Error List](error-list.md).
 
+## .sln and .slnx
+
+`.slnx` is the current solution format (XML, readable diffs), the default since the .NET 10 SDK and supported by Visual Studio 2022 17.13 and later. When a `.sln` opens, you are offered to convert it:
+
+- **Convert** runs `dotnet sln migrate` (needs the .NET SDK 9.0.200 or later), which writes the `.slnx` next to the `.sln` with the same projects, solution folders and configurations. Then you choose whether to delete the `.sln`: teammates on Visual Studio before 2022 17.13 still need it, and with both files you are asked which solution to open each time. The `.slnx` opens either way; the startup project and Debug/Release stay as they were.
+- **Not Now** asks again next time; **Don't Ask Again** never asks again for this solution in this workspace.
+
+There is no offer when a `.slnx` of the same name already exists.
+
 ## Moving the Solution Explorer
 
 `shinobi.solutionExplorer.location`: `sidebar` (default) or `secondary-sidebar`, the side bar on the right, like Visual Studio's.

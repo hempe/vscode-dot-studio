@@ -8,6 +8,7 @@ import { SolutionDiscovery } from './solutionDiscovery';
 import { logger } from '../core/logger';
 import { DebugConfigService } from './debugConfigService';
 import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
+import { offerSlnxMigration } from './slnxMigration';
 
 const log = logger('SolutionService');
 
@@ -150,6 +151,12 @@ export class SolutionService {
             this.lastLoadError = undefined;
             this.activeSolution = solution;
             checkOmniSharpForSlnx(solutionPath).catch(error => log.error('Error checking the C# language server:', error));
+            offerSlnxMigration(solutionPath, {
+                open: async slnxPath => {
+                    await this.openSolution(slnxPath);
+                    await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
+                },
+            }).catch(error => log.error('Error offering the .slnx conversion:', error));
             log.info(`Initialized solution: ${path.basename(solutionPath)}`);
 
             return solution;

@@ -13,6 +13,7 @@ import { isExcluded } from './core/constants';
 import { logger as loggerFn } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
+import { SlnxMigration } from './services/slnxMigration';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
@@ -58,6 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
 
     BuildConfiguration.initialize(context.workspaceState);
+    SlnxMigration.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
     PublishPanel.extensionUri = context.extensionUri;
