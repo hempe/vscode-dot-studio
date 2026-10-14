@@ -224,6 +224,16 @@
         "icon": "$(collapse-all)"
       },
       {
+        "command": "shinobi.solution.focusSolutionExplorer",
+        "title": "Focus Solution Explorer",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.errorList.show",
+        "title": "Show Error List",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.openFile",
         "title": "Open",
         "category": ".NET"
@@ -1174,6 +1184,12 @@
         "command": "shinobi.solution.syncWithActiveDocument",
         "key": "ctrl+[ s",
         "mac": "cmd+[ s",
+        "when": "shinobi.workspaceHasDotnetFiles"
+      },
+      {
+        "command": "shinobi.solution.focusSolutionExplorer",
+        "key": "ctrl+alt+l",
+        "mac": "ctrl+alt+l",
         "when": "shinobi.workspaceHasDotnetFiles"
       },
       {
