@@ -227,6 +227,10 @@ export class SolutionActionService {
 
             const uri = vscode.Uri.file(filePath);
             await vscode.window.showTextDocument(uri);
+            if (nodeId.type === 'generatedFile') {
+                // Like Visual Studio's generated documents: the next build overwrites them
+                await vscode.commands.executeCommand('workbench.action.files.setActiveEditorReadonlyInSession');
+            }
         } catch (error) {
             log.error('Error opening file:', error);
             vscode.window.showErrorMessage(`Error opening file: ${error}`);

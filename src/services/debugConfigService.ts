@@ -9,6 +9,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { BuildConfiguration } from './buildConfiguration';
 import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
+import { EMIT_GENERATED_FILES } from './analyzers';
 
 const execFileAsync = promisify(execFile);
 
@@ -379,7 +380,8 @@ export class DebugConfigService {
                     ...(framework ? ['--framework', framework] : []),
                     '--configuration', configuration,
                     '/property:GenerateFullPaths=true',
-                    '/consoleloggerparameters:NoSummary'
+                    '/consoleloggerparameters:NoSummary',
+                    EMIT_GENERATED_FILES
                 ],
                 presentation: {
                     reveal: 'silent'

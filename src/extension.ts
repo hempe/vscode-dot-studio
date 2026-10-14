@@ -181,7 +181,15 @@ export function activate(context: vscode.ExtensionContext) {
             // Clear cache to force fresh data rebuild (needed for startup project changes)
             solutionWebviewProvider.refresh();
         }),
-        ...registerNativeContextMenuCommands(solutionWebviewProvider)
+        ...registerNativeContextMenuCommands(solutionWebviewProvider),
+        // Builds write new source generator output: show it under Dependencies > Analyzers
+        vscode.tasks.onDidEndTaskProcess(event => {
+            const task = event.execution.task;
+            if ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild'].includes(task.definition.action))
+                || task.name === 'StartupPreBuild') {
+                solutionWebviewProvider.refresh();
+            }
+        })
     );
 
     // Watch only .NET solution and project files to reduce load

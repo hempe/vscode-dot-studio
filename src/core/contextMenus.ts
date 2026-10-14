@@ -175,6 +175,13 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['rename', 'removeSolutionItem'],
         ['copyFullPath', 'revealInExplorer'],
     ],
+    analyzer: [],
+    sourceGenerator: [],
+    // Opens read-only: the next build overwrites it
+    generatedFile: [
+        ['openFile'],
+        ['copyFullPath'],
+    ],
     temporary: [],
 };
 

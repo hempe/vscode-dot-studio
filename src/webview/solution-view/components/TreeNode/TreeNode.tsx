@@ -89,7 +89,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         }
 
         // Double click opens file for file types, project files, and solution files
-        if (node.type === 'file' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
+        if (node.type === 'file' || node.type === 'generatedFile' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
             log.info(`Opening file: ${node.name}`);
             onProjectAction({
                 action: 'openFile',
@@ -200,6 +200,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     color: '#d8ac6a' // Folder color
                 };
             case 'file':
+            case 'generatedFile':
                 // File type specific icons matching Visual Studio dark theme
                 const fileName = node.name.toLowerCase();
 
@@ -257,12 +258,15 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             case 'dependencies': return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
             case 'dependencyCategory':
                 // Use different icons for different dependency categories
+                if (node.name === 'Analyzers') return { icon: 'mdi:magnify-scan', color: '#dcdcdc' };
                 if (node.name === 'Packages') return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
                 if (node.name === 'Projects') return { icon: 'mdi:application-outline', color: '#dcdcdc' };
                 if (node.name === 'Assemblies') return { icon: 'mdi:package-variant', color: '#dcdcdc' };
                 if (node.name === 'Frameworks') return { icon: 'hugeicons:frameworks', color: '#dcdcdc' };
                 return { icon: 'mdi:folder', color: '#d8ac6a' };
             case 'dependency': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
+            case 'analyzer': return { icon: 'mdi:magnify-scan', color: '#dcdcdc' };
+            case 'sourceGenerator': return { icon: 'mdi:cog-outline', color: '#dcdcdc' };
             default: return { icon: 'mdi:file', color: '#dcdcdc' };
         }
     };
@@ -282,6 +286,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const themeIcon = React.useMemo(() => {
         switch (node.type) {
             case 'file':
+            case 'generatedFile':
             case 'solutionItem':
                 return resolveThemeIcon(iconTheme, node.name, 'file');
             case 'folder':

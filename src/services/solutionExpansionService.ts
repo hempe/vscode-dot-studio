@@ -7,6 +7,7 @@ import { NodeIdService } from './nodeIdService';
 import { NodeType, ProjectNode } from '../types';
 import { Project } from '../core/Project';
 import { NodeIdString } from '../types/nodeId';
+import { analyzerChildren } from './analyzerNodes';
 
 const log = logger('SolutionExpansionService');
 
@@ -38,8 +39,11 @@ export class SolutionExpansionService {
             await updateWebviewCallback();
 
             let children: ProjectNode[] = [];
+            const analyzerNodes = await analyzerChildren(node);
 
-            if (node.type === 'solution') {
+            if (analyzerNodes) {
+                children = SolutionTreeService.convertProjectChildrenToProjectNodes(analyzerNodes);
+            } else if (node.type === 'solution') {
                 // Solution is always expanded when loaded, but check if we need to restore state
                 const existingNode = SolutionTreeService.findNodeById(nodeId, cachedSolutionData || []);
                 if (existingNode?.children) {
@@ -542,8 +546,11 @@ export class SolutionExpansionService {
             }
 
             let children: ProjectNode[] = [];
+            const analyzerNodes = await analyzerChildren(NodeIdService.parse(nodeId));
 
-            if (nodeType === 'solution') {
+            if (analyzerNodes) {
+                children = SolutionTreeService.convertProjectChildrenToProjectNodes(analyzerNodes);
+            } else if (nodeType === 'solution') {
                 // Solution children are already loaded in the initial tree
                 return;
             } else if (nodeType === 'project') {

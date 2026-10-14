@@ -105,7 +105,7 @@ describe('contextMenus', () => {
             .filter(entry => entry.command === `shinobi.solutionExplorer.${command}`)
             .map(entry => entry.when.match(/nodeType == '(\w+)'/)![1]))];
         expect(nodeTypes('openInTerminal')).toEqual(['solution', 'project', 'folder']);
-        expect(nodeTypes('copyFullPath')).toEqual(['solution', 'project', 'folder', 'file', 'solutionItem']);
+        expect(nodeTypes('copyFullPath')).toEqual(['solution', 'project', 'folder', 'file', 'solutionItem', 'generatedFile']);
         expect(nodeTypes('editProjectFile')).toEqual(['project']);
         expect(nodeTypes('addExistingItem')).toEqual(['project', 'folder']);
     });

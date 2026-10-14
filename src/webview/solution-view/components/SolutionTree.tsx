@@ -214,7 +214,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                 case 'Enter':
                     e.preventDefault();
                     const focusedNode = flatNodes[currentIndex].node;
-                    if (focusedNode.type === 'file') {
+                    if (focusedNode.type === 'file' || focusedNode.type === 'generatedFile') {
                         // Open file like double-click
                         onProjectAction({
                             action: 'openFile',

@@ -898,6 +898,16 @@
           "group": "3_group@2"
         },
         {
+          "command": "shinobi.solutionExplorer.openFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'generatedFile'",
+          "group": "1_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.copyFullPath",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'generatedFile'",
+          "group": "2_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && inTestProject",
           "group": "8_group@1"

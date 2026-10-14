@@ -14,6 +14,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Visual Studio–style file nesting
 - File and folder icons from your file icon theme (`workbench.iconTheme`: Seti, Material Icon Theme, vscode-icons, …), with built-in icons for dependency nodes, and for solution and project nodes unless the theme has icons for `.sln`/`.slnx`/`.csproj`…
 - Dependencies node (PackageReference, ProjectReference, framework and assembly references)
+- Dependencies > Analyzers: the project's analyzers and source generators, with the code each generator produced in the last build (read-only, like Visual Studio's generated documents). Builds started by the extension write that code (`EmitCompilerGeneratedFiles`); a project that was already up to date needs a Rebuild once
 - Startup project selection, offered only on projects that can be started (console, desktop, web, worker and Aspire host projects; not libraries or test projects)
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
@@ -188,6 +189,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Start without debugging (Ctrl+F5) for the startup project
 - [x] "Run Tests" and "Debug Tests" on test projects, folders and files
 - [x] "Open in Terminal" and "Copy Full Path" on the solution, projects, folders and files; "Edit Project File" on projects
+- [x] Analyzers under Dependencies: the analyzer and source generator assemblies of a project; generators list the files they generated (from the last build), which open read-only
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
@@ -220,6 +222,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
 - [ ] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
 - [ ] Drag & drop of files, folders and projects
+- [ ] The diagnostic rules of each analyzer under Dependencies > Analyzers, like Visual Studio
 - [ ] Project Properties: target framework, nullable, implicit usings, version and the like as a form instead of editing the project file
 
 ### Phase 13: NuGet, Part 2

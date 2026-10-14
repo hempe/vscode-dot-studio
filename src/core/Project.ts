@@ -601,6 +601,14 @@ export class Project {
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
         const items: ProjectChild[] = [
             {
+                // Listed by MSBuild when expanded; every SDK project has some
+                type: 'dependencyCategory',
+                name: 'Analyzers',
+                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'analyzers'),
+                contextValue: 'analyzers',
+                hasChildren: true
+            },
+            {
                 type: 'dependencyCategory',
                 name: 'Packages',
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),

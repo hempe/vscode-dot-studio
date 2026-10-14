@@ -69,6 +69,29 @@ export declare type DependencyCategoryNodeId = {
     readonly name: string;
 }
 
+/** An analyzer or source generator assembly under Dependencies > Analyzers */
+export declare type AnalyzerNodeId = {
+    readonly type: 'analyzer';
+    /** The project */
+    readonly path: string;
+    readonly name: string;
+}
+
+/** A source generator of an analyzer assembly */
+export declare type SourceGeneratorNodeId = {
+    readonly type: 'sourceGenerator';
+    /** The project */
+    readonly path: string;
+    readonly analyzer: string;
+    readonly name: string;
+}
+
+/** A file a source generator wrote in the last build */
+export declare type GeneratedFileNodeId = {
+    readonly type: 'generatedFile';
+    readonly path: string;
+}
+
 export declare type NodeId =
     SolutionNodeId |
     SolutionItemNodeId |
@@ -79,7 +102,10 @@ export declare type NodeId =
     TemporaryNodeId |
     DependencyNodeId |
     DependenciesNodeId |
-    DependencyCategoryNodeId;
+    DependencyCategoryNodeId |
+    AnalyzerNodeId |
+    SourceGeneratorNodeId |
+    GeneratedFileNodeId;
 
 /**
  * Service for generating and managing structured node IDs with compression
@@ -208,6 +234,18 @@ export class NodeIdService {
             name: dependencyName,
             version
         });
+    }
+
+    static generateAnalyzerId(projectPath: string, name: string): NodeIdString {
+        return this.compress({ type: 'analyzer', path: projectPath, name });
+    }
+
+    static generateSourceGeneratorId(projectPath: string, analyzer: string, name: string): NodeIdString {
+        return this.compress({ type: 'sourceGenerator', path: projectPath, analyzer, name });
+    }
+
+    static generateGeneratedFileId(filePath: string): NodeIdString {
+        return this.compress({ type: 'generatedFile', path: filePath });
     }
 
     /**

@@ -284,23 +284,8 @@ export class SolutionTreeService {
      */
     static convertProjectChildrenToProjectNodes(children: ProjectChild[]): ProjectNode[] {
         return children.map(child => {
-            let nodeType: ProjectNode['type'] = 'file';
-
-            // Handle the different child types
-            if (child.type === 'folder') {
-                nodeType = 'folder';
-            } else if (child.type === 'dependencies') {
-                nodeType = 'dependencies';
-            } else if (child.type === 'dependencyCategory') {
-                nodeType = 'dependencyCategory';
-            } else if (child.type === 'dependency') {
-                nodeType = 'dependency';
-            } else {
-                nodeType = 'file';
-            }
-
             return {
-                type: nodeType,
+                type: child.type,
                 name: child.name,
                 nodeId: child.nodeId,
                 contextValue: child.contextValue,

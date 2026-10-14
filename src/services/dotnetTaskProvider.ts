@@ -3,6 +3,7 @@ import * as path from 'path';
 import { SolutionService } from './solutionService';
 import { sln } from '../core/utils';
 import { BuildConfiguration } from './buildConfiguration';
+import { EMIT_GENERATED_FILES } from './analyzers';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -20,12 +21,15 @@ export interface DotnetTaskDefinition extends vscode.TaskDefinition {
 
 const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
 
-/** `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve */
+/**
+ * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
+ * builds write the source generators' output for Dependencies > Analyzers
+ */
 export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string): string[] {
     const config = ['--configuration', configuration];
     switch (action) {
-        case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true'];
-        case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true'];
+        case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
+        case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
         case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
     }

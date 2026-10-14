@@ -40,9 +40,9 @@ import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvi
 describe('dotnetTaskArgs', () => {
     test('build, rebuild, clean and restore', () => {
         expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug')).toEqual(
-            ['build', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+            ['build', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
         expect(dotnetTaskArgs('rebuild', '/repo/All.sln', 'Release')).toEqual(
-            ['build', '/repo/All.sln', '--configuration', 'Release', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+            ['build', '/repo/All.sln', '--configuration', 'Release', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
         expect(dotnetTaskArgs('clean', '/repo/All.sln', 'Debug')).toEqual(
             ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary']);
         expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
