@@ -63,7 +63,8 @@
       }
     },
     "configurationDefaults": {
-      "dotnet.server.useOmnisharp": false
+      "dotnet.server.useOmnisharp": false,
+      "dotnet.codeLens.enableTestsCodeLens": false
     },
     "taskDefinitions": [
       {

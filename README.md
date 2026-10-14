@@ -62,7 +62,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Run and debug single tests, classes or projects; results with failure messages and stack traces
 - "Run Tests" and "Debug Tests" in the Solution Explorer on the solution, test projects, and their folders and files
 - Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
-- The C# extension's own "Run Test | Debug Test" code lenses stay; turn them off with `"dotnet.codeLens.enableTestsCodeLens": false` if the gutter icons are enough
+- The C# extension's own test commands go through VSTest, which Microsoft.Testing.Platform projects without `Microsoft.NET.Test.Sdk` don't support: this extension hides its "Run Test | Debug Test" code lenses by default (`"dotnet.codeLens.enableTestsCodeLens": true` brings them back). Its "Run/Debug Tests in Context" menu items can't be hidden by another extension; use the gutter icons, the Test Explorer, the Solution Explorer or "Test: Run Test at Cursor" (Ctrl+; C) instead
 
 ### NuGet Package Manager
 - Browse and search packages, install to multiple projects, update and consolidate
@@ -81,7 +81,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 Useful settings of the C# extension:
 - `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`: live errors for all files, not only open ones
-- `"dotnet.codeLens.enableTestsCodeLens": false`: no "Run Test | Debug Test" code lenses next to the Test Explorer's gutter icons
+- `"dotnet.codeLens.enableTestsCodeLens"`: this extension makes `false` the default (the lenses run tests through VSTest); set `true` to get them back
 - `"dotnet.server.useOmnisharp"`: this extension makes `false` the default, so `muhammad-sammy.csharp` runs the Roslyn language server (Visual Studio's, needed for .slnx) instead of OmniSharp; set it to `true` to keep OmniSharp
 
 ## Known Issues

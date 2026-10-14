@@ -122,4 +122,9 @@ describe('language server default', () => {
         const packageJson = require('../../../../package.json');
         expect(packageJson.contributes.configurationDefaults).toEqual(expect.objectContaining({ 'dotnet.server.useOmnisharp': false }));
     });
+
+    it("hides the C# extension's test code lenses, which run tests through VSTest and fail for Microsoft.Testing.Platform projects", () => {
+        const packageJson = require('../../../../package.json');
+        expect(packageJson.contributes.configurationDefaults).toEqual(expect.objectContaining({ 'dotnet.codeLens.enableTestsCodeLens': false }));
+    });
 });
