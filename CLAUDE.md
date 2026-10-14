@@ -55,7 +55,7 @@ Context menus are native VS Code menus (`webview/context`), not rendered by Reac
 
 ### Documentation
 
-User documentation is in `docs/` (index: `docs/README.md`), one page per area; the README only gives an overview and the roadmap. A change a user can notice updates its page in the same commit (`docs/context-menus.md` is generated, see above). `docs/manual-testing.md` lists checks still to do in VS Code itself; tick an entry only when the user confirms.
+User documentation is in `docs/` (index: `docs/README.md`), one page per area; the README only gives an overview and the roadmap. A change a user can notice updates its page in the same commit (`docs/context-menus.md` is generated, see above; a test checks that `docs/keyboard-shortcuts.md` lists every key binding in `package.json`). `docs/manual-testing.md` lists checks still to do in VS Code itself; tick an entry only when the user confirms.
 
 ### Node IDs
 

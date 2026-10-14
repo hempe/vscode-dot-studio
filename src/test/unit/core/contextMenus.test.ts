@@ -132,3 +132,17 @@ describe('contextMenus', () => {
         expect(reference).not.toContain('## temporary');
     });
 });
+
+describe('docs/keyboard-shortcuts.md', () => {
+    test('lists every key binding the extension contributes', () => {
+        const page = fs.readFileSync(path.join(__dirname, '../../../../docs/keyboard-shortcuts.md'), 'utf8');
+        const keyName = (key: string) => key.split(' ').map(chord => chord.split('+').map(part =>
+            ({ ctrl: 'Ctrl', cmd: 'Cmd', shift: 'Shift', alt: 'Alt', delete: 'Delete', backspace: 'Backspace' } as Record<string, string>)[part]
+            ?? part.toUpperCase()).join('+')).join(', ');
+        const missing = (packageJson.contributes.keybindings as { key: string; mac?: string }[])
+            .flatMap(binding => [binding.key, ...(binding.mac && binding.mac !== binding.key ? [binding.mac] : [])])
+            .map(keyName)
+            .filter(key => !page.includes(key));
+        expect(missing).toEqual([]);
+    });
+});

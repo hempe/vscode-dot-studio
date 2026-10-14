@@ -43,7 +43,7 @@ Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses 
 | Ctrl+Shift+B | Build the solution |
 | F5 / Ctrl+F5 | Start with / without debugging |
 
-Every right-click menu, command by command: [Context menus](context-menus.md).
+Every right-click menu, command by command: [Context menus](context-menus.md). All keys, including Visual Studio's in VS Code: [Keyboard shortcuts](keyboard-shortcuts.md).
 
 ## Dependencies
 

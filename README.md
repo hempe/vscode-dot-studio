@@ -8,7 +8,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ## Features
 
-Full documentation: **[docs](docs/README.md)**, starting with [Getting started](docs/README.md#getting-started) and [Coming from Visual Studio](docs/coming-from-visual-studio.md).
+Full documentation: **[docs](docs/README.md)**, starting with [Getting started](docs/README.md#getting-started), [Coming from Visual Studio](docs/coming-from-visual-studio.md) and [Keyboard shortcuts](docs/keyboard-shortcuts.md).
 
 - **[Solution Explorer](docs/solution-explorer.md)** for `.sln` and `.slnx`: solution folders and items, Visual Studio's file nesting, your file icon theme, error markers, Dependencies with transitive packages and source-generated code, Sync with Active Document, Collapse All, and [context menus](docs/context-menus.md) with Visual Studio's commands and keys
 - **[Run & Debug](docs/run-and-debug.md):** Set as Startup Project with launch profiles, Debug/Release, F5, Ctrl+F5, Debug > Start New Instance
