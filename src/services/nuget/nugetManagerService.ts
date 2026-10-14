@@ -14,6 +14,8 @@ import {
 } from './types';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
 import { sln } from '../../core/utils';
+import { collectTransitivePackages, readPackageGraph } from './packageGraph';
+import { activeFrameworkOf } from '../projectFramework';
 
 const log = logger('NuGetManagerService');
 
@@ -128,6 +130,7 @@ export class NuGetManagerService {
             }
 
             const installedPackages = await this.getGroupedInstalledPackages(solutionPath, false, allProjects);
+            const transitivePackages = await this.getTransitivePackages(allProjects);
 
             // Get outdated packages by filtering installed packages (much faster than dotnet list --outdated)
             const outdatedPackages = await this.getGroupedOutdatedPackages(includePrerelease, solutionPath, false, allProjects);
@@ -151,6 +154,7 @@ export class NuGetManagerService {
                 projects: allProjects,
                 totalPackages: installedPackages.length,
                 installedPackages,
+                transitivePackages,
                 outdatedPackages,
                 consolidatePackages, // UI-ready format
             };
@@ -341,10 +345,12 @@ export class NuGetManagerService {
 
             const [
                 installedPackages,
-                outdatedPackages
+                outdatedPackages,
+                transitivePackages
             ] = await Promise.all([
                 this.getGroupedInstalledPackages(projectPath, true, allProjects),
-                this.getGroupedOutdatedPackages(includePrerelease, projectPath, true, allProjects)
+                this.getGroupedOutdatedPackages(includePrerelease, projectPath, true, allProjects),
+                this.getTransitivePackages(allProjects)
             ]);
 
             return {
@@ -354,6 +360,7 @@ export class NuGetManagerService {
                 projects: allProjects, // Add projects array for frontend compatibility
                 installedPackages,
                 outdatedPackages,
+                transitivePackages,
                 totalPackages: installedPackages.length,
                 updatesAvailable: outdatedPackages.length,
                 lastUpdated: new Date().toISOString()
@@ -363,6 +370,18 @@ export class NuGetManagerService {
             log.error('Error getting project NuGet data:', error);
             throw error;
         }
+    }
+
+    /**
+     * The packages the projects only get through other packages (Visual Studio's "Transitive packages"),
+     * from their last restore, with the same metadata as the installed ones
+     */
+    static async getTransitivePackages(projects: ProjectInfo[]) {
+        const graphs = projects.flatMap(project => {
+            const graph = readPackageGraph(project.path, activeFrameworkOf(project.path));
+            return graph ? [{ project, graph }] : [];
+        });
+        return PackageSharedService.enrichWithBrowseMetadata(collectTransitivePackages(graphs));
     }
 
     // ============ HELPER METHODS ============

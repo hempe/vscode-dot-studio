@@ -21,6 +21,8 @@ export declare type SearchResultsCmd = {
 
 export interface NuGetViewData {
     readonly installedPackages?: (LocalNuGetPackage & { version: string })[] | null;
+    /** Packages the projects only get through other packages (Visual Studio's "Transitive packages") */
+    readonly transitivePackages?: LocalNuGetPackage[] | null;
     readonly searchResults?: LocalNuGetPackage[] | null;
     readonly updatesAvailable?: LocalNuGetPackage[] | null;
     readonly consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality

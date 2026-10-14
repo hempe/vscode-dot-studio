@@ -67,6 +67,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 ### NuGet Package Manager
 - Browse and search packages, install to multiple projects, update and consolidate
+- Installed tab with top-level and (collapsible) transitive packages, like Visual Studio 2022: each transitive package says which packages bring it in, and Install makes it a direct reference, e.g. to pin a newer version
 - Private feeds (Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet, …) via `Username`/`ClearTextPassword` credentials in `NuGet.Config`, found like NuGet finds them (every NuGet.Config from the solution folder up, then the user config)
 - When a feed rejects its credentials (expired token): a message with the file and line of the credentials, what to do for that kind of feed, and "Enter New Token..." to store a new one
 - Package details, versions, dependencies and README
@@ -192,7 +193,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] "Open in Terminal" and "Copy Full Path" on the solution, projects, folders and files; "Edit Project File" on projects
 - [x] Analyzers under Dependencies: the analyzer and source generator assemblies of a project; generators list the files they generated (from the last build), which open read-only
 - [x] Packages under Dependencies expand to the packages they depend on (transitive packages), as many levels deep as they go
-- [ ] NuGet manager: the Installed tab lists the transitive packages in their own section, with the packages that bring them in; Install makes one a direct reference
+- [x] NuGet manager: the Installed tab lists the transitive packages in their own section, with the packages that bring them in; Install makes one a direct reference
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)

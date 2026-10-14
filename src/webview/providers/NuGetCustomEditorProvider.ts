@@ -314,6 +314,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                         ...x,
                         version: x.currentVersion
                     })),
+                    transitivePackages: solutionData.transitivePackages,
                     consolidatePackages: [],
                     projects: solutionData.projects,
                     searchResults: [],
@@ -327,6 +328,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                         ...x,
                         version: x.currentVersion
                     })),
+                    transitivePackages: projectData.transitivePackages,
                     projectPath: projectData.projectPath,
                     consolidatePackages: [],
                     projects: projectData.projects,

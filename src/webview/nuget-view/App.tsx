@@ -27,6 +27,8 @@ export const App: React.FC = () => {
     const [initializing, setInitializing] = useState(true);
     const [includePrerelease, setIncludePrerelease] = useState(false);
     const [activeTab, setActiveTab] = useState('installed');
+    // Visual Studio's "Transitive packages" section starts collapsed
+    const [transitiveExpanded, setTransitiveExpanded] = useState(false);
     const [consolidateLoading, setConsolidateLoading] = useState(false);
     const [consolidateLoaded, setConsolidateLoaded] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState<LocalNuGetPackage | null>(null);
@@ -88,6 +90,7 @@ export const App: React.FC = () => {
 
     // Compute filtered package lists
     const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm);
+    const filteredTransitive = filterPackages(ensureArray(data.transitivePackages), filterTerm);
     const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
     // Fetch data when includePrerelease changes
@@ -126,6 +129,7 @@ export const App: React.FC = () => {
 
                         const updatedPackage =
                             safeData.installedPackages?.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
+                            safeData.transitivePackages?.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
                             freshEnhancedResults?.find(pkg => pkg.id === selectedPackageRef.current!.id) ||
                             safeData.updatesAvailable?.find(pkg => pkg.id === selectedPackageRef.current!.id);
 
@@ -278,13 +282,13 @@ export const App: React.FC = () => {
     useEffect(() => {
         const packagesToLoad = activeTab === 'browse'
             ? ensureArray(data.searchResults)
-            : ensureArray(data.installedPackages);
+            : [...ensureArray(data.installedPackages), ...(transitiveExpanded ? ensureArray(data.transitivePackages) : [])];
 
         packagesToLoad.forEach((pkg) => {
             requestPackageIcon(pkg);
             requestPackageReadme(pkg);
         });
-    }, [data.searchResults, data.installedPackages, activeTab, packageIcons, requestedIcons, failedIcons, packageReadmes, requestedReadmes]);
+    }, [data.searchResults, data.installedPackages, data.transitivePackages, transitiveExpanded, activeTab, packageIcons, requestedIcons, failedIcons, packageReadmes, requestedReadmes]);
 
     const handleSearch = () => {
         if (searchTerm.trim()) {
@@ -572,7 +576,7 @@ export const App: React.FC = () => {
             case 'browse':
                 return filterPackages(enhancedSearchResults, searchTerm);
             case 'installed':
-                return filterPackages(ensureArray(data.installedPackages), filterTerm);
+                return [...filteredPackages, ...(transitiveExpanded ? filteredTransitive : [])];
             case 'updates':
                 return filterPackages(ensureArray(data.updatesAvailable), filterTerm);
             case 'consolidate':
@@ -821,8 +825,25 @@ export const App: React.FC = () => {
                         selectedItemRef={selectedItemRef}
                         onPackageSelect={selectPackageWithDetails}
                         getPackageIconUrl={getPackageIconUrl}
-                        title="Installed"
+                        title="Top-level packages"
                     />
+                    {filteredTransitive.length > 0 && (
+                        <PackageList
+                            includePrerelease={includePrerelease}
+                            packages={filteredTransitive}
+                            emptyMessage=""
+                            selectedIndex={selectedIndex}
+                            selectedPackage={selectedPackage}
+                            selectedItemRef={selectedItemRef}
+                            onPackageSelect={selectPackageWithDetails}
+                            getPackageIconUrl={getPackageIconUrl}
+                            title="Transitive packages"
+                            collapsed={!transitiveExpanded}
+                            onToggleCollapsed={() => setTransitiveExpanded(expanded => !expanded)}
+                            indexOffset={filteredPackages.length}
+                            getNote={pkg => pkg.transitiveReferencedBy && `Transitively referenced by ${pkg.transitiveReferencedBy.join(', ')}`}
+                        />
+                    )}
                 </div>
 
                 {/* Right Panel - Package Details */}
@@ -834,6 +855,12 @@ export const App: React.FC = () => {
                     {selectedPackage ? (
                         <div>
                             <NugetHeader selectedPackage={selectedPackage} />
+                            {selectedPackage.transitiveReferencedBy && (
+                                <div style={{ fontSize: '12px', color: 'var(--vscode-descriptionForeground)', marginBottom: '12px' }}>
+                                    Transitively referenced by: {selectedPackage.transitiveReferencedBy.join(', ')}.
+                                    Install it to reference it directly, e.g. to use a newer version.
+                                </div>
+                            )}
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
@@ -852,6 +879,7 @@ export const App: React.FC = () => {
                                 onInstallUpdate={handleInstallPackage}
                                 onUninstall={handleUninstallPackage}
                                 getVersionOptions={getVersionOptions}
+                                canUninstall={!selectedPackage.transitiveReferencedBy}
                             />
                             <NugetDetails
                                 selectedPackage={selectedPackage}

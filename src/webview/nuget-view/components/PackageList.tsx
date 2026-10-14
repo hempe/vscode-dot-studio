@@ -24,6 +24,13 @@ interface PackageListProps {
     title: string;
     showCheckboxes?: boolean; // For Updates tab to show checkboxes
     onPackageToggle?: (pkg: LocalNuGetPackage, checked: boolean) => void;
+    /** Small note under the name, e.g. what brings in a transitive package */
+    getNote?: (pkg: LocalNuGetPackage) => string | undefined;
+    /** Collapsible section: only the title shows while collapsed */
+    collapsed?: boolean;
+    onToggleCollapsed?: () => void;
+    /** Position of the first package in the keyboard navigation of the whole tab */
+    indexOffset?: number;
 }
 
 export const PackageList: React.FC<PackageListProps> = ({
@@ -43,7 +50,11 @@ export const PackageList: React.FC<PackageListProps> = ({
     showCheckboxes = false,
     onPackageToggle,
     getVersionChangeText,
-    title
+    title,
+    getNote,
+    collapsed,
+    onToggleCollapsed,
+    indexOffset = 0
 }) => {
     const uniquePackages = ensureArray(packages);
     // Helper function to determine if a version is prerelease using semver
@@ -52,17 +63,24 @@ export const PackageList: React.FC<PackageListProps> = ({
 
     return (
         <>
-            <div style={{
-                padding: '8px 12px',
-                background: 'var(--vscode-panel-background)',
-                borderBottom: '1px solid var(--vscode-panel-border)',
-                fontSize: '12px',
-                fontWeight: 600
-            }}>
-                {title} ({uniquePackages.length})
+            <div
+                style={{
+                    padding: '8px 12px',
+                    background: 'var(--vscode-panel-background)',
+                    borderBottom: '1px solid var(--vscode-panel-border)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: onToggleCollapsed ? 'pointer' : undefined,
+                    userSelect: onToggleCollapsed ? 'none' : undefined
+                }}
+                onClick={onToggleCollapsed}
+                role={onToggleCollapsed ? 'button' : undefined}
+                aria-expanded={onToggleCollapsed ? !collapsed : undefined}
+            >
+                {onToggleCollapsed && (collapsed ? '▸ ' : '▾ ')}{title} ({uniquePackages.length})
             </div>
 
-            {packages.length === 0 ? (
+            {collapsed ? null : packages.length === 0 ? (
                 <LoadingMessage
                     loading={loading}
                     message={loadingMessage}
@@ -74,18 +92,18 @@ export const PackageList: React.FC<PackageListProps> = ({
                 uniquePackages.map((pkg, index) => (
                     <div
                         key={`${pkg.id}-${pkg.currentVersion}`}
-                        ref={selectedIndex === index ? selectedItemRef : null}
+                        ref={selectedIndex === index + indexOffset ? selectedItemRef : null}
                         style={{
                             padding: '12px',
                             borderBottom: '1px solid var(--vscode-panel-border)',
                             cursor: 'pointer',
-                            background: selectedIndex === index
+                            background: selectedIndex === index + indexOffset
                                 ? 'var(--vscode-list-activeSelectionBackground)'
                                 : selectedPackage?.id === pkg.id
                                     ? 'var(--vscode-list-hoverBackground)'
                                     : 'transparent'
                         }}
-                        onClick={() => onPackageSelect(pkg, index)}
+                        onClick={() => onPackageSelect(pkg, index + indexOffset)}
                     >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                             {/* Checkbox for Updates tab */}
@@ -178,6 +196,17 @@ export const PackageList: React.FC<PackageListProps> = ({
                                             fontWeight: 500
                                         }}>
                                             {getVersionChangeText(pkg)}
+                                        </div>
+                                    )}
+
+                                    {getNote?.(pkg) && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: 'var(--vscode-descriptionForeground)',
+                                            fontStyle: 'italic',
+                                            marginBottom: '2px'
+                                        }}>
+                                            {getNote(pkg)}
                                         </div>
                                     )}
 

@@ -11,6 +11,8 @@ const log = logger('NuGetReact');
 export interface LocalNuGetPackage extends NuGetPackage {
     selected?: boolean;
     projectName?: string;
+    /** Transitive packages: the top-level packages that bring it in */
+    transitiveReferencedBy?: string[];
     projects?: {
         name: string;
         path: string;

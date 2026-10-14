@@ -17,6 +17,8 @@ interface PackageActionsProps {
     getVersionOptions: (pkg: LocalNuGetPackage) => Array<{ value: string; label: string }>;
     installButtonText?: string;
     totalProjects?: number; // To determine if we should show "from selected projects" text
+    /** False for transitive packages: only the package that brings them in can be removed */
+    canUninstall?: boolean;
 }
 
 export const PackageActions: React.FC<PackageActionsProps> = ({
@@ -30,7 +32,8 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
     onUninstall,
     getVersionOptions,
     installButtonText = "Install",
-    totalProjects = 1
+    totalProjects = 1,
+    canUninstall = true
 }) => {
     return (
         <div style={{
@@ -86,7 +89,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
             </div>
 
             {/* Uninstall Section */}
-            <div style={{
+            {canUninstall && <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -115,7 +118,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                 >
                     {loading ? 'Uninstalling...' : 'Uninstall'}
                 </Button>
-            </div>
+            </div>}
         </div>
     );
 };

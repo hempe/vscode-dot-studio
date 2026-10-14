@@ -1,4 +1,4 @@
-import { packageDependencies, parsePackageGraph, transitiveReferrers } from '../../../../services/nuget/packageGraph';
+import { collectTransitivePackages, packageDependencies, parsePackageGraph, transitiveReferrers } from '../../../../services/nuget/packageGraph';
 
 const assets = (targets: Record<string, Record<string, unknown>>, direct: Record<string, string[]>) => JSON.stringify({
     targets,
@@ -59,5 +59,40 @@ describe('packageGraph', () => {
     it('has no graph for unreadable assets', () => {
         expect(parsePackageGraph('{}')).toBeUndefined();
         expect(parsePackageGraph('not json')).toBeUndefined();
+    });
+
+    describe('collectTransitivePackages (the NuGet manager\'s "Transitive packages")', () => {
+        const web = { name: 'Web', path: '/repo/Web/Web.csproj' };
+        const api = { name: 'Api', path: '/repo/Api/Api.csproj' };
+        const apiGraph = parsePackageGraph(assets({
+            'net10.0': {
+                'Microsoft.EntityFrameworkCore.Relational/10.0.13': { type: 'package', dependencies: { 'Microsoft.EntityFrameworkCore': '10.0.13' } },
+                'Microsoft.EntityFrameworkCore/10.0.13': { type: 'package' },
+                'SQLitePCLRaw.core/2.1.13': { type: 'package' },
+            },
+        }, { 'net10.0': ['Microsoft.EntityFrameworkCore.Relational', 'SQLitePCLRaw.core'] }))!;
+
+        it('lists every package that a project only gets through others, with what brings it in', () => {
+            const transitive = collectTransitivePackages([{ project: web, graph }]);
+            expect(transitive.map(pkg => [pkg.id, pkg.currentVersion, pkg.transitiveReferencedBy])).toEqual([
+                ['Microsoft.Data.Sqlite.Core', '10.0.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+                ['Microsoft.EntityFrameworkCore', '10.0.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+                ['Microsoft.EntityFrameworkCore.Relational', '10.0.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+                ['Microsoft.EntityFrameworkCore.Sqlite.Core', '10.0.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+                ['SQLitePCLRaw.bundle_e_sqlite3', '2.1.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+                ['SQLitePCLRaw.core', '2.1.13', ['Microsoft.EntityFrameworkCore.Sqlite']],
+            ]);
+            expect(transitive[0].projects).toEqual([web]);
+        });
+
+        it('merges the projects of a solution and names the project when several bring a package in', () => {
+            const transitive = collectTransitivePackages([{ project: web, graph }, { project: api, graph: apiGraph }]);
+            const ef = transitive.find(pkg => pkg.id === 'Microsoft.EntityFrameworkCore')!;
+            expect(ef.projects).toEqual([web, api]);
+            expect(ef.transitiveReferencedBy).toEqual(['Microsoft.EntityFrameworkCore.Sqlite (Web)', 'Microsoft.EntityFrameworkCore.Relational (Api)']);
+            // Api references these itself: they are top-level packages there, not transitive ones
+            expect(transitive.map(pkg => pkg.id)).not.toContain('Microsoft.EntityFrameworkCore.Relational');
+            expect(transitive.map(pkg => pkg.id)).not.toContain('SQLitePCLRaw.core');
+        });
     });
 });

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { VersionUtils } from '../versionUtils';
 
 /** The packages a project uses for one framework, as restore resolved them (`obj/project.assets.json`) */
 export interface PackageGraph {
@@ -106,4 +107,39 @@ export function readPackageGraph(projectPath: string, framework?: string): Packa
     const graph = parsePackageGraph(fs.readFileSync(assetsPath, 'utf8'), framework);
     cache.set(key, { mtime, graph });
     return graph;
+}
+
+export interface TransitivePackage<P> {
+    readonly id: string;
+    /** The highest version restore resolved across the projects */
+    readonly currentVersion: string;
+    /** Projects that get the package through others */
+    readonly projects: P[];
+    /** The top-level packages that bring it in; with the project's name when there are several projects */
+    readonly transitiveReferencedBy: string[];
+}
+
+/**
+ * The NuGet manager's "Transitive packages", like Visual Studio's: packages the projects only get through
+ * other packages, sorted by id. A package that any project references itself is a top-level package instead.
+ */
+export function collectTransitivePackages<P>(projects: readonly { project: P & { name: string }; graph: PackageGraph }[]): TransitivePackage<P>[] {
+    const direct = new Set(projects.flatMap(({ graph }) => graph.direct.map(id => id.toLowerCase())));
+    const byId = new Map<string, { id: string; currentVersion: string; projects: P[]; transitiveReferencedBy: string[] }>();
+    for (const { project, graph } of projects) {
+        for (const [key, referrers] of transitiveReferrers(graph)) {
+            if (direct.has(key)) {
+                continue;
+            }
+            const resolved = graph.packages.get(key)!;
+            const entry = byId.get(key) ?? { id: resolved.id, currentVersion: resolved.version, projects: [], transitiveReferencedBy: [] };
+            if (VersionUtils.compare(resolved.version, entry.currentVersion) < 0) {
+                entry.currentVersion = resolved.version;
+            }
+            entry.projects.push(project);
+            entry.transitiveReferencedBy.push(...referrers.map(referrer => projects.length > 1 ? `${referrer} (${project.name})` : referrer));
+            byId.set(key, entry);
+        }
+    }
+    return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
