@@ -51,7 +51,11 @@ Providers in `src/webview/providers/` (`SolutionWebviewProvider`, `NuGetCustomEd
 
 ### Solution Explorer context menus
 
-Context menus are native VS Code menus (`webview/context`), not rendered by React. `src/core/contextMenus.ts` is the single source: commands (`shinobi.solutionExplorer.<action>`), per-node-type menus, and key bindings. After editing it run `npm run generate:menus` to rewrite the matching `package.json` contributions (a unit test fails if they're out of sync). Tree rows carry `data-vscode-context` (`nodeType`, `nodeId`); `providers/nativeContextMenu.ts` registers the commands and routes them to `SolutionWebviewProvider.runNodeAction`. Key bindings get no node argument and act on the focused node, which the webview reports via `treeFocusChanged` (also sets the `shinobi.solutionExplorer.focusedNodeType` context key; empty while renaming so keys reach the input). Rename is handed back to the webview with `startRename`.
+Context menus are native VS Code menus (`webview/context`), not rendered by React. `src/core/contextMenus.ts` is the single source: commands (`shinobi.solutionExplorer.<action>`), per-node-type menus, and key bindings. After editing it run `npm run generate:menus` to rewrite the matching `package.json` contributions and the menu reference `docs/context-menus.md` (unit tests fail if either is out of sync). Every command needs a `description`, which is what the reference shows. Tree rows carry `data-vscode-context` (`nodeType`, `nodeId`); `providers/nativeContextMenu.ts` registers the commands and routes them to `SolutionWebviewProvider.runNodeAction`. Key bindings get no node argument and act on the focused node, which the webview reports via `treeFocusChanged` (also sets the `shinobi.solutionExplorer.focusedNodeType` context key; empty while renaming so keys reach the input). Rename is handed back to the webview with `startRename`.
+
+### Documentation
+
+User documentation is in `docs/` (index: `docs/README.md`), one page per area; the README only gives an overview and the roadmap. A change a user can notice updates its page in the same commit (`docs/context-menus.md` is generated, see above). `docs/manual-testing.md` lists checks still to do in VS Code itself; tick an entry only when the user confirms.
 
 ### Node IDs
 

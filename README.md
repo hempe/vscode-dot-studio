@@ -6,109 +6,19 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 
 **Out of scope:** .NET Framework 4.x and old-style (non-SDK) projects. Legacy code is only read for reference when porting, and any plain text editor is fine for that.
 
-## Current Features
+## Features
 
-### Solution Explorer
-- Hierarchical solution (.sln and .slnx) and project tree
-- Solution folders and solution items (add, remove, rename)
-- Visual Studio–style file nesting
-- File and folder icons from your file icon theme (`workbench.iconTheme`: Seti, Material Icon Theme, vscode-icons, …), with built-in icons for dependency nodes, and for solution and project nodes unless the theme has icons for `.sln`/`.slnx`/`.csproj`…
-- Dependencies node (PackageReference, ProjectReference, framework and assembly references)
-- Packages under Dependencies expand to the packages they depend on, as many levels deep as they go, with the versions the last restore resolved
-- Dependencies > Analyzers: the project's analyzers and source generators, with the code each generator produced in the last build (read-only, like Visual Studio's generated documents). Builds started by the extension write that code (`EmitCompilerGeneratedFiles`); a project that was already up to date needs a Rebuild once
-- Startup project selection, offered only on projects that can be started (console, desktop, web, worker and Aspire host projects; not libraries or test projects)
-- Live updates through file watchers
-- Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
-- Collapse All and Sync with Active Document (Ctrl+[, S) in the title bar, like Visual Studio's toolbar
-- Copy Full Path and Open in Terminal on the solution, projects, folders and files
-- Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`); infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are off by default
+Full documentation: **[docs](docs/README.md)**, starting with [Getting started](docs/README.md#getting-started) and [Coming from Visual Studio](docs/coming-from-visual-studio.md).
 
-### Error List
-- Visual Studio–style Error List in the panel: a table of errors, warnings and messages (infos and suggestions, which the Problems panel never shows) with Code, Description, Project, File and Line, deduplicated across build output and the language server
-- Sort by any column, search, and filter Code, Project and File by their values; codes link to their documentation; double-click or Enter jumps to the file and line; the tab badge shows the error count
-- The Errors / Warnings / Messages toggles also decide which markers the Solution Explorer shows
-
-### Solution & Project Operations
-- Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
-- Add New Project wizard with the template's settings (any `dotnet new` template), add existing projects (also into solution folders); remove or delete projects
-- Edit Project File on projects (or double-click them)
-- Manage User Secrets on projects: opens the project's `secrets.json` (in your user profile, outside the repository), adding a `UserSecretsId` to the project first if it has none
-- Add and remove project and assembly references
-
-### Run & Debug (F5)
-- "Set as Startup Project" generates a `Startup` debug configuration in `launch.json` and a `StartupPreBuild` task in `tasks.json`, keeping your other configurations and comments
-- F5 debugs the startup project, Ctrl+F5 (or the title bar's Start Without Debugging) runs it without the debugger
-- "Debug > Start New Instance" and "Debug > Start Without Debugging" on any project that can be started: builds it and runs it with its first launch profile, next to what already runs, without changing the startup project
-- Launch profiles from `Properties/launchSettings.json`: picked when you set the startup project, changed later with "Set Launch Profile..." on it; the profile's URLs, environment variables and arguments apply, and the browser opens at `launchUrl` once the app listens
-- Debug/Release switch in the Solution Explorer title bar for builds and F5, with the solution's own configurations; the active configuration and framework show next to the view title
-- Target framework selection for multi-targeted startup projects
-- The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work
-- Edits to `launchSettings.json` are picked up; a removed or renamed profile falls back to another
-
-### File Operations
-- Add files and folders with inline naming
-- Add New Item wizard: built-in C# types with the folder's namespace, or any `dotnet new` item template with its settings
-- Add Existing Item: copies files into the project or folder (asks before replacing one)
-- Copy, cut, paste, rename and delete
-- Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
-- Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running); files nested under it (Designer, code-behind, resources) are renamed with it
-- Reveal in file explorer
-
-### Publish
-- "Publish..." on a project opens a Publish tab like Visual Studio's: pick a profile, Publish, see the summary (location, configuration, framework, deployment mode, runtime, file options), create, rename and delete profiles, open the publish folder
-- Folder target with Visual Studio's settings: configuration, target framework, framework-dependent or self-contained, target runtime, single file, ReadyToRun, trimming, deleting existing files
-- Profiles are `Properties/PublishProfiles/*.pubxml` in Visual Studio's format, so Visual Studio users on the team share them; editing a profile only changes the settings you changed
-- Publishing runs `dotnet publish -p:PublishProfile=<profile>` as a task: output in the terminal, errors in the Error List. Profiles for Azure, container registries, FTP or IIS are listed but not published yet (Phase 21)
-
-### Connected Services (SOAP)
-- "Add Service Reference…" on a project: from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`, with the WCF client packages
-- "Update Service Reference" and "Remove Service Reference" on the reference folder; references created in Visual Studio (`ConnectedService.json`) work both ways, and options such as `messageContract` are edited there as in Visual Studio
-- Offers to install `dotnet-svcutil` for the repository (tool manifest, same version for the team) or globally
-
-### Tests
-- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner) and classic VSTest projects (xUnit v2, NUnit and MSTest with their VSTest adapters, run through the SDK's `vstest.console` like Visual Studio does): tests grouped by project, namespace and class, with gutter icons in the editor
-- Run and debug single tests, classes or projects; results with failure messages and stack traces
-- "Run Tests" and "Debug Tests" in the Solution Explorer on the solution, test projects, and their folders and files
-- Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
-- The C# extension's own test commands go through VSTest, which Microsoft.Testing.Platform projects without `Microsoft.NET.Test.Sdk` don't support: this extension hides its "Run Test | Debug Test" code lenses by default (`"dotnet.codeLens.enableTestsCodeLens": true` brings them back). Its "Run/Debug Tests in Context" menu items can't be hidden by another extension; use the gutter icons, the Test Explorer, the Solution Explorer or "Test: Run Test at Cursor" (Ctrl+; C) instead
-
-### NuGet Package Manager
-- Browse and search packages, install to multiple projects, update and consolidate
-- Installed tab with top-level and (collapsible) transitive packages, like Visual Studio 2022: each transitive package says which packages bring it in, and Install makes it a direct reference, e.g. to pin a newer version
-- Private feeds (Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet, …) via `Username`/`ClearTextPassword` credentials in `NuGet.Config`, found like NuGet finds them (every NuGet.Config from the solution folder up, then the user config)
-- When a feed rejects its credentials (expired token): a message with the file and line of the credentials, what to do for that kind of feed, and "Enter New Token..." to store a new one
-- Package details, versions, dependencies and README
-
-## Coming from Visual Studio
-
-What works differently from Visual Studio, and why:
-
-- **Two extensions, not one IDE.** This extension is the Visual Studio layer: Solution Explorer, NuGet, Error List, Test Explorer, wizards, publish. Editing C# (IntelliSense, live errors, navigation, refactorings, Razor) and the debugger come from a C# extension: Microsoft's `ms-dotnettools.csharp`, or `muhammad-sammy.csharp` in VSCodium and other Open VSX editors. Some of its own features overlap with this extension; where it allows, this extension switches them off (see Settings).
-- **The startup project lives in `.vscode/`.** Visual Studio keeps the startup project and launch profile in `.vs/` per user. Here "Set as Startup Project" writes a `Startup` configuration to `.vscode/launch.json` and a `StartupPreBuild` task to `.vscode/tasks.json`. Commit them to give the team a default, or add them to `.gitignore` to keep the choice personal. F5 runs whatever configuration is selected in VS Code's Run and Debug view, `Startup` by default.
-- **Run and Debug is VS Code's.** Variables, Watch, Call Stack and Breakpoints (including exception breakpoints) are VS Code's Run and Debug view; Visual Studio's Immediate window is the Debug Console. Diagnostic Tools, Hot Reload and Edit and Continue aren't there (Hot Reload is planned).
-- **Errors are reliable after a build.** As in Visual Studio, the Error List and the markers in the Solution Explorer come from the last build; the C# language server adds live errors for open files only, unless you set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`.
-- **Generated code is from the last build.** Dependencies > Analyzers shows what the source generators wrote in the last build started by this extension, not live like Visual Studio. A project that was up to date before needs one Rebuild.
-- **Tests run in VS Code's Testing view.** Microsoft.Testing.Platform and VSTest projects show there, with icons in the editor gutter. Use them (or Run Tests / Debug Tests in the Solution Explorer); the C# extension's "Run/Debug Tests in Context" menu items go through VSTest and fail for Microsoft.Testing.Platform projects without `Microsoft.NET.Test.Sdk`.
-- **No Windows-only credentials.** Visual Studio encrypts NuGet passwords and publish passwords with Windows DPAPI, which nothing outside Windows can read. Store NuGet tokens as `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider.
-- **Publish is Folder only for now.** Profiles in `Properties/PublishProfiles/` are shared with Visual Studio; Azure, container registry, FTP and IIS profiles are listed but publish from Visual Studio until Phase 21.
-- **The tree shows what is on disk.** SDK-style projects include files by location, and so does the tree. Visual Studio's "Show All Files", "Exclude From Project" and linked files from other folders aren't there yet (Phase 13).
-- **Keyboard shortcuts are VS Code's**, except for the ones this extension adds like Visual Studio's: F2 rename, Delete, Ctrl+C/X/V in the tree, Ctrl+Shift+B build, Ctrl+F5 run without debugging, Ctrl+[, S sync with the active document.
-- **`.http` files and `.editorconfig`.** Visual Studio sends the requests in `.http` files (the Web API template makes one); in VS Code that needs an extension such as REST Client (`humao.rest-client`). The C# extension applies `.editorconfig` to C# code; for other files VS Code needs the EditorConfig extension.
-- **Not on Linux and macOS at all:** .NET Framework projects, WinForms and WPF designers, IIS Web Deploy, and anything else that needs Windows.
-
-## Settings
-
-| Setting | Default | |
-|---|---|---|
-| `shinobi.solutionExplorer.location` | `sidebar` | Solution Explorer in the primary or the secondary side bar |
-| `shinobi.diagnostics.showErrors` | `true` | Errors in the Error List and the Solution Explorer (the Error List's Errors toggle) |
-| `shinobi.diagnostics.showWarnings` | `true` | Warnings, likewise (Warnings toggle) |
-| `shinobi.diagnostics.showInfos` | `false` | Infos and suggestions, Visual Studio's "Messages" (Messages toggle); replaces `shinobi.solutionExplorer.diagnostics.showInfos` |
-
-Useful settings of the C# extension:
-- `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`: live errors for all files, not only open ones
-- `"dotnet.codeLens.enableTestsCodeLens"`: this extension makes `false` the default (the lenses run tests through VSTest); set `true` to get them back
-- `"dotnet.server.useOmnisharp"`: this extension makes `false` the default, so `muhammad-sammy.csharp` runs the Roslyn language server (Visual Studio's, needed for .slnx) instead of OmniSharp; set it to `true` to keep OmniSharp
+- **[Solution Explorer](docs/solution-explorer.md)** for `.sln` and `.slnx`: solution folders and items, Visual Studio's file nesting, your file icon theme, error markers, Dependencies with transitive packages and source-generated code, Sync with Active Document, Collapse All, and [context menus](docs/context-menus.md) with Visual Studio's commands and keys
+- **[Run & Debug](docs/run-and-debug.md):** Set as Startup Project with launch profiles, Debug/Release, F5, Ctrl+F5, Debug > Start New Instance
+- **[Error List](docs/error-list.md)** like Visual Studio's: a sortable, filterable table of errors, warnings and messages from builds and the language server
+- **[Tests](docs/tests.md):** Test Explorer for Microsoft.Testing.Platform (xUnit v3, MSTest, TUnit, NUnit) and VSTest projects (xUnit v2, NUnit, MSTest), Run/Debug Tests from the Solution Explorer
+- **[NuGet](docs/nuget.md) Package Manager:** Browse, Installed with transitive packages, Updates, Consolidate; private feeds and expired tokens
+- **[Templates](docs/templates.md):** Add New Project and Add New Item wizards with every `dotnet new` template and its settings
+- **[Publish](docs/publish.md):** Visual Studio's Publish tab for Folder profiles, sharing `.pubxml` files with Visual Studio
+- **[Connected Services](docs/connected-services.md):** WCF/SOAP service references, compatible with Visual Studio's
+- Build, Rebuild, Clean and Restore as tasks, Manage User Secrets, Add Existing Item, Open in Terminal and more; [settings](docs/settings.md)
 
 ## Known Issues
 - [ ] Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used; store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
