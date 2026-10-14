@@ -46,6 +46,7 @@ module.exports = [
             'solution-view': './src/webview/solution-view/index.tsx',
             'nuget-view': './src/webview/nuget-view/index.tsx',
             'template-wizard': './src/webview/template-wizard/index.tsx',
+            'publish-view': './src/webview/publish-view/index.tsx',
             'error-list': './src/webview/error-list/index.tsx'
         },
         output: {

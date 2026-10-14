@@ -16,6 +16,7 @@ import { BuildConfiguration } from './services/buildConfiguration';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
+import { PublishPanel } from './webview/providers/PublishPanel';
 import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
@@ -59,6 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
     BuildConfiguration.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
+    PublishPanel.extensionUri = context.extensionUri;
+    PublishPanel.state = context.workspaceState;
     // The expired-token message needs the configured sources to know which feed a request went to
     setFeedSources(() => PackageBrowseService.getPackageSources());
     const testExplorer = new TestExplorer();

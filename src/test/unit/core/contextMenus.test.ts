@@ -109,5 +109,6 @@ describe('contextMenus', () => {
         expect(nodeTypes('editProjectFile')).toEqual(['project']);
         expect(nodeTypes('addExistingItem')).toEqual(['project', 'folder']);
         expect(nodeTypes('manageUserSecrets')).toEqual(['project']);
+        expect(nodeTypes('publish')).toEqual(['project']);
     });
 });

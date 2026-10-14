@@ -46,6 +46,9 @@ describe('dotnetTaskArgs', () => {
         expect(dotnetTaskArgs('clean', '/repo/All.sln', 'Debug')).toEqual(
             ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary']);
         expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
+        // The profile decides configuration, framework and runtime
+        expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
+            ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
     });
 });
 

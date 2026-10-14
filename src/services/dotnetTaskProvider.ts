@@ -7,7 +7,8 @@ import { EMIT_GENERATED_FILES } from './analyzers';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
-export type DotnetTaskAction = 'build' | 'rebuild' | 'clean' | 'restore';
+export type DotnetTaskAction = 'build' | 'rebuild' | 'clean' | 'restore' | 'publish';
+/** The actions offered for the solution and every project; publish tasks come from publish profiles */
 export const DOTNET_TASK_ACTIONS: readonly DotnetTaskAction[] = ['build', 'rebuild', 'clean', 'restore'];
 
 export interface DotnetTaskDefinition extends vscode.TaskDefinition {
@@ -17,6 +18,8 @@ export interface DotnetTaskDefinition extends vscode.TaskDefinition {
     readonly target: string;
     /** Debug, Release, ...; the active solution configuration when not set */
     readonly configuration?: string;
+    /** Publish profile (Properties/PublishProfiles/<profile>.pubxml), for publish */
+    readonly profile?: string;
 }
 
 const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
@@ -25,13 +28,14 @@ const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
  * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
  * builds write the source generators' output for Dependencies > Analyzers
  */
-export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string): string[] {
+export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string): string[] {
     const config = ['--configuration', configuration];
     switch (action) {
         case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
         case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
         case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
+        case 'publish': return ['publish', target, `-property:PublishProfile=${profile}`, ...QUIET, '-property:GenerateFullPaths=true'];
     }
 }
 
@@ -46,19 +50,22 @@ export function createDotnetTask(
     const task = new vscode.Task(
         definition,
         scope,
-        `${action} ${targetName}`,
+        definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration), { cwd: path.dirname(target) }),
+        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration, definition.profile), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
-    task.group = action === 'build' && sln(target)
-        ? { id: vscode.TaskGroup.Build.id, isDefault: true } as vscode.TaskGroup
-        : vscode.TaskGroup.Build;
+    if (action !== 'publish') {
+        task.group = action === 'build' && sln(target)
+            ? { id: vscode.TaskGroup.Build.id, isDefault: true } as vscode.TaskGroup
+            : vscode.TaskGroup.Build;
+    }
     return task;
 }
 
 function isDotnetTaskDefinition(definition: vscode.TaskDefinition): definition is DotnetTaskDefinition {
-    return DOTNET_TASK_ACTIONS.includes(definition.action) && typeof definition.target === 'string';
+    return typeof definition.target === 'string'
+        && (DOTNET_TASK_ACTIONS.includes(definition.action) || (definition.action === 'publish' && typeof definition.profile === 'string'));
 }
 
 /** Build, rebuild, clean and restore for the active solution and each of its projects */

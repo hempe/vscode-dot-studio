@@ -60,6 +60,7 @@ export const menuCommands = {
     build: { title: 'Build' },
     rebuild: { title: 'Rebuild' },
     clean: { title: 'Clean' },
+    publish: { title: 'Publish...' },
     copy: { title: 'Copy', key: 'ctrl+c', mac: 'cmd+c' },
     cut: { title: 'Cut', key: 'ctrl+x', mac: 'cmd+x' },
     paste: { title: 'Paste', key: 'ctrl+v', mac: 'cmd+v' },
@@ -114,7 +115,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         [], // setStartupProject or chooseLaunchProfile and the Debug submenu, see below
         ['manageNuGetPackages', 'manageUserSecrets'],
         ['rename', 'removeProject', 'deleteProject'],
-        ['build', 'rebuild', 'clean'],
+        ['build', 'rebuild', 'clean', 'publish'],
         [], // runTests, debugTests in test projects
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],

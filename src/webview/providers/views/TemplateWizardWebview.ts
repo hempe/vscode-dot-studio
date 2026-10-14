@@ -2,8 +2,9 @@ import * as vscode from 'vscode';
 
 export class TemplateWizardWebview {
 
-    public static getHtmlForWebview(extensionUri: vscode.Uri, webview: vscode.Webview, title: string): string {
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', 'template-wizard', 'bundle.js'));
+    /** The HTML of a form-like editor tab (the template wizards, the Publish tab), running the webview bundle `bundle` */
+    public static getHtmlForWebview(extensionUri: vscode.Uri, webview: vscode.Webview, title: string, bundle = 'template-wizard'): string {
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', bundle, 'bundle.js'));
         const nonce = this._getNonce();
 
         return `<!DOCTYPE html>
@@ -47,6 +48,14 @@ export class TemplateWizardWebview {
         button.action:disabled { opacity: 0.5; cursor: default; }
         .error { white-space: pre-wrap; color: var(--vscode-errorForeground); border-left: 3px solid var(--vscode-inputValidation-errorBorder); padding: 4px 8px; margin: 12px 0; max-width: 640px; }
         .empty { padding: 8px; opacity: 0.7; }
+        .summary { display: grid; grid-template-columns: 180px minmax(0, 520px); gap: 6px 12px; margin: 16px 0; }
+        .summary dt { opacity: 0.8; }
+        .summary dd { margin: 0; overflow-wrap: anywhere; }
+        .status { margin: 8px 0; opacity: 0.9; }
+        .status.ok { color: var(--vscode-testing-iconPassed, inherit); }
+        .status.failed { color: var(--vscode-errorForeground); }
+        .note { opacity: 0.8; max-width: 640px; line-height: 1.4; }
+        a.link { color: var(--vscode-textLink-foreground); cursor: pointer; }
     </style>
 </head>
 <body>

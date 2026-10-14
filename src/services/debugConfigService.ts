@@ -9,6 +9,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { BuildConfiguration } from './buildConfiguration';
 import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
+import { runTask } from './runTask';
 import { EMIT_GENERATED_FILES } from './analyzers';
 
 const execFileAsync = promisify(execFile);
@@ -572,24 +573,6 @@ export class DebugConfigService {
             uriFormat: !launchUrl ? '%s' : /^https?:\/\//i.test(launchUrl) ? launchUrl : `%s/${launchUrl.replace(/^\//, '')}`,
         };
     }
-}
-
-/** Runs a task and resolves with its exit code once its process ends */
-async function runTask(task: vscode.Task): Promise<number | undefined> {
-    let execution: vscode.TaskExecution | undefined;
-    return new Promise<number | undefined>(resolve => {
-        const listener = vscode.tasks.onDidEndTaskProcess(event => {
-            if (event.execution === execution || event.execution.task === task) {
-                listener.dispose();
-                resolve(event.exitCode);
-            }
-        });
-        vscode.tasks.executeTask(task).then(started => { execution = started; }, error => {
-            listener.dispose();
-            log.error('Starting the build failed:', error);
-            resolve(undefined);
-        });
-    });
 }
 
 interface LaunchProfile {

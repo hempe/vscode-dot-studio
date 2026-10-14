@@ -12,6 +12,7 @@ import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { copyExistingItems } from './existingItems';
 import { manageUserSecrets } from './userSecrets';
+import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
@@ -70,6 +71,10 @@ export class SolutionActionService {
                     name: path.basename(nodeId.path, path.extname(nodeId.path)),
                     cwd: nodeId.type === 'folder' ? nodeId.path : path.dirname(nodeId.path),
                 }).show();
+                break;
+
+            case 'publish':
+                PublishPanel.show(nodeId.path);
                 break;
 
             case 'manageUserSecrets':

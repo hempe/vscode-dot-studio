@@ -54,6 +54,12 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running); files nested under it (Designer, code-behind, resources) are renamed with it
 - Reveal in file explorer
 
+### Publish
+- "Publish..." on a project opens a Publish tab like Visual Studio's: pick a profile, Publish, see the summary (location, configuration, framework, deployment mode, runtime, file options), create, rename and delete profiles, open the publish folder
+- Folder target with Visual Studio's settings: configuration, target framework, framework-dependent or self-contained, target runtime, single file, ReadyToRun, trimming, deleting existing files
+- Profiles are `Properties/PublishProfiles/*.pubxml` in Visual Studio's format, so Visual Studio users on the team share them; editing a profile only changes the settings you changed
+- Publishing runs `dotnet publish -p:PublishProfile=<profile>` as a task: output in the terminal, errors in the Error List. Profiles for Azure, container registries, FTP or IIS are listed but not published yet (Phase 21)
+
 ### Connected Services (SOAP)
 - "Add Service Reference…" on a project: from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`, with the WCF client packages
 - "Update Service Reference" and "Remove Service Reference" on the reference folder; references created in Visual Studio (`ConnectedService.json`) work both ways, and options such as `messageContract` are edited there as in Visual Studio
@@ -202,7 +208,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 ### Phase 9: Publish
 **Goal**: Visual Studio's Publish page for the Folder target: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.
 
-- [ ] "Publish..." on a project: a Publish tab with the existing profiles, Publish button and summary (location, configuration, framework, deployment mode, runtime), new profile, rename and delete; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
+- [x] "Publish..." on a project: a Publish tab with the existing profiles, Publish button and summary (location, configuration, framework, deployment mode, runtime), new profile, rename and delete; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
 
 ### Phase 10: Visual Studio Basics, Part 2
 **Goal**: The larger everyday features of Visual Studio that are still missing.

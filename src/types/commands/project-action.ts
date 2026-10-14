@@ -239,6 +239,11 @@ export declare type ManageUserSecretsActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type PublishActionCmd = {
+    readonly action: 'publish';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -287,4 +292,5 @@ export type ProjectActionCmd =
     | DebugTestsActionCmd
     | OpenInTerminalActionCmd
     | CopyFullPathActionCmd
-    | ManageUserSecretsActionCmd;
+    | ManageUserSecretsActionCmd
+    | PublishActionCmd;

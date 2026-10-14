@@ -80,7 +80,8 @@
               "build",
               "rebuild",
               "clean",
-              "restore"
+              "restore",
+              "publish"
             ],
             "description": "The dotnet action to run"
           },
@@ -91,6 +92,10 @@
           "configuration": {
             "type": "string",
             "description": "Build configuration (Debug, Release, ...); the active solution configuration when not set"
+          },
+          "profile": {
+            "type": "string",
+            "description": "Publish profile name (Properties/PublishProfiles/<profile>.pubxml), for publish"
           }
         }
       }
@@ -361,6 +366,11 @@
       {
         "command": "shinobi.solutionExplorer.clean",
         "title": "Clean",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.publish",
+        "title": "Publish...",
         "category": ".NET"
       },
       {
@@ -685,6 +695,11 @@
           "command": "shinobi.solutionExplorer.clean",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "7_group@3"
+        },
+        {
+          "command": "shinobi.solutionExplorer.publish",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "7_group@4"
         },
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
@@ -1083,6 +1098,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.clean",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.publish",
           "when": "false"
         },
         {
