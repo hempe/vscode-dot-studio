@@ -247,6 +247,38 @@ export class SolutionActionService {
         }
     }
 
+    /** Renames the project file like Visual Studio; the startup configuration follows a renamed startup project */
+    private static async _renameProject(projectPath: string, newName: string): Promise<void> {
+        const solution = SolutionService.getActiveSolution();
+        if (!solution) {
+            return;
+        }
+        const wasStartup = DebugConfigService.getStartupProject() === projectPath;
+        const framework = DebugConfigService.getActiveFramework() ?? undefined;
+        const newPath = await solution.renameProject(projectPath, newName);
+        if (wasStartup && newPath !== projectPath) {
+            await DebugConfigService.updateStartupConfiguration(newPath, framework);
+        }
+    }
+
+    /** Renames the solution file and opens it under its new name */
+    private static async _renameSolution(solutionPath: string, newName: string): Promise<void> {
+        const name = newName.trim();
+        if (!name || /[\\/:*?"<>|]/.test(name)) {
+            throw new Error(`Invalid solution name "${newName}"`);
+        }
+        const newPath = path.join(path.dirname(solutionPath), name + path.extname(solutionPath));
+        if (newPath === solutionPath) {
+            return;
+        }
+        if (fs.existsSync(newPath) && newPath.toLowerCase() !== solutionPath.toLowerCase()) {
+            throw new Error(`${path.basename(newPath)} already exists`);
+        }
+        await fs.promises.rename(solutionPath, newPath);
+        await SolutionService.openSolution(newPath);
+        await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
+    }
+
     private static async _handleRename(nodeId: NodeId, newName: string, itemType?: string, oldName?: string): Promise<void> {
         log.info(`Renaming ${itemType || 'item'} from '${oldName}' to '${newName}' for nodeId: ${nodeId}`);
 
@@ -259,6 +291,10 @@ export class SolutionActionService {
                 }
             } else if (nodeId.type === 'solutionItem') {
                 await this._renameSolutionItem(nodeId.guid, nodeId.path, newName);
+            } else if (nodeId.type === 'project') {
+                await this._renameProject(nodeId.path, newName);
+            } else if (nodeId.type === 'solution') {
+                await this._renameSolution(nodeId.path, newName);
             } else {
                 // Handle file/folder rename - extract the file system path
                 const oldPath = nodeId.type == 'file' ? nodeId.path

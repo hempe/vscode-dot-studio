@@ -1,7 +1,9 @@
-import { applyMenuContributions, buildMenuContributions, contextMenus, menuCommands, MenuCommandAction, submenus, testProjectMenus } from '../../../core/contextMenus';
+import { applyMenuContributions, buildMenuContributions, buildMenuReference, contextMenus, menuCommands, MenuCommandAction, submenus, testProjectMenus } from '../../../core/contextMenus';
 import { NodeType } from '../../../types';
 
 const packageJson = require('../../../../package.json');
+const fs = require('fs');
+const path = require('path');
 
 describe('contextMenus', () => {
     test('package.json is up to date (run `npm run generate:menus`)', () => {
@@ -110,5 +112,23 @@ describe('contextMenus', () => {
         expect(nodeTypes('addExistingItem')).toEqual(['project', 'folder']);
         expect(nodeTypes('manageUserSecrets')).toEqual(['project']);
         expect(nodeTypes('publish')).toEqual(['project']);
+    });
+
+    test('docs/context-menus.md is up to date (run `npm run generate:menus`)', () => {
+        const reference = fs.readFileSync(path.join(__dirname, '../../../../docs/context-menus.md'), 'utf8');
+        expect(reference).toBe(buildMenuReference());
+    });
+
+    test('the menu reference explains every command of a node type, with its key and conditions', () => {
+        const reference = buildMenuReference();
+        const project = reference.slice(reference.indexOf('## Project\n'), reference.indexOf('## Folder\n'));
+
+        expect(project).toContain('| Edit Project File |  | Opens the project file (`.csproj`) in the editor, like double-clicking the project. |');
+        expect(project).toContain('| Rename | F2 |');
+        expect(project).toContain('**On projects that can be started**');
+        expect(project).toContain('| Debug > Start New Instance |  |');
+        expect(project).toContain('**In test projects**');
+        expect(reference).toContain('| Delete | Delete (macOS: Cmd+Backspace) |');
+        expect(reference).not.toContain('## temporary');
     });
 });

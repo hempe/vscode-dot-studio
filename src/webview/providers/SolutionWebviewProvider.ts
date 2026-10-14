@@ -36,6 +36,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _focusedNodeId?: NodeIdString;
 
     private _solutionChangeListener?: vscode.Disposable;
+    /** The solution `_solutionChangeListener` listens to; another one is loaded e.g. after renaming the solution */
+    private _listenedSolution?: Solution;
     private _activeEditorListener?: vscode.Disposable;
     private readonly _diagnosticsListener: vscode.Disposable;
     private readonly _iconThemeListener: vscode.Disposable;
@@ -312,8 +314,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         BuildConfiguration.setAvailable(solutionConfigurations(solution.solutionFile));
 
-        // Set up solution change listener if not already set up
-        if (!this._solutionChangeListener) {
+        // Listen to the solution once per loaded solution (it is replaced e.g. after a rename)
+        if (this._listenedSolution !== solution) {
+            this._solutionChangeListener?.dispose();
+            this._listenedSolution = solution;
             // Bring the startup configuration in line with the active configuration and the MSBuild
             // output path once per solution, e.g. when the configuration changed in another session
             void DebugConfigService.refreshStartupConfiguration();
@@ -394,7 +398,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Handle different types of file changes
         if (sln(filePath)) {
-            if (changeType === 'deleted') {
+            if (changeType === 'deleted' && filePath === SolutionService.getActiveSolution()?.solutionPath) {
                 // Solution file was deleted - clear everything
                 sendToUi(this.webview, {
                     type: 'solutionData',

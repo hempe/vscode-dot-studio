@@ -617,11 +617,6 @@
           "group": "2_group@2"
         },
         {
-          "command": "shinobi.solutionExplorer.revealInExplorer",
-          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solutionFolder'",
-          "group": "3_group@1"
-        },
-        {
           "command": "shinobi.solutionExplorer.editProjectFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "1_group@1"

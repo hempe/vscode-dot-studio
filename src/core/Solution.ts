@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import { SolutionFileParser } from '../parsers/solutionFileParser';
 import { SolutionXFileEditor } from '../parsers/solutionXFileEditor';
+import { renameProjectInSln, renameProjectInSlnx, retargetProjectReferences } from '../parsers/projectRename';
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
 import { DebugConfigService } from '../services/debugConfigService';
@@ -1131,6 +1133,48 @@ export class Solution {
             log.error(`Error adding project to solution:`, error);
             throw error;
         }
+    }
+
+    /**
+     * Renames a project file (not its folder) like Visual Studio: the solution entry keeps its GUID and
+     * solution folder, and the other projects' references follow. Returns the new project file.
+     */
+    async renameProject(projectPath: string, newName: string): Promise<string> {
+        const name = newName.trim();
+        if (!name || /[\\/:*?"<>|]/.test(name)) {
+            throw new Error(`Invalid project name "${newName}"`);
+        }
+        const newPath = path.join(path.dirname(projectPath), name + path.extname(projectPath));
+        if (newPath === projectPath) {
+            return projectPath;
+        }
+        if (fs.existsSync(newPath) && newPath.toLowerCase() !== projectPath.toLowerCase()) {
+            throw new Error(`${path.basename(newPath)} already exists`);
+        }
+        const solutionDir = path.dirname(this._solutionPath);
+        const relative = (file: string) => path.relative(solutionDir, file).split(path.sep).join('/');
+
+        await fs.promises.rename(projectPath, newPath);
+        const content = await this._handler.read();
+        await this._handler.write(this.isSlnx
+            ? renameProjectInSlnx(content, relative(projectPath), relative(newPath))
+            : renameProjectInSln(content, relative(projectPath), relative(newPath), name));
+
+        for (const project of this.getDotNetProjects()) {
+            if (project.projectPath === projectPath || !fs.existsSync(project.projectPath)) {
+                continue;
+            }
+            const xml = await fs.promises.readFile(project.projectPath, 'utf8');
+            const updated = retargetProjectReferences(xml, path.dirname(project.projectPath), projectPath, newPath);
+            if (updated !== xml) {
+                await fs.promises.writeFile(project.projectPath, updated, 'utf8');
+            }
+        }
+
+        log.info(`Renamed project ${projectPath} to ${newPath}`);
+        await this.parseSolutionFile();
+        await this.initializeProjects();
+        return newPath;
     }
 
     /**

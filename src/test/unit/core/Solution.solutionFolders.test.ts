@@ -291,4 +291,34 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
         expect(ui.errors).toEqual([expect.stringContaining('Invalid')]);
         expect(await outline()).toEqual(['solutionFolder: Libs', '  project: Lib']);
     });
+
+    test('renames a project file like Visual Studio: same solution folder and GUID, folder unchanged', async () => {
+        const libPath = createProject('Lib');
+        await solution.refresh();
+        const before = fs.readFileSync(file, 'utf8');
+
+        await run({ action: 'rename', nodeId: (await find('project', 'Libs', 'Lib')).nodeId, data: { newName: 'Shop.Lib', type: 'project', oldName: 'Lib' } });
+
+        expect(fs.existsSync(libPath)).toBe(false);
+        expect(fs.existsSync(path.join(dir, 'src', 'Lib', 'Shop.Lib.csproj'))).toBe(true);
+        expect(await outline()).toEqual(['solutionFolder: Libs', '  project: Shop.Lib']);
+        const after = fs.readFileSync(file, 'utf8');
+        if (fileName.endsWith('.sln')) {
+            expect(after).toContain('"Shop.Lib", "src\\Lib\\Shop.Lib.csproj", "{142F4FE7-2814-4E67-A7EF-97A50F8A2890}"');
+            expect(after.split('{142F4FE7-2814-4E67-A7EF-97A50F8A2890}').length).toBe(before.split('{142F4FE7-2814-4E67-A7EF-97A50F8A2890}').length);
+        } else {
+            expect(after).toContain('<Project Path="src/Lib/Shop.Lib.csproj" />');
+        }
+    });
+
+    test('renames the solution file and opens it under the new name', async () => {
+        await run({ action: 'rename', nodeId: (await find('solution')).nodeId, data: { newName: 'Shop', type: 'solution', oldName: 'App' } });
+
+        const renamed = path.join(dir, `Shop${path.extname(fileName)}`);
+        expect(fs.existsSync(file)).toBe(false);
+        expect(fs.existsSync(renamed)).toBe(true);
+        const active = SolutionService.getActiveSolution()!;
+        expect(active.solutionPath).toBe(renamed);
+        active.dispose();
+    });
 });

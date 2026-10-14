@@ -121,6 +121,20 @@ export class SolutionService {
             if (!solutionPath) {
                 return null;
             }
+            return await this.openSolution(solutionPath);
+        } catch (error) {
+            log.error('Error discovering and initializing solution:', error);
+            return null;
+        }
+    }
+
+    /** Loads a solution file as the active solution, e.g. after it was renamed */
+    static async openSolution(solutionPath: string): Promise<Solution | null> {
+        try {
+            if (this.activeSolution) {
+                this.activeSolution.dispose();
+                this.activeSolution = undefined;
+            }
 
             // Create and initialize the Solution instance
             const solution = new Solution(solutionPath);
@@ -140,7 +154,7 @@ export class SolutionService {
 
             return solution;
         } catch (error) {
-            log.error('Error discovering and initializing solution:', error);
+            log.error(`Error opening ${solutionPath}:`, error);
             return null;
         }
     }

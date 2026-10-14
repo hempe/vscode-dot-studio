@@ -11,6 +11,8 @@ export type MenuActionType = ProjectActionCmd['action'];
 
 export interface MenuCommand {
     readonly title: string;
+    /** What the command does, for the menu reference (docs/context-menus.md) */
+    readonly description: string;
     /** VS Code key binding, active while a tree node of a type whose menu contains this command has focus */
     readonly key?: string;
     readonly mac?: string;
@@ -31,57 +33,57 @@ export const IN_TEST_PROJECT = 'inTestProject';
 export const FOCUSED_NODE_TYPE_CONTEXT = 'shinobi.solutionExplorer.focusedNodeType';
 
 export const menuCommands = {
-    openFile: { title: 'Open' },
-    editProjectFile: { title: 'Edit Project File' },
-    addNewProject: { title: 'Add New Project...' },
-    addExistingProject: { title: 'Add Existing Project...' },
-    addSolutionFolder: { title: 'Add Solution Folder' },
-    addSolutionItem: { title: 'Add Solution Item...' },
-    addFile: { title: 'Add File...' },
-    addNewItem: { title: 'Add New Item...' },
-    addExistingItem: { title: 'Add Existing Item...' },
-    addFolder: { title: 'Add Folder...' },
-    addProjectReference: { title: 'Add Project Reference...' },
-    addAssemblyReference: { title: 'Add Assembly Reference...' },
-    manageNuGetPackages: { title: 'Manage NuGet Packages...' },
-    manageUserSecrets: { title: 'Manage User Secrets' },
-    manageNuGetPackagesForSolution: { title: 'Manage NuGet Packages...' },
-    restoreNugets: { title: 'Restore NuGet Packages' },
-    restoreDependencies: { title: 'Restore Dependencies' },
-    setStartupProject: { title: 'Set as Startup Project' },
-    chooseLaunchProfile: { title: 'Set Launch Profile...' },
-    addServiceReference: { title: 'Add Service Reference...' },
-    updateServiceReference: { title: 'Update Service Reference' },
-    removeServiceReference: { title: 'Remove Service Reference' },
-    startNewInstance: { title: 'Start New Instance' },
-    startWithoutDebugging: { title: 'Start Without Debugging' },
-    runTests: { title: 'Run Tests' },
-    debugTests: { title: 'Debug Tests' },
-    build: { title: 'Build' },
-    rebuild: { title: 'Rebuild' },
-    clean: { title: 'Clean' },
-    publish: { title: 'Publish...' },
-    copy: { title: 'Copy', key: 'ctrl+c', mac: 'cmd+c' },
-    cut: { title: 'Cut', key: 'ctrl+x', mac: 'cmd+x' },
-    paste: { title: 'Paste', key: 'ctrl+v', mac: 'cmd+v' },
-    rename: { title: 'Rename', key: 'f2' },
-    deleteFile: { title: 'Delete', key: 'delete', mac: 'cmd+backspace' },
-    deleteProject: { title: 'Delete' },
-    removeProject: { title: 'Remove from Solution' },
-    removeSolutionFolder: { title: 'Remove', key: 'delete', mac: 'cmd+backspace' },
-    removeSolutionItem: { title: 'Remove from Solution', key: 'delete', mac: 'cmd+backspace' },
-    removeDependency: { title: 'Remove', key: 'delete', mac: 'cmd+backspace' },
-    revealInExplorer: { title: 'Reveal in Explorer' },
-    openInTerminal: { title: 'Open in Terminal' },
-    copyFullPath: { title: 'Copy Full Path' },
+    openFile: { title: 'Open', description: 'Opens the file in the editor. Generated files open read-only.' },
+    editProjectFile: { title: 'Edit Project File', description: 'Opens the project file (`.csproj`) in the editor, like double-clicking the project.' },
+    addNewProject: { title: 'Add New Project...', description: 'Opens the Add New Project wizard; the new project goes into the solution or into this solution folder.' },
+    addExistingProject: { title: 'Add Existing Project...', description: 'Adds a project file from disk to the solution or to this solution folder.' },
+    addSolutionFolder: { title: 'Add Solution Folder', description: 'Adds a solution folder (a virtual folder in the solution file, not on disk).' },
+    addSolutionItem: { title: 'Add Solution Item...', description: 'Adds a file to the solution as a solution item (on the solution: into the "Solution Items" folder). A project file is added as a project.' },
+    addFile: { title: 'Add File...', description: 'Creates an empty file; type its name in the tree.' },
+    addNewItem: { title: 'Add New Item...', description: "Opens the Add New Item wizard: C# types with the folder's namespace, or any `dotnet new` item template." },
+    addExistingItem: { title: 'Add Existing Item...', description: 'Copies files from anywhere into the project or folder; asks before replacing a file with the same name.' },
+    addFolder: { title: 'Add Folder...', description: 'Creates a folder; type its name in the tree.' },
+    addProjectReference: { title: 'Add Project Reference...', description: 'Adds a reference to another project of the solution.' },
+    addAssemblyReference: { title: 'Add Assembly Reference...', description: 'Adds a reference to a `.dll` file (with its hint path).' },
+    manageNuGetPackages: { title: 'Manage NuGet Packages...', description: 'Opens the NuGet Package Manager for the project.' },
+    manageUserSecrets: { title: 'Manage User Secrets', description: "Opens the project's `secrets.json` in your user profile (outside the repository); adds a `UserSecretsId` to the project first if it has none." },
+    manageNuGetPackagesForSolution: { title: 'Manage NuGet Packages...', description: 'Opens the NuGet Package Manager for all projects of the solution, with Consolidate.' },
+    restoreNugets: { title: 'Restore NuGet Packages', description: 'Restores the NuGet packages of the solution (`dotnet restore`).' },
+    restoreDependencies: { title: 'Restore Dependencies', description: 'Restores the NuGet packages of the project (`dotnet restore`).' },
+    setStartupProject: { title: 'Set as Startup Project', description: 'Makes the project the one F5 and Ctrl+F5 start; asks for the launch profile if it has several. Writes the `Startup` configuration to `.vscode/launch.json`.' },
+    chooseLaunchProfile: { title: 'Set Launch Profile...', description: 'Picks another launch profile (`Properties/launchSettings.json`) of the startup project.' },
+    addServiceReference: { title: 'Add Service Reference...', description: 'Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`.' },
+    updateServiceReference: { title: 'Update Service Reference', description: "Regenerates the service reference from its WSDL, for the project's current target framework." },
+    removeServiceReference: { title: 'Remove Service Reference', description: 'Removes the service reference: deletes its folder after asking; the WCF packages stay.' },
+    startNewInstance: { title: 'Start New Instance', description: 'Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project.' },
+    startWithoutDebugging: { title: 'Start Without Debugging', description: 'Builds the project and runs it without the debugger, without making it the startup project.' },
+    runTests: { title: 'Run Tests', description: 'Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer.' },
+    debugTests: { title: 'Debug Tests', description: 'Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit.' },
+    build: { title: 'Build', description: 'Builds the solution or project as a task (`dotnet build`); errors go to the Error List.' },
+    rebuild: { title: 'Rebuild', description: 'Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`).' },
+    clean: { title: 'Clean', description: 'Deletes the build output (`dotnet clean`).' },
+    publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
+    copy: { title: 'Copy', description: 'Copies the file or folder; Paste puts a copy into another folder.', key: 'ctrl+c', mac: 'cmd+c' },
+    cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
+    paste: { title: 'Paste', description: 'Pastes the copied or cut file or folder into this folder or project.', key: 'ctrl+v', mac: 'cmd+v' },
+    rename: { title: 'Rename', description: 'Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent.', key: 'f2' },
+    deleteFile: { title: 'Delete', description: 'Deletes the file or folder from disk, after asking.', key: 'delete', mac: 'cmd+backspace' },
+    deleteProject: { title: 'Delete', description: 'Removes the project from the solution and deletes its folder from disk, after asking.' },
+    removeProject: { title: 'Remove from Solution', description: 'Removes the project from the solution; its files stay on disk.' },
+    removeSolutionFolder: { title: 'Remove', description: 'Removes the solution folder from the solution, with the projects and folders in it; files on disk stay.', key: 'delete', mac: 'cmd+backspace' },
+    removeSolutionItem: { title: 'Remove from Solution', description: 'Removes the file from the solution; it stays on disk.', key: 'delete', mac: 'cmd+backspace' },
+    removeDependency: { title: 'Remove', description: 'Removes the package, project or assembly reference from the project file, after asking.', key: 'delete', mac: 'cmd+backspace' },
+    revealInExplorer: { title: 'Reveal in Explorer', description: "Shows the file or folder in your operating system's file manager." },
+    openInTerminal: { title: 'Open in Terminal', description: 'Opens a terminal in the folder of the solution, project or folder.' },
+    copyFullPath: { title: 'Copy Full Path', description: 'Copies the full path of the item to the clipboard.' },
 } as const satisfies Partial<Record<MenuActionType, MenuCommand>>;
 
 export type MenuCommandAction = keyof typeof menuCommands;
 
 /** Submenus of the context menus, e.g. Visual Studio's "Debug >" on projects */
 export const submenus = {
-    debug: { label: 'Debug', items: ['startNewInstance', 'startWithoutDebugging'] },
-} as const satisfies Record<string, { readonly label: string; readonly items: readonly MenuCommandAction[] }>;
+    debug: { label: 'Debug', description: "Visual Studio's Debug submenu of projects that can be started.", items: ['startNewInstance', 'startWithoutDebugging'] },
+} as const satisfies Record<string, { readonly label: string; readonly description: string; readonly items: readonly MenuCommandAction[] }>;
 
 export type SubmenuId = keyof typeof submenus;
 
@@ -103,10 +105,10 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['rename'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
+    // Solution folders are virtual (only in the solution file), so nothing on disk to reveal
     solutionFolder: [
         ['addNewProject', 'addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
         ['removeSolutionFolder', 'rename'],
-        ['revealInExplorer'],
     ],
     project: [
         ['editProjectFile'],
@@ -195,6 +197,85 @@ export const testProjectMenus: Readonly<Partial<Record<NodeType, Menu>>> = {
     folder: [[], [], [], ['runTests', 'debugTests']],
     file: [[], [], [], ['runTests', 'debugTests']],
 };
+
+/** Names of the node types in the menu reference, in the order of the tree; `temporary` nodes have no menu */
+const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
+    solution: 'Solution',
+    solutionFolder: 'Solution folder',
+    solutionItem: 'Solution item',
+    project: 'Project',
+    folder: 'Folder',
+    file: 'File',
+    dependencies: 'Dependencies',
+    dependencyCategory: 'Analyzers, Packages, Projects, Assemblies (under Dependencies)',
+    dependency: 'Package, project or assembly reference',
+    transitivePackage: 'Package a package depends on',
+    analyzer: 'Analyzer',
+    sourceGenerator: 'Source generator',
+    generatedFile: 'Generated file',
+};
+
+/** When the extra items of a `<nodeType>.<contextValue>` menu (and of test project menus) show, for the menu reference */
+const conditionNames: Readonly<Record<string, string>> = {
+    [`project.${EXECUTABLE_PROJECT}`]: 'On projects that can be started',
+    [`project.${STARTUP_PROJECT}`]: 'On the startup project',
+    [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: 'On the startup project, when it has several launch profiles',
+    'folder.connectedServices': 'On the Connected Services folder',
+    'folder.serviceReference': 'On a service reference (a folder in Connected Services)',
+    'dependencyCategory.packages': 'On Packages',
+    'dependencyCategory.projects': 'On Projects',
+    'dependencyCategory.assemblies': 'On Assemblies',
+    test: 'In test projects',
+};
+
+const keyName = (key: string) => key.split('+').map(part =>
+    ({ ctrl: 'Ctrl', cmd: 'Cmd', shift: 'Shift', alt: 'Alt', delete: 'Delete', backspace: 'Backspace' } as Record<string, string>)[part]
+    ?? part.toUpperCase()).join('+');
+
+/** docs/context-menus.md: every Solution Explorer context menu, written by `npm run generate:menus` */
+export function buildMenuReference(): string {
+    const rows = (menu: Menu): [string, MenuCommand][] => menu.flat().flatMap((item): [string, MenuCommand][] => isSubmenu(item)
+        ? submenus[item].items.map((action): [string, MenuCommand] => [`${submenus[item].label} > ${menuCommands[action].title}`, menuCommands[action]])
+        : [[menuCommands[item].title, menuCommands[item]]]);
+    const table = (menu: Menu) => [
+        '| Command | Key | What it does |',
+        '|---|---|---|',
+        ...rows(menu).map(([title, command]) => {
+            const key = command.key ? keyName(command.key) + (command.mac && command.mac !== command.key ? ` (macOS: ${keyName(command.mac)})` : '') : '';
+            return `| ${title} | ${key} | ${command.description} |`;
+        }),
+    ].join('\n');
+
+    const sections = (Object.keys(nodeTypeNames) as NodeType[]).map(nodeType => {
+        const variants = Object.entries(contextMenus)
+            .filter(([key]) => key.startsWith(`${nodeType}.`))
+            .map(([key, menu]) => [key, menu as Menu] as const);
+        const testMenu = testProjectMenus[nodeType];
+        const extra = [...variants, ...(testMenu ? [['test', testMenu] as const] : [])]
+            .filter(([, menu]) => menu.flat().length > 0)
+            .map(([key, menu]) => {
+                if (!conditionNames[key]) {
+                    throw new Error(`No name for the menu condition ${key}`);
+                }
+                return `**${conditionNames[key]}**\n\n${table(menu)}`;
+            });
+        const base = contextMenus[nodeType];
+        const parts = [
+            base.flat().length > 0 ? table(base) : extra.length > 0 ? '' : 'No context menu.',
+            ...extra,
+        ].filter(Boolean);
+        return `## ${nodeTypeNames[nodeType]}\n\n${parts.join('\n\n')}\n`;
+    });
+
+    return [
+        '<!-- Generated from src/core/contextMenus.ts by `npm run generate:menus`; edit the descriptions there. -->',
+        '# Solution Explorer Context Menus',
+        '',
+        'What each right-click menu of the Solution Explorer offers, by node. Keys work while the node has focus in the tree.',
+        '',
+        ...sections,
+    ].join('\n');
+}
 
 /** All menus with the node type and the condition they apply to (context value or being in a test project) */
 function menuEntries() {
