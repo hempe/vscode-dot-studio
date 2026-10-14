@@ -119,7 +119,7 @@ Useful settings of the C# extension:
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, configurations, coverage), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later, phase 21 the other publish targets. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, projects, configurations), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later, phase 21 the other publish targets. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -233,7 +233,6 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Open and switch solutions: "Open Solution..." and recently opened solutions, like Visual Studio's File > Open > Solution and File > Recent; the Solution Explorer loads the chosen solution instead of the current one. Today the choice comes once, at startup, when the workspace has several solution files
 - [ ] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
 - [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
-- [ ] Code coverage: Visual Studio's "Analyze Code Coverage" (in Community since Visual Studio 2022 17.14): run tests with coverage through Microsoft.Testing.Platform's code coverage extension; covered and uncovered lines in the editor, percentages per project, file and class in VS Code's coverage view
 - [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release
 
 ### Phase 11: Code Cleanup & Refactoring
@@ -273,6 +272,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Docker / docker-compose launch profiles
 - [ ] Encrypted NuGet credentials (`Password` is Windows DPAPI; on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens)
 - [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
+- [ ] Code coverage in the Test Explorer (Microsoft.Testing.Platform's coverage extension, lines marked in the editor), only if it stays fast: Visual Studio's coverage slows the IDE down so much that teams run coverage from a script (`dotnet test --collect`, ReportGenerator) instead, which remains the better way otherwise
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them, like Visual Studio; restore already warns about vulnerable packages (NuGet Audit) in the Error List
 - [ ] NuGet package sources like Visual Studio: a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
