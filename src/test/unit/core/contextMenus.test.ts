@@ -146,3 +146,12 @@ describe('docs/keyboard-shortcuts.md', () => {
         expect(missing).toEqual([]);
     });
 });
+
+describe('docs/settings.md', () => {
+    test('describes every setting and every default the extension changes', () => {
+        const page = fs.readFileSync(path.join(__dirname, '../../../../docs/settings.md'), 'utf8');
+        const settings = (packageJson.contributes.configuration as { properties: Record<string, unknown> }[]).flatMap(group => Object.keys(group.properties));
+        const defaults = Object.keys(packageJson.contributes.configurationDefaults);
+        expect([...settings, ...defaults].filter(setting => !page.includes(`\`${setting}\``))).toEqual([]);
+    });
+});
