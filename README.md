@@ -79,6 +79,23 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - When a feed rejects its credentials (expired token): a message with the file and line of the credentials, what to do for that kind of feed, and "Enter New Token..." to store a new one
 - Package details, versions, dependencies and README
 
+## Coming from Visual Studio
+
+What works differently from Visual Studio, and why:
+
+- **Two extensions, not one IDE.** This extension is the Visual Studio layer: Solution Explorer, NuGet, Error List, Test Explorer, wizards, publish. Editing C# (IntelliSense, live errors, navigation, refactorings, Razor) and the debugger come from a C# extension: Microsoft's `ms-dotnettools.csharp`, or `muhammad-sammy.csharp` in VSCodium and other Open VSX editors. Some of its own features overlap with this extension; where it allows, this extension switches them off (see Settings).
+- **The startup project lives in `.vscode/`.** Visual Studio keeps the startup project and launch profile in `.vs/` per user. Here "Set as Startup Project" writes a `Startup` configuration to `.vscode/launch.json` and a `StartupPreBuild` task to `.vscode/tasks.json`. Commit them to give the team a default, or add them to `.gitignore` to keep the choice personal. F5 runs whatever configuration is selected in VS Code's Run and Debug view, `Startup` by default.
+- **Run and Debug is VS Code's.** Variables, Watch, Call Stack and Breakpoints (including exception breakpoints) are VS Code's Run and Debug view; Visual Studio's Immediate window is the Debug Console. Diagnostic Tools, Hot Reload and Edit and Continue aren't there (Hot Reload is planned).
+- **Errors are reliable after a build.** As in Visual Studio, the Error List and the markers in the Solution Explorer come from the last build; the C# language server adds live errors for open files only, unless you set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`.
+- **Generated code is from the last build.** Dependencies > Analyzers shows what the source generators wrote in the last build started by this extension, not live like Visual Studio. A project that was up to date before needs one Rebuild.
+- **Tests run in VS Code's Testing view.** Microsoft.Testing.Platform and VSTest projects show there, with icons in the editor gutter. Use them (or Run Tests / Debug Tests in the Solution Explorer); the C# extension's "Run/Debug Tests in Context" menu items go through VSTest and fail for Microsoft.Testing.Platform projects without `Microsoft.NET.Test.Sdk`.
+- **No Windows-only credentials.** Visual Studio encrypts NuGet passwords and publish passwords with Windows DPAPI, which nothing outside Windows can read. Store NuGet tokens as `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider.
+- **Publish is Folder only for now.** Profiles in `Properties/PublishProfiles/` are shared with Visual Studio; Azure, container registry, FTP and IIS profiles are listed but publish from Visual Studio until Phase 21.
+- **The tree shows what is on disk.** SDK-style projects include files by location, and so does the tree. Visual Studio's "Show All Files", "Exclude From Project" and linked files from other folders aren't there yet (Phase 13).
+- **Keyboard shortcuts are VS Code's**, except for the ones this extension adds like Visual Studio's: F2 rename, Delete, Ctrl+C/X/V in the tree, Ctrl+Shift+B build, Ctrl+F5 run without debugging, Ctrl+[, S sync with the active document.
+- **`.http` files and `.editorconfig`.** Visual Studio sends the requests in `.http` files (the Web API template makes one); in VS Code that needs an extension such as REST Client (`humao.rest-client`). The C# extension applies `.editorconfig` to C# code; for other files VS Code needs the EditorConfig extension.
+- **Not on Linux and macOS at all:** .NET Framework projects, WinForms and WPF designers, IIS Web Deploy, and anything else that needs Windows.
+
 ## Settings
 
 | Setting | Default | |
