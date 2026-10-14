@@ -1,5 +1,5 @@
-// Regenerates the Solution Explorer context menu commands, menus and keybindings in package.json
-// from src/core/contextMenus.ts. Run via `npm run generate:menus`.
+// Regenerates the Solution Explorer context menu commands, menus and keybindings in package.json, and the
+// menu reference docs/context-menus.md, from src/core/contextMenus.ts. Run via `npm run generate:menus`.
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
@@ -13,4 +13,5 @@ new Function('module', 'exports', 'require', outputText)(mod, mod.exports, requi
 const pkgPath = path.join(root, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 fs.writeFileSync(pkgPath, JSON.stringify(mod.exports.applyMenuContributions(pkg), null, 2) + '\n');
-console.log('package.json context menus updated');
+fs.writeFileSync(path.join(root, 'docs', 'context-menus.md'), mod.exports.buildMenuReference());
+console.log('package.json context menus and docs/context-menus.md updated');
