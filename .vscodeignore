@@ -1,0 +1,13 @@
+# Only the built extension goes into the package: webpack bundles every dependency into
+# out/extension.js and out/webview/<view>/bundle.js (out/ may also hold old tsc output)
+**
+!out/extension.js
+!out/extension.js.LICENSE.txt
+!out/webview/*/bundle.js
+!out/webview/*/bundle.js.LICENSE.txt
+!out/webview/codicons/**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENCE.md
+!icon.png

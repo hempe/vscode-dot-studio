@@ -99,7 +99,6 @@ export class SolutionDiscovery {
 
         try {
             await this.createEmptySolution(solutionPath);
-            vscode.window.showInformationMessage(`Created solution: ${solutionName}`);
             return solutionPath;
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to create solution: ${error}`);

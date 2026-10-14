@@ -39,6 +39,21 @@ The ⚙ button in the Solution Explorer's title bar switches the solution config
 
 The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work.
 
+## Attach to Process
+
+Visual Studio's Debug > Attach to Process is a launch configuration of the C# extension. Add it to `.vscode/launch.json` (next to `Startup`):
+
+```jsonc
+{
+    "name": "Attach",
+    "type": "coreclr",
+    "request": "attach",
+    "processId": "${command:pickProcess}"
+}
+```
+
+Select **Attach** in VS Code's Run and Debug view and press F5: a list of running processes appears; pick your app (search by name). A picker with project names and ports like Visual Studio's is planned (Phase 18).
+
 ## While debugging
 
 Breakpoints, Variables, Watch, Call Stack and the Debug Console (Visual Studio's Immediate window) are VS Code's Run and Debug view. Exception breakpoints are in its Breakpoints section. Visual Studio's Diagnostic Tools, Hot Reload and Edit and Continue are not available (Hot Reload is planned).

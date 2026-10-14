@@ -140,10 +140,11 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 ### Phase 10: Polish
 **Goal**: Behave like a finished extension in the small things.
 
-- [ ] No notifications for what the tree already shows (file created, project added, framework changed, ...), like Visual Studio
-- [ ] Delete moves files and folders to the trash, like VS Code's explorer, instead of deleting them permanently
-- [ ] Publishing metadata: `LICENSE`, `CHANGELOG.md`, package name, description, categories and keywords for the Marketplace and Open VSX
-- [ ] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
+- [x] No notifications for what the tree already shows (file created, project added, framework changed, ...), like Visual Studio
+- [x] Delete moves files and folders to the trash, like VS Code's explorer, instead of deleting them permanently
+- [x] Publishing metadata: `CHANGELOG.md`, description, categories, keywords and a `.vscodeignore` that packages only the bundles
+- [ ] Package name: `dotnet` is the extension's ID part and too generic for the Marketplace; renaming it resets what VS Code stores for the extension
+- [x] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
 
 ### Phase 11: Diagnosability
 - [ ] A "Shinobi .NET" Output channel with all logs and a log level setting, so problems can be reported

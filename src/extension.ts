@@ -154,7 +154,6 @@ export function activate(context: vscode.ExtensionContext) {
             if (selection) {
                 const selectedOption = frameworkOptions.find(option => option.label === selection.label);
                 await frameworkDropdownService.setActiveFramework(selectedOption?.value);
-                vscode.window.showInformationMessage(`Framework changed to: ${selection.label}`);
             }
         }),
         vscode.commands.registerCommand('shinobi.solution.configuration.debug', () => BuildConfiguration.set('Debug')),

@@ -59,7 +59,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Manage User Secrets |  | Opens the project's `secrets.json` in your user profile (outside the repository); adds a `UserSecretsId` to the project first if it has none. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
 | Remove from Solution |  | Removes the project from the solution; its files stay on disk. |
-| Delete |  | Removes the project from the solution and deletes its folder from disk, after asking. |
+| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking. |
 | Build |  | Builds the solution or project as a task (`dotnet build`); errors go to the Error List. |
 | Rebuild |  | Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`). |
 | Clean |  | Deletes the build output (`dotnet clean`). |
@@ -110,7 +110,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Cut | Ctrl+X (macOS: Cmd+X) | Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files. |
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
-| Delete | Delete (macOS: Cmd+Backspace) | Deletes the file or folder from disk, after asking. |
+| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
@@ -144,7 +144,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Cut | Ctrl+X (macOS: Cmd+X) | Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files. |
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
-| Delete | Delete (macOS: Cmd+Backspace) | Deletes the file or folder from disk, after asking. |
+| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 

@@ -402,17 +402,16 @@ export class SolutionActionService {
             const itemType = isDirectory ? 'folder' : 'file';
 
             const answer = await vscode.window.showWarningMessage(
-                `Are you sure you want to delete this ${itemType} '${path.basename(filePath)}'?${isDirectory ? ' This will delete all its contents.' : ''}`,
+                `Delete the ${itemType} '${path.basename(filePath)}'?${isDirectory ? ' Everything in it' : ' It'} is moved to the trash.`,
                 { modal: true },
                 'Delete'
             );
 
             if (answer === 'Delete') {
                 const uri = vscode.Uri.file(filePath);
-                // Use recursive delete for directories, regular delete for files
-                await vscode.workspace.fs.delete(uri, { recursive: isDirectory });
+                // To the trash, like VS Code's explorer, so a mistake can be undone
+                await vscode.workspace.fs.delete(uri, { recursive: isDirectory, useTrash: true });
                 log.info(`${itemType} deleted: ${filePath}`);
-                vscode.window.showInformationMessage(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted: ${path.basename(filePath)}`);
             }
         } catch (error) {
             log.error('Error deleting file/folder:', error);
@@ -446,7 +445,6 @@ export class SolutionActionService {
             if (answer === 'Remove') {
                 await solution.removeSolutionItem(itemPath);
                 log.info(`Solution item removed: ${itemPath}`);
-                vscode.window.showInformationMessage(`Solution item '${itemName}' removed from solution`);
             }
         } catch (error) {
             log.error('Error removing solution item:', error);
@@ -502,7 +500,6 @@ export class SolutionActionService {
             if (projectFiles && projectFiles[0]) {
                 await solution.addProject(projectFiles[0].fsPath, this._solutionFolderPathOf(nodeId));
                 log.info(`Existing project added: ${projectFiles[0].fsPath}`);
-                vscode.window.showInformationMessage(`Project added: ${path.basename(projectFiles[0].fsPath)}`);
             }
         } catch (error) {
             log.error('Error adding existing project:', error);
@@ -526,7 +523,6 @@ export class SolutionActionService {
             if (folderName) {
                 await solution.addSolutionFolder(folderName, nodeId.type == 'solutionFolder' ? nodeId : undefined);
                 log.info(`Solution folder added: ${folderName}`);
-                vscode.window.showInformationMessage(`Solution folder '${folderName}' added`);
             }
         } catch (error) {
             log.error('Error adding solution folder:', error);
@@ -561,7 +557,6 @@ export class SolutionActionService {
             if (answer === 'Remove') {
                 await solution.removeSolutionFolder(nodeId.guid);
                 log.info(`Solution folder removed: ${folderName}`);
-                vscode.window.showInformationMessage(`Solution folder '${folderName}' removed`);
             }
         } catch (error) {
             log.error('Error removing solution folder:', error);
@@ -622,7 +617,6 @@ export class SolutionActionService {
             // A project file belongs in the solution as a project, not as a plain item
             if (fileUri?.[0] && this._projectFile.test(fileUri[0].fsPath)) {
                 await solution.addProject(fileUri[0].fsPath, this._solutionFolderPathOf(nodeId));
-                vscode.window.showInformationMessage(`Project added: ${path.basename(fileUri[0].fsPath)}`);
                 return;
             }
 
@@ -640,7 +634,6 @@ export class SolutionActionService {
                     if (!solutionItemsExists) {
                         log.info(`Creating "${solutionItemsFolderName}" folder for solution items`);
                         await solution.addSolutionFolder(solutionItemsFolderName);
-                        vscode.window.showInformationMessage(`Created "${solutionItemsFolderName}" folder`);
                     }
                     targetFolderGuid = solution.findSolutionFolderGuid(solutionItemsFolderName);
                 } else if (nodeId.type == 'solutionFolder') {
@@ -652,7 +645,6 @@ export class SolutionActionService {
 
                 await solution.addSolutionItem(targetFolderGuid!, fileUri[0].fsPath);
                 log.info(`Solution item added: ${fileUri[0].fsPath}`);
-                vscode.window.showInformationMessage(`Solution item added: ${path.basename(fileUri[0].fsPath)}`);
             }
         } catch (error) {
             log.error('Error adding solution item:', error);
@@ -685,7 +677,6 @@ export class SolutionActionService {
             if (answer === 'Remove') {
                 await solution.removeProject(projectPath);
                 log.info(`Project removed from solution: ${projectPath}`);
-                vscode.window.showInformationMessage(`Project '${projectName}' removed from solution`);
             }
         } catch (error) {
             log.error('Error removing project:', error);
@@ -709,7 +700,7 @@ export class SolutionActionService {
 
             const projectName = path.basename(projectPath, path.extname(projectPath));
             const answer = await vscode.window.showWarningMessage(
-                `Are you sure you want to delete project '${projectName}' from disk? This action cannot be undone.`,
+                `Delete project '${projectName}'? It is removed from the solution and its folder is moved to the trash.`,
                 { modal: true },
                 'Delete'
             );
@@ -721,10 +712,9 @@ export class SolutionActionService {
                 // Then delete the project directory
                 const projectDir = path.dirname(projectPath);
                 const uri = vscode.Uri.file(projectDir);
-                await vscode.workspace.fs.delete(uri, { recursive: true });
+                await vscode.workspace.fs.delete(uri, { recursive: true, useTrash: true });
 
                 log.info(`Project deleted: ${projectPath}`);
-                vscode.window.showInformationMessage(`Project '${projectName}' deleted`);
             }
         } catch (error) {
             log.error('Error deleting project:', error);
@@ -814,7 +804,6 @@ export class SolutionActionService {
                 terminal.show();
                 terminal.sendText(`dotnet add "${projectPath}" reference "${referencePath}"`);
 
-                vscode.window.showInformationMessage(`Adding project reference from ${projectName} to ${referenceName}`);
             }
         } catch (error) {
             log.error('Error adding project reference:', error);
@@ -867,7 +856,6 @@ export class SolutionActionService {
                 await fs.promises.writeFile(projectPath, content, 'utf8');
                 const projectName = path.basename(projectPath, path.extname(projectPath));
                 log.info(`Added assembly references to ${projectName}: ${added.join(', ')}`);
-                vscode.window.showInformationMessage(`Added reference${added.length > 1 ? 's' : ''} to ${added.join(', ')}`);
             }
         } catch (error) {
             log.error('Error adding assembly reference:', error);
@@ -934,7 +922,6 @@ export class SolutionActionService {
 
             if (success) {
                 log.info(`Successfully removed ${dependencyName} from ${projectName}`);
-                vscode.window.showInformationMessage(`Removed ${dependencyName} from ${projectName}`);
             } else {
                 vscode.window.showErrorMessage(`Failed to remove ${dependencyName} from ${projectName}`);
             }
@@ -1137,8 +1124,6 @@ export class SolutionActionService {
             await solution.setStartupProject(projectPath);
 
 
-            const projectName = require('path').basename(projectPath, require('path').extname(projectPath));
-            vscode.window.showInformationMessage(`Set ${projectName} as startup project`);
 
             log.info(`Successfully set startup project: ${projectPath}`);
         } catch (error) {
@@ -1215,8 +1200,6 @@ export class SolutionActionService {
                 operation: 'copy',
             };
 
-            const itemName = path.basename(itemPath);
-            vscode.window.showInformationMessage(`Copied ${itemName}`);
             log.info(`Copied to clipboard: ${itemPath}`);
         } catch (error) {
             log.error('Error copying item:', error);
@@ -1242,8 +1225,6 @@ export class SolutionActionService {
                 operation: 'cut',
             };
 
-            const itemName = path.basename(itemPath);
-            vscode.window.showInformationMessage(`Cut ${itemName}`);
             log.info(`Cut to clipboard: ${itemPath}`);
         } catch (error) {
             log.error('Error cutting item:', error);
@@ -1332,12 +1313,10 @@ export class SolutionActionService {
             if (this.clipboard.operation === 'copy') {
                 // Copy operation using VS Code's workspace API
                 await vscode.workspace.fs.copy(sourceUri, destinationUri, { overwrite: true });
-                vscode.window.showInformationMessage(`Copied ${sourceName}`);
                 log.info(`Copied ${sourcePath} to ${destinationPath}`);
             } else {
                 // Cut operation (move) using VS Code's workspace API
                 await vscode.workspace.fs.rename(sourceUri, destinationUri);
-                vscode.window.showInformationMessage(`Moved ${sourceName}`);
                 log.info(`Moved ${sourcePath} to ${destinationPath}`);
                 this.clipboard = null; // Clear clipboard after cut operation
             }
@@ -1399,7 +1378,6 @@ export class SolutionActionService {
                 );
 
                 if (success) {
-                    vscode.window.showInformationMessage(`Namespace updated in '${fileName}'`);
                 } else {
                     vscode.window.showWarningMessage(`Failed to update namespace in '${fileName}'`);
                 }

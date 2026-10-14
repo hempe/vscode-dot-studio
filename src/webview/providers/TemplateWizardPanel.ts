@@ -69,9 +69,6 @@ export function openNewProjectWizard(solutionFolderPath?: string): void {
         () => newProjectWizard(solutionFolderPath),
         async request => {
             const error = await createProject(request.templateId, request.name.trim(), request.location ?? request.name, request.values, solutionFolderPath);
-            if (!error) {
-                vscode.window.showInformationMessage(`Added project ${request.name.trim()}`);
-            }
             return error;
         });
 }

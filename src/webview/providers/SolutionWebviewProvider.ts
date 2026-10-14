@@ -606,7 +606,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             await SolutionActionService.createFile(fullPath);
 
             log.info(`File created successfully: ${fullPath}`);
-            vscode.window.showInformationMessage(`File created: ${fileName}`);
             // Send message to remove all temporary nodes for this parent
             /*
             sendToUi(this.webview, {
@@ -652,7 +651,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             await SolutionActionService.createFolder(fullPath);
 
             log.info(`Folder created successfully: ${fullPath}`);
-            vscode.window.showInformationMessage(`Folder created: ${folderName}`);
 
             // Send message to remove all temporary nodes for this parent
             sendToUi(this.webview, {

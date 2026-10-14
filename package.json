@@ -1,7 +1,7 @@
 {
   "name": "dotnet",
   "displayName": "Shinobi .NET",
-  "description": "Enhanced .NET development features including NuGet UI, solution support, and project management",
+  "description": "Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET in VS Code and VSCodium",
   "version": "0.0.1",
   "publisher": "shinobi",
   "license": "MIT",
@@ -10,11 +10,33 @@
     "type": "git",
     "url": "https://github.com/hempe/vscode-dot-studio"
   },
+  "homepage": "https://github.com/hempe/vscode-dot-studio#readme",
+  "bugs": {
+    "url": "https://github.com/hempe/vscode-dot-studio/issues"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
+    "Programming Languages",
+    "Testing",
     "Other"
+  ],
+  "keywords": [
+    "dotnet",
+    ".net",
+    "csharp",
+    "c#",
+    "solution explorer",
+    "sln",
+    "slnx",
+    "nuget",
+    "visual studio",
+    "test explorer",
+    "error list",
+    "publish",
+    "asp.net",
+    "msbuild"
   ],
   "activationEvents": [
     "workspaceContains:*.sln",
