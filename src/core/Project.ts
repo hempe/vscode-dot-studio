@@ -8,6 +8,7 @@ import { serviceFolderKind } from '../services/serviceReferences/connectedServic
 import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
+import { Settings } from '../services/settings';
 import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../types';
@@ -305,7 +306,7 @@ export class Project {
                 path: path.join(folderPath, file.name)
             }));
 
-            const nestedFiles = FileNestingService.nestFiles(fileList);
+            const nestedFiles = FileNestingService.nestFiles(fileList, Settings.fileNesting());
 
             // Convert nested files to ProjectFileNode structure
             const convertNestedFiles = (nestedFiles: NestedFile[]): ProjectFileNode[] => {

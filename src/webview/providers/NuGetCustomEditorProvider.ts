@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Settings } from '../../services/settings';
 import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { SolutionService } from '../../services/solutionService';
@@ -55,7 +56,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             ]
         };
 
-        webviewPanel.webview.html = NuGetWebview.getHtmlForWebview(this._extensionUri, webviewPanel.webview);
+        webviewPanel.webview.html = NuGetWebview.getHtmlForWebview(this._extensionUri, webviewPanel.webview, Settings.nugetIncludePrerelease());
 
         // Handle messages from the webview
         webviewPanel.webview.onDidReceiveMessage(

@@ -296,4 +296,50 @@ describe('FileNestingService', () => {
       expect(result).toHaveLength(2);
     });
   });
+
+  // Visual Studio's File Nesting button: Off, Default, Web
+  describe('nesting modes', () => {
+    const files = [
+      'Index.cshtml', 'Index.cshtml.cs', 'appsettings.json', 'appsettings.Development.json',
+      'site.ts', 'site.js', 'site.js.map', 'site.min.js', 'styles.scss', 'styles.css', 'styles.min.css',
+    ].map(name => ({ name, path: `/project/${name}` }));
+    const outline = (nodes: any[], indent = ''): string[] =>
+      nodes.flatMap(node => [`${indent}${node.name}`, ...outline(node.children ?? [], indent + '  ')]);
+
+    it('off shows every file at its folder', () => {
+      expect(outline(FileNestingService.nestFiles(files, 'off'))).toEqual(files.map(f => f.name).sort((a, b) => a.localeCompare(b)));
+    });
+
+    it('default nests code-behind and configuration variants, not web assets', () => {
+      expect(outline(FileNestingService.nestFiles(files))).toEqual([
+        'appsettings.json',
+        '  appsettings.Development.json',
+        'Index.cshtml',
+        '  Index.cshtml.cs',
+        'site.js',
+        'site.js.map',
+        'site.min.js',
+        'site.ts',
+        'styles.css',
+        'styles.min.css',
+        'styles.scss',
+      ]);
+    });
+
+    it('web also nests compiled, minified and map files under their source', () => {
+      expect(outline(FileNestingService.nestFiles(files, 'web'))).toEqual([
+        'appsettings.json',
+        '  appsettings.Development.json',
+        'Index.cshtml',
+        '  Index.cshtml.cs',
+        'site.ts',
+        '  site.js',
+        '    site.js.map',
+        '    site.min.js',
+        'styles.scss',
+        '  styles.css',
+        '    styles.min.css',
+      ]);
+    });
+  });
 });

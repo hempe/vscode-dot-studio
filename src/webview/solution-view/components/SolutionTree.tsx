@@ -66,6 +66,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
 
     // Node to scroll to once it is rendered (Sync with Active Document)
     const [revealNodeId, setRevealNodeId] = useState<NodeIdString | undefined>();
+    const [revealFocus, setRevealFocus] = useState(false);
 
     // Rename (menu or F2 key binding) and Sync with Active Document are routed back here by the extension
     useEffect(() => {
@@ -78,6 +79,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                 setSelectedNodeId(message.payload.nodeId);
                 setFocusedNodeId(message.payload.nodeId);
                 setRevealNodeId(message.payload.nodeId);
+                setRevealFocus(message.payload.focus !== false);
             }
         };
         window.addEventListener('message', handleMessage);
@@ -133,10 +135,12 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         if (!revealNodeId || !flatNodes.some(item => item.node.nodeId === revealNodeId)) {
             return;
         }
-        treeRef.current?.focus({ preventScroll: true });
+        if (revealFocus) {
+            treeRef.current?.focus({ preventScroll: true });
+        }
         treeRef.current?.querySelector('.tree-node.selected')?.scrollIntoView({ block: 'nearest' });
         setRevealNodeId(undefined);
-    }, [revealNodeId, flatNodes]);
+    }, [revealNodeId, revealFocus, flatNodes]);
 
     // Auto-focus the first node for keyboard navigation if no node is focused
     useEffect(() => {

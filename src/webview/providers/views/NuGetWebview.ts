@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 export class NuGetWebview {
 
+    /** `includePrerelease`: how "Include prerelease" starts (setting `shinobi.nuget.includePrerelease`) */
     public static getHtmlForWebview(
         extensionUri: vscode.Uri,
-        webview: vscode.Webview): string {
+        webview: vscode.Webview,
+        includePrerelease = false): string {
 
         const codiconsCss = webview.asWebviewUri(vscode.Uri.joinPath(
             extensionUri, 'out', 'webview', 'codicons', 'codicon.css'
@@ -42,7 +44,7 @@ export class NuGetWebview {
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root" data-include-prerelease="${includePrerelease}"></div>
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

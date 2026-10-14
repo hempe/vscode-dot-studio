@@ -9,6 +9,17 @@ export interface NestedFile {
 
 type FileEntry = { name: string; path: string };
 
+/** Visual Studio's File Nesting modes: no nesting, the default rules, or those plus the web rules */
+export type FileNestingMode = 'off' | 'default' | 'web';
+
+/** Web: compiled, minified and map files under their source (site.ts > site.js > site.min.js, site.js.map) */
+const webParents: [RegExp, string[]][] = [
+    [/^(.+)\.min\.(js|css)$/i, ['.$2']],
+    [/^(.+\.(?:js|css))\.map$/i, ['']],
+    [/^(.+)\.js$/i, ['.ts', '.tsx', '.coffee']],
+    [/^(.+)\.css$/i, ['.scss', '.sass', '.less']],
+];
+
 /** Files whose dependents are named `<file>.<anything>` (Index.cshtml.cs, Counter.razor.css) */
 const markupExtensions = ['.razor', '.cshtml', '.vbhtml', '.aspx', '.ascx', '.master', '.xaml'];
 
@@ -56,7 +67,7 @@ export class FileNestingService {
     /**
      * Groups files into nested structure based on naming patterns
      */
-    static nestFiles(files: FileEntry[]): NestedFile[] {
+    static nestFiles(files: FileEntry[], mode: FileNestingMode = 'default'): NestedFile[] {
         const directories = new Map<string, Directory>();
         for (const file of files) {
             const dir = path.dirname(file.path);
@@ -68,7 +79,7 @@ export class FileNestingService {
 
         const parentOf = new Map<string, string>();
         for (const file of files) {
-            const parent = this.findParentFile(file.name, directories.get(path.dirname(file.path))!);
+            const parent = mode === 'off' ? null : this.findParentFile(file.name, directories.get(path.dirname(file.path))!, mode);
             if (parent && parent.path !== file.path) {
                 parentOf.set(file.path, parent.path);
             }
@@ -119,8 +130,9 @@ export class FileNestingService {
     /**
      * Finds the parent file for a given file based on naming patterns
      */
-    private static findParentFile(fileName: string, dir: Directory): FileEntry | null {
-        return this.findMarkupParent(fileName, dir)
+    private static findParentFile(fileName: string, dir: Directory, mode: FileNestingMode): FileEntry | null {
+        return (mode === 'web' ? this.findWebParent(fileName, dir) : undefined)
+            ?? this.findMarkupParent(fileName, dir)
             ?? this.findDesignerParent(fileName, dir)
             ?? this.findSuffixParent(fileName, dir)
             ?? this.findConfigurationParent(fileName, dir)
@@ -200,6 +212,23 @@ export class FileNestingService {
         return codeExtensions
             .map(ext => dir.find(match[1] + ext))
             .find(parent => parent !== undefined);
+    }
+
+    /** The web rules: the first existing source of a compiled, minified or map file */
+    private static findWebParent(fileName: string, dir: Directory): FileEntry | undefined {
+        for (const [pattern, parentSuffixes] of webParents) {
+            const match = pattern.exec(fileName);
+            if (!match) {
+                continue;
+            }
+            for (const suffix of parentSuffixes) {
+                const parent = dir.find(match[1] + suffix.replace('$2', match[2] ?? ''), true);
+                if (parent) {
+                    return parent;
+                }
+            }
+        }
+        return undefined;
     }
 
     /**

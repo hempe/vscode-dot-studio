@@ -58,7 +58,7 @@ jest.mock('vscode', () => {
         Location: class { constructor(public uri: unknown, public range: unknown) { } },
         tasks: { onDidEndTaskProcess: () => disposable },
         debug: { onDidStartDebugSession: () => disposable },
-        workspace: { workspaceFolders: undefined },
+        workspace: { workspaceFolders: undefined, getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }) },
         commands: { executeCommand: async () => undefined },
     };
 }, { virtual: true });

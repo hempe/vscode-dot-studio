@@ -16,6 +16,7 @@ jest.mock('vscode', () => {
     return {
         workspace: {
             get workspaceFolders() { return [{ uri: { fsPath: env.workspacePath } }]; },
+            getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }),
         },
         window: {
             showWarningMessage: async () => undefined,

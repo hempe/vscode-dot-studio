@@ -8,6 +8,7 @@ import { SolutionService } from '../solutionService';
 import { BuildConfiguration } from '../buildConfiguration';
 import { DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
 import { EMIT_GENERATED_FILES } from '../analyzers';
+import { Settings } from '../settings';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
@@ -96,7 +97,7 @@ const defaultDeps: TestExplorerDeps = {
     readProject: projectPath => fs.readFileSync(projectPath, 'utf8'),
     evaluate: evaluateTestProject,
     build: (projectPath, configuration, output) => new Promise(resolve => {
-        execFile('dotnet', ['build', projectPath, '--configuration', configuration, '-nologo', '-consoleLoggerParameters:NoSummary', EMIT_GENERATED_FILES],
+        execFile('dotnet', ['build', projectPath, '--configuration', configuration, '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
             { cwd: path.dirname(projectPath), timeout: 600000 }, (error, stdout, stderr) => {
                 output(`${stdout}${stderr}`);
                 resolve(!error);
@@ -152,7 +153,7 @@ export class TestExplorer implements vscode.Disposable {
                 const task = event.execution.task;
                 const isBuild = (task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild'].includes(task.definition.action))
                     || task.name === 'StartupPreBuild';
-                if (isBuild && event.exitCode === 0) {
+                if (isBuild && event.exitCode === 0 && Settings.discoverTestsAfterBuild()) {
                     void this.refresh(false);
                 }
             }),

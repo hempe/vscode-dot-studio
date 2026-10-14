@@ -23,7 +23,7 @@ jest.mock('vscode', () => {
         ShellExecution,
         TaskGroup: { Build: { id: 'build' } },
         TaskScope: { Workspace: 2 },
-        workspace: { workspaceFolders: [{ name: 'repo', uri: { fsPath: '/repo' } }] },
+        workspace: { workspaceFolders: [{ name: 'repo', uri: { fsPath: '/repo' } }], getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }) },
     };
 }, { virtual: true });
 
@@ -46,6 +46,8 @@ describe('dotnetTaskArgs', () => {
         expect(dotnetTaskArgs('clean', '/repo/All.sln', 'Debug')).toEqual(
             ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary']);
         expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
+        // shinobi.build.emitGeneratedFiles off: no source generator output
+        expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug', undefined, false)).not.toContain('-property:EmitCompilerGeneratedFiles=true');
         // The profile decides configuration, framework and runtime
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
             ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);

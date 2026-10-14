@@ -145,6 +145,8 @@ export declare type SelectNodeCmd = {
     readonly type: 'selectNode',
     readonly payload: {
         readonly nodeId: NodeIdString,
+        /** Move the keyboard focus to the tree; not when only following the active editor */
+        readonly focus?: boolean,
     }
 }
 

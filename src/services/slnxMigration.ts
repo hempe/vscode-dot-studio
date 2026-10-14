@@ -4,6 +4,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../core/logger';
+import { Settings } from './settings';
 
 const execFileAsync = promisify(execFile);
 const log = logger('SlnxMigration');
@@ -44,7 +45,7 @@ const migrateWithDotnet = async (solutionPath: string) => {
  */
 export async function offerSlnxMigration(solutionPath: string, deps: Partial<SlnxMigrationDeps> & Pick<SlnxMigrationDeps, 'open'>): Promise<void> {
     const migrate = deps.migrate ?? migrateWithDotnet;
-    if (path.extname(solutionPath).toLowerCase() !== '.sln' || SlnxMigration.isDeclined(solutionPath)) {
+    if (path.extname(solutionPath).toLowerCase() !== '.sln' || SlnxMigration.isDeclined(solutionPath) || !Settings.offerSlnxConversion()) {
         return;
     }
     const slnxPath = solutionPath.replace(/\.sln$/i, '.slnx');

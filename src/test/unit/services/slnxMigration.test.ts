@@ -2,10 +2,11 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const ui = { choices: [] as (string | undefined)[], messages: [] as string[] };
+const ui = { choices: [] as (string | undefined)[], messages: [] as string[], offerDisabled: false };
 const state = new Map<string, unknown>();
 
 jest.mock('vscode', () => ({
+    workspace: { getConfiguration: () => ({ get: (key: string, fallback: unknown) => key === 'offerSlnxConversion' && ui.offerDisabled ? false : fallback }) },
     window: {
         showInformationMessage: async (message: string, ...items: any[]) => {
             ui.messages.push(message);
@@ -42,6 +43,7 @@ describe('offering to convert a .sln to .slnx', () => {
         fs.writeFileSync(sln, 'Microsoft Visual Studio Solution File, Format Version 12.00');
         ui.choices = [];
         ui.messages = [];
+        ui.offerDisabled = false;
         opened = [];
         migrated = [];
         state.clear();
@@ -99,5 +101,11 @@ describe('offering to convert a .sln to .slnx', () => {
         expect(ui.messages[1]).toMatch(/Unknown command: migrate/);
         expect(ui.messages[1]).toMatch(/9\.0\.200/);
         expect(opened).toEqual([]);
+    });
+
+    it('stays quiet when shinobi.solution.offerSlnxConversion is off', async () => {
+        ui.offerDisabled = true;
+        await offerSlnxMigration(sln, deps());
+        expect(ui.messages).toEqual([]);
     });
 });

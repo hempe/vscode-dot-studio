@@ -24,6 +24,7 @@ import { DebugConfigService } from '../../services/debugConfigService';
 import { Solution } from '../../core/Solution';
 import { projectForPath } from '../../services/templates/templateService';
 import { openNewItemWizard } from './TemplateWizardPanel';
+import { Settings } from '../../services/settings';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -125,6 +126,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         // Track active editor changes to highlight the active file in the tree
         this._activeEditorListener = vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor && this._view?.visible && Settings.trackActiveItem()) {
+                void this.syncWithActiveDocument({ track: true });
+            }
             if (editor && this._view) {
                 const activeFilePath = editor.document.uri.fsPath;
                 sendToUi(this.webview, {
@@ -176,8 +180,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         await this._sendCachedData();
     }
 
-    /** Visual Studio's "Sync with Active Document": selects the file of the active editor in the tree */
-    public async syncWithActiveDocument(): Promise<void> {
+    /**
+     * Visual Studio's "Sync with Active Document": selects the file of the active editor in the tree.
+     * Tracking the active item (`shinobi.solutionExplorer.trackActiveItem`) does the same quietly,
+     * without moving the focus and without a message for files outside the solution.
+     */
+    public async syncWithActiveDocument({ track = false } = {}): Promise<void> {
         const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
         const uri = vscode.window.activeTextEditor?.document.uri
             ?? (input instanceof vscode.TabInputText || input instanceof vscode.TabInputCustom ? input.uri : undefined);
@@ -186,12 +194,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
         const nodeId = await SolutionExpansionService.revealPath(uri.fsPath, this._cachedSolutionData, this._context);
         if (!nodeId) {
-            vscode.window.showInformationMessage(`${path.basename(uri.fsPath)} is not part of the solution.`);
+            if (!track) {
+                vscode.window.showInformationMessage(`${path.basename(uri.fsPath)} is not part of the solution.`);
+            }
             return;
         }
-        this._view.show(false);
+        if (!track) {
+            this._view.show(false);
+        }
         await this._sendCachedData();
-        sendToUi(this.webview, { type: 'selectNode', payload: { nodeId } });
+        sendToUi(this.webview, { type: 'selectNode', payload: { nodeId, focus: !track } });
     }
 
     private async _handleMessage(message: BackendCmd) {

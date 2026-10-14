@@ -1,0 +1,18 @@
+import * as vscode from 'vscode';
+import type { FileNestingMode } from './fileNesting';
+
+/** This extension's settings (package.json `contributes.configuration`, documented in docs/settings.md) */
+export const Settings = {
+    /** Visual Studio's File Nesting button: off, default or web */
+    fileNesting: () => vscode.workspace.getConfiguration('shinobi.solutionExplorer').get<FileNestingMode>('fileNesting', 'default'),
+    /** Visual Studio's "Track Active Item in Solution Explorer" */
+    trackActiveItem: () => vscode.workspace.getConfiguration('shinobi.solutionExplorer').get<boolean>('trackActiveItem', false),
+    /** Offer to convert a .sln to .slnx when it opens */
+    offerSlnxConversion: () => vscode.workspace.getConfiguration('shinobi.solution').get<boolean>('offerSlnxConversion', true),
+    /** Builds write the source generators' output (Dependencies > Analyzers) */
+    emitGeneratedFiles: () => vscode.workspace.getConfiguration('shinobi.build').get<boolean>('emitGeneratedFiles', true),
+    /** Discover tests again after every build */
+    discoverTestsAfterBuild: () => vscode.workspace.getConfiguration('shinobi.tests').get<boolean>('discoverAfterBuild', true),
+    /** The NuGet manager starts with "Include prerelease" checked */
+    nugetIncludePrerelease: () => vscode.workspace.getConfiguration('shinobi.nuget').get<boolean>('includePrerelease', false),
+};

@@ -2,12 +2,42 @@
 
 ## This extension
 
+Settings > Extensions > Shinobi .NET, grouped as below.
+
+### Solution Explorer
+
 | Setting | Default | |
 |---|---|---|
 | `shinobi.solutionExplorer.location` | `sidebar` | The Solution Explorer in the primary or the secondary side bar (`secondary-sidebar`) |
+| `shinobi.solutionExplorer.fileNesting` | `default` | Visual Studio's File Nesting: `off` (every file in its folder), `default` (code-behind, designer files, `appsettings.*.json`, resources) or `web` (also `site.ts` > `site.js` > `site.min.js`, `.map` files, `.scss` > `.css`) |
+| `shinobi.solutionExplorer.trackActiveItem` | `false` | Select the active editor's file in the tree whenever you switch files, like Visual Studio's "Track Active Item in Solution Explorer". It doesn't move the keyboard focus. Without it, use Sync with Active Document (Ctrl+[, S) |
+| `shinobi.solution.offerSlnxConversion` | `true` | Offer to convert a `.sln` to `.slnx` when it opens ("Don't Ask Again" turns it off for one solution) |
+
+### Error List
+
+| Setting | Default | |
+|---|---|---|
 | `shinobi.diagnostics.showErrors` | `true` | Errors in the Error List and the Solution Explorer (the Error List's Errors toggle) |
 | `shinobi.diagnostics.showWarnings` | `true` | Warnings, likewise (Warnings toggle) |
 | `shinobi.diagnostics.showInfos` | `false` | Infos and suggestions, Visual Studio's "Messages" (Messages toggle); replaces `shinobi.solutionExplorer.diagnostics.showInfos` |
+
+### Build
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.build.emitGeneratedFiles` | `true` | Builds started by this extension write what source generators produce, so Dependencies > Analyzers can show it. Off: builds write nothing extra, and generators show no files |
+
+### Tests
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.tests.discoverAfterBuild` | `true` | Discover tests again after every build. Turn it off for very large solutions and use the Test Explorer's refresh button |
+
+### NuGet
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.nuget.includePrerelease` | `false` | Open the NuGet Package Manager with "Include prerelease" checked |
 
 ## C# extension defaults this extension changes
 

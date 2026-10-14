@@ -11,6 +11,7 @@ import { BuildConfiguration } from './buildConfiguration';
 import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { runTask } from './runTask';
 import { EMIT_GENERATED_FILES } from './analyzers';
+import { Settings } from './settings';
 
 const execFileAsync = promisify(execFile);
 
@@ -382,7 +383,7 @@ export class DebugConfigService {
                     '--configuration', configuration,
                     '/property:GenerateFullPaths=true',
                     '/consoleloggerparameters:NoSummary',
-                    EMIT_GENERATED_FILES
+                    ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])
                 ],
                 presentation: {
                     reveal: 'silent'

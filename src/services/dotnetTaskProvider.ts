@@ -4,6 +4,7 @@ import { SolutionService } from './solutionService';
 import { sln } from '../core/utils';
 import { BuildConfiguration } from './buildConfiguration';
 import { EMIT_GENERATED_FILES } from './analyzers';
+import { Settings } from './settings';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -28,11 +29,12 @@ const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
  * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
  * builds write the source generators' output for Dependencies > Analyzers
  */
-export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string): string[] {
+export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string, emitGeneratedFiles = true): string[] {
     const config = ['--configuration', configuration];
+    const generated = emitGeneratedFiles ? [EMIT_GENERATED_FILES] : [];
     switch (action) {
-        case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
-        case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true', EMIT_GENERATED_FILES];
+        case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true', ...generated];
+        case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true', ...generated];
         case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
         case 'publish': return ['publish', target, `-property:PublishProfile=${profile}`, ...QUIET, '-property:GenerateFullPaths=true'];
@@ -52,7 +54,7 @@ export function createDotnetTask(
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration, definition.profile), { cwd: path.dirname(target) }),
+        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration, definition.profile, Settings.emitGeneratedFiles()), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish') {

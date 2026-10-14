@@ -22,46 +22,108 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "Shinobi .NET",
-      "properties": {
-        "shinobi.solutionExplorer.location": {
-          "type": "string",
-          "enum": [
-            "sidebar",
-            "secondary-sidebar"
-          ],
-          "enumDescriptions": [
-            "Show Solution Explorer in the left sidebar (Sidebar)",
-            "Show Solution Explorer in the right sidebar (Secondary Sidebar)"
-          ],
-          "default": "sidebar",
-          "description": "Choose where the Solution Explorer appears"
-        },
-        "shinobi.diagnostics.showErrors": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show errors in the Error List and mark them in the Solution Explorer (the Error List's Errors toggle)"
-        },
-        "shinobi.diagnostics.showWarnings": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show warnings in the Error List and mark them in the Solution Explorer (the Error List's Warnings toggle)"
-        },
-        "shinobi.diagnostics.showInfos": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Error List and mark them in the Solution Explorer (the Error List's Messages toggle)"
-        },
-        "shinobi.solutionExplorer.diagnostics.showInfos": {
-          "type": "boolean",
-          "default": false,
-          "description": "Also mark infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Solution Explorer; errors and warnings are always marked",
-          "deprecationMessage": "Use shinobi.diagnostics.showInfos, which the Error List toggles share with the Solution Explorer.",
-          "markdownDeprecationMessage": "Use `#shinobi.diagnostics.showInfos#`, which the Error List toggles share with the Solution Explorer."
+    "configuration": [
+      {
+        "title": "Solution Explorer",
+        "properties": {
+          "shinobi.solutionExplorer.location": {
+            "type": "string",
+            "enum": [
+              "sidebar",
+              "secondary-sidebar"
+            ],
+            "enumDescriptions": [
+              "Show Solution Explorer in the left sidebar (Sidebar)",
+              "Show Solution Explorer in the right sidebar (Secondary Sidebar)"
+            ],
+            "default": "sidebar",
+            "description": "Choose where the Solution Explorer appears"
+          },
+          "shinobi.solutionExplorer.fileNesting": {
+            "type": "string",
+            "enum": [
+              "off",
+              "default",
+              "web"
+            ],
+            "enumDescriptions": [
+              "No nesting: every file shows in its folder",
+              "Visual Studio's default rules: code-behind (Index.cshtml.cs), designer files, configuration variants (appsettings.Development.json), resources",
+              "The default rules plus web assets: compiled, minified and map files under their source (site.ts > site.js > site.min.js)"
+            ],
+            "default": "default",
+            "markdownDescription": "How files nest under related files, like the File Nesting button in Visual Studio's Solution Explorer."
+          },
+          "shinobi.solutionExplorer.trackActiveItem": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Select the active editor's file in the Solution Explorer whenever you switch files, like Visual Studio's *Track Active Item in Solution Explorer*. Without it, use *Sync with Active Document* (`Ctrl+[, S`)."
+          },
+          "shinobi.solution.offerSlnxConversion": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "When a `.sln` opens, offer to convert it to `.slnx`, the current solution format (*Don't Ask Again* turns it off for one solution)."
+          }
+        }
+      },
+      {
+        "title": "Error List",
+        "properties": {
+          "shinobi.diagnostics.showErrors": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show errors in the Error List and mark them in the Solution Explorer (the Error List's Errors toggle)"
+          },
+          "shinobi.diagnostics.showWarnings": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show warnings in the Error List and mark them in the Solution Explorer (the Error List's Warnings toggle)"
+          },
+          "shinobi.diagnostics.showInfos": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Error List and mark them in the Solution Explorer (the Error List's Messages toggle)"
+          },
+          "shinobi.solutionExplorer.diagnostics.showInfos": {
+            "type": "boolean",
+            "default": false,
+            "description": "Also mark infos and suggestions (the ··· hints in the editor, Visual Studio's \"Messages\") in the Solution Explorer; errors and warnings are always marked",
+            "deprecationMessage": "Use shinobi.diagnostics.showInfos, which the Error List toggles share with the Solution Explorer.",
+            "markdownDeprecationMessage": "Use `#shinobi.diagnostics.showInfos#`, which the Error List toggles share with the Solution Explorer."
+          }
+        }
+      },
+      {
+        "title": "Build",
+        "properties": {
+          "shinobi.build.emitGeneratedFiles": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Builds started by this extension write what source generators produce (`EmitCompilerGeneratedFiles`), so *Dependencies > Analyzers* can show it. Off: builds write nothing extra and generators show no files."
+          }
+        }
+      },
+      {
+        "title": "Tests",
+        "properties": {
+          "shinobi.tests.discoverAfterBuild": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Discover tests again after every build, so the Test Explorer stays current. Off (for very large solutions): use the Test Explorer's refresh button."
+          }
+        }
+      },
+      {
+        "title": "NuGet",
+        "properties": {
+          "shinobi.nuget.includePrerelease": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Open the NuGet Package Manager with *Include prerelease* checked."
+          }
         }
       }
-    },
+    ],
     "configurationDefaults": {
       "dotnet.server.useOmnisharp": false,
       "dotnet.codeLens.enableTestsCodeLens": false

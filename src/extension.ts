@@ -193,6 +193,13 @@ export function activate(context: vscode.ExtensionContext) {
             solutionWebviewProvider.refresh();
         }),
         ...registerNativeContextMenuCommands(solutionWebviewProvider),
+        // Another file nesting mode regroups the files of every project
+        vscode.workspace.onDidChangeConfiguration(async event => {
+            if (event.affectsConfiguration('shinobi.solutionExplorer.fileNesting')) {
+                await SolutionService.getActiveSolution()?.forceRefreshAllProjects();
+                solutionWebviewProvider.refresh();
+            }
+        }),
         // Builds write new source generator output (Dependencies > Analyzers), restores a new package graph
         vscode.tasks.onDidEndTaskProcess(event => {
             const task = event.execution.task;

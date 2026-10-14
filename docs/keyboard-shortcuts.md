@@ -57,3 +57,10 @@ What a Visual Studio user reaches for, and what it is in VS Code (with the C# ex
 | Ctrl+[, S | Ctrl+[, S | Sync with Active Document (this extension) |
 | Ctrl+Alt+L | Ctrl+Alt+L | Focus the Solution Explorer (this extension) |
 | Ctrl+\\, E | **.NET: Show Error List** (no key; VS Code's Ctrl+\\ splits the editor) | Show the Error List, a tab in the panel |
+
+## Changing keys
+
+Open VS Code's **Keyboard Shortcuts** (Ctrl+K Ctrl+S) and search for `shinobi` or `.NET`: every command of this extension is there, including the Solution Explorer's menu commands, which the command palette hides. Change a key, remove it, or give a key to a command that has none, e.g. **.NET: Show Error List**. Your changes are kept in your `keybindings.json` and survive updates.
+
+The Solution Explorer keys have a condition (`shinobi.solutionExplorer.focusedNodeType =~ ...`) so they only act on the tree; keep it when you change their key, or Ctrl+C would copy tree nodes everywhere.
+

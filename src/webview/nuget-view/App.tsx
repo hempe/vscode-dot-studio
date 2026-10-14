@@ -25,7 +25,8 @@ export const App: React.FC = () => {
     const [hasSearched, setHasSearched] = useState(false);
     const [loading, setLoading] = useState(false);
     const [initializing, setInitializing] = useState(true);
-    const [includePrerelease, setIncludePrerelease] = useState(false);
+    // Starts as the setting shinobi.nuget.includePrerelease says (passed on the root element)
+    const [includePrerelease, setIncludePrerelease] = useState(() => document.getElementById('root')?.dataset.includePrerelease === 'true');
     const [activeTab, setActiveTab] = useState('installed');
     // Visual Studio's "Transitive packages" section starts collapsed
     const [transitiveExpanded, setTransitiveExpanded] = useState(false);

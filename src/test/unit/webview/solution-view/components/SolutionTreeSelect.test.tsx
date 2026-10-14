@@ -25,4 +25,20 @@ describe('SolutionTree: Sync with Active Document', () => {
         expect(scrolled).toEqual(['Program.cs']);
         expect(document.activeElement).toBe(container.querySelector('.solution-tree'));
     });
+
+    it('only selects and scrolls when following the active editor (Track Active Item), keeping the focus where it is', () => {
+        Element.prototype.scrollIntoView = () => { };
+        const { container } = render(<SolutionTree projects={projects} onProjectAction={() => { }} />);
+        const elsewhere = document.createElement('input');
+        document.body.appendChild(elsewhere);
+        elsewhere.focus();
+
+        act(() => {
+            window.dispatchEvent(new MessageEvent('message', { data: { type: 'selectNode', payload: { nodeId: 'file', focus: false } } }));
+        });
+
+        expect(container.querySelector('.tree-node.selected')?.textContent).toBe('Program.cs');
+        expect(document.activeElement).toBe(elsewhere);
+        elsewhere.remove();
+    });
 });
