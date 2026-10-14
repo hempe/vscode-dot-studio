@@ -11,6 +11,7 @@ import { EMIT_GENERATED_FILES } from '../analyzers';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
+import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 
 const log = logger('TestExplorer');
 
@@ -24,6 +25,10 @@ export interface TestExplorerDeps {
     build(projectPath: string, configuration: string, output: (text: string) => void): Promise<boolean>;
     /** Starts the test app with the server arguments, in the debugger for debug runs */
     start(project: TestProject, args: string[], debug: boolean): Promise<TestApp>;
+    /** Starts vstest.console in design mode, connecting to the port (VSTest projects) */
+    startVsTest(project: TestProject, port: number): Promise<TestApp>;
+    /** Attaches the debugger to a test host VSTest started paused; false when it couldn't */
+    attachDebugger(project: TestProject, processId: number): Promise<boolean>;
     /** Last write time of the test app, to re-discover only what a build changed */
     modified(file: string): number | undefined;
 }
@@ -65,6 +70,27 @@ async function startInDebugger(project: TestProject, args: string[]): Promise<Te
     return { kill: () => { void vscode.debug.stopDebugging(session); }, output: () => '' };
 }
 
+function startVsTestConsole(project: TestProject, port: number): Promise<TestApp> {
+    const child = spawn('dotnet', [project.vstestConsolePath!, `--port:${port}`, `--parentprocessid:${process.pid}`], {
+        cwd: path.dirname(project.projectPath),
+        env: { ...process.env, VSTEST_TELEMETRY_OPTEDIN: '0' },
+    });
+    let output = '';
+    child.stdout.on('data', chunk => { output += chunk; });
+    child.stderr.on('data', chunk => { output += chunk; });
+    child.on('error', error => { output += String(error); });
+    return Promise.resolve({ kill: () => { child.kill(); }, output: () => output });
+}
+
+async function attachToTestHost(project: TestProject, processId: number): Promise<boolean> {
+    return vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], {
+        type: 'coreclr',
+        request: 'attach',
+        name: `Debug tests: ${path.parse(project.projectPath).name}`,
+        processId,
+    });
+}
+
 const defaultDeps: TestExplorerDeps = {
     projects: () => [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])],
     readProject: projectPath => fs.readFileSync(projectPath, 'utf8'),
@@ -77,6 +103,8 @@ const defaultDeps: TestExplorerDeps = {
             });
     }),
     start: (project, args, debug) => debug ? startInDebugger(project, args) : startProcess(project, args),
+    startVsTest: startVsTestConsole,
+    attachDebugger: attachToTestHost,
     modified: file => {
         try {
             return fs.statSync(file).mtimeMs;
@@ -94,12 +122,14 @@ interface ProjectState {
     discoveredAt?: number;
 }
 
-/** The ".NET Tests" controller: Microsoft.Testing.Platform tests of the active solution in the Test Explorer */
+/** The ".NET Tests" controller: the tests of the active solution in the Test Explorer, Microsoft.Testing.Platform and VSTest projects */
 export class TestExplorer implements vscode.Disposable {
     readonly controller: vscode.TestController;
     private readonly deps: TestExplorerDeps;
     private readonly states = new Map<string, ProjectState>();
     private readonly nodes = new Map<vscode.TestItem, TestNode>();
+    /** VSTest's own test cases by uid: running selected tests passes them back */
+    private readonly vstestCases = new Map<string, VsTestCase>();
     private readonly disposables: vscode.Disposable[] = [];
     private refreshing: Promise<void> | undefined;
 
@@ -205,8 +235,8 @@ export class TestExplorer implements vscode.Disposable {
             if (!project) {
                 return;
             }
-            if (!project.testingPlatform) {
-                log.info(`${path.basename(projectPath)} uses VSTest, which the Test Explorer doesn't support yet`);
+            if (!project.testingPlatform && !project.vstestConsolePath) {
+                log.info(`${path.basename(projectPath)} uses VSTest, but MSBuild doesn't say where vstest.console is`);
                 return;
             }
             let state = this.states.get(projectPath);
@@ -231,10 +261,22 @@ export class TestExplorer implements vscode.Disposable {
     private async discover(state: ProjectState): Promise<void> {
         const discovered: TestNode[] = [];
         try {
-            const session = await connectTestApp(args => this.deps.start(state.project, args, false));
-            session.onUpdate(nodes => discovered.push(...nodes.filter(node => node['execution-state'] === 'discovered')));
-            await session.discover();
-            await session.close();
+            if (state.project.testingPlatform) {
+                const session = await connectTestApp(args => this.deps.start(state.project, args, false));
+                session.onUpdate(nodes => discovered.push(...nodes.filter(node => node['execution-state'] === 'discovered')));
+                await session.discover();
+                await session.close();
+            } else {
+                const session = await connectVsTest(port => this.deps.startVsTest(state.project, port));
+                try {
+                    for (const testCase of await session.discover([state.project.targetPath])) {
+                        this.vstestCases.set(testCase.Id, testCase);
+                        discovered.push(vstestCaseNode(testCase));
+                    }
+                } finally {
+                    await session.close();
+                }
+            }
         } catch (error) {
             log.error(`Discovering the tests of ${state.project.projectPath} failed:`, error);
             state.item.error = `Discovering tests failed: ${error instanceof Error ? error.message : error}`;
@@ -331,12 +373,49 @@ export class TestExplorer implements vscode.Disposable {
         };
         collect(state.item);
 
+        const report = (node: TestNode) => {
+            const item = byUid.get(node.uid);
+            const outcome = outcomeOf(node);
+            if (!item || !outcome) {
+                return;
+            }
+            const output = [node.standardOutput, node.standardError].filter(Boolean).join('\n');
+            if (output) {
+                run.appendOutput(terminal(`${output}\n`), undefined, item);
+            }
+            switch (outcome.state) {
+                case 'started': run.started(item); break;
+                case 'passed': run.passed(item, outcome.duration); break;
+                case 'skipped': run.skipped(item); break;
+                case 'failed':
+                case 'errored': {
+                    const text = outcome.stackTrace ? `${outcome.message}\n\n${outcome.stackTrace}` : outcome.message;
+                    const message = outcome.expected !== undefined
+                        ? vscode.TestMessage.diff(text, outcome.expected, outcome.actual ?? '')
+                        : new vscode.TestMessage(text);
+                    if (item.uri && item.range) {
+                        message.location = new vscode.Location(item.uri, item.range);
+                    }
+                    outcome.state === 'failed' ? run.failed(item, message, outcome.duration) : run.errored(item, message, outcome.duration);
+                    break;
+                }
+            }
+        };
+        const fail = (error: unknown) => {
+            const message = new vscode.TestMessage(error instanceof Error ? error.message : String(error));
+            (items ?? [...byUid.values()]).forEach(item => run.errored(item, message));
+        };
+
+        if (!state.project.testingPlatform) {
+            await this.runVsTestProject(state, items, run, token, debug, report, fail);
+            return;
+        }
+
         let session: TestSession;
         try {
             session = await connectTestApp(args => this.deps.start(state.project, args, debug));
         } catch (error) {
-            const message = new vscode.TestMessage(error instanceof Error ? error.message : String(error));
-            (items ?? [...byUid.values()]).forEach(item => run.errored(item, message));
+            fail(error);
             return;
         }
         const cancel = token.onCancellationRequested(() => void session.close());
@@ -346,40 +425,46 @@ export class TestExplorer implements vscode.Disposable {
                 run.appendOutput(terminal(message.endsWith('\n') ? message : `${message}\n`));
             }
         });
-        session.onUpdate(nodes => {
-            for (const node of nodes) {
-                const item = byUid.get(node.uid);
-                const outcome = outcomeOf(node);
-                if (!item || !outcome) {
-                    continue;
-                }
-                const output = [node.standardOutput, node.standardError].filter(Boolean).join('\n');
-                if (output) {
-                    run.appendOutput(terminal(`${output}\n`), undefined, item);
-                }
-                switch (outcome.state) {
-                    case 'started': run.started(item); break;
-                    case 'passed': run.passed(item, outcome.duration); break;
-                    case 'skipped': run.skipped(item); break;
-                    case 'failed':
-                    case 'errored': {
-                        const text = outcome.stackTrace ? `${outcome.message}\n\n${outcome.stackTrace}` : outcome.message;
-                        const message = outcome.expected !== undefined
-                            ? vscode.TestMessage.diff(text, outcome.expected, outcome.actual ?? '')
-                            : new vscode.TestMessage(text);
-                        if (item.uri && item.range) {
-                            message.location = new vscode.Location(item.uri, item.range);
-                        }
-                        outcome.state === 'failed' ? run.failed(item, message, outcome.duration) : run.errored(item, message, outcome.duration);
-                        break;
-                    }
-                }
-            }
-        });
+        session.onUpdate(nodes => nodes.forEach(report));
 
         try {
             const tests = items?.map(item => this.nodes.get(item)!).map(node => ({ uid: node.uid, 'display-name': node['display-name'] }));
             await session.run(tests);
+        } catch (error) {
+            run.appendOutput(terminal(`${error instanceof Error ? error.message : error}\n`));
+        } finally {
+            cancel.dispose();
+            await session.close();
+        }
+    }
+
+    /** Runs or debugs (attaching to the test host) the tests of a VSTest project through vstest.console */
+    private async runVsTestProject(
+        state: ProjectState,
+        items: vscode.TestItem[] | undefined,
+        run: vscode.TestRun,
+        token: vscode.CancellationToken,
+        debug: boolean,
+        report: (node: TestNode) => void,
+        fail: (error: unknown) => void
+    ): Promise<void> {
+        let session: VsTestSession;
+        try {
+            session = await connectVsTest(port => this.deps.startVsTest(state.project, port));
+        } catch (error) {
+            fail(error);
+            return;
+        }
+        const cancel = token.onCancellationRequested(() => void session.close());
+        session.onLog(message => run.appendOutput(terminal(`${message}\n`)));
+
+        try {
+            const testCases = items?.flatMap(item => this.vstestCases.get(this.nodes.get(item)!.uid) ?? []);
+            await session.run(
+                testCases ? { testCases } : { sources: [state.project.targetPath] },
+                results => results.map(vstestResultNode).forEach(report),
+                debug ? processId => this.deps.attachDebugger(state.project, processId) : undefined
+            );
         } catch (error) {
             run.appendOutput(terminal(`${error instanceof Error ? error.message : error}\n`));
         } finally {

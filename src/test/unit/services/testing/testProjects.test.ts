@@ -24,6 +24,8 @@ describe('test projects', () => {
             .toEqual({ testingPlatform: true, targetPath: '/r/X3.dll' });
         expect(parseTestProperties('{"Properties":{"IsTestingPlatformApplication":"","TargetPath":"/r/T.dll"}}'))
             .toEqual({ testingPlatform: false, targetPath: '/r/T.dll' });
+        expect(parseTestProperties('{"Properties":{"IsTestingPlatformApplication":"false","TargetPath":"/r/N.dll","VSTestConsolePath":"/sdk/vstest.console.dll"}}'))
+            .toEqual({ testingPlatform: false, targetPath: '/r/N.dll', vstestConsolePath: '/sdk/vstest.console.dll' });
         expect(parseTestProperties('error MSB1009')).toEqual({ testingPlatform: false });
     });
 });

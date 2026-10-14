@@ -72,6 +72,7 @@ jest.mock('vscode', () => {
 import * as vscode from 'vscode';
 import { TestExplorer } from '../../../../services/testing/testExplorer';
 import { frame, MessageReader } from '../../../../services/testing/testingPlatformClient';
+import { replay as replayVsTest } from './vstestReplay';
 
 const recording = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/testing-platform/X3.jsonl'), 'utf8')
     .split('\n').filter(Boolean).map(line => JSON.parse(line));
@@ -207,6 +208,90 @@ describe('TestExplorer', () => {
             await explorer().runTestsAt('/repo/X3/Helpers', false);
             expect(mock.runs).toEqual([]);
             expect(mock.messages).toEqual(['No tests found in Helpers.']);
+        });
+    });
+
+    describe('classic VSTest projects (xUnit v2, NUnit and MSTest with their VSTest adapters)', () => {
+        const xunit2 = '/repo/tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj';
+        const nunit = '/repo/tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj';
+        const vstestExplorer = (session: string, overrides: Record<string, unknown> = {}) => explorer({
+            projects: () => [xunit2, nunit],
+            readProject: () => '<Project><ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /></ItemGroup></Project>',
+            evaluate: async (p: string) => ({
+                projectPath: p,
+                targetPath: p.replace(/[^/]+\.csproj$/, `bin/Debug/net10.0/${path.basename(p, '.csproj')}.dll`),
+                testingPlatform: false,
+                vstestConsolePath: '/sdk/vstest.console.dll',
+            }),
+            startVsTest: async (project: any, port: number) => replayVsTest(project.projectPath === nunit ? session.replace('XUnit2', 'NUnit') : session)(port),
+            ...overrides,
+        });
+        const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) };
+
+        it('shows their tests like the Microsoft.Testing.Platform ones', async () => {
+            await vstestExplorer('XUnit2Tests-discover').refresh(false);
+
+            expect(outline(mock.controller.items)).toEqual([
+                'Shop.Core.XUnit2Tests',
+                '  Shop.Core.XUnit2Tests.Pricing',
+                '    BulkDiscountTests :10',
+                '      NoDiscountBelowTen :10',
+                '      FailsOnPurpose :16',
+                '      TenPercentFromTen :24',
+                '        quantity: 10, expected: 10 :24',
+                '        quantity: 20, expected: 20 :24',
+                'Shop.Core.NUnitTests',
+                '  Shop.Core.NUnitTests.Orders',
+                '    OrderTests :10',
+                '      CountsQuantities :25',
+                '        1 :25',
+                '        3 :25',
+                '      FailsOnPurpose :18',
+                '      SumsTheLines :10',
+            ]);
+        });
+
+        it('runs them and reports the results', async () => {
+            const tests = vstestExplorer('XUnit2Tests-discover');
+            await tests.refresh(false);
+            (tests as any).deps.startVsTest = async (_project: any, port: number) => replayVsTest('XUnit2Tests-run')(port);
+            const [run] = mock.controller.profiles;
+
+            await run.handler({ include: [mock.controller.items.get(xunit2)], exclude: [] }, token);
+
+            const [testRun] = mock.runs;
+            expect(testRun.events).toEqual(expect.arrayContaining(['passed NoDiscountBelowTen', 'failed FailsOnPurpose', 'passed quantity: 10, expected: 10', 'passed quantity: 20, expected: 20']));
+            expect(testRun.messages.get('FailsOnPurpose').message).toMatch(/^Assert.Equal\(\) Failure[\s\S]*BulkDiscountTests.cs:line 17/);
+            expect(testRun.messages.get('FailsOnPurpose').location.range.startLine).toBe(15);
+        });
+
+        it('runs the selected tests only, passing VSTest their test cases', async () => {
+            const tests = vstestExplorer('NUnitTests-discover');
+            await tests.refresh(false);
+            const sent: any[] = [];
+            (tests as any).deps.startVsTest = async (_project: any, port: number) => replayVsTest('NUnitTests-run', sent)(port);
+            const orderTests = mock.controller.items.get(nunit).children.get('namespace:Shop.Core.NUnitTests.Orders').children.get('class:Shop.Core.NUnitTests.Orders.OrderTests');
+            const [run] = mock.controller.profiles;
+
+            await run.handler({ include: [orderTests.children.get('6c9c8c82-38ae-7f87-8c24-0a264044ae98')], exclude: [] }, token);
+
+            const request = sent.find(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost');
+            expect(request.Payload.TestCases.map((test: any) => test.DisplayName)).toEqual(['FailsOnPurpose']);
+        });
+
+        it('debugs them by attaching the debugger to the test host VSTest starts', async () => {
+            const attached: [string, number][] = [];
+            const tests = vstestExplorer('NUnitTests-discover', {
+                attachDebugger: async (project: any, processId: number) => { attached.push([project.projectPath, processId]); return true; },
+            });
+            await tests.refresh(false);
+            (tests as any).deps.startVsTest = async (_project: any, port: number) => replayVsTest('NUnitTests-debug')(port);
+            const [, debug] = mock.controller.profiles;
+
+            await debug.handler({ include: [mock.controller.items.get(nunit)], exclude: [] }, token);
+
+            expect(attached).toEqual([[nunit, expect.any(Number)]]);
+            expect(mock.runs[0].events).toEqual(expect.arrayContaining(['failed FailsOnPurpose', 'passed SumsTheLines']));
         });
     });
 });

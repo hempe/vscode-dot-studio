@@ -60,7 +60,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Offers to install `dotnet-svcutil` for the repository (tool manifest, same version for the team) or globally
 
 ### Tests
-- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner): tests grouped by project, namespace and class, with gutter icons in the editor. Classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters) are not listed yet
+- Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner) and classic VSTest projects (xUnit v2, NUnit and MSTest with their VSTest adapters, run through the SDK's `vstest.console` like Visual Studio does): tests grouped by project, namespace and class, with gutter icons in the editor
 - Run and debug single tests, classes or projects; results with failure messages and stack traces
 - "Run Tests" and "Debug Tests" in the Solution Explorer on the solution, test projects, and their folders and files
 - Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
@@ -89,7 +89,6 @@ Useful settings of the C# extension:
 
 ## Known Issues
 - [ ] Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used; store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
-- [ ] The Test Explorer doesn't list classic VSTest projects yet (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
@@ -197,7 +196,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] NuGet manager: the Installed tab lists the transitive packages in their own section, with the packages that bring them in; Install makes one a direct reference
 
 ### Phase 8: Nice to Have
-- [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
+- [x] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [x] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Phase 9: Publish
