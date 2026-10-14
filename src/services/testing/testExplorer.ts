@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execFile } from 'child_process';
 import { logger } from '../../core/logger';
+import { sln } from '../../core/utils';
 import { SolutionService } from '../solutionService';
 import { BuildConfiguration } from '../buildConfiguration';
 import { DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
@@ -134,6 +135,53 @@ export class TestExplorer implements vscode.Disposable {
         const next = previous.then(() => this.doRefresh(build)).catch(error => log.error('Refreshing tests failed:', error));
         this.refreshing = next;
         return next;
+    }
+
+    /**
+     * Visual Studio's "Run Tests" / "Debug Tests" on a Solution Explorer node: the tests of the solution,
+     * a project, or the classes in a folder or file. Builds and discovers first when they aren't known yet.
+     */
+    async runTestsAt(fsPath: string, debug: boolean): Promise<void> {
+        if (this.states.size === 0) {
+            await this.refresh(false);
+        }
+        let include = this.itemsAt(fsPath);
+        if (include.length === 0) {
+            await this.refresh(true);
+            include = this.itemsAt(fsPath);
+        }
+        if (include.length === 0) {
+            vscode.window.showInformationMessage(`No tests found in ${path.basename(fsPath)}.`);
+            return;
+        }
+
+        void vscode.commands.executeCommand('workbench.view.testing.focus');
+        const cancellation = new vscode.CancellationTokenSource();
+        try {
+            await this.run(new vscode.TestRunRequest(include), cancellation.token, debug);
+        } finally {
+            cancellation.dispose();
+        }
+    }
+
+    /** The outermost test items of a solution (all projects), project, folder or file */
+    private itemsAt(fsPath: string): vscode.TestItem[] {
+        const roots: vscode.TestItem[] = [];
+        this.controller.items.forEach(item => roots.push(item));
+        if (sln(fsPath)) {
+            return roots;
+        }
+        const found: vscode.TestItem[] = [];
+        const visit = (item: vscode.TestItem) => {
+            const itemPath = item.uri?.fsPath;
+            if (itemPath && (itemPath === fsPath || itemPath.startsWith(fsPath + path.sep))) {
+                found.push(item);
+            } else {
+                item.children.forEach(visit);
+            }
+        };
+        roots.forEach(visit);
+        return found;
     }
 
     private async doRefresh(build: boolean): Promise<void> {

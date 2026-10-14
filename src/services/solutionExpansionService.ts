@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { logger } from '../core/logger';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
@@ -223,6 +224,98 @@ export class SolutionExpansionService {
         } catch (error) {
             log.error('Error collapsing node:', error);
         }
+    }
+
+    /** Visual Studio's "Collapse All": collapses every node but the solution, which keeps showing its projects */
+    static collapseAll(nodes: ProjectNode[], context: vscode.ExtensionContext): void {
+        const collapse = (list: ProjectNode[]) => list.forEach(node => {
+            if (node.type !== 'solution') {
+                node.expanded = false;
+            }
+            if (node.children) {
+                collapse(node.children);
+            }
+        });
+        collapse(nodes);
+        this.saveExpansionState(new Set(nodes.filter(node => node.type === 'solution' && node.expanded).map(node => node.nodeId)), context);
+    }
+
+    /**
+     * Visual Studio's "Sync with Active Document": expands the solution folders, project, folders and parent
+     * file down to a file, loading their children where needed, and remembers them as expanded.
+     * When projects are nested in each other's directories, the innermost project wins.
+     * Returns the node of the file, or undefined when the file isn't in the solution.
+     */
+    static async revealPath(
+        filePath: string,
+        nodes: ProjectNode[],
+        context: vscode.ExtensionContext,
+        loadChildren: (node: ProjectNode) => Promise<ProjectNode[]> = node => this._loadChildren(node)
+    ): Promise<NodeIdString | undefined> {
+        const isUnder = (dir: string) => filePath.startsWith(dir + path.sep);
+        const chains: ProjectNode[][] = [];
+
+        const walk = async (list: ProjectNode[], chain: ProjectNode[]): Promise<void> => {
+            for (const node of list) {
+                const nodePath = NodeIdService.parse(node.nodeId).path;
+                let descend: boolean;
+                switch (node.type) {
+                    case 'solution':
+                    case 'solutionFolder': descend = true; break;
+                    case 'project': descend = !!nodePath && isUnder(path.dirname(nodePath)); break;
+                    case 'folder': descend = !!nodePath && isUnder(nodePath); break;
+                    case 'file':
+                    case 'solutionItem':
+                        if (nodePath === filePath) {
+                            chains.push([...chain, node]);
+                            continue;
+                        }
+                        // Nested files (Index.cshtml.cs under Index.cshtml) come with their parent
+                        descend = !!node.children?.length;
+                        break;
+                    default: descend = false;
+                }
+                if (!descend) {
+                    continue;
+                }
+                if (!node.children?.length && (node.type === 'project' || node.type === 'folder')) {
+                    node.children = await loadChildren(node);
+                    node.hasChildren = node.children.length > 0;
+                }
+                await walk(node.children ?? [], [...chain, node]);
+            }
+        };
+        await walk(nodes, []);
+
+        const projectDepth = (chain: ProjectNode[]) => {
+            const project = chain.find(node => node.type === 'project');
+            return project ? NodeIdService.parse(project.nodeId).path.length : 0;
+        };
+        const chain = chains.sort((a, b) => projectDepth(b) - projectDepth(a) || a.length - b.length)[0];
+        if (!chain) {
+            return undefined;
+        }
+
+        const expanded = this.getExpansionState(context);
+        for (const node of chain.slice(0, -1)) {
+            node.expanded = true;
+            expanded.add(node.nodeId);
+        }
+        this.saveExpansionState(expanded, context);
+        return chain[chain.length - 1].nodeId;
+    }
+
+    /** Loads the children of a project or folder for revealing a file, with the watcher expanding by hand creates */
+    private static async _loadChildren(node: ProjectNode): Promise<ProjectNode[]> {
+        const nodePath = NodeIdService.parse(node.nodeId).path;
+        const project = SolutionService.getActiveSolution()?.getProject(nodePath);
+        if (!project) {
+            return [];
+        }
+        const folder = node.type === 'project' ? path.dirname(nodePath) : nodePath;
+        const children = node.type === 'project' ? await project.getRootChildren() : await project.getFolderChildren(nodePath);
+        project.createFolderWatcher?.(folder);
+        return SolutionTreeService.convertProjectChildrenToProjectNodes(children);
     }
 
     /**

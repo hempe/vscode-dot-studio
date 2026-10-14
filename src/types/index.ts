@@ -41,6 +41,8 @@ export interface ProjectNode {
     hasChildren?: boolean;
     readonly isLoading?: boolean;
     readonly isStartupProject?: boolean;
+    /** Project nodes of test projects: they and everything in them get Run Tests / Debug Tests */
+    readonly isTestProject?: boolean;
     readonly nodeId: NodeIdString;
     /** File name of solution and project nodes (`Api.csproj`), whose `name` has no extension */
     readonly fileName?: string;

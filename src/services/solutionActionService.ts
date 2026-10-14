@@ -10,6 +10,7 @@ import { NodeIdString } from '../types/nodeId';
 import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
+import { copyExistingItems } from './existingItems';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
@@ -45,7 +46,33 @@ export class SolutionActionService {
 
         switch (cmd.action) {
             case 'openFile':
+            case 'editProjectFile':
                 await this._handleOpenFile(nodeId);
+                break;
+
+            case 'addExistingItem':
+                await this._handleAddExistingItem(nodeId);
+                break;
+
+            case 'startNewInstance':
+            case 'startWithoutDebugging':
+                await DebugConfigService.startProject(nodeId.path, cmd.action === 'startWithoutDebugging');
+                break;
+
+            case 'runTests':
+            case 'debugTests':
+                await vscode.commands.executeCommand('shinobi.internal.runTests', nodeId.path, cmd.action === 'debugTests');
+                break;
+
+            case 'openInTerminal':
+                vscode.window.createTerminal({
+                    name: path.basename(nodeId.path, path.extname(nodeId.path)),
+                    cwd: nodeId.type === 'folder' ? nodeId.path : path.dirname(nodeId.path),
+                }).show();
+                break;
+
+            case 'copyFullPath':
+                await vscode.env.clipboard.writeText(nodeId.path);
                 break;
 
             case 'rename':
@@ -489,6 +516,35 @@ export class SolutionActionService {
         } catch (error) {
             log.error('Error removing solution folder:', error);
             vscode.window.showErrorMessage(`Error removing solution folder: ${error}`);
+        }
+    }
+
+    /** "Add Existing Item...": copies the picked files into the project or folder */
+    private static async _handleAddExistingItem(nodeId: NodeId): Promise<void> {
+        const targetDir = nodeId.type === 'project' ? path.dirname(nodeId.path) : nodeId.path;
+        const files = await vscode.window.showOpenDialog({
+            canSelectMany: true,
+            canSelectFiles: true,
+            canSelectFolders: false,
+            defaultUri: vscode.Uri.file(targetDir),
+            openLabel: 'Add',
+            title: 'Add Existing Item',
+        });
+        if (!files?.length) {
+            return;
+        }
+        try {
+            await copyExistingItems(files.map(file => file.fsPath), targetDir, async fileName => {
+                const replace = await vscode.window.showWarningMessage(
+                    `A file with the name '${fileName}' already exists. Do you want to replace it?`,
+                    { modal: true },
+                    'Replace'
+                );
+                return replace === 'Replace';
+            });
+        } catch (error) {
+            log.error('Error adding existing items:', error);
+            vscode.window.showErrorMessage(`Error adding existing items: ${error instanceof Error ? error.message : error}`);
         }
     }
 

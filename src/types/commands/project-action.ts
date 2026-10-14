@@ -194,6 +194,46 @@ export declare type CutActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type EditProjectFileActionCmd = {
+    readonly action: 'editProjectFile';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type AddExistingItemActionCmd = {
+    readonly action: 'addExistingItem';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type StartNewInstanceActionCmd = {
+    readonly action: 'startNewInstance';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type StartWithoutDebuggingActionCmd = {
+    readonly action: 'startWithoutDebugging';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type RunTestsActionCmd = {
+    readonly action: 'runTests';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type DebugTestsActionCmd = {
+    readonly action: 'debugTests';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type OpenInTerminalActionCmd = {
+    readonly action: 'openInTerminal';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type CopyFullPathActionCmd = {
+    readonly action: 'copyFullPath';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -233,4 +273,12 @@ export type ProjectActionCmd =
     | AddFileActionCmd
     | AddFolderActionCmd
     | CopyActionCmd
-    | CutActionCmd;
+    | CutActionCmd
+    | EditProjectFileActionCmd
+    | AddExistingItemActionCmd
+    | StartNewInstanceActionCmd
+    | StartWithoutDebuggingActionCmd
+    | RunTestsActionCmd
+    | DebugTestsActionCmd
+    | OpenInTerminalActionCmd
+    | CopyFullPathActionCmd;

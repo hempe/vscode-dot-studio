@@ -64,13 +64,20 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         setFocusedNodeId(nodeId);
     };
 
-    // Rename (menu or F2 key binding) is routed back here by the extension
+    // Node to scroll to once it is rendered (Sync with Active Document)
+    const [revealNodeId, setRevealNodeId] = useState<NodeIdString | undefined>();
+
+    // Rename (menu or F2 key binding) and Sync with Active Document are routed back here by the extension
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data as UICmd;
             if (message.type === 'startRename') {
                 setFocusedNodeId(message.payload.nodeId);
                 setRenamingNodeId(message.payload.nodeId);
+            } else if (message.type === 'selectNode') {
+                setSelectedNodeId(message.payload.nodeId);
+                setFocusedNodeId(message.payload.nodeId);
+                setRevealNodeId(message.payload.nodeId);
             }
         };
         window.addEventListener('message', handleMessage);
@@ -121,6 +128,15 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
 
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
     const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
+
+    useEffect(() => {
+        if (!revealNodeId || !flatNodes.some(item => item.node.nodeId === revealNodeId)) {
+            return;
+        }
+        treeRef.current?.focus({ preventScroll: true });
+        treeRef.current?.querySelector('.tree-node.selected')?.scrollIntoView({ block: 'nearest' });
+        setRevealNodeId(undefined);
+    }, [revealNodeId, flatNodes]);
 
     // Auto-focus the first node for keyboard navigation if no node is focused
     useEffect(() => {

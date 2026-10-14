@@ -5,6 +5,7 @@ import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
+import { IN_TEST_PROJECT } from '../../../../core/contextMenus';
 import { describeMarker, markerCount } from './diagnosticMarker';
 import { IconThemeContext, themeFontFamily } from './IconThemeContext';
 import { fontGlyph, resolveThemeIcon } from '../../../shared/iconTheme';
@@ -13,6 +14,7 @@ const log = logger('TreeNode');
 export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
     level,
+    inTestProject,
     activeFilePath,
     onProjectAction,
     onToggleExpand,
@@ -28,6 +30,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
     const nodeIdentifier = node.nodeId;
+    const isInTestProject = inTestProject || node.isTestProject;
     const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
 
     const isActiveFile = false;
@@ -307,6 +310,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     webviewSection: 'node',
                     nodeType: node.type,
                     contextValue: node.contextValue,
+                    ...(isInTestProject && { [IN_TEST_PROJECT]: true }),
                     nodeId: nodeIdentifier,
                     preventDefaultContextMenuItems: true
                 })}
@@ -402,6 +406,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             key={nodeIdToKey(child.nodeId)}
                             node={child}
                             level={level + 1}
+                            inTestProject={isInTestProject}
                             activeFilePath={activeFilePath}
                             onProjectAction={onProjectAction}
                             onToggleExpand={onToggleExpand}

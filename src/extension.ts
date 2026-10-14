@@ -65,7 +65,9 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         testExplorer,
         // The Solution Explorer calls this once the solution is loaded: tests of built projects show right away
-        vscode.commands.registerCommand('shinobi.internal.refreshTests', () => testExplorer.refresh(false))
+        vscode.commands.registerCommand('shinobi.internal.refreshTests', () => testExplorer.refresh(false)),
+        // "Run Tests" / "Debug Tests" in the Solution Explorer context menu
+        vscode.commands.registerCommand('shinobi.internal.runTests', (fsPath: string, debug: boolean) => testExplorer.runTestsAt(fsPath, debug))
     );
 
     // Initialize framework dropdown service
@@ -172,6 +174,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('shinobi.solution.debug', async () => {
             await startDebugWithStartupProject();
         }),
+        vscode.commands.registerCommand('shinobi.solution.startWithoutDebugging', () => DebugConfigService.startStartupProject(true)),
+        vscode.commands.registerCommand('shinobi.solution.syncWithActiveDocument', () => solutionWebviewProvider.syncWithActiveDocument()),
+        vscode.commands.registerCommand('shinobi.solution.collapseAll', () => solutionWebviewProvider.collapseAll()),
         vscode.commands.registerCommand('shinobi.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)
             solutionWebviewProvider.refresh();

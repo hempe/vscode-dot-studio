@@ -6,6 +6,8 @@ import { ProjectActionCmd } from "../../../types/commands/project-action";
 export interface TreeNodeProps {
     node: ProjectNode;
     level: number;
+    /** The node is in a test project (set for the children of a test project node) */
+    inTestProject?: boolean;
     activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionCmd) => void;
     onToggleExpand: (nodeId: NodeIdString, nodeType: NodeType) => void;

@@ -19,6 +19,7 @@ jest.mock('vscode', () => {
         static diff(message: string, expected: string, actual: string) { return Object.assign(new TestMessage(message), { expectedOutput: expected, actualOutput: actual }); }
     }
     const runs: any[] = [];
+    const messages: string[] = [];
     const controller: any = {
         items: new Collection(),
         profiles: [] as any[],
@@ -58,6 +59,13 @@ jest.mock('vscode', () => {
         debug: { onDidStartDebugSession: () => disposable },
         workspace: { workspaceFolders: undefined },
         commands: { executeCommand: async () => undefined },
+        window: { showInformationMessage: async (message: string) => { messages.push(message); } },
+        messages,
+        TestRunRequest: class { constructor(public include?: any[], public exclude?: any[]) { } },
+        CancellationTokenSource: class {
+            token = { isCancellationRequested: false, onCancellationRequested: () => disposable };
+            dispose() { }
+        },
     };
 }, { virtual: true });
 
@@ -112,6 +120,7 @@ describe('TestExplorer', () => {
         mock.controller.items.replace([]);
         mock.controller.profiles.length = 0;
         mock.runs.length = 0;
+        mock.messages.length = 0;
     });
 
     it('shows the discovered tests of test projects only', async () => {
@@ -155,5 +164,49 @@ describe('TestExplorer', () => {
     it('leaves VSTest projects out', async () => {
         await explorer({ evaluate: async (p: string) => ({ projectPath: p, targetPath: '/t.dll', testingPlatform: false }) }).refresh(false);
         expect(mock.controller.items.size).toBe(0);
+    });
+
+    describe('running the tests of a Solution Explorer node', () => {
+        const ran = () => mock.runs[0].events.filter((event: string) => event.startsWith('passed') || event.startsWith('failed')).sort();
+        const all = ['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2'];
+
+        it('runs a whole test project', async () => {
+            await explorer().runTestsAt(projectPath, false);
+            expect(ran()).toEqual(all);
+        });
+
+        it('runs the tests in a file or folder', async () => {
+            await explorer().runTestsAt('/repo/X3/MathTests.cs', false);
+            expect(ran()).toEqual(all);
+
+            mock.runs.length = 0;
+            await explorer().runTestsAt('/repo/X3', false);
+            expect(ran()).toEqual(all);
+        });
+
+        it('runs every test project for the solution', async () => {
+            await explorer().runTestsAt('/repo/X.slnx', false);
+            expect(ran()).toEqual(all);
+        });
+
+        it('builds and discovers first when the tests are not known yet', async () => {
+            const built: string[] = [];
+            let modified: number | undefined;
+            const tests = explorer({
+                build: async (p: string) => { built.push(p); modified = 1; return true; },
+                modified: () => modified,
+            });
+
+            await tests.runTestsAt('/repo/X3/MathTests.cs', false);
+
+            expect(built).toContain(projectPath);
+            expect(ran()).toEqual(all);
+        });
+
+        it('says so when there are no tests', async () => {
+            await explorer().runTestsAt('/repo/X3/Helpers', false);
+            expect(mock.runs).toEqual([]);
+            expect(mock.messages).toEqual(['No tests found in Helpers.']);
+        });
     });
 });

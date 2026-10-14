@@ -165,6 +165,33 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         await this._handleMessage({ type: 'projectAction', payload: { action, nodeId } as ProjectActionCmd });
     }
 
+    /** Visual Studio's "Collapse All" in the title bar */
+    public async collapseAll(): Promise<void> {
+        if (!this._cachedSolutionData) {
+            return;
+        }
+        SolutionExpansionService.collapseAll(this._cachedSolutionData, this._context);
+        await this._sendCachedData();
+    }
+
+    /** Visual Studio's "Sync with Active Document": selects the file of the active editor in the tree */
+    public async syncWithActiveDocument(): Promise<void> {
+        const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+        const uri = vscode.window.activeTextEditor?.document.uri
+            ?? (input instanceof vscode.TabInputText || input instanceof vscode.TabInputCustom ? input.uri : undefined);
+        if (!uri || uri.scheme !== 'file' || !this._view || !this._cachedSolutionData) {
+            return;
+        }
+        const nodeId = await SolutionExpansionService.revealPath(uri.fsPath, this._cachedSolutionData, this._context);
+        if (!nodeId) {
+            vscode.window.showInformationMessage(`${path.basename(uri.fsPath)} is not part of the solution.`);
+            return;
+        }
+        this._view.show(false);
+        await this._sendCachedData();
+        sendToUi(this.webview, { type: 'selectNode', payload: { nodeId } });
+    }
+
     private async _handleMessage(message: BackendCmd) {
         log.info('Received message:', message);
 
@@ -213,7 +240,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         }
 
                         // Trigger immediate tree refresh for file/folder operations that affect the filesystem
-                        const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject'];
+                        const operationsThatAffectTree = ['deleteFile', 'rename', 'removeProject', 'deleteProject', 'addExistingItem'];
                         if (operationsThatAffectTree.includes(message.payload.action)) {
                             const nodeId = NodeIdService.parse(message.payload.nodeId);
                             if (!nodeId.path) {

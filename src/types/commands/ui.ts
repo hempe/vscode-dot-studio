@@ -138,6 +138,14 @@ export declare type StartRenameCmd = {
     }
 }
 
+/** Selects, focuses and scrolls to a tree node, e.g. after "Sync with Active Document" */
+export declare type SelectNodeCmd = {
+    readonly type: 'selectNode',
+    readonly payload: {
+        readonly nodeId: NodeIdString,
+    }
+}
+
 export declare type DiagnosticsCmd = {
     readonly type: 'diagnostics',
     readonly payload: {
@@ -170,5 +178,6 @@ export declare type UICmd =
     AddTemporaryNodeCmd |
     RemoveTemporaryNodesCmd |
     StartRenameCmd |
+    SelectNodeCmd |
     DiagnosticsCmd |
     IconThemeCmd;

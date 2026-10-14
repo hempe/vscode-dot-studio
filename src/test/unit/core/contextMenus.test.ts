@@ -1,4 +1,4 @@
-import { applyMenuContributions, buildMenuContributions, contextMenus, menuCommands, MenuCommandAction } from '../../../core/contextMenus';
+import { applyMenuContributions, buildMenuContributions, contextMenus, menuCommands, MenuCommandAction, submenus, testProjectMenus } from '../../../core/contextMenus';
 import { NodeType } from '../../../types';
 
 const packageJson = require('../../../../package.json');
@@ -9,7 +9,11 @@ describe('contextMenus', () => {
     });
 
     test('every command is used by at least one menu', () => {
-        const used = new Set(Object.values(contextMenus).flat(2));
+        const used = new Set([
+            ...Object.values(contextMenus).flat(2),
+            ...Object.values(testProjectMenus).flat(2),
+            ...Object.values(submenus).flatMap(submenu => submenu.items),
+        ]);
         expect((Object.keys(menuCommands) as MenuCommandAction[]).filter(action => !used.has(action))).toEqual([]);
     });
 
@@ -37,10 +41,10 @@ describe('contextMenus', () => {
             .filter(entry => entry.when.endsWith(`nodeType == 'project'`));
 
         expect(projectEntries.slice(0, 4)).toEqual([
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.openFile', group: '1_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.editProjectFile', group: '1_group@1' }),
             expect.objectContaining({ command: 'shinobi.solutionExplorer.addNewItem', group: '2_group@1' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@2' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFolder', group: '2_group@3' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addExistingItem', group: '2_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@3' }),
         ]);
     });
 
@@ -66,5 +70,43 @@ describe('contextMenus', () => {
         ]));
         expect(when('updateServiceReference')).toEqual([expect.stringContaining("nodeType == 'folder' && contextValue == 'serviceReference'")]);
         expect(when('removeServiceReference')).toEqual([expect.stringContaining("contextValue == 'serviceReference'")]);
+    });
+
+    it('offers the Debug submenu on projects that can be started, the startup project included', () => {
+        const { webviewContext, submenus: generated, submenuItems } = buildMenuContributions();
+        const debugMenu = webviewContext.filter(entry => entry.submenu === 'shinobi.solutionExplorer.debug');
+        expect(debugMenu.map(entry => entry.when.match(/contextValue == '(\w+)'/)?.[1]).sort())
+            .toEqual(['executable', 'startup', 'startupWithProfiles']);
+        expect(generated).toEqual([{ id: 'shinobi.solutionExplorer.debug', label: 'Debug' }]);
+        expect(submenuItems['shinobi.solutionExplorer.debug'].map(item => item.command)).toEqual([
+            'shinobi.solutionExplorer.startNewInstance',
+            'shinobi.solutionExplorer.startWithoutDebugging',
+        ]);
+    });
+
+    it('offers Run Tests and Debug Tests on the solution and on everything in test projects', () => {
+        const { webviewContext } = buildMenuContributions();
+        const when = (command: string) => webviewContext
+            .filter(entry => entry.command === `shinobi.solutionExplorer.${command}`)
+            .map(entry => entry.when.replace(/^.*webviewSection == 'node' && /, ''));
+        const expected = [
+            "nodeType == 'solution'",
+            "nodeType == 'project' && inTestProject",
+            "nodeType == 'folder' && inTestProject",
+            "nodeType == 'file' && inTestProject",
+        ];
+        expect(when('runTests')).toEqual(expected);
+        expect(when('debugTests')).toEqual(expected);
+    });
+
+    it('offers Open in Terminal, Copy Full Path, Edit Project File and Add Existing Item like Visual Studio', () => {
+        const { webviewContext } = buildMenuContributions();
+        const nodeTypes = (command: string) => [...new Set(webviewContext
+            .filter(entry => entry.command === `shinobi.solutionExplorer.${command}`)
+            .map(entry => entry.when.match(/nodeType == '(\w+)'/)![1]))];
+        expect(nodeTypes('openInTerminal')).toEqual(['solution', 'project', 'folder']);
+        expect(nodeTypes('copyFullPath')).toEqual(['solution', 'project', 'folder', 'file', 'solutionItem']);
+        expect(nodeTypes('editProjectFile')).toEqual(['project']);
+        expect(nodeTypes('addExistingItem')).toEqual(['project', 'folder']);
     });
 });

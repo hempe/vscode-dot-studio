@@ -8,6 +8,7 @@ import { parseJsonc, upsertArrayItem } from '../core/jsonc';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { BuildConfiguration } from './buildConfiguration';
+import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 
 const execFileAsync = promisify(execFile);
 
@@ -110,53 +111,9 @@ export class DebugConfigService {
             }
 
 
-            // Get project directory and assembly name
-            const projectDir = path.dirname(absoluteProjectPath);
-            const projectName = path.basename(absoluteProjectPath, path.extname(absoluteProjectPath));
             const relativeProjectPath = path.relative(workspacePath, absoluteProjectPath);
-            const relativeProjectDir = path.relative(workspacePath, projectDir);
-
-            // Determine the best framework to use
-            const selectedFramework = await this.determineTargetFramework(absoluteProjectPath, framework);
-            log.info(`Selected framework for startup project: ${selectedFramework}`);
-
-            const configuration = BuildConfiguration.active;
-            const targetPath = await this.resolveTargetPath(absoluteProjectPath, configuration, selectedFramework);
-            const relativeTargetPath = path.relative(workspacePath, targetPath);
-            const program = relativeTargetPath.startsWith('..') || path.isAbsolute(relativeTargetPath)
-                ? targetPath
-                : `\${workspaceFolder}/${relativeTargetPath.split(path.sep).join('/')}`;
-
-            const isNetFramework = this.isNetFramework(selectedFramework);
-
-            // Determine debug type based on framework and platform
-            let debugType: string;
-            if (isNetFramework) {
-                if (process.platform === 'win32') {
-                    debugType = 'clr';
-                } else {
-                    // On non-Windows platforms, use the dedicated mono debugger
-                    debugType = 'mono';
-                    log.info(`Using mono debugger for .NET Framework project on ${process.platform}`);
-                }
-            } else {
-                debugType = 'coreclr';
-            }
-
-            // Create the "Startup" configuration. With a launch profile the C# debugger applies its
-            // applicationUrl, environmentVariables and commandLineArgs from launchSettings.json at launch time
-            const startupConfig = {
-                name: 'Startup',
-                type: debugType,
-                request: 'launch',
-                program,
-                ...(profile ? { launchSettingsProfile: profile.name } : { args: [] }),
-                cwd: `\${workspaceFolder}/${relativeProjectDir}`,
-                console: 'integratedTerminal',
-                ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
-                preLaunchTask: 'StartupPreBuild',
-                ...(profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
-            };
+            const { config: startupConfig, framework: selectedFramework, configuration } =
+                await this.launchConfiguration(absoluteProjectPath, workspacePath, framework, profile, 'Startup', 'StartupPreBuild');
 
             // tasks.json first: it names the startup project, which is read back when launch.json changes
             await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined);
@@ -171,13 +128,111 @@ export class DebugConfigService {
                 'first'
             );
 
-            log.info(`Updated "Startup" configuration: project=${projectName}, configuration=${configuration}, framework=${selectedFramework || 'auto'}`);
+            log.info(`Updated "Startup" configuration: project=${relativeProjectPath}, configuration=${configuration}, framework=${selectedFramework || 'auto'}`);
 
             // Set the "Startup" configuration as the active debug configuration
             await this.setActiveDebugConfiguration(workspaceFolder, 'Startup');
         } catch (error) {
             log.error('Error updating startup configuration:', error);
         }
+    }
+
+    /**
+     * The launch configuration of a project for the active solution configuration: its output (from MSBuild),
+     * framework and launch profile. With a launch profile the C# debugger applies its applicationUrl,
+     * environmentVariables and commandLineArgs from launchSettings.json at launch time.
+     * Named after the project unless `name` is given.
+     */
+    private static async launchConfiguration(
+        projectPath: string,
+        workspacePath: string,
+        framework: string | undefined,
+        profile: LaunchProfile | undefined,
+        name = path.basename(projectPath, path.extname(projectPath)),
+        preLaunchTask?: string
+    ) {
+        const projectDir = path.dirname(projectPath);
+        const relativeProjectDir = path.relative(workspacePath, projectDir);
+
+        // Determine the best framework to use
+        const selectedFramework = await this.determineTargetFramework(projectPath, framework);
+        log.info(`Selected framework for ${projectPath}: ${selectedFramework}`);
+
+        const configuration = BuildConfiguration.active;
+        const targetPath = await this.resolveTargetPath(projectPath, configuration, selectedFramework);
+        const relativeTargetPath = path.relative(workspacePath, targetPath);
+        const program = relativeTargetPath.startsWith('..') || path.isAbsolute(relativeTargetPath)
+            ? targetPath
+            : `\${workspaceFolder}/${relativeTargetPath.split(path.sep).join('/')}`;
+
+        const isNetFramework = this.isNetFramework(selectedFramework);
+
+        // Determine debug type based on framework and platform
+        let debugType: string;
+        if (isNetFramework) {
+            if (process.platform === 'win32') {
+                debugType = 'clr';
+            } else {
+                // On non-Windows platforms, use the dedicated mono debugger
+                debugType = 'mono';
+                log.info(`Using mono debugger for .NET Framework project on ${process.platform}`);
+            }
+        } else {
+            debugType = 'coreclr';
+        }
+
+        const config = {
+            name,
+            type: debugType,
+            request: 'launch',
+            program,
+            ...(profile ? { launchSettingsProfile: profile.name } : { args: [] }),
+            cwd: `\${workspaceFolder}/${relativeProjectDir}`,
+            console: 'integratedTerminal',
+            ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
+            ...(preLaunchTask && { preLaunchTask }),
+            ...(profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
+        };
+        return { config, framework: selectedFramework, configuration };
+    }
+
+    /**
+     * Visual Studio's "Debug > Start New Instance" / "Start Without Debugging" on a project: builds it and
+     * starts it next to whatever already runs, without making it the startup project. The startup project
+     * keeps its launch profile and framework; other projects use their first profile and newest framework.
+     */
+    static async startProject(projectPath: string, noDebug: boolean): Promise<void> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            return;
+        }
+        const projectName = path.basename(projectPath, path.extname(projectPath));
+        const isStartup = this.getStartupProject() === projectPath;
+        const profiles = this.readLaunchProfiles(path.dirname(projectPath));
+        const currentProfile = isStartup
+            ? this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'))?.launchSettingsProfile
+            : undefined;
+        const profile = profiles.find(p => p.name === currentProfile) ?? profiles[0];
+
+        const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: projectPath }));
+        if (exitCode !== 0) {
+            vscode.window.showErrorMessage(`${projectName} was not started, its build failed. See the Problems panel.`);
+            return;
+        }
+
+        const framework = isStartup ? this.getActiveFramework() ?? undefined : undefined;
+        const { config } = await this.launchConfiguration(projectPath, workspaceFolder.uri.fsPath, framework, profile);
+        await vscode.debug.startDebugging(workspaceFolder, config, { noDebug });
+    }
+
+    /** Starts the startup project through its "Startup" configuration (F5 / Ctrl+F5), which builds it first */
+    static async startStartupProject(noDebug: boolean): Promise<void> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder || !this.getStartupProject()) {
+            vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
+            return;
+        }
+        await vscode.debug.startDebugging(workspaceFolder, 'Startup', { noDebug });
     }
 
     /**
@@ -515,6 +570,24 @@ export class DebugConfigService {
             uriFormat: !launchUrl ? '%s' : /^https?:\/\//i.test(launchUrl) ? launchUrl : `%s/${launchUrl.replace(/^\//, '')}`,
         };
     }
+}
+
+/** Runs a task and resolves with its exit code once its process ends */
+async function runTask(task: vscode.Task): Promise<number | undefined> {
+    let execution: vscode.TaskExecution | undefined;
+    return new Promise<number | undefined>(resolve => {
+        const listener = vscode.tasks.onDidEndTaskProcess(event => {
+            if (event.execution === execution || event.execution.task === task) {
+                listener.dispose();
+                resolve(event.exitCode);
+            }
+        });
+        vscode.tasks.executeTask(task).then(started => { execution = started; }, error => {
+            listener.dispose();
+            log.error('Starting the build failed:', error);
+            resolve(undefined);
+        });
+    });
 }
 
 interface LaunchProfile {

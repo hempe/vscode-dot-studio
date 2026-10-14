@@ -4,7 +4,7 @@ import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
-import { EXECUTABLE_PROJECT, STARTUP_PROJECT_WITH_PROFILES } from '../core/contextMenus';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES } from '../core/contextMenus';
 import { DebugConfigService } from './debugConfigService';
 import { NodeIdString } from '../types/nodeId';
 
@@ -150,12 +150,13 @@ export class SolutionTreeService {
                         itemNode.hasChildren = hasFiles;
                         log.info(`Project ${project.name} has children: ${hasFiles}`);
                         if (itemNode.isStartupProject) {
-                            if (DebugConfigService.hasLaunchProfileChoice(absolutePath)) {
-                                itemNode.contextValue = STARTUP_PROJECT_WITH_PROFILES;
-                            }
+                            itemNode.contextValue = DebugConfigService.hasLaunchProfileChoice(absolutePath)
+                                ? STARTUP_PROJECT_WITH_PROFILES
+                                : STARTUP_PROJECT;
                         } else if (projectInstance.isExecutable) {
                             itemNode.contextValue = EXECUTABLE_PROJECT;
                         }
+                        itemNode.isTestProject = projectInstance.isTestProject;
                     } else {
                         log.warn(`Could not find project instance for: ${absolutePath}`);
                         // For projects, assume they have children if we can't check

@@ -17,6 +17,8 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Startup project selection, offered only on projects that can be started (console, desktop, web, worker and Aspire host projects; not libraries or test projects)
 - Live updates through file watchers
 - Native VS Code context menus with keyboard shortcuts (F2 rename, Delete, Ctrl+C/X/V)
+- Collapse All and Sync with Active Document (Ctrl+[, S) in the title bar, like Visual Studio's toolbar
+- Copy Full Path and Open in Terminal on the solution, projects, folders and files
 - Errors in the tree: files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Build markers are reliable after a (re)build, as in Visual Studio. Live language-server errors for open files come on top; for live errors in all files set `"dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution"`. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`); infos and suggestions (the editor's `···` hints, Visual Studio's "Messages") are off by default
 
 ### Error List
@@ -27,10 +29,13 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 ### Solution & Project Operations
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
 - Add New Project wizard with the template's settings (any `dotnet new` template), add existing projects (also into solution folders); remove or delete projects
+- Edit Project File on projects (or double-click them)
 - Add and remove project and assembly references
 
 ### Run & Debug (F5)
 - "Set as Startup Project" generates a `Startup` debug configuration in `launch.json` and a `StartupPreBuild` task in `tasks.json`, keeping your other configurations and comments
+- F5 debugs the startup project, Ctrl+F5 (or the title bar's Start Without Debugging) runs it without the debugger
+- "Debug > Start New Instance" and "Debug > Start Without Debugging" on any project that can be started: builds it and runs it with its first launch profile, next to what already runs, without changing the startup project
 - Launch profiles from `Properties/launchSettings.json`: picked when you set the startup project, changed later with "Set Launch Profile..." on it; the profile's URLs, environment variables and arguments apply, and the browser opens at `launchUrl` once the app listens
 - Debug/Release switch in the Solution Explorer title bar for builds and F5, with the solution's own configurations; the active configuration and framework show next to the view title
 - Target framework selection for multi-targeted startup projects
@@ -40,6 +45,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 ### File Operations
 - Add files and folders with inline naming
 - Add New Item wizard: built-in C# types with the folder's namespace, or any `dotnet new` item template with its settings
+- Add Existing Item: copies files into the project or folder (asks before replacing one)
 - Copy, cut, paste, rename and delete
 - Namespace updates when files move or are renamed (uses `RootNamespace` and the folder structure)
 - Renaming a C#/VB file offers to rename the type of the same name and all references to it (needs the C# language server running); files nested under it (Designer, code-behind, resources) are renamed with it
@@ -53,6 +59,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 ### Tests
 - Test Explorer for Microsoft.Testing.Platform test projects (xUnit v3, MSTest runner, TUnit, NUnit runner): tests grouped by project, namespace and class, with gutter icons in the editor. Classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters) are not listed yet
 - Run and debug single tests, classes or projects; results with failure messages and stack traces
+- "Run Tests" and "Debug Tests" in the Solution Explorer on the solution, test projects, and their folders and files
 - Tests are discovered after builds (Ctrl+Shift+B, the context menu, F5) and with the refresh button, which builds first
 - The C# extension's own "Run Test | Debug Test" code lenses stay; turn them off with `"dotnet.codeLens.enableTestsCodeLens": false` if the gutter icons are enough
 
@@ -86,7 +93,7 @@ Useful settings of the C# extension:
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds; phase 8 collects conveniences, phase 9 is publishing, phase 10 code cleanup and refactoring, phases 11–14 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 code cleanup and refactoring, phases 11–14 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -171,6 +178,17 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 ### Phase 7: Private NuGet Feeds
 - [x] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
 
+### Phase 7.5: Visual Studio Basics
+**Goal**: The everyday Solution Explorer and Debug commands of Visual Studio that were still missing.
+
+- [x] Collapse All in the Solution Explorer title bar
+- [x] Sync with Active Document: select the open file in the tree (title bar button, like Visual Studio's)
+- [x] "Add Existing Item..." on projects and folders: copy files into the project
+- [x] "Debug > Start New Instance" and "Debug > Start Without Debugging" on projects that can be started, without making them the startup project
+- [x] Start without debugging (Ctrl+F5) for the startup project
+- [x] "Run Tests" and "Debug Tests" on test projects, folders and files
+- [x] "Open in Terminal" and "Copy Full Path" on the solution, projects, folders and files; "Edit Project File" on projects
+
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
@@ -193,7 +211,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 
 ### Phase 11: Run & Debug, Part 2
 - [ ] Multiple startup projects (e.g. API plus worker or frontend), each with its own launch profile, like Visual Studio's "Configure Startup Projects"
-- [ ] Start without debugging (Ctrl+F5) and Hot Reload (`dotnet watch`)
+- [ ] Hot Reload (`dotnet watch`)
 - [ ] HTTPS development certificate: detect an untrusted one and help trust it (`dotnet dev-certs https --trust`, fiddly on Linux)
 - [ ] Attach to Process: pick a running .NET process (by name, project or port) and attach the C# debugger, like Visual Studio's Debug > Attach to Process
 
