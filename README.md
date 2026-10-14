@@ -143,7 +143,6 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] No notifications for what the tree already shows (file created, project added, framework changed, ...), like Visual Studio
 - [x] Delete moves files and folders to the trash, like VS Code's explorer, instead of deleting them permanently
 - [x] Publishing metadata: `CHANGELOG.md`, description, categories, keywords and a `.vscodeignore` that packages only the bundles
-- [ ] Package name: `dotnet` is the extension's ID part and too generic for the Marketplace; renaming it resets what VS Code stores for the extension
 - [x] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
 
 ### Phase 11: Diagnosability
