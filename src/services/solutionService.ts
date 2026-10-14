@@ -172,7 +172,11 @@ export class SolutionService {
         log.error(message);
         if (message !== this.lastLoadError) {
             this.lastLoadError = message;
-            vscode.window.showErrorMessage(message);
+            vscode.window.showErrorMessage(message, 'Show Log').then(choice => {
+                if (choice === 'Show Log') {
+                    void vscode.commands.executeCommand('shinobi.showLog');
+                }
+            });
         }
     }
 

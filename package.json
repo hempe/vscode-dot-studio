@@ -318,6 +318,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.showLog",
+        "title": "Show Log",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.openFile",
         "title": "Open",
         "category": ".NET"

@@ -17,6 +17,7 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 | [Publish](publish.md) | The Publish tab and Folder profiles |
 | [Connected Services](connected-services.md) | WCF/SOAP service references |
 | [Settings](settings.md) | This extension's settings and the C# extension defaults it changes |
+| [Troubleshooting](troubleshooting.md) | The log, common problems, reporting a bug |
 
 ## Getting started
 

@@ -146,8 +146,8 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
 
 ### Phase 11: Diagnosability
-- [ ] A "Shinobi .NET" Output channel with all logs and a log level setting, so problems can be reported
-- [ ] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
+- [x] A "Shinobi .NET" Output channel with all logs and VS Code's log levels (Developer: Set Log Level), so problems can be reported
+- [x] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
 
 ### Phase 12: Finding Solutions
 - [ ] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution

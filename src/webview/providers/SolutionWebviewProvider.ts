@@ -64,7 +64,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         SolutionWebviewProvider.Instance = this;
         this._updateViewDebouncer = new SimpleDebounceManager(async () => {
             try {
-                console.error('Debounced updateView triggered');
+                log.debug('Debounced updateView triggered');
 
                 // Load data asynchronously to prevent blocking
                 log.info('Loading solution data and frameworks...');

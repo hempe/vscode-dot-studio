@@ -10,7 +10,7 @@ import { ErrorListViewProvider, ERROR_LIST_VIEW } from './webview/providers/Erro
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { isExcluded } from './core/constants';
-import { logger as loggerFn } from './core/logger';
+import { logger as loggerFn, setLogSink } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { SlnxMigration } from './services/slnxMigration';
@@ -35,6 +35,14 @@ async function startDebugWithStartupProject(): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+    // All logs go to Output > "Shinobi .NET"; "Developer: Set Log Level" picks how much
+    const logChannel = vscode.window.createOutputChannel('Shinobi .NET', { log: true });
+    setLogSink(logChannel);
+    context.subscriptions.push(
+        logChannel,
+        { dispose: () => setLogSink(undefined) },
+        vscode.commands.registerCommand('shinobi.showLog', () => logChannel.show())
+    );
     logger.info('.NET Extension is now active!');
 
     void checkCSharpExtension(context);

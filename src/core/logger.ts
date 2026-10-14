@@ -1,7 +1,32 @@
 /**
  * Backend Logger - For use in Node.js extension host code
  */
+import { inspect } from 'util';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/** Where logs go once the extension runs: VS Code's "Shinobi .NET" log channel (a `vscode.LogOutputChannel`) */
+export interface LogSink {
+    trace(message: string): void;
+    debug(message: string): void;
+    info(message: string): void;
+    warn(message: string): void;
+    error(message: string): void;
+}
+
+let sink: LogSink | undefined;
+
+/**
+ * Sends all logs to the channel (VS Code adds the time and level, and filters by "Developer: Set Log Level");
+ * without one, they go to the console (tests, the menu generator script)
+ */
+export function setLogSink(logSink: LogSink | undefined): void {
+    sink = logSink;
+}
+
+const describeArg = (arg: unknown) => typeof arg === 'string' ? arg
+    : arg instanceof Error ? (arg.stack ?? `${arg.name}: ${arg.message}`)
+        : inspect(arg, { depth: 4, breakLength: 160 });
 
 export interface Logger {
     debug(message: string, ...args: any[]): void;
@@ -35,26 +60,31 @@ class BackendConsoleLogger implements Logger {
         return `C# ${timestamp}.${ms} [${lvl}] ${this.name}: ${message}`;
     }
 
+    /** `[Name] message details` for the log channel */
+    private channelMessage(message: string, args: any[]): string {
+        return [`[${this.name}] ${message}`, ...args.map(describeArg)].join(' ');
+    }
+
     debug(message: string, ...args: any[]): void {
-        console.debug(this.formatMessage("debug", message), ...args);
+        sink ? sink.debug(this.channelMessage(message, args)) : console.debug(this.formatMessage("debug", message), ...args);
     }
 
     info(message: string, ...args: any[]): void {
-        console.log(this.formatMessage("info", message), ...args);
+        sink ? sink.info(this.channelMessage(message, args)) : console.log(this.formatMessage("info", message), ...args);
     }
 
     warn(message: string, ...args: any[]): void {
-        console.warn(this.formatMessage("warn", message), ...args);
+        sink ? sink.warn(this.channelMessage(message, args)) : console.warn(this.formatMessage("warn", message), ...args);
     }
 
     error(message: string, ...args: any[]): void {
-        console.error(this.formatMessage("error", message), ...args);
+        sink ? sink.error(this.channelMessage(message, args)) : console.error(this.formatMessage("error", message), ...args);
     }
 
     // DO NOT REMOVE - shotgun logging is used for debugging complex issues
     // Even if not currently used, keep this method for future debugging sessions
     shotgun(message: string, ...args: any[]): void {
-        console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
+        sink ? sink.trace(this.channelMessage(`🔫 SHOTGUN ${message}`, args)) : console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
     }
 }
 /**
