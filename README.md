@@ -29,7 +29,7 @@ Full documentation: **[docs](docs/README.md)**, starting with [Getting started](
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, projects, configurations), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later, phase 21 the other publish targets. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing. Phases 10–15 make the extension ready for others, from small polish to large solutions. Phase 16 is the second round of Visual Studio basics (solutions, projects, configurations), phase 17 code cleanup and refactoring, phases 18–21 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -137,7 +137,34 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 
 - [x] "Publish..." on a project: a Publish tab with the existing profiles, Publish button and summary (location, configuration, framework, deployment mode, runtime), new profile, rename and delete; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
 
-### Phase 10: Visual Studio Basics, Part 2
+### Phase 10: Polish
+**Goal**: Behave like a finished extension in the small things.
+
+- [ ] No notifications for what the tree already shows (file created, project added, framework changed, ...), like Visual Studio
+- [ ] Delete moves files and folders to the trash, like VS Code's explorer, instead of deleting them permanently
+- [ ] Publishing metadata: `LICENSE`, `CHANGELOG.md`, package name, description, categories and keywords for the Marketplace and Open VSX
+- [ ] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
+
+### Phase 11: Diagnosability
+- [ ] A "Shinobi .NET" Output channel with all logs and a log level setting, so problems can be reported
+- [ ] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
+
+### Phase 12: Finding Solutions
+- [ ] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution
+
+### Phase 13: Tree Keyboard & Screenshots
+- [ ] Type-to-find in the Solution Explorer (typing jumps to the next matching node), Home and End
+- [ ] Screenshots of the Solution Explorer, Error List, NuGet manager, Test Explorer and Publish tab in the README and docs
+
+### Phase 14: Starting Fresh & Multi-Select
+- [ ] Create a new solution with its first project in an empty folder, like Visual Studio's "Create a new project"
+- [ ] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
+
+### Phase 15: Scale
+- [ ] Multi-root workspaces: a solution in any workspace folder, not only the first
+- [ ] Measure and improve loading and refreshing on large solutions (hundreds of projects), e.g. Orchard Core
+
+### Phase 16: Visual Studio Basics, Part 2
 **Goal**: The larger everyday features of Visual Studio that are still missing.
 
 - [ ] Open and switch solutions: "Open Solution..." and recently opened solutions, like Visual Studio's File > Open > Solution and File > Recent; the Solution Explorer loads the chosen solution instead of the current one. Today the choice comes once, at startup, when the workspace has several solution files
@@ -146,7 +173,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
 - [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release
 
-### Phase 11: Code Cleanup & Refactoring
+### Phase 17: Code Cleanup & Refactoring
 **Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
 
 - [ ] Code Cleanup on the solution, a project, folder or file: fix all errors, warnings and/or infos, format, remove and sort usings (`dotnet format`)
@@ -154,13 +181,13 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Sync Namespaces on a project or folder: every namespace matches its folder, as in Visual Studio
 - [ ] Check which refactorings the C# extension covers in VS Code (Extract Interface, Move Type to File, Change Signature, Fix All in document/project/solution) and fill the gaps, e.g. Visual Studio's dialogs for Extract Interface and Change Signature
 
-### Phase 12: Run & Debug, Part 2
+### Phase 18: Run & Debug, Part 2
 - [ ] Multiple startup projects (e.g. API plus worker or frontend), each with its own launch profile, like Visual Studio's "Configure Startup Projects"
 - [ ] Hot Reload (`dotnet watch`)
 - [ ] HTTPS development certificate: detect an untrusted one and help trust it (`dotnet dev-certs https --trust`, fiddly on Linux)
 - [ ] Attach to Process: pick a running .NET process (by name, project or port) and attach the C# debugger, like Visual Studio's Debug > Attach to Process
 
-### Phase 13: Solution Explorer, Part 2
+### Phase 19: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
 - [ ] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
 - [ ] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
@@ -169,14 +196,14 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Project Properties: target framework, nullable, implicit usings, version and the like as a form instead of editing the project file
 - [ ] Launch Profiles editor: Visual Studio's "Launch Profiles" dialog (Project Properties > Debug), a form for the profiles of `launchSettings.json` (command line arguments, environment variables, URLs, browser) instead of editing the JSON
 
-### Phase 14: NuGet, Part 2
+### Phase 20: NuGet, Part 2
 - [ ] Central Package Management (`Directory.Packages.props`): install, update and consolidate put versions where they belong
 
-### Phase 15: Connected Services, Part 2
+### Phase 21: Connected Services, Part 2
 - [ ] OpenAPI (REST) clients: Visual Studio's "Add Connected Service > OpenAPI" (NSwag / `dotnet-openapi`)
 - [ ] gRPC clients from `.proto` files (Visual Studio's "Add Connected Service > gRPC")
 
-### Phase 20: Later
+### Phase 30: Later
 - [ ] Solution filters (`.slnf`): load part of a big solution
 - [ ] EF Core migrations from the context menu (Add Migration, Update Database), Visual Studio's Package Manager Console commands
 - [ ] Scaffolding ("New Scaffolded Item": controllers with EF, Identity), a wizard like Add New Item
@@ -188,7 +215,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] NuGet package sources like Visual Studio: a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
 
-### Phase 21: Publish, Part 2
+### Phase 31: Publish, Part 2
 **Goal**: The other publish targets of Visual Studio, with the `.pubxml` format Visual Studio writes for each (to be gathered from Visual Studio-made profiles first).
 
 - [ ] Azure App Service target (ZIP deploy through the Azure CLI, no stored password)

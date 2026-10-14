@@ -32,4 +32,4 @@ The summary shows the target location, configuration, target framework, deployme
 
 ## Other targets
 
-Profiles for Azure App Service, container registries, FTP or IIS (made in Visual Studio) are listed with a note but not published yet; they are planned (Phase 21). Visual Studio keeps their passwords encrypted in `.pubxml.user`, which can't be read outside Windows.
+Profiles for Azure App Service, container registries, FTP or IIS (made in Visual Studio) are listed with a note but not published yet; they are planned (Phase 31). Visual Studio keeps their passwords encrypted in `.pubxml.user`, which can't be read outside Windows.

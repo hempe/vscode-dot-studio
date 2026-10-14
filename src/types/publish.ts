@@ -5,7 +5,7 @@ export type { FolderSettings };
 /** A publish profile as the Publish tab shows it */
 export interface PublishProfileView {
     readonly name: string;
-    /** `Folder`, or Visual Studio's publish method of targets that come later (Phase 21) */
+    /** `Folder`, or Visual Studio's publish method of targets that come later (Phase 31) */
     readonly target: string;
     readonly settings: FolderSettings;
     /** The publish folder on disk */
