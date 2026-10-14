@@ -44,6 +44,7 @@ export const menuCommands = {
     addProjectReference: { title: 'Add Project Reference...' },
     addAssemblyReference: { title: 'Add Assembly Reference...' },
     manageNuGetPackages: { title: 'Manage NuGet Packages...' },
+    manageUserSecrets: { title: 'Manage User Secrets' },
     manageNuGetPackagesForSolution: { title: 'Manage NuGet Packages...' },
     restoreNugets: { title: 'Restore NuGet Packages' },
     restoreDependencies: { title: 'Restore Dependencies' },
@@ -111,7 +112,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['addNewItem', 'addExistingItem', 'addFile', 'addFolder', 'addServiceReference'],
         ['paste'],
         [], // setStartupProject or chooseLaunchProfile and the Debug submenu, see below
-        ['manageNuGetPackages'],
+        ['manageNuGetPackages', 'manageUserSecrets'],
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean'],
         [], // runTests, debugTests in test projects

@@ -32,6 +32,7 @@ A Visual Studio–style Solution Explorer, NuGet package manager and project too
 - Build, Rebuild, Clean and Restore for solutions and projects, run as `shinobi-dotnet` tasks with the `$msCompile` problem matcher: errors land in the Problems panel and link to file and line. Run Build Task (Ctrl+Shift+B) offers them; the solution build is marked as the default unless your `tasks.json` defines one
 - Add New Project wizard with the template's settings (any `dotnet new` template), add existing projects (also into solution folders); remove or delete projects
 - Edit Project File on projects (or double-click them)
+- Manage User Secrets on projects: opens the project's `secrets.json` (in your user profile, outside the repository), adding a `UserSecretsId` to the project first if it has none
 - Add and remove project and assembly references
 
 ### Run & Debug (F5)
@@ -197,7 +198,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 
 ### Phase 8: Nice to Have
 - [ ] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
-- [ ] Manage user secrets (`dotnet user-secrets`) from the project context menu
+- [x] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Phase 9: Publish
 **Goal**: Visual Studio's Publish dialog: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.

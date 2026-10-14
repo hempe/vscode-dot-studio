@@ -108,5 +108,6 @@ describe('contextMenus', () => {
         expect(nodeTypes('copyFullPath')).toEqual(['solution', 'project', 'folder', 'file', 'solutionItem', 'generatedFile']);
         expect(nodeTypes('editProjectFile')).toEqual(['project']);
         expect(nodeTypes('addExistingItem')).toEqual(['project', 'folder']);
+        expect(nodeTypes('manageUserSecrets')).toEqual(['project']);
     });
 });

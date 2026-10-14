@@ -11,6 +11,7 @@ import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTa
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { copyExistingItems } from './existingItems';
+import { manageUserSecrets } from './userSecrets';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
@@ -69,6 +70,10 @@ export class SolutionActionService {
                     name: path.basename(nodeId.path, path.extname(nodeId.path)),
                     cwd: nodeId.type === 'folder' ? nodeId.path : path.dirname(nodeId.path),
                 }).show();
+                break;
+
+            case 'manageUserSecrets':
+                await manageUserSecrets(nodeId.path);
                 break;
 
             case 'copyFullPath':

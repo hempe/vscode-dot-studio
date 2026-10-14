@@ -234,6 +234,11 @@ export declare type CopyFullPathActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type ManageUserSecretsActionCmd = {
+    readonly action: 'manageUserSecrets';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -281,4 +286,5 @@ export type ProjectActionCmd =
     | RunTestsActionCmd
     | DebugTestsActionCmd
     | OpenInTerminalActionCmd
-    | CopyFullPathActionCmd;
+    | CopyFullPathActionCmd
+    | ManageUserSecretsActionCmd;

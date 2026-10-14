@@ -284,6 +284,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.manageUserSecrets",
+        "title": "Manage User Secrets",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.manageNuGetPackagesForSolution",
         "title": "Manage NuGet Packages...",
         "category": ".NET"
@@ -645,6 +650,11 @@
           "command": "shinobi.solutionExplorer.manageNuGetPackages",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
           "group": "5_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.manageUserSecrets",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project'",
+          "group": "5_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.rename",
@@ -1009,6 +1019,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.manageNuGetPackages",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.manageUserSecrets",
           "when": "false"
         },
         {

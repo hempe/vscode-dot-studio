@@ -117,6 +117,32 @@ export class ProjectFileEditor {
         return result;
     }
 
+    /** The `<UserSecretsId>` set in the project file itself */
+    static userSecretsId(content: string): string | undefined {
+        const value = /<UserSecretsId>([^<]*)<\/UserSecretsId>/.exec(content)?.[1].trim();
+        return value ? this.unescape(value) : undefined;
+    }
+
+    /** Adds `<UserSecretsId>` at the end of the first PropertyGroup, as `dotnet user-secrets init` does */
+    static addUserSecretsId(content: string, id: string): string {
+        const nl = content.includes('\r\n') ? '\r\n' : '\n';
+        const unit = this.indentUnit(content);
+        const element = `<UserSecretsId>${this.escape(id)}</UserSecretsId>`;
+        const groupEnd = /<\/PropertyGroup\s*>/.exec(content);
+        if (groupEnd) {
+            const groupIndent = this.lineIndent(content, groupEnd.index);
+            const lineStart = content.lastIndexOf('\n', groupEnd.index - 1) + 1;
+            return content.slice(0, lineStart) + groupIndent + unit + element + nl + content.slice(lineStart);
+        }
+        const projectEnd = content.lastIndexOf('</Project>');
+        if (projectEnd < 0) {
+            throw new Error('Invalid project file: missing </Project>');
+        }
+        const lineStart = content.lastIndexOf('\n', projectEnd - 1) + 1;
+        const group = [`${unit}<PropertyGroup>`, `${unit}${unit}${element}`, `${unit}</PropertyGroup>`].join(nl) + nl;
+        return content.slice(0, lineStart) + group + content.slice(lineStart);
+    }
+
     private static lineIndent(content: string, index: number): string {
         const lineStart = content.lastIndexOf('\n', index - 1) + 1;
         return content.slice(lineStart).match(/^[ \t]*/)![0];
