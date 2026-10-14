@@ -86,6 +86,17 @@ export declare type SourceGeneratorNodeId = {
     readonly name: string;
 }
 
+/** A package a package depends on, under Dependencies > Packages; `parents` makes it unique in the tree */
+export declare type TransitivePackageNodeId = {
+    readonly type: 'transitivePackage';
+    /** The project */
+    readonly path: string;
+    /** Ids from the top-level package down to the parent of this one */
+    readonly parents: string[];
+    readonly name: string;
+    readonly version: string;
+}
+
 /** A file a source generator wrote in the last build */
 export declare type GeneratedFileNodeId = {
     readonly type: 'generatedFile';
@@ -105,7 +116,8 @@ export declare type NodeId =
     DependencyCategoryNodeId |
     AnalyzerNodeId |
     SourceGeneratorNodeId |
-    GeneratedFileNodeId;
+    GeneratedFileNodeId |
+    TransitivePackageNodeId;
 
 /**
  * Service for generating and managing structured node IDs with compression
@@ -242,6 +254,10 @@ export class NodeIdService {
 
     static generateSourceGeneratorId(projectPath: string, analyzer: string, name: string): NodeIdString {
         return this.compress({ type: 'sourceGenerator', path: projectPath, analyzer, name });
+    }
+
+    static generateTransitivePackageId(projectPath: string, parents: string[], name: string, version: string): NodeIdString {
+        return this.compress({ type: 'transitivePackage', path: projectPath, parents, name, version });
     }
 
     static generateGeneratedFileId(filePath: string): NodeIdString {

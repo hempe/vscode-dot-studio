@@ -8,6 +8,7 @@ import { NodeType, ProjectNode } from '../types';
 import { Project } from '../core/Project';
 import { NodeIdString } from '../types/nodeId';
 import { analyzerChildren } from './analyzerNodes';
+import { packageChildren } from './nuget/packageNodes';
 
 const log = logger('SolutionExpansionService');
 
@@ -39,10 +40,11 @@ export class SolutionExpansionService {
             await updateWebviewCallback();
 
             let children: ProjectNode[] = [];
-            const analyzerNodes = await analyzerChildren(node);
+            // Analyzers and packages expand to what MSBuild and the last restore report
+            const dependencyNodes = await analyzerChildren(node) ?? packageChildren(node);
 
-            if (analyzerNodes) {
-                children = SolutionTreeService.convertProjectChildrenToProjectNodes(analyzerNodes);
+            if (dependencyNodes) {
+                children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencyNodes);
             } else if (node.type === 'solution') {
                 // Solution is always expanded when loaded, but check if we need to restore state
                 const existingNode = SolutionTreeService.findNodeById(nodeId, cachedSolutionData || []);
@@ -546,10 +548,11 @@ export class SolutionExpansionService {
             }
 
             let children: ProjectNode[] = [];
-            const analyzerNodes = await analyzerChildren(NodeIdService.parse(nodeId));
+            const parsedNode = NodeIdService.parse(nodeId);
+            const dependencyNodes = await analyzerChildren(parsedNode) ?? packageChildren(parsedNode);
 
-            if (analyzerNodes) {
-                children = SolutionTreeService.convertProjectChildrenToProjectNodes(analyzerNodes);
+            if (dependencyNodes) {
+                children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencyNodes);
             } else if (nodeType === 'solution') {
                 // Solution children are already loaded in the initial tree
                 return;

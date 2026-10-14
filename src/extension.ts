@@ -182,10 +182,10 @@ export function activate(context: vscode.ExtensionContext) {
             solutionWebviewProvider.refresh();
         }),
         ...registerNativeContextMenuCommands(solutionWebviewProvider),
-        // Builds write new source generator output: show it under Dependencies > Analyzers
+        // Builds write new source generator output (Dependencies > Analyzers), restores a new package graph
         vscode.tasks.onDidEndTaskProcess(event => {
             const task = event.execution.task;
-            if ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild'].includes(task.definition.action))
+            if ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild', 'restore'].includes(task.definition.action))
                 || task.name === 'StartupPreBuild') {
                 solutionWebviewProvider.refresh();
             }

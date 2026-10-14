@@ -3,18 +3,7 @@ import { NodeId, NodeIdService } from './nodeIdService';
 import { ProjectChild } from '../types';
 import { analyzerAssemblies, generatedFiles, queryAnalyzers, sourceGenerators } from './analyzers';
 import { BuildConfiguration } from './buildConfiguration';
-import { SolutionService } from './solutionService';
-
-/** The framework whose analyzers and generated files are shown: the active one, if the project targets it */
-function frameworkOf(projectPath: string): string | undefined {
-    const solution = SolutionService.getActiveSolution();
-    const frameworks = solution?.getProject(projectPath)?.frameworks ?? [];
-    if (frameworks.length <= 1) {
-        return undefined;
-    }
-    const active = solution?.getActiveFramework();
-    return active && frameworks.includes(active) ? active : frameworks[0];
-}
+import { activeFrameworkOf as frameworkOf } from './projectFramework';
 
 async function generatedDirOf(projectPath: string): Promise<string | undefined> {
     return (await queryAnalyzers(projectPath, BuildConfiguration.active, frameworkOf(projectPath))).generatedDir;

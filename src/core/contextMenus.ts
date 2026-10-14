@@ -176,6 +176,8 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['copyFullPath', 'revealInExplorer'],
     ],
     analyzer: [],
+    // Packages a package depends on can't be removed, only the package that brings them in
+    transitivePackage: [],
     sourceGenerator: [],
     // Opens read-only: the next build overwrites it
     generatedFile: [

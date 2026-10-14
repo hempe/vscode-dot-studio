@@ -264,7 +264,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 if (node.name === 'Assemblies') return { icon: 'mdi:package-variant', color: '#dcdcdc' };
                 if (node.name === 'Frameworks') return { icon: 'hugeicons:frameworks', color: '#dcdcdc' };
                 return { icon: 'mdi:folder', color: '#d8ac6a' };
-            case 'dependency': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
+            case 'dependency':
+            case 'transitivePackage': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
             case 'analyzer': return { icon: 'mdi:magnify-scan', color: '#dcdcdc' };
             case 'sourceGenerator': return { icon: 'mdi:cog-outline', color: '#dcdcdc' };
             default: return { icon: 'mdi:file', color: '#dcdcdc' };
