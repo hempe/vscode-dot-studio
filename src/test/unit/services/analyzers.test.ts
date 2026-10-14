@@ -1,7 +1,10 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { analyzerAssemblies, generatedFiles, parseAnalyzerQuery, sourceGenerators } from '../../../services/analyzers';
+import { spawnSync } from 'child_process';
+import { analyzerAssemblies, generatedFiles, parseAnalyzerQuery, queryAnalyzers, sourceGenerators } from '../../../services/analyzers';
+
+const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 
 describe('analyzers', () => {
     const msbuildOutput = JSON.stringify({
@@ -69,4 +72,27 @@ describe('analyzers', () => {
             expect(sourceGenerators(missing, 'Microsoft.AspNetCore.Analyzers')).toEqual([]);
         });
     });
+
+    withDotnet('asks MSBuild for framework analyzers and generators referenced as projects, without building them', async () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'analyzers-'));
+        try {
+            const project = (name: string, content: string) => {
+                fs.mkdirSync(path.join(root, name));
+                fs.writeFileSync(path.join(root, name, `${name}.csproj`), content);
+                return path.join(root, name, `${name}.csproj`);
+            };
+            project('Generators', '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>netstandard2.0</TargetFramework></PropertyGroup></Project>');
+            const app = project('App', `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+                <ItemGroup><ProjectReference Include="../Generators/Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" /></ItemGroup></Project>`);
+            expect(spawnSync('dotnet', ['restore', app], { cwd: root }).status).toBe(0);
+
+            const { analyzers, generatedDir } = await queryAnalyzers(app, 'Debug');
+
+            expect(analyzers).toEqual(expect.arrayContaining(['Generators', 'System.Text.Json.SourceGeneration']));
+            expect(generatedDir).toBe(path.join(root, 'App', 'obj', 'Debug', 'net10.0', 'generated'));
+            expect(fs.existsSync(path.join(root, 'Generators', 'bin'))).toBe(false);
+        } finally {
+            fs.rmSync(root, { recursive: true, force: true });
+        }
+    }, 120000);
 });

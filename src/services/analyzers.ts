@@ -106,7 +106,10 @@ export function queryAnalyzers(projectPath: string, configuration: string, frame
     };
     const result = execFileAsync('dotnet', [
         'msbuild', projectPath, '-nologo',
-        '-target:ResolvePackageAssets;ResolveTargetingPackAssets',
+        // Analyzers of packages (also transitive ones), of the framework, and of projects referenced with
+        // OutputItemType="Analyzer" (resolved without building them)
+        '-target:ResolveLockFileAnalyzers;ResolveTargetingPackAssets;ResolveProjectReferences',
+        '-property:BuildProjectReferences=false',
         '-getItem:Analyzer', '-getProperty:CompilerGeneratedFilesOutputPath',
         EMIT_GENERATED_FILES,
         `-property:Configuration=${configuration}`,
