@@ -12,7 +12,7 @@ import { ProjectActionCmd } from '../../../types/commands/project-action';
  * Smart merge of tree data that preserves React component instances where possible
  * This prevents unnecessary re-renders and maintains expansion visual state
  */
-const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData): SolutionData => {
+export const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData): SolutionData => {
     if (!currentData || !currentData.projects) {
         // No current data, use new data as-is
         return newData;
@@ -40,22 +40,11 @@ const mergeTreeData = (currentData: SolutionData | null, newData: SolutionData):
             const currentNode = currentNodesMap.get(newNode.nodeId);
 
             if (currentNode) {
-                // Node exists in current tree - check if we can preserve the reference
-                const nodeChanged = JSON.stringify({
-                    type: currentNode.type,
-                    name: currentNode.name,
-                    path: currentNode.path,
-                    expanded: currentNode.expanded,
-                    isLoading: currentNode.isLoading,
-                    hasChildren: currentNode.hasChildren
-                }) !== JSON.stringify({
-                    type: newNode.type,
-                    name: newNode.name,
-                    path: newNode.path,
-                    expanded: newNode.expanded,
-                    isLoading: newNode.isLoading,
-                    hasChildren: newNode.hasChildren
-                });
+                // Node exists in current tree - preserve the reference unless anything but its children changed
+                // (e.g. isStartupProject or contextValue after "Set as Startup Project")
+                const { children: _currentChildren, ...currentProps } = currentNode;
+                const { children: _newChildren, ...newProps } = newNode;
+                const nodeChanged = JSON.stringify(currentProps) !== JSON.stringify(newProps);
 
                 if (!nodeChanged) {
                     // Node hasn't changed - preserve the current object reference
