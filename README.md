@@ -96,7 +96,7 @@ Useful settings of the C# extension:
 
 ## Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, configurations, coverage), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cover web apps, SOAP clients, templates, tests and private feeds, phase 7.5 the Visual Studio basics still missing; phase 8 collects conveniences, phase 9 is publishing, phase 10 the second round of Visual Studio basics (solutions, configurations, coverage), phase 11 code cleanup and refactoring, phases 12–15 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 20 what may come later, phase 21 the other publish targets. What still needs a check in VS Code itself is listed in [docs/manual-testing.md](docs/manual-testing.md).
 
 ### Phase 1: Stabilize
 - [x] Fix the failing tests and the file nesting duplication
@@ -200,12 +200,9 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
 ### Phase 9: Publish
-**Goal**: Visual Studio's Publish dialog: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.
+**Goal**: Visual Studio's Publish page for the Folder target: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.
 
-- [ ] "Publish..." on a project: the existing profiles, Publish button, new profile; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
-- [ ] Container registry target (the SDK's container publish, credentials from `docker login`)
-- [ ] Azure App Service target (ZIP deploy, sign-in through the Azure CLI)
-- [ ] FTP target (upload after a folder publish); IIS Web Deploy only on Windows, where `msdeploy` exists
+- [ ] "Publish..." on a project: a Publish tab with the existing profiles, Publish button and summary (location, configuration, framework, deployment mode, runtime), new profile, rename and delete; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
 
 ### Phase 10: Visual Studio Basics, Part 2
 **Goal**: The larger everyday features of Visual Studio that are still missing.
@@ -256,6 +253,14 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them, like Visual Studio; restore already warns about vulnerable packages (NuGet Audit) in the Error List
 - [ ] NuGet package sources like Visual Studio: a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
+
+### Phase 21: Publish, Part 2
+**Goal**: The other publish targets of Visual Studio, with the `.pubxml` format Visual Studio writes for each (to be gathered from Visual Studio-made profiles first).
+
+- [ ] Azure App Service target (ZIP deploy through the Azure CLI, no stored password)
+- [ ] Container registry target (the SDK's container publish, credentials from `docker login` / `az acr login`)
+- [ ] FTP/FTPS target (upload after a folder publish, password in VS Code's secret storage)
+- [ ] IIS Web Deploy, only on Windows where `msdeploy` exists
 
 ### Not Planned
 - .NET Framework 4.x / Mono build and debug support
