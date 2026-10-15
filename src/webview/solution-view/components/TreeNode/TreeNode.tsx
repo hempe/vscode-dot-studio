@@ -20,9 +20,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onToggleExpand,
     onNodeClick,
     onNodeFocus,
+    onNodeContextMenu,
     onRenameConfirm,
     onRenameCancel,
     selectedNodeId,
+    selectedNodeIds,
     focusedNodeId,
     renamingNodeId,
     markers
@@ -35,12 +37,18 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const isActiveFile = false;
 
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent) => {
         log.info(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
 
         // Don't handle clicks if node is loading or is temporary
         if (node.isLoading || node.isTemporary) {
             log.info(`Node ${node.name} is loading or temporary, ignoring click`);
+            return;
+        }
+
+        // Ctrl/Cmd+click and Shift+click change the selection only, like Visual Studio
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            onNodeClick(nodeIdentifier, { toggle: e.ctrlKey || e.metaKey, range: e.shiftKey });
             return;
         }
 
@@ -107,6 +115,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             return;
         }
         // Don't prevent default: VS Code shows the native webview/context menu for this row
+        onNodeContextMenu?.(nodeIdentifier);
         onNodeFocus(nodeIdentifier);
     };
 
@@ -273,7 +282,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const paddingLeft = level * 16;
-    const isSelected = selectedNodeId === nodeIdentifier;
+    const isSelected = selectedNodeId === nodeIdentifier || !!selectedNodeIds?.has(nodeIdentifier);
     const isFocused = focusedNodeId === nodeIdentifier;
     const marker = markers?.[nodeIdentifier];
     const markerTitle = marker ? describeMarker(marker) : undefined;
@@ -418,9 +427,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onToggleExpand={onToggleExpand}
                             onNodeClick={onNodeClick}
                             onNodeFocus={onNodeFocus}
+                            onNodeContextMenu={onNodeContextMenu}
                             onRenameConfirm={onRenameConfirm}
                             onRenameCancel={onRenameCancel}
                             selectedNodeId={selectedNodeId}
+                            selectedNodeIds={selectedNodeIds}
                             focusedNodeId={focusedNodeId}
                             renamingNodeId={renamingNodeId}
                             markers={markers}

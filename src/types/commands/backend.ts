@@ -114,6 +114,14 @@ export declare type TreeFocusChangedCmd = {
     }
 }
 
+/** The nodes selected in the tree (Ctrl/Shift+click), for commands that act on all of them */
+export declare type TreeSelectionChangedCmd = {
+    readonly type: 'treeSelectionChanged',
+    readonly payload: {
+        readonly nodeIds: NodeIdString[]
+    }
+}
+
 export declare type BackendCmd =
     GetPackageReadmeCmd |
     GetPackageIconCmd |
@@ -129,4 +137,5 @@ export declare type BackendCmd =
     ProjectActionBackendCmd |
     ExpandNodeCmd |
     CollapseNodeCmd |
-    TreeFocusChangedCmd;
+    TreeFocusChangedCmd |
+    TreeSelectionChangedCmd;

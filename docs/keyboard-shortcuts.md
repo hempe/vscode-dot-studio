@@ -26,6 +26,7 @@ Keys in the Solution Explorer act on the node that has focus. Which commands eac
 | Left | Collapse, or go to the parent |
 | Enter | Open a file; expand or collapse anything else |
 | Space | Select the focused node |
+| Ctrl+click / Shift+click | Add a node to the selection / select a range (macOS: Cmd+click) |
 | Home / End | First / last node |
 | Page Up / Page Down | 10 nodes up / down |
 | Letters | Jump to the next node whose name starts with what you type (within a second: `pr` finds `Program.cs`); the same letter again goes to the next match |

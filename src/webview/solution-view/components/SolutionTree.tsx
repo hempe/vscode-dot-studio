@@ -14,7 +14,14 @@ const log = logger('SolutionTree');
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
-    const [selectedNodeId, setSelectedNodeId] = useState<NodeIdString | undefined>();
+    // Multi-select: the selected nodes, and where a Shift+click range starts
+    const [selection, setSelection] = useState<NodeIdString[]>([]);
+    const [selectionAnchor, setSelectionAnchor] = useState<NodeIdString>();
+    const setSelectedNodeId = (nodeId: NodeIdString | undefined) => {
+        setSelection(nodeId ? [nodeId] : []);
+        setSelectionAnchor(nodeId);
+    };
+    const selectedNodeIds = React.useMemo(() => new Set(selection), [selection]);
     const [focusedNodeId, setFocusedNodeId] = useState<NodeIdString | undefined>();
     const [renamingNodeId, setRenamingNodeId] = useState<NodeIdString | undefined>();
     const [localLoadingNodes, setLocalLoadingNodes] = useState<Set<string>>(new Set());
@@ -53,10 +60,30 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         }
     };
 
-    const handleNodeClick = (nodeId: NodeIdString) => {
+    const handleNodeClick = (nodeId: NodeIdString, modifiers?: { toggle?: boolean; range?: boolean }) => {
         log.info(`Node clicked: ${nodeId}`);
-        setSelectedNodeId(nodeId);
         setFocusedNodeId(nodeId);
+        if (modifiers?.range && selectionAnchor) {
+            const ids = flatNodes.map(item => item.node.nodeId);
+            const [from, to] = [ids.indexOf(selectionAnchor), ids.indexOf(nodeId)].sort((a, b) => a - b);
+            if (from >= 0) {
+                const range = ids.slice(from, to + 1);
+                setSelection(current => modifiers.toggle ? [...new Set([...current, ...range])] : range);
+                return;
+            }
+        }
+        if (modifiers?.toggle) {
+            setSelection(current => current.includes(nodeId) ? current.filter(id => id !== nodeId) : [...current, nodeId]);
+            setSelectionAnchor(nodeId);
+            return;
+        }
+        setSelectedNodeId(nodeId);
+    };
+
+    const handleNodeContextMenu = (nodeId: NodeIdString) => {
+        if (!selectedNodeIds.has(nodeId)) {
+            setSelectedNodeId(nodeId);
+        }
     };
 
     const handleNodeFocus = (nodeId: NodeIdString) => {
@@ -363,6 +390,11 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         });
     }, [shortcutNode?.nodeId, shortcutNode?.type]);
 
+    // The extension applies multi-select commands (Delete, Build, ...) to all selected nodes
+    useEffect(() => {
+        sendToBackend({ type: 'treeSelectionChanged', payload: { nodeIds: selection } });
+    }, [selection]);
+
     // Check if any node in the tree is loading (backend state or local frontend state)
     const hasLoadingNode = useCallback((nodes: ProjectNode[]): boolean => {
         for (const node of nodes) {
@@ -445,7 +477,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     onNodeFocus={handleNodeFocus}
                     onRenameConfirm={handleRenameConfirm}
                     onRenameCancel={handleRenameCancel}
-                    selectedNodeId={selectedNodeId}
+                    selectedNodeIds={selectedNodeIds}
+                    onNodeContextMenu={handleNodeContextMenu}
                     focusedNodeId={focusedNodeId}
                     renamingNodeId={renamingNodeId}
                     markers={markers}

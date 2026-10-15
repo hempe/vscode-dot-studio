@@ -1,7 +1,7 @@
 <!-- Generated from src/core/contextMenus.ts by `npm run generate:menus`; edit the descriptions there. -->
 # Solution Explorer Context Menus
 
-What each right-click menu of the Solution Explorer offers, by node. Keys work while the node has focus in the tree.
+What each right-click menu of the Solution Explorer offers, by node. Keys work while the node has focus in the tree. With several nodes selected, Delete, Remove, Copy, Cut, Build, Rebuild and Clean act on all of them.
 
 ## Solution
 

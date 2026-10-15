@@ -21,7 +21,10 @@ jest.mock('vscode', () => {
         workspace: {
             createFileSystemWatcher: () => watcher,
             workspaceFolders: undefined,
-            fs: { rename: async (from: any, to: any) => require('fs').renameSync(from.fsPath, to.fsPath) },
+            fs: {
+                rename: async (from: any, to: any) => require('fs').renameSync(from.fsPath, to.fsPath),
+                delete: async (uri: any) => require('fs').rmSync(uri.fsPath, { recursive: true }),
+            },
         },
         window: {
             showInputBox: async () => ui.inputBox,
@@ -44,6 +47,7 @@ import { Solution } from '../../../core/Solution';
 import { SolutionService } from '../../../services/solutionService';
 import { SolutionActionService } from '../../../services/solutionActionService';
 import { SolutionTreeService } from '../../../services/solutionTreeService';
+import { NodeIdService } from '../../../services/nodeIdService';
 import { ProjectNode } from '../../../types';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
 
@@ -320,5 +324,30 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
         const active = SolutionService.getActiveSolution()!;
         expect(active.solutionPath).toBe(renamed);
         active.dispose();
+    });
+
+    test('removes several selected solution items at once, asking once (multi-select)', async () => {
+        ui.openDialog = path.join(dir, 'README.md');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solution')).nodeId });
+        ui.openDialog = path.join(dir, 'LICENSE');
+        await run({ action: 'addSolutionItem', nodeId: (await find('solution')).nodeId });
+        const items = [await find('solutionItem', 'Solution Items', 'README.md'), await find('solutionItem', 'Solution Items', 'LICENSE')];
+
+        await SolutionActionService.handleMultiAction('removeSolutionItem', items.map(item => item.nodeId));
+
+        expect(await outline()).toEqual(['solutionFolder: Libs', '  project: Lib', 'solutionFolder: Solution Items']);
+        expect(fs.existsSync(path.join(dir, 'README.md'))).toBe(true);
+    });
+
+    test('deletes several selected files at once (multi-select)', async () => {
+        const a = path.join(dir, 'a.txt');
+        const b = path.join(dir, 'b.txt');
+        fs.writeFileSync(a, '');
+        fs.writeFileSync(b, '');
+
+        await SolutionActionService.handleMultiAction('deleteFile', [a, b].map(file => NodeIdService.generateFileId(file)));
+
+        expect([fs.existsSync(a), fs.existsSync(b)]).toEqual([false, false]);
+        expect(ui.errors).toEqual([]);
     });
 });

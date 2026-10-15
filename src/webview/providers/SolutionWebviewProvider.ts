@@ -15,7 +15,7 @@ import { sendToUi } from '../nuget-view/shared';
 import { BackendCmd } from '../../types/commands/backend';
 import { ProjectActionCmd } from '../../types/commands/project-action';
 import { sln } from '../../core/utils';
-import { FOCUSED_NODE_TYPE_CONTEXT } from '../../core/contextMenus';
+import { FOCUSED_NODE_TYPE_CONTEXT, MenuCommandAction, menuCommands, nodeTypesWithAction } from '../../core/contextMenus';
 import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
 import { IconThemeService } from '../../services/iconThemeService';
@@ -35,6 +35,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _isRenaming: boolean = false;
     private _focusedNodeId?: NodeIdString;
+    /** Nodes selected with Ctrl/Shift+click, reported by the webview */
+    private _selectedNodeIds: NodeIdString[] = [];
 
     private _solutionChangeListener?: vscode.Disposable;
     /** The solution `_solutionChangeListener` listens to; another one is loaded e.g. after renaming the solution */
@@ -168,6 +170,20 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             sendToUi(this.webview, { type: 'startRename', payload: { nodeId } });
             return;
         }
+        // On a node of a multi-selection, commands of Visual Studio's multi-select act on all selected nodes
+        // that offer them (a menu only knows the clicked node)
+        if (this._selectedNodeIds.length > 1 && this._selectedNodeIds.includes(nodeId)
+            && SolutionActionService.multiSelectActions.includes(action) && action in menuCommands) {
+            const types = nodeTypesWithAction(action as MenuCommandAction);
+            const targets = this._selectedNodeIds.filter(id => types.includes(NodeIdService.parse(id).type));
+            if (targets.length > 1) {
+                await SolutionActionService.handleMultiAction(action, targets);
+                if (!['copy', 'cut', 'build', 'rebuild', 'clean'].includes(action)) {
+                    await this._triggerImmediateTreeRefresh(`${action} on ${targets.length} nodes`);
+                }
+                return;
+            }
+        }
         await this._handleMessage({ type: 'projectAction', payload: { action, nodeId } as ProjectActionCmd });
     }
 
@@ -266,6 +282,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         }
                     }
                 }
+                break;
+
+            case 'treeSelectionChanged':
+                this._selectedNodeIds = message.payload.nodeIds;
                 break;
 
             case 'treeFocusChanged':

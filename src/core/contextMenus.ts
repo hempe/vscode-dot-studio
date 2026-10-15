@@ -271,10 +271,17 @@ export function buildMenuReference(): string {
         '<!-- Generated from src/core/contextMenus.ts by `npm run generate:menus`; edit the descriptions there. -->',
         '# Solution Explorer Context Menus',
         '',
-        'What each right-click menu of the Solution Explorer offers, by node. Keys work while the node has focus in the tree.',
+        'What each right-click menu of the Solution Explorer offers, by node. Keys work while the node has focus in the tree. With several nodes selected, Delete, Remove, Copy, Cut, Build, Rebuild and Clean act on all of them.',
         '',
         ...sections,
     ].join('\n');
+}
+
+/** The node types whose menus (including the conditional ones) offer the command */
+export function nodeTypesWithAction(action: MenuCommandAction): NodeType[] {
+    return [...new Set(menuEntries()
+        .filter(({ menu }) => menu.some(group => group.includes(action)))
+        .map(({ nodeType }) => nodeType))];
 }
 
 /** All menus with the node type and the condition they apply to (context value or being in a test project) */
@@ -293,9 +300,7 @@ function menuEntries() {
 export function buildMenuContributions() {
     const webviewWhen = 'webviewId =~ /^shinobi-solution-webview/ && webviewSection == \'node\'';
     const actions = Object.keys(menuCommands) as MenuCommandAction[];
-    const nodeTypesWith = (action: MenuCommandAction) => [...new Set(menuEntries()
-        .filter(({ menu }) => menu.some(group => group.includes(action)))
-        .map(({ nodeType }) => nodeType))];
+    const nodeTypesWith = nodeTypesWithAction;
     const submenuId = (id: SubmenuId) => COMMAND_PREFIX + id;
 
     const commands = actions.map(action => ({

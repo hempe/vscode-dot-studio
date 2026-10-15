@@ -11,6 +11,7 @@ import { createDotnetTask, DotnetTaskAction, DOTNET_TASK_TYPE } from './dotnetTa
 import { ProjectFileEditor } from '../parsers/projectFileEditor';
 import { renameFileAndType } from './typeRename';
 import { copyExistingItems } from './existingItems';
+import { runTask } from './runTask';
 import { manageUserSecrets } from './userSecrets';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
@@ -190,11 +191,11 @@ export class SolutionActionService {
                 break;
 
             case 'copy':
-                await this._handleCopy(nodeId, cmd.nodeId);
+                await this._handleCopy(nodeId);
                 break;
 
             case 'cut':
-                await this._handleCut(nodeId, cmd.nodeId);
+                await this._handleCut(nodeId);
                 break;
 
             case 'paste':
@@ -1177,15 +1178,15 @@ export class SolutionActionService {
 
     // Static clipboard to store copy/cut operations
     private static clipboard: {
-        nodeId: NodeIdString;
-        path: string;
+        /** The copied or cut files and folders */
+        paths: string[];
         operation: 'copy' | 'cut';
     } | null = null;
 
     /**
      * Handles copying a file or folder to the clipboard
      */
-    private static async _handleCopy(nodeId: NodeId, nodeIdString: NodeIdString): Promise<void> {
+    private static async _handleCopy(nodeId: NodeId): Promise<void> {
         try {
             const itemPath = nodeId.path;
             if (!itemPath) {
@@ -1194,11 +1195,7 @@ export class SolutionActionService {
                 return;
             }
 
-            this.clipboard = {
-                nodeId: nodeIdString,
-                path: itemPath,
-                operation: 'copy',
-            };
+            this.clipboard = { paths: [itemPath], operation: 'copy' };
 
             log.info(`Copied to clipboard: ${itemPath}`);
         } catch (error) {
@@ -1210,7 +1207,7 @@ export class SolutionActionService {
     /**
      * Handles cutting a file or folder to the clipboard
      */
-    private static async _handleCut(nodeId: NodeId, nodeIdString: NodeIdString): Promise<void> {
+    private static async _handleCut(nodeId: NodeId): Promise<void> {
         try {
             const itemPath = nodeId.path;
             if (!itemPath) {
@@ -1219,16 +1216,149 @@ export class SolutionActionService {
                 return;
             }
 
-            this.clipboard = {
-                nodeId: nodeIdString,
-                path: itemPath,
-                operation: 'cut',
-            };
+            this.clipboard = { paths: [itemPath], operation: 'cut' };
 
             log.info(`Cut to clipboard: ${itemPath}`);
         } catch (error) {
             log.error('Error cutting item:', error);
             vscode.window.showErrorMessage(`Error cutting item: ${error}`);
+        }
+    }
+
+    /**
+     * Commands of Visual Studio's multi-select: they act on all selected nodes of the kinds that offer them,
+     * asking once. Other commands act on the clicked node only.
+     */
+    static readonly multiSelectActions: readonly ProjectActionCmd['action'][] = [
+        'deleteFile', 'removeProject', 'removeSolutionItem', 'removeDependency', 'copy', 'cut', 'build', 'rebuild', 'clean',
+    ];
+
+    static async handleMultiAction(action: ProjectActionCmd['action'], nodeIdStrings: readonly NodeIdString[]): Promise<void> {
+        const nodes = nodeIdStrings.map(id => NodeIdService.parse(id));
+        const confirm = async (question: string, button: string) =>
+            await vscode.window.showWarningMessage(question, { modal: true }, button) === button;
+        const solution = SolutionService.getActiveSolution();
+        try {
+            switch (action) {
+                case 'deleteFile':
+                    if (await confirm(`Delete ${nodes.length} items? They are moved to the trash.`, 'Delete')) {
+                        for (const node of nodes) {
+                            await vscode.workspace.fs.delete(vscode.Uri.file(node.path), { recursive: true, useTrash: true });
+                        }
+                    }
+                    break;
+                case 'removeProject':
+                    if (solution && await confirm(`Remove ${nodes.length} projects from the solution? Their files stay on disk.`, 'Remove')) {
+                        for (const node of nodes) {
+                            await solution.removeProject(node.path);
+                        }
+                    }
+                    break;
+                case 'removeSolutionItem':
+                    if (solution && await confirm(`Remove ${nodes.length} items from the solution? The files stay on disk.`, 'Remove')) {
+                        for (const node of nodes) {
+                            await solution.removeSolutionItem(node.path);
+                        }
+                    }
+                    break;
+                case 'removeDependency':
+                    if (await confirm(`Remove ${nodes.length} references from their projects?`, 'Remove')) {
+                        for (const node of nodes) {
+                            const info = NodeIdService.getDependencyInfoFromNode(node);
+                            if (info) {
+                                await this._removeDependencyFromCsproj(info.projectPath, info.dependencyType, info.dependencyName);
+                            }
+                        }
+                    }
+                    break;
+                case 'copy':
+                case 'cut':
+                    this.clipboard = { paths: nodes.map(node => node.path), operation: action };
+                    break;
+                case 'build':
+                case 'rebuild':
+                case 'clean':
+                    // One after the other, like Visual Studio's Build Selection
+                    for (const node of nodes) {
+                        const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action, target: node.path }));
+                        if (exitCode !== 0) {
+                            break;
+                        }
+                    }
+                    break;
+                default:
+                    log.warn(`${action} has no multi-select variant`);
+            }
+        } catch (error) {
+            log.error(`${action} on ${nodes.length} nodes failed:`, error);
+            vscode.window.showErrorMessage(`${action} failed: ${error instanceof Error ? error.message : error}`);
+        }
+    }
+
+    /** Copies or moves one file or folder into `pasteTargetPath`, asking before replacing */
+    private static async _pasteOne(sourcePath: string, pasteTargetPath: string, operation: 'copy' | 'cut'): Promise<void> {
+        const sourceName = path.basename(sourcePath);
+        const destinationPath = path.join(pasteTargetPath, sourceName);
+
+        const sourceUri = vscode.Uri.file(sourcePath);
+        const destinationUri = vscode.Uri.file(destinationPath);
+
+        // Check if source still exists
+        try {
+            await vscode.workspace.fs.stat(sourceUri);
+        } catch {
+            vscode.window.showErrorMessage('Source item no longer exists');
+            return;
+        }
+
+        // Check if destination already exists
+        let destinationExists = false;
+        try {
+            await vscode.workspace.fs.stat(destinationUri);
+            destinationExists = true;
+        } catch {
+            // Destination doesn't exist, which is fine
+        }
+
+        if (destinationExists) {
+            const choice = await vscode.window.showWarningMessage(
+                `A file or folder with the name '${sourceName}' already exists in the destination folder. Do you want to replace it?`,
+                { modal: true },
+                'Replace',
+                'Cancel'
+            );
+            if (choice !== 'Replace') {
+                return;
+            }
+        }
+
+        const wasFileMoved = operation === 'cut' && destinationPath.endsWith('.cs');
+        log.debug(`Checking namespace updates: operation=${operation}, destinationPath=${destinationPath}, wasFileMoved=${wasFileMoved}`);
+
+        if (operation === 'copy') {
+            // Copy operation using VS Code's workspace API
+            await vscode.workspace.fs.copy(sourceUri, destinationUri, { overwrite: true });
+            log.info(`Copied ${sourcePath} to ${destinationPath}`);
+        } else {
+            // Cut operation (move) using VS Code's workspace API
+            await vscode.workspace.fs.rename(sourceUri, destinationUri);
+            log.info(`Moved ${sourcePath} to ${destinationPath}`);
+        }
+
+        // Force refresh the solution tree to ensure UI updates
+        const solution = SolutionService.getActiveSolution();
+        if (solution) {
+            await solution.forceRefreshAllProjects();
+        }
+
+        // Now check namespace updates for moved C# files
+        if (wasFileMoved) {
+            log.info(`Triggering namespace check for moved C# file: ${destinationPath}`);
+
+            // The expected namespace comes from the project the file was moved into
+            await this._checkAndUpdateNamespace(destinationPath, 'File moved');
+        } else {
+            log.debug(`Namespace check skipped - not a moved C# file`);
         }
     }
 
@@ -1269,74 +1399,13 @@ export class SolutionActionService {
                 return;
             }
 
-            const sourcePath = this.clipboard.path;
-            const sourceName = path.basename(sourcePath);
-            const destinationPath = path.join(pasteTargetPath, sourceName);
-
-            const sourceUri = vscode.Uri.file(sourcePath);
-            const destinationUri = vscode.Uri.file(destinationPath);
-
-            // Check if source still exists
-            try {
-                await vscode.workspace.fs.stat(sourceUri);
-            } catch {
-                vscode.window.showErrorMessage('Source item no longer exists');
+            const { paths, operation } = this.clipboard;
+            for (const sourcePath of paths) {
+                await this._pasteOne(sourcePath, pasteTargetPath, operation);
+            }
+            if (operation === 'cut') {
                 this.clipboard = null;
-                return;
             }
-
-            // Check if destination already exists
-            let destinationExists = false;
-            try {
-                await vscode.workspace.fs.stat(destinationUri);
-                destinationExists = true;
-            } catch {
-                // Destination doesn't exist, which is fine
-            }
-
-            if (destinationExists) {
-                const choice = await vscode.window.showWarningMessage(
-                    `A file or folder with the name '${sourceName}' already exists in the destination folder. Do you want to replace it?`,
-                    { modal: true },
-                    'Replace',
-                    'Cancel'
-                );
-                if (choice !== 'Replace') {
-                    return;
-                }
-            }
-
-            // Check if namespace updates are needed for moved C# files BEFORE clearing clipboard
-            const wasFileMoved = this.clipboard.operation === 'cut' && destinationPath.endsWith('.cs');
-            log.debug(`Checking namespace updates: clipboard=${!!this.clipboard}, operation=${this.clipboard?.operation}, destinationPath=${destinationPath}, wasFileMoved=${wasFileMoved}`);
-
-            if (this.clipboard.operation === 'copy') {
-                // Copy operation using VS Code's workspace API
-                await vscode.workspace.fs.copy(sourceUri, destinationUri, { overwrite: true });
-                log.info(`Copied ${sourcePath} to ${destinationPath}`);
-            } else {
-                // Cut operation (move) using VS Code's workspace API
-                await vscode.workspace.fs.rename(sourceUri, destinationUri);
-                log.info(`Moved ${sourcePath} to ${destinationPath}`);
-                this.clipboard = null; // Clear clipboard after cut operation
-            }
-
-            // Force refresh the solution tree to ensure UI updates
-            const solution = SolutionService.getActiveSolution();
-            if (solution) {
-                await solution.forceRefreshAllProjects();
-            }
-
-            // Now check namespace updates for moved C# files
-            if (wasFileMoved) {
-                log.info(`Triggering namespace check for moved C# file: ${destinationPath}`);
-
-                // The expected namespace comes from the project the file was moved into
-                await this._checkAndUpdateNamespace(destinationPath, 'File moved');
-            } else {
-                log.debug(`Namespace check skipped - not a moved C# file`);
-            }
-
         } catch (error) {
             log.error('Error pasting item:', error);
             vscode.window.showErrorMessage(`Error pasting item: ${error}`);

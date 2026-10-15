@@ -11,11 +11,16 @@ export interface TreeNodeProps {
     activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionCmd) => void;
     onToggleExpand: (nodeId: NodeIdString, nodeType: NodeType) => void;
-    onNodeClick: (nodeId: NodeIdString) => void;
+    /** `toggle`: Ctrl/Cmd+click, `range`: Shift+click (multi-select) */
+    onNodeClick: (nodeId: NodeIdString, modifiers?: { toggle?: boolean; range?: boolean }) => void;
     onNodeFocus: (nodeId: NodeIdString) => void;
+    /** Right-click: a node outside the selection becomes the only selected one */
+    onNodeContextMenu?: (nodeId: NodeIdString) => void;
     onRenameConfirm: (newName: string, nodeId: NodeIdString, nodeType: NodeType, oldName: string) => void;
     onRenameCancel: () => void;
     selectedNodeId?: NodeIdString; // Node ID for selection
+    /** All selected nodes (multi-select) */
+    selectedNodeIds?: ReadonlySet<NodeIdString>;
     focusedNodeId?: NodeIdString; // Node ID for focus
     renamingNodeId?: NodeIdString; // Node ID for renaming
     markers?: DiagnosticMarkers; // Error/warning markers by node ID

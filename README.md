@@ -158,7 +158,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 
 ### Phase 14: Starting Fresh & Multi-Select
 - [x] Create a new solution with its first project in an empty folder, like Visual Studio's "Create a new project"
-- [ ] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
+- [x] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
 
 ### Phase 15: Scale
 - [ ] Multi-root workspaces: a solution in any workspace folder, not only the first
