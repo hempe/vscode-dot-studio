@@ -155,7 +155,10 @@ export class SolutionExpansionService {
             }
 
             const expandedIds = this.getExpansionState(context);
-            await this._updateNodeExpansionState(nodeId, true, node.type === 'solution' ? undefined : children, cachedSolutionData, false, expandedIds);
+            // Only nodes whose children load on demand get new ones; the solution's are there from the start, and
+            // nested files (Index.cshtml.cs under Index.cshtml) come with their parent
+            const loadsChildren = !['solution', 'file', 'solutionItem', 'generatedFile'].includes(node.type);
+            await this._updateNodeExpansionState(nodeId, true, loadsChildren ? children : undefined, cachedSolutionData, false, expandedIds);
 
             // Update expansion state in persistent storage
             const expandedNodes = this.getExpandedNodePaths(cachedSolutionData || []);
