@@ -47,3 +47,20 @@ describe('NodeIdService', () => {
     });
 });
 
+
+describe('NodeIdService encoding', () => {
+    const id = { type: 'file' as const, path: '/repo/src/Api/Program.cs' };
+
+    it('makes opaque ids (nothing readable for the webview to depend on) without compressing them', () => {
+        const nodeId = NodeIdService.generateFileId(id.path);
+        expect(nodeId).not.toContain('Program');
+        expect(nodeId.startsWith('H4sI')).toBe(false); // no gzip
+        expect(NodeIdService.parse(nodeId)).toEqual(id);
+    });
+
+    it('still reads ids from before, which were gzipped (kept in the workspace state)', () => {
+        const old = require('zlib').gzipSync(Buffer.from(JSON.stringify(id))).toString('base64');
+        expect(NodeIdService.parse(old)).toEqual(id);
+        expect(NodeIdService.isValid(old)).toBe(true);
+    });
+});

@@ -59,4 +59,4 @@ User documentation is in `docs/` (index: `docs/README.md`), one page per area; t
 
 ### Node IDs
 
-Tree nodes are identified by `NodeIdString` (branded string, `src/types/nodeId.ts`). `services/nodeIdService.ts` encodes a typed JSON object (`{type: 'solution'|'project'|'folder'|'file'|'solutionFolder'|..., path, ...}`) with gzip compression. The webview treats IDs as opaque strings (`webview/shared/nodeIdUtils.ts` is browser-safe and does not decode); only the extension host should encode/decode them via `nodeIdService`.
+Tree nodes are identified by `NodeIdString` (branded string, `src/types/nodeId.ts`). `services/nodeIdService.ts` encodes a typed JSON object (`{type: 'solution'|'project'|'folder'|'file'|'solutionFolder'|..., path, ...}`) as base64url (older gzipped IDs still parse). The webview treats IDs as opaque strings (`webview/shared/nodeIdUtils.ts` is browser-safe and does not decode); only the extension host encodes/decodes them via `nodeIdService`, and a test fails if webview code imports it or decodes IDs.

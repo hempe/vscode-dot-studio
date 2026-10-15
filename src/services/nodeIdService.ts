@@ -1,10 +1,12 @@
 /**
- * Next-generation NodeId service using JSON structure with zlib compression
- * This replaces the string-based prefix system with a structured approach
+ * NodeId service: tree node ids are typed JSON objects, encoded as opaque base64url strings
  */
 
-import { gzipSync, gunzipSync } from 'zlib';
+import { gunzipSync } from 'zlib';
 import { NodeIdString } from '../types/nodeId';
+
+/** How gzip data starts in base64: the node ids of older versions */
+const GZIP_PREFIX = 'H4sI';
 
 
 // Define the structure of a NodeId
@@ -120,27 +122,29 @@ export declare type NodeId =
     TransitivePackageNodeId;
 
 /**
- * Service for generating and managing structured node IDs with compression
+ * Service for generating and reading structured node IDs
  */
 export class NodeIdService {
 
     /**
      * Compress a NodeId object into a Base64 string using gzip
      */
-    private static compress(nodeId: NodeId): NodeIdString {
-        const json = JSON.stringify(nodeId);
-        const compressed = gzipSync(Buffer.from(json, 'utf8'));
-        return compressed.toString('base64') as unknown as NodeIdString;
+    /**
+     * Encodes a NodeId as base64url JSON: opaque, so the webview can't come to depend on what an id contains
+     * (a test checks it never decodes one), but cheap to read here, unlike the gzip ids before
+     */
+    private static encode(nodeId: NodeId): NodeIdString {
+        return Buffer.from(JSON.stringify(nodeId), 'utf8').toString('base64url') as unknown as NodeIdString;
     }
 
-    /**
-     * Decompress a Base64 gzip string back into a NodeId object
-     */
-    static parse(compressedNodeId: NodeIdString): NodeId {
+    /** Reads a NodeId; also the gzipped ids of older versions (kept in the workspace's expansion state) */
+    static parse(nodeId: NodeIdString): NodeId {
         try {
-            const buffer = Buffer.from(compressedNodeId as unknown as string, 'base64');
-            const decompressed = gunzipSync(buffer).toString('utf8');
-            return JSON.parse(decompressed) as NodeId;
+            const text = nodeId as unknown as string;
+            const json = text.startsWith(GZIP_PREFIX)
+                ? gunzipSync(Buffer.from(text, 'base64')).toString('utf8')
+                : Buffer.from(text, 'base64url').toString('utf8');
+            return JSON.parse(json) as NodeId;
         } catch (error) {
             throw new Error(`Failed to parse nodeId: ${error}`);
         }
@@ -153,7 +157,7 @@ export class NodeIdService {
      * Generates a unique ID for a solution node
      */
     static generateSolutionId(solutionPath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'solution',
             path: solutionPath
         });
@@ -163,7 +167,7 @@ export class NodeIdService {
      * Generates a unique ID for a project node
      */
     static generateProjectId(projectPath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'project',
             path: projectPath
         });
@@ -173,7 +177,7 @@ export class NodeIdService {
      * Generates a unique ID for a folder node
      */
     static generateFolderId(folderPath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'folder',
             path: folderPath
         });
@@ -183,7 +187,7 @@ export class NodeIdService {
      * Generates a unique ID for a file node
      */
     static generateFileId(filePath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'file',
             path: filePath
         });
@@ -193,7 +197,7 @@ export class NodeIdService {
      * Generates a unique ID for a solution folder node
      */
     static generateSolutionFolderId(solutionItemName: string, solutionPath: string, guid: string, parentGuid?: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'solutionFolder',
             name: solutionItemName,
             path: solutionPath,
@@ -206,7 +210,7 @@ export class NodeIdService {
      * Generates a unique ID for a solution item node
      */
     static generateSolutionItemId(solutionItemName: string, solutionFolderGuid: string, itemPath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'solutionItem',
             name: solutionItemName,
             guid: solutionFolderGuid,
@@ -218,7 +222,7 @@ export class NodeIdService {
      * Generates a unique ID for a project dependencies container
      */
     static generateDependenciesId(projectPath: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'dependencies',
             path: projectPath
         });
@@ -228,7 +232,7 @@ export class NodeIdService {
      * Generates a unique ID for a dependency category
      */
     static generateDependencyCategoryId(projectPath: string, categoryName: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'dependencyCategory',
             path: projectPath,
             name: categoryName
@@ -239,7 +243,7 @@ export class NodeIdService {
      * Generates a unique ID for a specific dependency
      */
     static generateDependencyId(projectPath: string, categoryName: string, dependencyName: string, version?: string): NodeIdString {
-        return this.compress({
+        return this.encode({
             type: 'dependency',
             path: projectPath,
             category: categoryName,
@@ -249,19 +253,19 @@ export class NodeIdService {
     }
 
     static generateAnalyzerId(projectPath: string, name: string): NodeIdString {
-        return this.compress({ type: 'analyzer', path: projectPath, name });
+        return this.encode({ type: 'analyzer', path: projectPath, name });
     }
 
     static generateSourceGeneratorId(projectPath: string, analyzer: string, name: string): NodeIdString {
-        return this.compress({ type: 'sourceGenerator', path: projectPath, analyzer, name });
+        return this.encode({ type: 'sourceGenerator', path: projectPath, analyzer, name });
     }
 
     static generateTransitivePackageId(projectPath: string, parents: string[], name: string, version: string): NodeIdString {
-        return this.compress({ type: 'transitivePackage', path: projectPath, parents, name, version });
+        return this.encode({ type: 'transitivePackage', path: projectPath, parents, name, version });
     }
 
     static generateGeneratedFileId(filePath: string): NodeIdString {
-        return this.compress({ type: 'generatedFile', path: filePath });
+        return this.encode({ type: 'generatedFile', path: filePath });
     }
 
     /**
@@ -271,7 +275,7 @@ export class NodeIdService {
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(2, 8);
 
-        return this.compress({
+        return this.encode({
             type: 'temporary',
             path: parentPath, // Using folderPath as generic parent path
             nodeType, // Using categoryName as generic node type
@@ -293,9 +297,9 @@ export class NodeIdService {
         return null;
     }
 
-    static isValid(compressedNodeId: NodeIdString) {
+    static isValid(nodeId: NodeIdString) {
         try {
-            return !!this.parse(compressedNodeId);
+            return !!this.parse(nodeId);
         }
         catch {
             return false;
