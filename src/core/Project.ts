@@ -12,6 +12,7 @@ import { Settings } from '../services/settings';
 import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../types';
+import { workspaceFolderOf } from '../services/workspaceFolders';
 
 export interface ProjectFileNode {
     name: string;
@@ -130,7 +131,7 @@ export class Project {
         const fileName = path.basename(filePath);
 
         // Skip excluded files (build artifacts, temp files, etc.)
-        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+        if (isExcluded(filePath, workspaceFolderOf(filePath)?.uri.fsPath)) {
             return;
         }
 
@@ -151,7 +152,7 @@ export class Project {
         const fileName = path.basename(filePath);
 
         // Skip excluded files (build artifacts, temp files, etc.)
-        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+        if (isExcluded(filePath, workspaceFolderOf(filePath)?.uri.fsPath)) {
             return;
         }
 
@@ -167,7 +168,7 @@ export class Project {
         const filePath = uri.fsPath;
 
         // Skip excluded files (build artifacts, temp files, etc.)
-        if (isExcluded(filePath, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath)) {
+        if (isExcluded(filePath, workspaceFolderOf(filePath)?.uri.fsPath)) {
             return;
         }
 

@@ -12,6 +12,7 @@ import { Project } from './Project';
 import { logger } from './logger';
 import { SimpleDebounceManager } from '../services/debounceManager';
 import { SolutionFolderNodeId } from '../services/nodeIdService';
+import { workspaceFolderOf } from '../services/workspaceFolders';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -133,7 +134,7 @@ export class Solution {
 
     private setupLaunchJsonWatcher(): void {
         // Get workspace folder to watch launch.json
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspaceFolder = workspaceFolderOf(this._solutionPath);
         if (!workspaceFolder) {
             log.warn('No workspace folder found, cannot watch launch.json');
             return;

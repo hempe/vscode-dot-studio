@@ -11,6 +11,7 @@ import { TemplateInfo, WizardInit, WizardTemplate } from '../../types/templateWi
 import { optionArgs, readTemplates } from './templateCache';
 import { BUILTIN_ITEMS, builtinItemContent, itemBaseName, projectLanguage, replaceNamespace } from './itemTemplates';
 import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework, solutionLayout } from './newProject';
+import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const log = logger('Templates');
 const RECENT_PROJECT_TEMPLATES = 'shinobi.recentProjectTemplates';
@@ -121,7 +122,7 @@ export async function newSolutionWizard(): Promise<WizardInit> {
         kind: 'project',
         title: 'Create a New Project',
         templates: projectTemplates,
-        location: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir(),
+        location: solutionWorkspaceFolder()?.uri.fsPath ?? os.homedir(),
         preferredValues: {},
         newSolution: true,
     };
@@ -142,9 +143,11 @@ export async function createNewSolution(
     const recent = globalState?.get<string[]>(RECENT_PROJECT_TEMPLATES) ?? [];
     await globalState?.update(RECENT_PROJECT_TEMPLATES, [template.identity, ...recent.filter(id => id !== template.identity)].slice(0, 5));
 
-    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const relative = workspace ? path.relative(workspace, result.solutionPath) : '..';
-    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+    const inWorkspace = (vscode.workspace.workspaceFolders ?? []).some(folder => {
+        const relative = path.relative(folder.uri.fsPath, result.solutionPath!);
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+    });
+    if (inWorkspace) {
         await SolutionService.openSolution(result.solutionPath);
         await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
     } else {

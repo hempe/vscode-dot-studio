@@ -25,6 +25,7 @@ import { Solution } from '../../core/Solution';
 import { projectForPath } from '../../services/templates/templateService';
 import { openNewItemWizard } from './TemplateWizardPanel';
 import { Settings } from '../../services/settings';
+import { solutionWorkspaceFolder } from '../../services/workspaceFolders';
 
 const log = logger('SolutionWebviewProvider');
 
@@ -325,7 +326,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private async _getSolutionData(): Promise<ProjectNode[]> {
         log.info('Getting solution data...');
 
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+        const workspaceRoot = solutionWorkspaceFolder()?.uri.fsPath || '';
         log.info('Workspace root:', workspaceRoot);
 
         // First check if we already have an active solution for the same workspace
@@ -334,7 +335,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // A loaded solution stays, also one opened from outside the workspace folder (Open Solution...)
         if (!solution || !solution.solutionPath) {
             log.info('No active solution, discovering solution...');
-            solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot) || undefined;
+            solution = await SolutionService.discoverAndInitializeSolution() || undefined;
         } else {
             log.info('Reusing existing active solution:', solution.solutionPath);
         }

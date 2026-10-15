@@ -9,6 +9,7 @@ import { logger } from '../core/logger';
 import { DebugConfigService } from './debugConfigService';
 import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
 import { offerSlnxMigration } from './slnxMigration';
+import { setActiveSolutionPath } from './workspaceFolders';
 
 const log = logger('SolutionService');
 
@@ -109,7 +110,7 @@ export class SolutionService {
      * Implements the new discovery logic: single solution auto-selected,
      * multiple solutions prompt user selection, no solution offers creation
      */
-    static async discoverAndInitializeSolution(workspaceRoot: string): Promise<Solution | null> {
+    static async discoverAndInitializeSolution(): Promise<Solution | null> {
         try {
             // First dispose any existing active solution
             if (this.activeSolution) {
@@ -118,7 +119,8 @@ export class SolutionService {
             }
 
             // Use the new discovery logic
-            const solutionPath = await SolutionDiscovery.discoverAndSelectSolution(workspaceRoot);
+            // Every folder of a multi-root workspace
+            const solutionPath = await SolutionDiscovery.discoverAndSelectSolution((vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath));
             if (!solutionPath) {
                 return null;
             }
@@ -150,6 +152,7 @@ export class SolutionService {
 
             this.lastLoadError = undefined;
             this.activeSolution = solution;
+            setActiveSolutionPath(solutionPath);
             await SolutionDiscovery.remember(solutionPath);
             checkOmniSharpForSlnx(solutionPath).catch(error => log.error('Error checking the C# language server:', error));
             offerSlnxMigration(solutionPath, {

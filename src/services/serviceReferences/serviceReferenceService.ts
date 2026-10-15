@@ -10,6 +10,7 @@ import {
 } from './connectedService';
 import { findSvcutil, installSvcutil, runSvcutil, SvcutilInstall } from './svcutil';
 import { generateServiceReference, removeServiceReference } from './serviceReferenceGenerator';
+import { workspaceFolderOf } from '../workspaceFolders';
 
 const log = logger('ServiceReferences');
 
@@ -47,7 +48,7 @@ async function ensureSvcutil(projectDir: string): Promise<SvcutilInstall | undef
         return undefined;
     }
     const install: SvcutilInstall = choice === local ? 'local' : 'global';
-    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? projectDir;
+    const workspaceDir = workspaceFolderOf(projectDir)?.uri.fsPath ?? projectDir;
     const result = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Installing dotnet-svcutil...' },
         () => installSvcutil(install, workspaceDir));

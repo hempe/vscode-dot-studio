@@ -6,13 +6,14 @@ import { SolutionService } from '../solutionService';
 import { PackageSource } from './types';
 import { feedHelp } from './feedHelp';
 import { matchSource, nugetConfigFiles, readSourceCredential, setClearTextPassword, SourceCredential, userConfigDir } from './nugetCredentials';
+import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const log = logger('FeedAuth');
 
 /** Where NuGet starts looking for NuGet.Config files: the solution folder, else the workspace */
 export function configStartDir(): string {
     const solution = SolutionService.getActiveSolution();
-    return solution ? path.dirname(solution.solutionPath) : vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
+    return solution ? path.dirname(solution.solutionPath) : solutionWorkspaceFolder()?.uri.fsPath ?? process.cwd();
 }
 
 /** The value for `Authorization: Basic ...`, as NuGet sends the stored Username and ClearTextPassword */

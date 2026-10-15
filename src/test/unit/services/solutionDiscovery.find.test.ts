@@ -89,5 +89,19 @@ describe('SolutionDiscovery.discoverAndSelectSolution', () => {
         fs.rmSync(elsewhere);
         expect(await SolutionDiscovery.discoverAndSelectSolution(root)).toBe(path.join(root, 'App.sln'));
     });
+
+    it('looks in every folder of a multi-root workspace', async () => {
+        const second = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-'));
+        try {
+            touch('src/Web.slnx');
+            const api = path.join(second, 'Api.sln');
+            fs.writeFileSync(api, '');
+
+            expect(await SolutionDiscovery.discoverAndSelectSolution([root, second])).toBe(api);
+            expect(ui.picks).toBe(1);
+        } finally {
+            fs.rmSync(second, { recursive: true, force: true });
+        }
+    });
 });
 

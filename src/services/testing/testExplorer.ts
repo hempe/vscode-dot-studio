@@ -13,6 +13,7 @@ import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatfor
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
+import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const log = logger('TestExplorer');
 
@@ -54,7 +55,7 @@ async function startInDebugger(project: TestProject, args: string[]): Promise<Te
             session = started;
         }
     });
-    const started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], {
+    const started = await vscode.debug.startDebugging(solutionWorkspaceFolder(), {
         type: 'coreclr',
         request: 'launch',
         name,
@@ -84,7 +85,7 @@ function startVsTestConsole(project: TestProject, port: number): Promise<TestApp
 }
 
 async function attachToTestHost(project: TestProject, processId: number): Promise<boolean> {
-    return vscode.debug.startDebugging(vscode.workspace.workspaceFolders?.[0], {
+    return vscode.debug.startDebugging(solutionWorkspaceFolder(), {
         type: 'coreclr',
         request: 'attach',
         name: `Debug tests: ${path.parse(project.projectPath).name}`,

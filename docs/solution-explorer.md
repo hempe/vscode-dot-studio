@@ -70,6 +70,8 @@ The markers come from the last build, as in Visual Studio, plus the C# language 
 
 The extension opens the solution of the folder you opened: a `.sln` or `.slnx` directly in it, or else one in its subfolders (up to three levels down, skipping `bin`, `obj`, `node_modules` and hidden folders). With several, you pick one, and the choice is remembered for the workspace.
 
+In a **multi-root workspace**, every folder is searched; the folder that holds the solution is where its `.vscode/launch.json`, tasks and tool manifests go.
+
 **Open Solution...** in the title bar's `...` menu (or **.NET: Open Solution...**), like Visual Studio's File > Open > Solution, lists the solutions of the workspace and offers **Browse...** for any other `.sln` or `.slnx`. The solution you open is the one that opens next time.
 
 ## .sln and .slnx

@@ -12,6 +12,7 @@ import { PackageConsolidationService } from '../../services/nuget/packageConsoli
 import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/commands/backend';
 import { NuGetViewData } from '../../types/commands/ui';
 import { VersionUtils } from '../../services/versionUtils';
+import { solutionWorkspaceFolder } from '../../services/workspaceFolders';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -163,7 +164,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     public static async openNuGetManager(projectPath?: string): Promise<void> {
         try {
             // Debug: Check solution state before opening NuGet manager
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const workspaceRoot = solutionWorkspaceFolder()?.uri.fsPath;
             const existingActiveSolution = SolutionService.getActiveSolution();
 
             log.info(`=== NuGet Manager (Project) Opening Debug ===`);
@@ -179,7 +180,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Ensure active solution is initialized before opening NuGet manager
             if (workspaceRoot && !existingActiveSolution) {
                 log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
-                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                const solution = await SolutionService.discoverAndInitializeSolution();
                 if (solution) {
                     log.info(`Active solution initialized: ${solution.solutionPath}`);
                 } else {
@@ -213,7 +214,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
     public static async openNuGetManagerForSolution(solutionPath?: string): Promise<void> {
         try {
             // Debug: Check solution state before opening NuGet manager
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const workspaceRoot = solutionWorkspaceFolder()?.uri.fsPath;
             const existingActiveSolution = SolutionService.getActiveSolution();
 
             log.info(`=== NuGet Manager Opening Debug ===`);
@@ -228,7 +229,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Ensure active solution is initialized before opening NuGet manager
             if (workspaceRoot && !existingActiveSolution) {
                 log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
-                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                const solution = await SolutionService.discoverAndInitializeSolution();
                 if (solution) {
                     log.info(`Active solution initialized: ${solution.solutionPath}`);
                 } else {
@@ -286,7 +287,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
         try {
             // Ensure active solution is initialized before getting NuGet data
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const workspaceRoot = solutionWorkspaceFolder()?.uri.fsPath;
             const existingActiveSolution = SolutionService.getActiveSolution();
 
             log.info(`=== _getNuGetData called ===`);
@@ -296,7 +297,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             if (workspaceRoot && !existingActiveSolution) {
                 log.info(`Initializing active solution for workspace: ${workspaceRoot}`);
-                const solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot);
+                const solution = await SolutionService.discoverAndInitializeSolution();
                 if (solution) {
                     log.info(`Active solution initialized: ${solution.solutionPath}`);
                 } else {

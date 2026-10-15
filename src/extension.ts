@@ -22,6 +22,7 @@ import { PublishPanel } from './webview/providers/PublishPanel';
 import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
+import { workspaceFolderOf } from './services/workspaceFolders';
 
 const logger = loggerFn('Extensions');
 
@@ -48,12 +49,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     void checkCSharpExtension(context);
 
-    const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
-        ? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
+    // The workspace folder a file belongs to (multi-root workspaces)
+    const rootOf = (filePath: string) => workspaceFolderOf(filePath)?.uri.fsPath;
 
     // Handle specific file changes for targeted updates
     const handleFileChange = (uri: vscode.Uri, changeType: 'created' | 'changed' | 'deleted') => {
-        if (isExcluded(uri.fsPath, workspaceRoot))
+        if (isExcluded(uri.fsPath, rootOf(uri.fsPath)))
             return;
 
         const filePath = uri.fsPath;
@@ -198,13 +199,14 @@ export function activate(context: vscode.ExtensionContext) {
                 : `${SolutionWebviewProvider.viewType}.focus`)),
         // Visual Studio's File > Open > Solution: another solution of the workspace, or any solution file
         vscode.commands.registerCommand('shinobi.solution.open', async () => {
-            const found = workspaceRoot ? await SolutionDiscovery.findSolutionFiles(workspaceRoot, 6) : [];
+            const folders = vscode.workspace.workspaceFolders ?? [];
+            const found = (await Promise.all(folders.map(folder => SolutionDiscovery.findSolutionFiles(folder.uri.fsPath, 6)))).flat();
             const active = SolutionService.getActiveSolution()?.solutionPath;
             const browse = { label: '$(folder-opened) Browse...', description: 'Any .sln or .slnx file', solutionPath: undefined as string | undefined };
             const picked = await vscode.window.showQuickPick([
                 ...found.map(solutionPath => ({
                     label: path.basename(solutionPath),
-                    description: path.relative(workspaceRoot ?? '', path.dirname(solutionPath)) || undefined,
+                    description: path.relative(path.dirname(rootOf(solutionPath) ?? ''), path.dirname(solutionPath)) || undefined,
                     detail: solutionPath === active ? 'Open now' : undefined,
                     solutionPath: solutionPath as string | undefined,
                 })),
@@ -266,7 +268,7 @@ export function activate(context: vscode.ExtensionContext) {
     // "Set Launch Profile..." only while the startup project has several profiles
     const launchSettingsWatcher = vscode.workspace.createFileSystemWatcher('**/Properties/launchSettings.json');
     const handleLaunchSettingsChange = async (uri: vscode.Uri) => {
-        if (isExcluded(uri.fsPath, workspaceRoot)) {
+        if (isExcluded(uri.fsPath, rootOf(uri.fsPath))) {
             return;
         }
         const startupProject = DebugConfigService.getStartupProject();

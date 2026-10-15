@@ -1,12 +1,12 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import * as vscode from 'vscode';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import { NuGetV3Service } from './nugetV3Service';
 import { VersionUtils } from '../versionUtils';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 import { Mutable } from '../../types';
+import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -105,7 +105,7 @@ export class PackageBrowseService {
      */
     private static async _getSourcesFromDotnetCli(): Promise<PackageSource[]> {
         try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const workspaceFolder = solutionWorkspaceFolder()?.uri.fsPath;
             const { stdout } = await execAsync('dotnet nuget list source --format detailed', {
                 timeout: 10000,
                 cwd: workspaceFolder

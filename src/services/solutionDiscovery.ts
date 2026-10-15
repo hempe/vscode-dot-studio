@@ -126,12 +126,17 @@ export class SolutionDiscovery {
      * Main entry point for solution discovery and selection
      * Returns the path to the solution that should be used
      */
-    static async discoverAndSelectSolution(workspaceRoot: string): Promise<string | null> {
+    static async discoverAndSelectSolution(workspaceRoots: string | readonly string[]): Promise<string | null> {
         const remembered = this.state?.get<string>(SELECTED_KEY);
         if (remembered && fs.existsSync(remembered)) {
             return remembered;
         }
-        const discovery = await this.discoverSolutions(workspaceRoot);
+        // Multi-root workspaces: the solutions of every folder
+        const roots = typeof workspaceRoots === 'string' ? [workspaceRoots] : workspaceRoots;
+        const found = (await Promise.all(roots.map(root => this.findSolutionFiles(root)))).flat();
+        const discovery: SolutionDiscoveryResult = found.length === 0 ? { type: 'none' }
+            : found.length === 1 ? { type: 'single', solutionPath: found[0] }
+                : { type: 'multiple', availableSolutions: found };
 
         switch (discovery.type) {
             case 'single':

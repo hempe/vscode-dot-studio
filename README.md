@@ -161,7 +161,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
 
 ### Phase 15: Scale
-- [ ] Multi-root workspaces: a solution in any workspace folder, not only the first
+- [x] Multi-root workspaces: a solution in any workspace folder, not only the first
 - [ ] Measure and improve loading and refreshing on large solutions (hundreds of projects), e.g. Orchard Core
 
 ### Phase 16: Visual Studio Basics, Part 2

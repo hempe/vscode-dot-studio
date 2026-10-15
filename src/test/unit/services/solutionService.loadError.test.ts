@@ -5,6 +5,7 @@ import * as path from 'path';
 
 const ui = {
     errors: [] as string[],
+    folder: '',
 };
 
 jest.mock('vscode', () => {
@@ -16,7 +17,7 @@ jest.mock('vscode', () => {
         RelativePattern: class { constructor(public base: string, public pattern: string) { } },
         workspace: {
             createFileSystemWatcher: () => watcher,
-            workspaceFolders: undefined,
+            get workspaceFolders() { return ui.folder ? [{ uri: { fsPath: ui.folder } }] : undefined; },
             getConfiguration: () => ({ get: () => undefined }),
         },
         window: {
@@ -49,8 +50,8 @@ describe('SolutionService.discoverAndInitializeSolution with an invalid .slnx', 
     it('shows the reason once and loads the solution once it is fixed', async () => {
         fs.writeFileSync(slnxPath, '<Solution><Folder Name="Solution Items" /></Solution>');
 
-        expect(await SolutionService.discoverAndInitializeSolution(dir)).toBeNull();
-        expect(await SolutionService.discoverAndInitializeSolution(dir)).toBeNull();
+        expect(await (ui.folder = dir, SolutionService.discoverAndInitializeSolution())).toBeNull();
+        expect(await (ui.folder = dir, SolutionService.discoverAndInitializeSolution())).toBeNull();
 
         expect(ui.errors).toEqual([
             "Could not load Test.slnx: Invalid .slnx file: Solution folder name 'Solution Items' must start and end with '/'"
@@ -58,7 +59,7 @@ describe('SolutionService.discoverAndInitializeSolution with an invalid .slnx', 
 
         fs.writeFileSync(slnxPath, '<Solution><Folder Name="/Solution Items/" /></Solution>');
 
-        const solution = await SolutionService.discoverAndInitializeSolution(dir);
+        const solution = await (ui.folder = dir, SolutionService.discoverAndInitializeSolution());
         expect(solution?.isInitialized).toBe(true);
         expect(SolutionService.getActiveSolution()).toBe(solution);
         expect(ui.errors).toHaveLength(1);

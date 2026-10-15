@@ -5,6 +5,7 @@ import { sln } from '../core/utils';
 import { BuildConfiguration } from './buildConfiguration';
 import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
+import { solutionWorkspaceFolder } from './workspaceFolders';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -44,7 +45,7 @@ export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configu
 /** Creates the task for a definition; the solution build is the default build task (Ctrl+Shift+B) */
 export function createDotnetTask(
     definition: DotnetTaskDefinition,
-    scope: vscode.WorkspaceFolder | vscode.TaskScope = vscode.workspace.workspaceFolders?.[0] ?? vscode.TaskScope.Workspace
+    scope: vscode.WorkspaceFolder | vscode.TaskScope = solutionWorkspaceFolder() ?? vscode.TaskScope.Workspace
 ): vscode.Task {
     const { action, target } = definition;
     const configuration = definition.configuration ?? BuildConfiguration.active;

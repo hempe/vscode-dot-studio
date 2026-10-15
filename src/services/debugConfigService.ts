@@ -12,6 +12,7 @@ import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { runTask } from './runTask';
 import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
+import { solutionWorkspaceFolder } from './workspaceFolders';
 
 const execFileAsync = promisify(execFile);
 
@@ -46,7 +47,7 @@ export class DebugConfigService {
     /** Project and framework of the "StartupPreBuild" task (`dotnet build <project> --framework <tfm> ...`) */
     private static readStartupBuild(): { projectPath: string; framework?: string } | undefined {
         try {
-            const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
             if (!workspacePath) {
                 return undefined;
             }
@@ -86,7 +87,7 @@ export class DebugConfigService {
         try {
             log.info(`updateStartupConfiguration called with project: ${startupProjectPath}, framework: ${framework}`);
 
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const workspaceFolder = solutionWorkspaceFolder();
             if (!workspaceFolder) {
                 log.error('No workspace folder found');
                 return;
@@ -205,7 +206,7 @@ export class DebugConfigService {
      * keeps its launch profile and framework; other projects use their first profile and newest framework.
      */
     static async startProject(projectPath: string, noDebug: boolean): Promise<void> {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspaceFolder = solutionWorkspaceFolder();
         if (!workspaceFolder) {
             return;
         }
@@ -230,7 +231,7 @@ export class DebugConfigService {
 
     /** Starts the startup project through its "Startup" configuration (F5 / Ctrl+F5), which builds it first */
     static async startStartupProject(noDebug: boolean): Promise<void> {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspaceFolder = solutionWorkspaceFolder();
         if (!workspaceFolder || !this.getStartupProject()) {
             vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
             return;
