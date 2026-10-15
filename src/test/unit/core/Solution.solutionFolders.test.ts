@@ -21,6 +21,7 @@ jest.mock('vscode', () => {
         workspace: {
             createFileSystemWatcher: () => watcher,
             workspaceFolders: undefined,
+            getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }),
             fs: {
                 rename: async (from: any, to: any) => require('fs').renameSync(from.fsPath, to.fsPath),
                 delete: async (uri: any) => require('fs').rmSync(uri.fsPath, { recursive: true }),
@@ -349,5 +350,21 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
 
         expect([fs.existsSync(a), fs.existsSync(b)]).toEqual([false, false]);
         expect(ui.errors).toEqual([]);
+    });
+
+    test('shows nested files under their parent, at the top of a project and in its folders', async () => {
+        const libPath = createProject('Lib');
+        const libDir = path.dirname(libPath);
+        fs.mkdirSync(path.join(libDir, 'Pages'));
+        for (const file of ['appsettings.json', 'appsettings.Development.json', 'Pages/Index.cshtml', 'Pages/Index.cshtml.cs']) {
+            fs.writeFileSync(path.join(libDir, file), '');
+        }
+        await solution.refresh();
+        const project = solution.getProject(libPath)!;
+        for (let i = 0; i < 100 && !(project as any)._isInitialized; i++) await new Promise(r => setTimeout(r, 10));
+        const names = (children: any[]): string[] => children.flatMap(child => [child.name, ...(child.children ?? []).map((nested: any) => `  ${nested.name}`)]);
+
+        expect(names(await project.getRootChildren())).toEqual(expect.arrayContaining(['appsettings.json', '  appsettings.Development.json']));
+        expect(names(await project.getFolderChildren(path.join(libDir, 'Pages')))).toEqual(['Index.cshtml', '  Index.cshtml.cs']);
     });
 });

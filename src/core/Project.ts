@@ -566,17 +566,7 @@ export class Project {
                         continue;
                     }
 
-                    const nodeId = child.type === 'folder'
-                        ? NodeIdService.generateFolderId(child.path)
-                        : NodeIdService.generateFileId(child.path);
-
-                    items.push({
-                        type: child.type as 'folder' | 'file',
-                        name: child.name,
-                        hasChildren: child.hasChildren,
-                        nodeId: nodeId,
-                        contextValue: child.type === 'folder' ? this.folderContextValue(child.path) : undefined
-                    });
+                    items.push(this.toProjectChild(child));
                 }
             }
 
@@ -707,6 +697,20 @@ export class Project {
         return serviceFolderKind(path.dirname(this._projectPath), folderPath);
     }
 
+    /** A file or folder for the tree; files bring the files nested under them (Index.cshtml.cs under Index.cshtml) */
+    private toProjectChild(node: ProjectFileNode): ProjectChild {
+        const isFolder = node.type === 'folder';
+        return {
+            type: node.type,
+            name: node.name,
+            hasChildren: node.hasChildren,
+            nodeId: isFolder ? NodeIdService.generateFolderId(node.path) : NodeIdService.generateFileId(node.path),
+            contextValue: isFolder ? this.folderContextValue(node.path) : undefined,
+            // Folders load their children when expanded; nested files are known with their parent
+            ...(!isFolder && node.children?.length ? { children: node.children.map(child => this.toProjectChild(child)) } : {}),
+        };
+    }
+
     async getFolderChildren(folderPath: string): Promise<ProjectChild[]> {
         const items: ProjectChild[] = [];
 
@@ -714,17 +718,7 @@ export class Project {
             const children = await this.expandFolder(folderPath);
 
             for (const child of children) {
-                const nodeId = child.type === 'folder'
-                    ? NodeIdService.generateFolderId(child.path)
-                    : NodeIdService.generateFileId(child.path);
-
-                items.push({
-                    type: child.type as 'folder' | 'file',
-                    name: child.name,
-                    hasChildren: child.hasChildren,
-                    nodeId: nodeId,
-                    contextValue: child.type === 'folder' ? this.folderContextValue(child.path) : undefined
-                });
+                items.push(this.toProjectChild(child));
             }
 
             log.info(`getFolderChildren for ${folderPath}: ${items.length} items`);
