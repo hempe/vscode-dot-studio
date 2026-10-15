@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger } from './logger';
 import { BackendCmd } from "../../types/commands/backend";
 
 const log = logger('PureWebviewAPI');

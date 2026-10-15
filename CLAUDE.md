@@ -22,7 +22,7 @@ npx jest -t "test name substring"      # single test by name
 
 Tests live both next to sources (`*.spec.ts`) and under `src/test/unit/**` (`*.test.ts(x)`); Jest picks up both. Environment is `jsdom` for all tests. `jest.setup.js` mocks `acquireVsCodeApi` and silences `console.log/debug/info`. Extension-host tests mock `vscode` per file via `jest.mock('vscode', ...)` (no shared `__mocks__`). Fixture solutions are in `src/__fixtures__/`.
 
-TypeScript is `strict` with `noUnusedLocals`/`noUnusedParameters`, and webpack builds use `noEmitOnError` — unused variables break the build.
+TypeScript is `strict` with `noUnusedLocals`/`noUnusedParameters`, and webpack builds use `noEmitOnError` — unused variables break the build. `npm run build:dev` builds two configurations; judge it by its exit code, not by grepping for "compiled successfully" (the extension half can succeed while the webview half fails). Webview code runs in a browser: it must not reach `vscode` or Node modules, not even through shared files like `core/logger.ts`; `src/test/unit/build/webviewBundle.test.ts` builds the webview bundles to catch that.
 
 ## Architecture
 
