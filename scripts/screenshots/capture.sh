@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Captures the screenshots of the README and docs (docs/images/*.png): VS Code runs with this extension in a
+# Captures the screenshots and GIFs of the README and docs (docs/images/*.png, *.gif): VS Code runs with this extension in a
 # virtual display (Xvfb), in a throwaway profile, on a copy of the sample solution, and xdotool steers it.
 # Rerun after UI or theme changes.
 #
@@ -18,7 +18,9 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project}"
+GIF_FPS=8
+GIF_WIDTH=960
 DISPLAY_NUMBER=97
 WIDTH=1600
 HEIGHT=1000
@@ -28,6 +30,7 @@ export DISPLAY=":$DISPLAY_NUMBER"
 XVFB_PID=""
 CODE_PID=""
 cleanup() {
+    [ -n "$FFMPEG_PID" ] && kill "$FFMPEG_PID" 2>/dev/null || true
     [ -n "$CODE_PID" ] && kill "$CODE_PID" 2>/dev/null || true
     [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
     # VS Code's helper processes can still write to the profile for a moment
@@ -51,6 +54,22 @@ shot() {
     magick "$WORK/$1.png" -crop "${2:-${WIDTH}x$((HEIGHT - 35))+0+35}" +repage "$OUT/$1.png"
     echo "  $OUT/$1.png"
 }
+# Screen recording for the GIFs: record_start before the steps, record_stop <name> after; the title bar is cropped
+# away, the result is docs/images/<name>.gif (palette per file, so the colours stay close to the screen)
+FFMPEG_PID=""
+record_start() {
+    ffmpeg -loglevel error -y -f x11grab -framerate 15 -video_size "${WIDTH}x${HEIGHT}" -i "$DISPLAY" \
+        -vf "crop=${WIDTH}:$((HEIGHT - 36)):0:36" -c:v libx264 -preset ultrafast -crf 18 -pix_fmt yuv420p "$WORK/rec.mp4" &
+    FFMPEG_PID=$!
+    sleep 1
+}
+record_stop() {
+    kill -INT "$FFMPEG_PID"; wait "$FFMPEG_PID" 2>/dev/null || true; FFMPEG_PID=""
+    ffmpeg -loglevel error -y -i "$WORK/rec.mp4" \
+        -vf "fps=$GIF_FPS,scale=$GIF_WIDTH:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" \
+        "$OUT/$1.gif"
+    echo "  $OUT/$1.gif ($(du -k "$OUT/$1.gif" | cut -f1) KB)"
+}
 wants() { [[ " $SCENES " == *" $1 "* ]]; }
 
 # Tree navigation with the Solution Explorer's own keys: the first click focuses the tree, typing jumps to a node
@@ -73,6 +92,9 @@ shop_web_menu() {
 # Builds and test runs reopen the panel (at times later in a scene); scenes without it hide it before the shot. Clicking the empty tab bar first takes the focus out of webviews, which
 # keep the command palette's keys
 close_panel() { click 1300 52; command "View: Hide Panel" 1; }
+# The panel's own close button: the command above fails at times while a webview has the focus (a build or test run
+# reopened the panel behind the template wizard). With no panel the click lands on empty space
+close_panel_button() { click 1570 696; }
 # Every scene starts from the collapsed tree, with no editors and no panel
 reset() { command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
 
@@ -209,7 +231,7 @@ if wants new-project; then
     # Step 1: search, select a template (its description shows on the right)
     click 700 138; type_text "Razor Pages"; pause 1.5
     click 600 175; pause 1
-    close_panel
+    close_panel_button
     shot new-project
     # Step 2: double-clicking the template opens "Configure your new project"
     double_click 600 175; pause 2
@@ -224,6 +246,40 @@ if wants publish; then
     pause 5
     close_panel
     shot publish
+fi
+
+if wants gif-navigate; then
+    echo "Scene: gif-navigate"
+    reset
+    tree_focus
+    record_start
+    tree_open Contoso src Shop.Web Pages
+    tree_select Index.cshtml; key Right; pause 1.5
+    tree_select Index.cshtml.cs; key Return; pause 3
+    record_stop solution-explorer
+fi
+
+if wants gif-nuget; then
+    echo "Scene: gif-nuget"
+    reset
+    record_start
+    shop_web_menu 303
+    pause 10
+    close_panel
+    record_stop nuget
+fi
+
+if wants gif-new-project; then
+    echo "Scene: gif-new-project"
+    reset
+    command "Create New Project..." 20
+    close_panel_button; pause 2
+    record_start
+    click 700 138; type_text "Razor Pages"; pause 1.5
+    click 600 175; pause 1.5
+    double_click 600 175; pause 3
+    record_stop new-project
+    command "View: Close All Editors" 1
 fi
 
 echo "Done: $OUT"

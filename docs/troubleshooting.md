@@ -58,3 +58,11 @@ Open an issue at [github.com/hempe/vscode-dot-studio/issues](https://github.com/
 - what you did and what happened,
 - the **Shinobi .NET** log at **Debug** level,
 - `dotnet --info`, your editor (VS Code or VSCodium) and its version, and the C# extension you use.
+
+## Known limitations
+
+- Encrypted NuGet passwords (Windows DPAPI) can't be read outside Windows; the NuGet manager stores a new token as clear text, or use the Azure Artifacts Credential Provider.
+- Publish targets other than Folder (Azure, container registries, FTP, IIS) are listed but not published yet.
+- .NET Framework 4.x and old-style (non-SDK) projects aren't supported.
+
+Planned features are in the [roadmap](roadmap.md).

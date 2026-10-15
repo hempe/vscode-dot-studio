@@ -4,7 +4,7 @@
 
 **Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish, in VS Code and VSCodium.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, the same keys.
 
-![The Solution Explorer next to a C# file](docs/images/solution-explorer.png)
+![The Solution Explorer next to a C# file](docs/images/solution-explorer.gif)
 
 ## Features
 
@@ -44,7 +44,7 @@ xUnit, NUnit, MSTest and TUnit, on Microsoft.Testing.Platform or VSTest, in VS C
 
 Browse, Installed (with transitive packages), Updates and Consolidate, per project or for the whole solution. Private feeds work; when a token expires, it says which feed and where its credentials are, and takes a new one.
 
-![The NuGet Package Manager](docs/images/nuget.png)
+![The NuGet Package Manager](docs/images/nuget.gif)
 
 [NuGet](docs/nuget.md)
 
@@ -52,7 +52,7 @@ Browse, Installed (with transitive packages), Updates and Consolidate, per proje
 
 Visual Studio's Add New Project and Add New Item wizards, with every `dotnet new` template and its settings. In an empty folder, Create New Project starts a solution.
 
-![Choosing a template](docs/images/new-project.png)
+![Choosing a template](docs/images/new-project.gif)
 
 ![Configuring the new project](docs/images/new-project-configure.png)
 
@@ -105,19 +105,9 @@ Most things are where you expect them. The differences, in short:
 
 File nesting, Track Active Item, where the Solution Explorer sits, which diagnostics show, test discovery and more: [Settings](docs/settings.md).
 
-## Known limitations
+## Issues and development
 
-- Encrypted NuGet passwords (Windows DPAPI) can't be read outside Windows; the NuGet manager stores a new token as clear text, or use the Azure Artifacts Credential Provider.
-- Publish targets other than Folder (Azure, container registries, FTP, IIS) are listed but not published yet.
-- .NET Framework 4.x and old-style (non-SDK) projects aren't supported.
-
-## What's next
-
-Unload/Reload Project, Pack, Configuration Manager, Code Cleanup, multiple startup projects and Hot Reload are planned: see the [Roadmap](docs/roadmap.md), and [History](docs/history.md) for what's done.
-
-## Contributing
-
-Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build, run and test.
+Found a bug or miss something from Visual Studio? [Open an issue](https://github.com/hempe/vscode-dot-studio/issues). [Troubleshooting](docs/troubleshooting.md) lists known limitations. To build, run or change the extension, see [DEVELOPER.md](DEVELOPER.md).
 
 ## License
 
