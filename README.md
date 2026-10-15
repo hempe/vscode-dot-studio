@@ -150,7 +150,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
 
 ### Phase 12: Finding Solutions
-- [ ] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution
+- [x] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution
 
 ### Phase 13: Tree Keyboard & Screenshots
 - [ ] Type-to-find in the Solution Explorer (typing jumps to the next matching node), Home and End
@@ -167,7 +167,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 ### Phase 16: Visual Studio Basics, Part 2
 **Goal**: The larger everyday features of Visual Studio that are still missing.
 
-- [ ] Open and switch solutions: "Open Solution..." and recently opened solutions, like Visual Studio's File > Open > Solution and File > Recent; the Solution Explorer loads the chosen solution instead of the current one. Today the choice comes once, at startup, when the workspace has several solution files
+- [x] Open and switch solutions: "Open Solution..." (the workspace's solutions, or any via Browse), the choice is remembered, like Visual Studio's File > Open > Solution
 - [x] Convert .sln to .slnx: opening a .sln offers to convert it (`dotnet sln migrate`), then to delete the .sln, and opens the .slnx; "Don't Ask Again" per solution
 - [ ] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
 - [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went

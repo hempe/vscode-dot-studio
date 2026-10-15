@@ -64,6 +64,12 @@ Files with errors or warnings get a red or yellow squiggly underline and a count
 
 The markers come from the last build, as in Visual Studio, plus the C# language server's live errors for open files. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles. See [Error List](error-list.md).
 
+## Opening solutions
+
+The extension opens the solution of the folder you opened: a `.sln` or `.slnx` directly in it, or else one in its subfolders (up to three levels down, skipping `bin`, `obj`, `node_modules` and hidden folders). With several, you pick one, and the choice is remembered for the workspace.
+
+**Open Solution...** in the title bar's `...` menu (or **.NET: Open Solution...**), like Visual Studio's File > Open > Solution, lists the solutions of the workspace and offers **Browse...** for any other `.sln` or `.slnx`. The solution you open is the one that opens next time.
+
 ## .sln and .slnx
 
 `.slnx` is the current solution format (XML, readable diffs), the default since the .NET 10 SDK and supported by Visual Studio 2022 17.13 and later. When a `.sln` opens, you are offered to convert it:

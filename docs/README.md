@@ -27,7 +27,7 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 - A **C# extension**: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. It provides C# editing (IntelliSense, live errors, navigation, refactorings) and the debugger; this extension provides the Visual Studio parts around them. C# Dev Kit is not needed.
 
 ### Open a solution
-Open the folder that contains your `.sln` or `.slnx` file. The **Solution Explorer** appears in the activity bar (move it to the secondary side bar with the `shinobi.solutionExplorer.location` setting). With several solution files in the folder, you pick one.
+Open the folder of your repository. The extension looks for `.sln` and `.slnx` files in it, and, when there are none at the top, in its subfolders (`src/App.sln`). The **Solution Explorer** appears in the activity bar (move it to the secondary side bar with the `shinobi.solutionExplorer.location` setting). With several solutions you pick one, once: the choice is remembered. **.NET: Open Solution...** (also in the Solution Explorer's `...` menu) switches to another.
 
 ### Build, run, test
 1. **Build:** Ctrl+Shift+B builds the solution; right-click a project for Build, Rebuild and Clean. Errors show in the [Error List](error-list.md) and as red and yellow markers in the tree.

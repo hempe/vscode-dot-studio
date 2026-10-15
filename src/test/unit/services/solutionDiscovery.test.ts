@@ -35,55 +35,7 @@ describe('SolutionDiscovery', () => {
         mockVscode = vscode as jest.Mocked<typeof vscode>;
     });
 
-    describe('discoverSolutions', () => {
-        it('should return none when no solution files exist', async () => {
-            (mockFs.promises.readdir as jest.Mock).mockResolvedValue(['file1.txt', 'file2.js', 'README.md'] as any);
-
-            const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
-
-            expect(result).toEqual({ type: 'none' });
-            expect(mockFs.promises.readdir).toHaveBeenCalledWith(mockWorkspaceRoot);
-        });
-
-        it('should return single when one solution file exists', async () => {
-            (mockFs.promises.readdir as jest.Mock).mockResolvedValue(['MySolution.sln', 'file1.txt', 'README.md'] as any);
-
-            const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
-
-            expect(result).toEqual({
-                type: 'single',
-                solutionPath: path.join(mockWorkspaceRoot, 'MySolution.sln')
-            });
-        });
-
-        it('should return multiple when several solution files exist', async () => {
-            (mockFs.promises.readdir as jest.Mock).mockResolvedValue([
-                'Solution1.sln',
-                'Solution2.sln',
-                'file1.txt',
-                'Solution3.sln'
-            ] as any);
-
-            const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
-
-            expect(result).toEqual({
-                type: 'multiple',
-                availableSolutions: [
-                    path.join(mockWorkspaceRoot, 'Solution1.sln'),
-                    path.join(mockWorkspaceRoot, 'Solution2.sln'),
-                    path.join(mockWorkspaceRoot, 'Solution3.sln')
-                ]
-            });
-        });
-
-        it('should handle readdir errors gracefully', async () => {
-            (mockFs.promises.readdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
-
-            const result = await SolutionDiscovery.discoverSolutions(mockWorkspaceRoot);
-
-            expect(result).toEqual({ type: 'none' });
-        });
-    });
+    // discoverSolutions: solutionDiscovery.find.test.ts (real folders)
 
     describe('selectSolution', () => {
         it('should show quick pick with solution options', async () => {

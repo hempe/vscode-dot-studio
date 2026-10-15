@@ -311,10 +311,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // First check if we already have an active solution for the same workspace
         let solution = SolutionService.getActiveSolution();
 
-        if (!solution || !solution.solutionPath ||
-            !solution.solutionPath.startsWith(workspaceRoot)) {
-            // Only discover and initialize if we don't have a solution or it's for a different workspace
-            log.info('No active solution or different workspace, discovering solution...');
+        // A loaded solution stays, also one opened from outside the workspace folder (Open Solution...)
+        if (!solution || !solution.solutionPath) {
+            log.info('No active solution, discovering solution...');
             solution = await SolutionService.discoverAndInitializeSolution(workspaceRoot) || undefined;
         } else {
             log.info('Reusing existing active solution:', solution.solutionPath);

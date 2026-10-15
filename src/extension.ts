@@ -14,6 +14,7 @@ import { logger as loggerFn, setLogSink } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { SlnxMigration } from './services/slnxMigration';
+import { SolutionDiscovery } from './services/solutionDiscovery';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
@@ -68,6 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     BuildConfiguration.initialize(context.workspaceState);
     SlnxMigration.initialize(context.workspaceState);
+    SolutionDiscovery.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
     PublishPanel.extensionUri = context.extensionUri;
@@ -194,6 +196,34 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.workspace.getConfiguration('shinobi.solutionExplorer').get('location') === 'secondary-sidebar'
                 ? 'shinobi-solution-webview-secondary-sidebar.focus'
                 : `${SolutionWebviewProvider.viewType}.focus`)),
+        // Visual Studio's File > Open > Solution: another solution of the workspace, or any solution file
+        vscode.commands.registerCommand('shinobi.solution.open', async () => {
+            const found = workspaceRoot ? await SolutionDiscovery.findSolutionFiles(workspaceRoot, 6) : [];
+            const active = SolutionService.getActiveSolution()?.solutionPath;
+            const browse = { label: '$(folder-opened) Browse...', description: 'Any .sln or .slnx file', solutionPath: undefined as string | undefined };
+            const picked = await vscode.window.showQuickPick([
+                ...found.map(solutionPath => ({
+                    label: path.basename(solutionPath),
+                    description: path.relative(workspaceRoot ?? '', path.dirname(solutionPath)) || undefined,
+                    detail: solutionPath === active ? 'Open now' : undefined,
+                    solutionPath: solutionPath as string | undefined,
+                })),
+                browse,
+            ], { title: 'Open Solution', placeHolder: 'Pick a solution' });
+            let solutionPath = picked?.solutionPath;
+            if (picked === browse) {
+                const [file] = await vscode.window.showOpenDialog({
+                    canSelectMany: false,
+                    filters: { Solutions: ['sln', 'slnx'] },
+                    openLabel: 'Open Solution',
+                }) ?? [];
+                solutionPath = file?.fsPath;
+            }
+            if (solutionPath) {
+                await SolutionService.openSolution(solutionPath);
+                await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
+            }
+        }),
         vscode.commands.registerCommand('shinobi.errorList.show', () => vscode.commands.executeCommand(`${ERROR_LIST_VIEW}.focus`)),
         vscode.commands.registerCommand('shinobi.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)

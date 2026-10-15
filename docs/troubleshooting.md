@@ -8,7 +8,9 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 
 ## The Solution Explorer
 
-**It doesn't appear.** The extension starts when the folder you opened contains a `.sln` or `.slnx` file. With several, you pick one. Open the folder of the solution, not a folder above it.
+**It doesn't appear.** The extension starts when the folder you opened contains a `.sln` or `.slnx` file, at the top or in a subfolder. A solution more than three folders down isn't picked automatically; open it with **.NET: Open Solution...** > Browse.
+
+**The wrong solution opens.** The last solution you picked or opened is remembered; **.NET: Open Solution...** switches.
 
 **"Could not load App.slnx: ..."** The message says why. Common reasons:
 - `.slnx` files need the .NET SDK 9.0.200 or later; check with `dotnet --version`.

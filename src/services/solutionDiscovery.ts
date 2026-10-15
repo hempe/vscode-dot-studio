@@ -4,6 +4,7 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../core/logger';
 import { sln } from '../core/utils';
+import { shouldSkipDirectory } from '../core/constants';
 
 const log = logger('SolutionDiscovery');
 
@@ -12,17 +13,65 @@ export interface SolutionDiscoveryResult {
     solutionPath?: string;
     availableSolutions?: string[];
 }
+const SELECTED_KEY = 'shinobi.solution.selected';
+
 export class SolutionDiscovery {
+    private static state: vscode.Memento | undefined;
+
+    /** Workspace state, where the chosen solution is remembered */
+    static initialize(state: vscode.Memento): void {
+        this.state = state;
+    }
+
+    /** The solution to open next time (chosen from several, or with Open Solution...) */
+    static async remember(solutionPath: string): Promise<void> {
+        await this.state?.update(SELECTED_KEY, solutionPath);
+    }
+
     /**
-     * Discovers solution files in the workspace root
+     * The solution files of a folder: those directly in it, else those in its subfolders (src/App.sln),
+     * up to `maxDepth` folders down, shallow ones first. Build output, dependencies and hidden folders are skipped.
+     */
+    static async findSolutionFiles(root: string, maxDepth = 3): Promise<string[]> {
+        const collected: string[] = [];
+        let level = [root];
+        for (let depth = 0; depth <= maxDepth && level.length > 0; depth++) {
+            const found: string[] = [];
+            const next: string[] = [];
+            for (const dir of level) {
+                let entries: fs.Dirent[];
+                try {
+                    entries = await fs.promises.readdir(dir, { withFileTypes: true });
+                } catch {
+                    continue;
+                }
+                for (const entry of entries) {
+                    if (entry.isFile() && sln(entry.name)) {
+                        found.push(path.join(dir, entry.name));
+                    } else if (entry.isDirectory() && !entry.name.startsWith('.') && !shouldSkipDirectory(entry.name)) {
+                        next.push(path.join(dir, entry.name));
+                    }
+                }
+            }
+            // The opened folder's own solutions win, like opening a repository root in Visual Studio
+            if (depth === 0 && found.length > 0) {
+                return found.sort((a, b) => a.localeCompare(b));
+            }
+            level = next;
+            if (depth > 0) {
+                collected.push(...found.sort((a, b) => a.localeCompare(b)));
+            }
+        }
+        return collected;
+    }
+
+    /**
+     * Discovers the solution files of the workspace (see findSolutionFiles)
      * Returns discovery result with type and available solutions
      */
     static async discoverSolutions(workspaceRoot: string): Promise<SolutionDiscoveryResult> {
         try {
-            const files = await fs.promises.readdir(workspaceRoot);
-            const solutionFiles = files
-                .filter(sln)
-                .map(file => path.join(workspaceRoot, file));
+            const solutionFiles = await this.findSolutionFiles(workspaceRoot);
 
             if (solutionFiles.length === 0) {
                 return { type: 'none' };
@@ -133,14 +182,23 @@ EndGlobal
      * Returns the path to the solution that should be used
      */
     static async discoverAndSelectSolution(workspaceRoot: string): Promise<string | null> {
+        const remembered = this.state?.get<string>(SELECTED_KEY);
+        if (remembered && fs.existsSync(remembered)) {
+            return remembered;
+        }
         const discovery = await this.discoverSolutions(workspaceRoot);
 
         switch (discovery.type) {
             case 'single':
                 return discovery.solutionPath!;
 
-            case 'multiple':
-                return await this.selectSolution(discovery.availableSolutions!);
+            case 'multiple': {
+                const selected = await this.selectSolution(discovery.availableSolutions!);
+                if (selected) {
+                    await this.remember(selected);
+                }
+                return selected;
+            }
 
             case 'none':
                 return await this.promptCreateSolution(workspaceRoot);
