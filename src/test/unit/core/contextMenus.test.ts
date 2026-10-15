@@ -76,9 +76,10 @@ describe('contextMenus', () => {
 
     it('offers the Debug submenu on projects that can be started, the startup project included', () => {
         const { webviewContext, submenus: generated, submenuItems } = buildMenuContributions();
+        // VS Code ignores a submenu contributed twice to the same menu, so it comes once, for all three
         const debugMenu = webviewContext.filter(entry => entry.submenu === 'shinobi.solutionExplorer.debug');
-        expect(debugMenu.map(entry => entry.when.match(/contextValue == '(\w+)'/)?.[1]).sort())
-            .toEqual(['executable', 'startup', 'startupWithProfiles']);
+        expect(debugMenu).toHaveLength(1);
+        expect(debugMenu[0].when).toContain("nodeType == 'project' && contextValue =~ /^(executable|startup|startupWithProfiles)$/");
         expect(generated).toEqual([{ id: 'shinobi.solutionExplorer.debug', label: 'Debug' }]);
         expect(submenuItems['shinobi.solutionExplorer.debug'].map(item => item.command)).toEqual([
             'shinobi.solutionExplorer.startNewInstance',

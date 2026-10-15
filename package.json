@@ -838,23 +838,13 @@
         },
         {
           "submenu": "shinobi.solutionExplorer.debug",
-          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'executable'",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue =~ /^(executable|startup|startupWithProfiles)$/",
           "group": "4_group@2"
-        },
-        {
-          "submenu": "shinobi.solutionExplorer.debug",
-          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startup'",
-          "group": "4_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.chooseLaunchProfile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startupWithProfiles'",
           "group": "4_group@1"
-        },
-        {
-          "submenu": "shinobi.solutionExplorer.debug",
-          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startupWithProfiles'",
-          "group": "4_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.addServiceReference",

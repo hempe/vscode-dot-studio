@@ -277,6 +277,33 @@ export function buildMenuReference(): string {
     ].join('\n');
 }
 
+type WebviewContextEntry = { command?: string; submenu?: string; when: string; group: string };
+
+/** Merges the entries of one submenu on one node type into a single entry with a context value regex */
+function mergeSubmenuEntries(entries: WebviewContextEntry[]): WebviewContextEntry[] {
+    const merged: WebviewContextEntry[] = [];
+    const bySubmenu = new Map<string, { entry: WebviewContextEntry; base: string; values: string[] }>();
+    for (const entry of entries) {
+        const match = entry.submenu ? /^(.*) && contextValue == '([^']+)'$/.exec(entry.when) : null;
+        if (!match) {
+            merged.push(entry);
+            continue;
+        }
+        const [, base, value] = match;
+        const key = `${entry.submenu}|${base}`;
+        const existing = bySubmenu.get(key);
+        if (existing) {
+            existing.values.push(value);
+            existing.entry.when = `${base} && contextValue =~ /^(${existing.values.join('|')})$/`;
+        } else {
+            const first = { ...entry };
+            bySubmenu.set(key, { entry: first, base, values: [value] });
+            merged.push(first);
+        }
+    }
+    return merged;
+}
+
 /** The node types whose menus (including the conditional ones) offer the command */
 export function nodeTypesWithAction(action: MenuCommandAction): NodeType[] {
     return [...new Set(menuEntries()
@@ -317,6 +344,10 @@ export function buildMenuContributions() {
         })))
     );
 
+    // VS Code drops a submenu contributed to the same menu twice: one entry per node type and submenu,
+    // shown for all the context values it appears under
+    const webviewContextEntries = mergeSubmenuEntries(webviewContext);
+
     const submenuIds = Object.keys(submenus) as SubmenuId[];
     const generatedSubmenus = submenuIds.map(id => ({ id: submenuId(id), label: submenus[id].label }));
     const submenuItems = Object.fromEntries(submenuIds.map(id => [
@@ -339,7 +370,7 @@ export function buildMenuContributions() {
         }];
     });
 
-    return { commands, webviewContext, submenus: generatedSubmenus, submenuItems, commandPalette, keybindings };
+    return { commands, webviewContext: webviewContextEntries, submenus: generatedSubmenus, submenuItems, commandPalette, keybindings };
 }
 
 /** Returns a copy of package.json with the context menu contributions replaced by freshly generated ones */

@@ -23,9 +23,12 @@ export const SKIP_FILE_EXTENSIONS = [
 /**
  * System directories that should NEVER be accessed
  */
+/**
+ * Folders the extension never reads: virtual file systems and the operating system's own. Not /tmp, /var,
+ * /opt or /root: people keep code there (/var/www, dev containers running as root).
+ */
 export const SYSTEM_DIRECTORIES = [
-    '/proc', '/sys', '/dev', '/run', '/var', '/usr', '/lib', '/lib64',
-    '/boot', '/root', '/etc', '/tmp', '/opt'
+    '/proc', '/sys', '/dev', '/run', '/usr', '/lib', '/lib64', '/boot', '/etc'
 ];
 
 export const excludePatterns = SKIP_DIRECTORIES.map(dir => `**/${dir}/**`);
