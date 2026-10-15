@@ -22,7 +22,7 @@ describe('SolutionTree: Sync with Active Document', () => {
         });
 
         expect(container.querySelector('.tree-node.selected')?.textContent).toBe('Program.cs');
-        expect(scrolled).toEqual(['Program.cs']);
+        expect(scrolled[scrolled.length - 1]).toBe('Program.cs');
         expect(document.activeElement).toBe(container.querySelector('.solution-tree'));
     });
 

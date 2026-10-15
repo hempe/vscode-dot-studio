@@ -32,7 +32,7 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 ## Keyboard
 
-Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses or goes to the parent, Enter opens a file or expands a node.
+Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses or goes to the parent, Enter opens a file or expands a node, Home/End go to the first/last node. Type a name to jump to it, like in Visual Studio.
 
 | Key | Command |
 |---|---|

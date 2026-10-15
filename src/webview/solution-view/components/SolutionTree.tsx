@@ -187,6 +187,14 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     }, [treeNodes, flattenNodes, handleToggleExpand, onProjectAction]);
 
 
+    // Type-to-find: what was typed within a second, like Visual Studio's tree
+    const typed = useRef({ text: '', at: 0 });
+
+    // Keep the focused node in view while moving with the keyboard
+    useEffect(() => {
+        treeRef.current?.querySelector('.tree-node.focused')?.scrollIntoView?.({ block: 'nearest' });
+    }, [focusedNodeId]);
+
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -202,7 +210,25 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             const currentIndex = flatNodes.findIndex(item => item.node.nodeId === focusedNodeId);
             if (currentIndex === -1) return;
 
+            const focusAt = (index: number) => setFocusedNodeId(flatNodes[Math.max(0, Math.min(flatNodes.length - 1, index))].node.nodeId);
+
             switch (e.key) {
+                case 'Home':
+                    e.preventDefault();
+                    focusAt(0);
+                    return;
+                case 'End':
+                    e.preventDefault();
+                    focusAt(flatNodes.length - 1);
+                    return;
+                case 'PageDown':
+                    e.preventDefault();
+                    focusAt(currentIndex + 10);
+                    return;
+                case 'PageUp':
+                    e.preventDefault();
+                    focusAt(currentIndex - 10);
+                    return;
                 case 'ArrowDown':
                     e.preventDefault();
                     if (currentIndex < flatNodes.length - 1) {
@@ -275,7 +301,30 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                         }
                     }
                     break;
+                default:
+                    if (e.key.length !== 1 || e.key === ' ' || e.ctrlKey || e.metaKey || e.altKey) {
+                        break;
+                    }
+                    findTyped(e.key.toLowerCase(), currentIndex);
+                    break;
+            }
+        };
 
+        /** Moves the focus to the next visible node whose name starts with what was typed */
+        const findTyped = (key: string, currentIndex: number) => {
+            const now = Date.now();
+            const previous = now - typed.current.at < 1000 ? typed.current.text : '';
+            // The same letter again cycles through the matches; more letters narrow the current one
+            const cycling = previous.length > 0 && [...previous].every(c => c === key);
+            const text = cycling ? key : previous + key;
+            typed.current = { text: cycling ? previous + key : text, at: now };
+            const start = text.length === 1 ? currentIndex + 1 : currentIndex;
+            for (let i = 0; i < flatNodes.length; i++) {
+                const candidate = flatNodes[(start + i) % flatNodes.length].node;
+                if (candidate.name.toLowerCase().startsWith(text)) {
+                    setFocusedNodeId(candidate.nodeId);
+                    return;
+                }
             }
         };
 

@@ -153,7 +153,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [x] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution
 
 ### Phase 13: Tree Keyboard & Screenshots
-- [ ] Type-to-find in the Solution Explorer (typing jumps to the next matching node), Home and End
+- [x] Type-to-find in the Solution Explorer (typing jumps to the next matching node), Home and End
 - [ ] Screenshots of the Solution Explorer, Error List, NuGet manager, Test Explorer and Publish tab in the README and docs
 
 ### Phase 14: Starting Fresh & Multi-Select
