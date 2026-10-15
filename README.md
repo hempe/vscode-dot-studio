@@ -157,7 +157,7 @@ Ordered by what is needed to drop Visual Studio for daily work. Phases 1–7 cov
 - [ ] Screenshots of the Solution Explorer, Error List, NuGet manager, Test Explorer and Publish tab in the README and docs
 
 ### Phase 14: Starting Fresh & Multi-Select
-- [ ] Create a new solution with its first project in an empty folder, like Visual Studio's "Create a new project"
+- [x] Create a new solution with its first project in an empty folder, like Visual Studio's "Create a new project"
 - [ ] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
 
 ### Phase 15: Scale

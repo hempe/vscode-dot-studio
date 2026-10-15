@@ -29,6 +29,8 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 ### Open a solution
 Open the folder of your repository. The extension looks for `.sln` and `.slnx` files in it, and, when there are none at the top, in its subfolders (`src/App.sln`). The **Solution Explorer** appears in the activity bar (move it to the secondary side bar with the `shinobi.solutionExplorer.location` setting). With several solutions you pick one, once: the choice is remembered. **.NET: Open Solution...** (also in the Solution Explorer's `...` menu) switches to another.
 
+No solution yet? **.NET: Create New Project...** creates one with its first project, like Visual Studio's "Create a new project". See [Templates](templates.md#create-a-new-project-a-new-solution).
+
 ### Build, run, test
 1. **Build:** Ctrl+Shift+B builds the solution; right-click a project for Build, Rebuild and Clean. Errors show in the [Error List](error-list.md) and as red and yellow markers in the tree.
 2. **Run:** right-click a web or console project > **Set as Startup Project**, then F5 to debug or Ctrl+F5 to run without the debugger. See [Run & Debug](run-and-debug.md).

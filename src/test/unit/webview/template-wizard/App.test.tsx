@@ -96,4 +96,37 @@ describe('initialValues', () => {
         expect(initialValues(webapi, { framework: 'net8.0' })).toEqual({ framework: 'net8.0', 'use-controllers': false, 'client-id': '1111' });
         expect(initialValues(webapi, { framework: 'net6.0' }).framework).toBe('net10.0');
     });
+
+    it('creates a new solution with its first project, like Visual Studio\'s "Create a new project"', () => {
+        const { sent, receive } = renderWizard({ ...projectInit, title: 'Create a New Project', location: '/home/me/source', newSolution: true });
+        fireEvent.doubleClick(screen.getByText('ASP.NET Core Web API'));
+
+        expect(screen.getByLabelText('Location')).toHaveValue('/home/me/source');
+        fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Shop.Api' } });
+        // The solution name follows the project name until it is edited
+        expect(screen.getByLabelText('Solution name')).toHaveValue('Shop.Api');
+        fireEvent.change(screen.getByLabelText('Solution name'), { target: { value: 'Shop' } });
+        fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Shop.Web' } });
+        expect(screen.getByLabelText('Solution name')).toHaveValue('Shop');
+
+        fireEvent.click(screen.getByText('Browse...'));
+        expect(sent[sent.length - 1]).toEqual({ type: 'browseFolder', current: '/home/me/source' });
+        receive({ type: 'folderPicked', path: '/home/me/repos' });
+        fireEvent.click(screen.getByText('Create'));
+
+        expect(sent[sent.length - 1]).toEqual(expect.objectContaining({
+            type: 'create', name: 'Shop.Web', location: '/home/me/repos', solutionName: 'Shop', sameDirectory: false,
+        }));
+    });
+
+    it('places solution and project in one folder when asked', () => {
+        const { sent } = renderWizard({ ...projectInit, location: '/src', newSolution: true });
+        fireEvent.doubleClick(screen.getByText('Class Library'));
+        fireEvent.click(screen.getByLabelText('Place solution and project in the same directory'));
+
+        expect(screen.getByLabelText('Solution name')).toBeDisabled();
+        fireEvent.click(screen.getByText('Create'));
+        expect(sent[sent.length - 1]).toEqual(expect.objectContaining({ location: '/src', sameDirectory: true }));
+    });
 });
+

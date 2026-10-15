@@ -17,7 +17,7 @@ import { SlnxMigration } from './services/slnxMigration';
 import { SolutionDiscovery } from './services/solutionDiscovery';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
-import { TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
+import { openNewSolutionWizard, TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
 import { PublishPanel } from './webview/providers/PublishPanel';
 import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
@@ -224,6 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
             }
         }),
+        vscode.commands.registerCommand('shinobi.solution.new', () => openNewSolutionWizard()),
         vscode.commands.registerCommand('shinobi.errorList.show', () => vscode.commands.executeCommand(`${ERROR_LIST_VIEW}.focus`)),
         vscode.commands.registerCommand('shinobi.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)

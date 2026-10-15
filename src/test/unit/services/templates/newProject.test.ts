@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework } from '../../../../services/templates/newProject';
+import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework, solutionLayout } from '../../../../services/templates/newProject';
 
 describe('new project defaults', () => {
     const sln = path.join('/repo');
@@ -37,4 +37,18 @@ describe('new project defaults', () => {
         expect(findProjectFile(dir)).toBe(path.join(dir, 'Lib.fsproj'));
         fs.rmSync(dir, { recursive: true });
     });
+
+    it('lays out a new solution like Visual Studio\'s "Create a new project"', () => {
+        // Solution folder with the project folder in it
+        expect(solutionLayout('/home/me/source', 'Shop.Web', 'Shop', false)).toEqual({
+            solutionDir: path.join('/home/me/source', 'Shop'),
+            projectDir: path.join('/home/me/source', 'Shop', 'Shop.Web'),
+        });
+        // "Place solution and project in the same directory"
+        expect(solutionLayout('/home/me/source', 'Shop.Web', 'Shop', true)).toEqual({
+            solutionDir: path.join('/home/me/source', 'Shop.Web'),
+            projectDir: path.join('/home/me/source', 'Shop.Web'),
+        });
+    });
 });
+

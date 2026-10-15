@@ -1,5 +1,15 @@
 # Templates
 
+## Create a New Project (a new solution)
+
+Like Visual Studio's "Create a new project": run **.NET: Create New Project...**, click **Create New .NET Project** on VS Code's start screen when no folder is open, or use the Solution Explorer's `...` menu.
+
+1. Pick a project template, as in Add New Project below.
+2. **Project name**, **Location** (the folder the solution goes in; **Browse...**), **Solution name** (follows the project name until you change it), and **Place solution and project in the same directory**.
+3. The template's settings.
+
+**Create** makes `<Solution>/<Solution>.slnx` (a `.sln` with SDKs before 9.0.200) with the project in `<Solution>/<Project>/`, or both in one folder. The solution opens: in this window if it is inside the opened folder, otherwise its folder opens.
+
 ## Add New Project
 
 Right-click the solution or a solution folder > **Add New Project...**: a wizard like Visual Studio's.

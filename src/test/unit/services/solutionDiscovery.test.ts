@@ -1,6 +1,4 @@
 import { SolutionDiscovery } from '../../../services/solutionDiscovery';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 
 // Mock dependencies
@@ -10,28 +8,15 @@ jest.mock('vscode', () => ({
         showInformationMessage: jest.fn(),
         showInputBox: jest.fn(),
         showErrorMessage: jest.fn()
-    }
+    },
+    commands: { executeCommand: jest.fn() }
 }), { virtual: true });
 
-jest.mock('fs', () => ({
-    promises: {
-        readdir: jest.fn(),
-        writeFile: jest.fn()
-    }
-}));
-
-jest.mock('crypto', () => ({
-    randomUUID: jest.fn(() => '12345678-1234-1234-1234-123456789012')
-}));
-
 describe('SolutionDiscovery', () => {
-    const mockWorkspaceRoot = '/workspace/root';
-    let mockFs: jest.Mocked<typeof fs>;
     let mockVscode: jest.Mocked<typeof vscode>;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockFs = fs as jest.Mocked<typeof fs>;
         mockVscode = vscode as jest.Mocked<typeof vscode>;
     });
 
@@ -99,107 +84,21 @@ describe('SolutionDiscovery', () => {
         });
     });
 
-    describe('promptCreateSolution', () => {
-        it('should create solution when user confirms and provides valid name', async () => {
-            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
-            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue('MyNewSolution');
-            (mockFs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
+    describe('offerSolution (no solution found)', () => {
+        it('offers to open a solution or create a new project', async () => {
+            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create New Project...');
 
-            const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
+            expect(await SolutionDiscovery.offerSolution()).toBeNull();
 
             expect(mockVscode.window.showInformationMessage).toHaveBeenCalledWith(
-                'No solution file found in the workspace. Would you like to create one?',
-                'Create Solution',
-                'Skip'
-            );
-            expect(mockVscode.window.showInputBox).toHaveBeenCalledWith({
-                prompt: 'Enter solution name',
-                placeHolder: 'MySolution',
-                title: 'Create New Solution',
-                validateInput: expect.any(Function)
-            });
-            expect(result).toBe(path.join(mockWorkspaceRoot, 'MyNewSolution.sln'));
+                expect.stringContaining('No solution found'), 'Open Solution...', 'Create New Project...');
+            expect(mockVscode.commands.executeCommand).toHaveBeenCalledWith('shinobi.solution.new');
         });
 
-        it('should return null when user chooses to skip', async () => {
-            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Skip');
-
-            const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
-
-            expect(result).toBe(null);
-            expect(mockVscode.window.showInputBox).not.toHaveBeenCalled();
-        });
-
-        it('should return null when user cancels information dialog', async () => {
+        it('does nothing when dismissed', async () => {
             (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue(undefined);
-
-            const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
-
-            expect(result).toBe(null);
-            expect(mockVscode.window.showInputBox).not.toHaveBeenCalled();
-        });
-
-        it('should return null when user cancels input dialog', async () => {
-            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
-            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue(undefined);
-
-            const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
-
-            expect(result).toBe(null);
-        });
-
-        it('should handle file creation errors gracefully', async () => {
-            (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
-            (mockVscode.window.showInputBox as jest.Mock).mockResolvedValue('ValidName');
-            (mockFs.promises.writeFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
-
-            const result = await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
-
-            expect(mockVscode.window.showErrorMessage).toHaveBeenCalledWith(
-                'Failed to create solution: Error: Permission denied'
-            );
-            expect(result).toBe(null);
-        });
-
-        describe('solution name validation', () => {
-            let validateInput: (value: string) => string | null;
-
-            beforeEach(async () => {
-                (mockVscode.window.showInformationMessage as jest.Mock).mockResolvedValue('Create Solution');
-                (mockVscode.window.showInputBox as jest.Mock).mockImplementation((options) => {
-                    validateInput = options.validateInput!;
-                    return Promise.resolve('ValidName');
-                });
-
-                await SolutionDiscovery.promptCreateSolution(mockWorkspaceRoot);
-            });
-
-            it('should reject empty names', () => {
-                expect(validateInput('')).toBe('Solution name cannot be empty');
-                expect(validateInput('   ')).toBe('Solution name cannot be empty');
-            });
-
-            it('should reject names that don\'t start with a letter', () => {
-                expect(validateInput('123Solution')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores');
-                expect(validateInput('-Solution')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores');
-                expect(validateInput('.Solution')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores');
-            });
-
-            it('should reject names with invalid characters', () => {
-                expect(validateInput('My Solution')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores'); // space
-                expect(validateInput('MySolution!')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores'); // !
-                expect(validateInput('My/Solution')).toBe('Solution name must start with a letter and contain only letters, numbers, dots, hyphens, and underscores'); // /
-            });
-
-            it('should accept valid names', () => {
-                expect(validateInput('MySolution')).toBe(null);
-                expect(validateInput('My.Solution')).toBe(null);
-                expect(validateInput('My-Solution')).toBe(null);
-                expect(validateInput('My_Solution')).toBe(null);
-                expect(validateInput('MySolution123')).toBe(null);
-                expect(validateInput('M')).toBe(null); // Single letter
-                expect(validateInput('My.Complex-Solution_123')).toBe(null);
-            });
+            await SolutionDiscovery.offerSolution();
+            expect(mockVscode.commands.executeCommand).not.toHaveBeenCalled();
         });
     });
 });

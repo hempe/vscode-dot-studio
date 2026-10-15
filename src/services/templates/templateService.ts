@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { execFile } from 'child_process';
 import { logger } from '../../core/logger';
 import { SolutionService } from '../solutionService';
@@ -9,7 +10,7 @@ import { DebugConfigService } from '../debugConfigService';
 import { TemplateInfo, WizardInit, WizardTemplate } from '../../types/templateWizard';
 import { optionArgs, readTemplates } from './templateCache';
 import { BUILTIN_ITEMS, builtinItemContent, itemBaseName, projectLanguage, replaceNamespace } from './itemTemplates';
-import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework } from './newProject';
+import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework, solutionLayout } from './newProject';
 
 const log = logger('Templates');
 const RECENT_PROJECT_TEMPLATES = 'shinobi.recentProjectTemplates';
@@ -110,6 +111,48 @@ export async function newProjectWizard(solutionFolderPath?: string): Promise<Wiz
     };
 }
 
+/** Data for "Create a New Project": a new solution, in the opened folder or the home folder */
+export async function newSolutionWizard(): Promise<WizardInit> {
+    const recent = globalState?.get<string[]>(RECENT_PROJECT_TEMPLATES) ?? [];
+    const projectTemplates = preferLanguage((await templates()).filter(t => t.type === 'project'), 'C#')
+        .map(template => wizardTemplate(template, recent.includes(template.identity)))
+        .sort((a, b) => (recent.indexOf(a.id) + 1 || Infinity) - (recent.indexOf(b.id) + 1 || Infinity) || a.name.localeCompare(b.name));
+    return {
+        kind: 'project',
+        title: 'Create a New Project',
+        templates: projectTemplates,
+        location: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? os.homedir(),
+        preferredValues: {},
+        newSolution: true,
+    };
+}
+
+/** Creates the solution of "Create a New Project" and opens it: here if it is in the opened folder, else its folder */
+export async function createNewSolution(
+    request: { templateId: string; name: string; location?: string; solutionName?: string; sameDirectory?: boolean; values: Record<string, string | boolean> }
+): Promise<string | undefined> {
+    const template = cachedTemplates.find(t => t.identity === request.templateId);
+    if (!template || !request.location) {
+        return 'No template or location.';
+    }
+    const result = await createSolutionWithProject(template, request.name.trim(), request.location, request.solutionName ?? request.name, !!request.sameDirectory, request.values);
+    if (!result.solutionPath) {
+        return result.error;
+    }
+    const recent = globalState?.get<string[]>(RECENT_PROJECT_TEMPLATES) ?? [];
+    await globalState?.update(RECENT_PROJECT_TEMPLATES, [template.identity, ...recent.filter(id => id !== template.identity)].slice(0, 5));
+
+    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const relative = workspace ? path.relative(workspace, result.solutionPath) : '..';
+    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+        await SolutionService.openSolution(result.solutionPath);
+        await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
+    } else {
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(path.dirname(result.solutionPath)));
+    }
+    return undefined;
+}
+
 /** Data for the Add New Item wizard for `folder` of `projectPath` */
 export async function newItemWizard(folder: string, projectPath: string): Promise<WizardInit> {
     const language = projectLanguage(projectPath);
@@ -175,6 +218,51 @@ export async function createProject(
         return `${name} was created in ${location} but could not be added to the solution: ${error}`;
     }
     return undefined;
+}
+
+/**
+ * Visual Studio's "Create a new project": a new solution (.slnx; .sln with SDKs before 9.0.200) with the
+ * project from the template in it. Returns the solution file, or an error message for the wizard.
+ */
+export async function createSolutionWithProject(
+    template: TemplateInfo, name: string, location: string, solutionName: string, sameDirectory: boolean, values: Record<string, string | boolean>
+): Promise<{ error?: string; solutionPath?: string }> {
+    if (!isValidProjectName(name)) {
+        return { error: `'${name}' is not a valid project name: use letters, digits, _ and .` };
+    }
+    if (!sameDirectory && (!solutionName.trim() || /[\\/:*?"<>|]/.test(solutionName))) {
+        return { error: `'${solutionName}' is not a valid solution name.` };
+    }
+    const { solutionDir, projectDir } = solutionLayout(location, name, solutionName.trim() || name, sameDirectory);
+    if (fs.existsSync(solutionDir) && fs.readdirSync(solutionDir).length > 0) {
+        return { error: `${solutionDir} exists and is not empty.` };
+    }
+    fs.mkdirSync(solutionDir, { recursive: true });
+
+    const slnName = sameDirectory ? name : solutionName.trim();
+    let created = await dotnet(['new', 'sln', '-n', slnName, '-o', solutionDir, '--format', 'slnx'], solutionDir);
+    if (created.code !== 0) {
+        created = await dotnet(['new', 'sln', '-n', slnName, '-o', solutionDir], solutionDir);
+    }
+    const solutionPath = [`${slnName}.slnx`, `${slnName}.sln`].map(file => path.join(solutionDir, file)).find(file => fs.existsSync(file));
+    if (created.code !== 0 || !solutionPath) {
+        return { error: failure('Creating the solution', created) };
+    }
+
+    const args = ['new', template.shortName, '-n', name, '-o', projectDir, ...optionArgs(template.options, values)];
+    if (template.language) {
+        args.push('--language', template.language);
+    }
+    const result = await dotnet(args, solutionDir);
+    const projectFile = findProjectFile(projectDir);
+    if (result.code !== 0 || !projectFile) {
+        return { error: failure(`Creating ${name}`, result) };
+    }
+    const added = await dotnet(['sln', solutionPath, 'add', projectFile], solutionDir);
+    if (added.code !== 0) {
+        return { error: failure(`Adding ${name} to ${path.basename(solutionPath)}`, added) };
+    }
+    return { solutionPath };
 }
 
 /** All files below `folder` (readdir's `recursive` needs Node 20, older VS Code versions run Node 16/18) */

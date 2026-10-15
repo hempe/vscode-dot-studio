@@ -119,6 +119,10 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
     const [location, setLocation] = useState('');
     const [locationEdited, setLocationEdited] = useState(false);
     const [values, setValues] = useState<Values>({});
+    // New solution only: its name follows the project name until edited, like Visual Studio's
+    const [solutionName, setSolutionName] = useState('');
+    const [solutionNameEdited, setSolutionNameEdited] = useState(false);
+    const [sameDirectory, setSameDirectory] = useState(false);
     const [error, setError] = useState<string>();
     const [busy, setBusy] = useState(false);
 
@@ -135,6 +139,10 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
                 case 'error':
                     setError(message.message);
                     break;
+                case 'folderPicked':
+                    setLocation(message.path);
+                    setLocationEdited(true);
+                    break;
             }
         };
         window.addEventListener('message', listener);
@@ -142,7 +150,8 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
         return () => window.removeEventListener('message', listener);
     }, [api]);
 
-    const projectLocation = (projectName: string) => init?.location ? `${init.location}/${projectName}` : projectName;
+    const projectLocation = (projectName: string) => init?.newSolution ? init.location
+        : init?.location ? `${init.location}/${projectName}` : projectName;
 
     const select = (template: WizardTemplate) => {
         if (!init) {
@@ -152,6 +161,9 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
         setName(template.defaultName);
         setValues(initialValues(template, init.preferredValues));
         setError(undefined);
+        if (!solutionNameEdited) {
+            setSolutionName(template.defaultName);
+        }
         if (!locationEdited) {
             setLocation(projectLocation(template.defaultName));
         }
@@ -174,6 +186,7 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
         api.postMessage({
             type: 'create', templateId: selected.id, name: name.trim(), values,
             ...(isProject ? { location: location.trim() || projectLocation(name.trim()) } : {}),
+            ...(init.newSolution ? { solutionName: solutionName.trim() || name.trim(), sameDirectory } : {}),
         });
     };
 
@@ -219,6 +232,9 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
                     setName(e.target.value);
                     if (isProject && !locationEdited) {
                         setLocation(projectLocation(e.target.value.trim()));
+                    }
+                    if (init.newSolution && !solutionNameEdited) {
+                        setSolutionName(e.target.value);
                     }
                 }}
                 onKeyDown={e => { if (e.key === 'Enter' && (!isProject || page === 'configure')) { create(); } }}
@@ -270,9 +286,29 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
             {nameField}
             <div className="field">
                 <label htmlFor="location">Location</label>
-                <input id="location" type="text" value={location} onChange={e => { setLocation(e.target.value); setLocationEdited(true); }} />
-                <div className="hint">Relative to the solution folder</div>
+                {init.newSolution ? (
+                    <div className="toolbar">
+                        <input id="location" type="text" value={location} onChange={e => { setLocation(e.target.value); setLocationEdited(true); }} />
+                        <button className="action" onClick={() => api.postMessage({ type: 'browseFolder', current: location })}>Browse...</button>
+                    </div>
+                ) : (
+                    <input id="location" type="text" value={location} onChange={e => { setLocation(e.target.value); setLocationEdited(true); }} />
+                )}
+                <div className="hint">{init.newSolution ? 'The folder the solution goes in' : 'Relative to the solution folder'}</div>
             </div>
+            {init.newSolution && (
+                <>
+                    <div className="field">
+                        <label htmlFor="solution-name">Solution name</label>
+                        <input id="solution-name" type="text" value={sameDirectory ? name : solutionName} disabled={sameDirectory}
+                            onChange={e => { setSolutionName(e.target.value); setSolutionNameEdited(true); }} />
+                    </div>
+                    <div className="check">
+                        <input id="same-directory" type="checkbox" checked={sameDirectory} onChange={e => setSameDirectory(e.target.checked)} />
+                        <label htmlFor="same-directory">Place solution and project in the same directory</label>
+                    </div>
+                </>
+            )}
             <OptionsForm template={selected} values={values} onChange={(option, value) => setValues(v => ({ ...v, [option]: value }))} />
             {errorBox}
             <div className="buttons">

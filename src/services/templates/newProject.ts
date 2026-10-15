@@ -34,3 +34,13 @@ export function findProjectFile(dir: string): string | undefined {
     const file = fs.existsSync(dir) ? fs.readdirSync(dir).find(name => /\.(cs|fs|vb)proj$/i.test(name)) : undefined;
     return file ? path.join(dir, file) : undefined;
 }
+
+/**
+ * Where Visual Studio's "Create a new project" puts a new solution and its first project: a solution folder
+ * with the project folder in it, or both in one folder ("Place solution and project in the same directory")
+ */
+export function solutionLayout(location: string, projectName: string, solutionName: string, sameDirectory: boolean): { solutionDir: string; projectDir: string } {
+    const solutionDir = path.join(location, sameDirectory ? projectName : solutionName);
+    return { solutionDir, projectDir: sameDirectory ? solutionDir : path.join(solutionDir, projectName) };
+}
+

@@ -3,7 +3,7 @@ import * as path from 'path';
 import { logger } from '../../core/logger';
 import { WizardInit, WizardMessage, WizardRequest } from '../../types/templateWizard';
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
-import { createItem, createProject, newItemWizard, newProjectWizard } from '../../services/templates/templateService';
+import { createItem, createNewSolution, createProject, newItemWizard, newProjectWizard, newSolutionWizard } from '../../services/templates/templateService';
 
 const log = logger('TemplateWizard');
 
@@ -54,6 +54,17 @@ export class TemplateWizardPanel {
                     }
                     break;
                 }
+                case 'browseFolder': {
+                    const [folder] = await vscode.window.showOpenDialog({
+                        canSelectFiles: false, canSelectFolders: true, canSelectMany: false,
+                        defaultUri: request.current ? vscode.Uri.file(request.current) : undefined,
+                        openLabel: 'Select Folder',
+                    }) ?? [];
+                    if (folder) {
+                        await post({ type: 'folderPicked', path: folder.fsPath });
+                    }
+                    break;
+                }
                 case 'cancel':
                     panel.dispose();
                     break;
@@ -86,3 +97,9 @@ export function openNewItemWizard(folder: string, projectPath: string): void {
             return result.error;
         });
 }
+
+/** Visual Studio's "Create a new project": a new solution with its first project, which then opens */
+export function openNewSolutionWizard(): void {
+    TemplateWizardPanel.open('Create a New Project', newSolutionWizard, request => createNewSolution(request));
+}
+

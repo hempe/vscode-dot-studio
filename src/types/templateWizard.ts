@@ -50,16 +50,24 @@ export interface WizardInit {
     readonly location: string;
     /** Values the wizard preselects instead of the template defaults, e.g. the solution's framework */
     readonly preferredValues: Record<string, string>;
+    /** Visual Studio's "Create a new project": a new solution; `location` is then the folder it goes in (absolute) */
+    readonly newSolution?: boolean;
 }
 
 /** Webview → extension */
 export type WizardRequest =
     | { readonly type: 'ready' }
-    | { readonly type: 'create'; readonly templateId: string; readonly name: string; readonly location?: string; readonly values: Record<string, string | boolean> }
+    | {
+        readonly type: 'create'; readonly templateId: string; readonly name: string; readonly location?: string; readonly values: Record<string, string | boolean>;
+        /** New solution only */
+        readonly solutionName?: string; readonly sameDirectory?: boolean;
+    }
+    | { readonly type: 'browseFolder'; readonly current: string }
     | { readonly type: 'cancel' };
 
 /** Extension → webview */
 export type WizardMessage =
     | { readonly type: 'init'; readonly payload: WizardInit }
     | { readonly type: 'busy'; readonly busy: boolean }
+    | { readonly type: 'folderPicked'; readonly path: string }
     | { readonly type: 'error'; readonly message: string };
