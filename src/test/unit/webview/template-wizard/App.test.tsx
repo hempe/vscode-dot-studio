@@ -54,7 +54,7 @@ describe('template wizard', () => {
         expect(screen.getByLabelText('Location')).toHaveValue('src/WebApplication');
         fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Orders.Api' } });
         expect(screen.getByLabelText('Location')).toHaveValue('src/Orders.Api');
-        expect(screen.getByLabelText('framework')).toHaveValue('net8.0');
+        expect(screen.getByLabelText('framework')).toHaveProperty('value', 'net8.0');
         expect(screen.getByText('More options (1)')).toBeInTheDocument();
         fireEvent.click(screen.getByLabelText(/Whether to use controllers/));
         fireEvent.click(screen.getByText('Create'));

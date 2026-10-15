@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# Captures the screenshots of the README and docs (docs/images/*.png): VS Code runs with this extension in a
+# virtual display (Xvfb), in a throwaway profile, on a copy of the sample solution, and xdotool steers it.
+# Rerun after UI or theme changes.
+#
+#   scripts/screenshots/capture.sh ["Theme Name"]     e.g. "Default Light Modern"; default "Default Dark Modern"
+#
+# Needs: Xvfb and xdotool (Arch: pacman -S xorg-server-xvfb xdotool), ImageMagick, the .NET SDK, code-oss or
+# code, a built extension (npm run build:dev) and network access (NuGet). The solution is sample/ (Contoso), copied
+# to a temporary folder.
+# Environment: CODE (default code-oss),
+# CSHARP_EXT (C# extension folder, default the newest muhammad-sammy.csharp or ms-dotnettools.csharp),
+# SCENES (space-separated scene names to capture, default all), KEEP=1 keeps the work folder.
+set -euo pipefail
+
+THEME="${1:-Default Dark Modern}"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+OUT="$REPO/docs/images"
+CODE="${CODE:-code-oss}"
+CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish}"
+DISPLAY_NUMBER=97
+WIDTH=1600
+HEIGHT=1000
+
+WORK="$(mktemp -d /tmp/shinobi-shots-XXXX)"
+export DISPLAY=":$DISPLAY_NUMBER"
+XVFB_PID=""
+CODE_PID=""
+cleanup() {
+    [ -n "$CODE_PID" ] && kill "$CODE_PID" 2>/dev/null || true
+    [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
+    # VS Code's helper processes can still write to the profile for a moment
+    if [ -z "${KEEP:-}" ]; then sleep 3; rm -rf -- "$WORK" 2>/dev/null || { sleep 5; rm -rf -- "$WORK"; }; else echo "Work folder kept: $WORK"; fi
+}
+trap cleanup EXIT
+
+# --- helpers -------------------------------------------------------------------------------------------------
+
+key() { xdotool key --clearmodifiers "$@"; sleep 0.5; }
+type_text() { xdotool type --delay 30 "$1"; sleep 0.5; }
+click() { xdotool mousemove "$1" "$2" click "${3:-1}"; sleep 0.8; }
+double_click() { xdotool mousemove "$1" "$2" click --repeat 2 --delay 80 1; sleep 0.8; }
+pause() { sleep "${1:-1}"; }
+# Runs a command from the command palette
+command() { key ctrl+shift+p; pause 0.8; type_text "$1"; pause 1; key Return; pause "${2:-2}"; }
+# Saves the screen as docs/images/<name>.png, cropped to WxH+X+Y; by default without the title bar, which says
+# "[Extension Development Host]"
+shot() {
+    import -window root "$WORK/$1.png"
+    magick "$WORK/$1.png" -crop "${2:-${WIDTH}x$((HEIGHT - 35))+0+35}" +repage "$OUT/$1.png"
+    echo "  $OUT/$1.png"
+}
+wants() { [[ " $SCENES " == *" $1 "* ]]; }
+
+# Tree navigation with the Solution Explorer's own keys: the first click focuses the tree, typing jumps to a node
+# (type-to-find), Right expands it
+tree_focus() { key ctrl+alt+l; pause 1; click 140 81; }
+tree_open() { for name in "$@"; do type_text "$name"; pause 1.2; key Right; pause 1.5; done; }
+tree_select() { pause 1.2; type_text "$1"; pause 1.2; }
+# Opens Shop.Web's context menu and clicks an entry by its offset below the click (from context-menu.png).
+# After Collapse All and opening the solution and src, rows are 20.6 px apart from y=81: the solution, Solution Items,
+# src, then src's projects in order.
+shop_web_y() {
+    local index
+    index="$(ls "$SOLUTION/src" | sort -f | grep -n -x Shop.Web | cut -d: -f1)"
+    echo $(( 81 + (3 + index - 1) * 206 / 10 ))
+}
+shop_web_menu() {
+    local y; y="$(shop_web_y)"
+    tree_focus; tree_open Contoso src; click 165 "$y" 3; pause 1.5; click 280 $(( y + $1 ))
+}
+# Builds and test runs reopen the panel (at times later in a scene); scenes without it hide it before the shot. Clicking the empty tab bar first takes the focus out of webviews, which
+# keep the command palette's keys
+close_panel() { click 1300 52; command "View: Hide Panel" 1; }
+# Every scene starts from the collapsed tree, with no editors and no panel
+reset() { command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
+
+# --- the sample: a copy of sample/ (Contoso), built ----------------------------------------------------------------
+
+echo "Preparing the sample in $WORK"
+cp -r "$REPO/scripts/screenshots/sample" "$WORK/Contoso"
+SOLUTION="$WORK/Contoso"
+(cd "$SOLUTION" && dotnet build Contoso.slnx -p:EmitCompilerGeneratedFiles=true -v q -nologo >/dev/null)
+# Recompile in VS Code, so the warnings come from its build (Error List, tree markers)
+touch "$SOLUTION/src/Shop.Core/Orders/Order.cs" "$SOLUTION/src/Shop.Core/Pricing/PriceCalculator.cs"
+
+# --- a throwaway profile ---------------------------------------------------------------------------------------
+
+mkdir -p "$WORK/profile/User" "$WORK/extensions" "$OUT"
+[ -n "$CSHARP_EXT" ] && ln -s "$CSHARP_EXT" "$WORK/extensions/"
+RUNTIME_EXT="$(ls -d "$HOME"/.vscode-oss/extensions/ms-dotnettools.vscode-dotnet-runtime-* "$HOME"/.vscode/extensions/ms-dotnettools.vscode-dotnet-runtime-* 2>/dev/null | tail -1 || true)"
+[ -n "$RUNTIME_EXT" ] && ln -s "$RUNTIME_EXT" "$WORK/extensions/"
+cat > "$WORK/profile/User/settings.json" <<EOF
+{
+  "workbench.colorTheme": "$THEME",
+  "workbench.startupEditor": "none",
+  "security.workspace.trust.enabled": false,
+  "telemetry.telemetryLevel": "off",
+  "update.mode": "none",
+  "extensions.autoCheckUpdates": false,
+  "extensions.autoUpdate": false,
+  "workbench.tips.enabled": false,
+  "git.enabled": false,
+  "editor.minimap.enabled": false,
+  "chat.disableAIFeatures": true,
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "window.restoreWindows": "none",
+  "window.title": "\${rootName}",
+  "testing.automaticallyOpenTestResults": "neverOpen",
+  "dotnet.server.useOmnisharp": false
+}
+EOF
+# --- VS Code in a virtual display ------------------------------------------------------------------------------
+
+echo "Starting VS Code ($THEME)"
+Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" -nolisten tcp >/dev/null 2>&1 &
+XVFB_PID=$!
+pause 2
+# Webviews stay blank with GPU compositing in Xvfb
+"$CODE" --disable-gpu --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" \
+    --extensionDevelopmentPath="$REPO" --disable-workspace-trust --new-window "$SOLUTION" >"$WORK/code.log" 2>&1 &
+CODE_PID=$!
+pause 20
+WINDOW="$(xdotool search --onlyvisible --class code | tail -1)"
+# No window manager: size the window by hand
+xdotool windowmove "$WINDOW" 0 0 windowsize "$WINDOW" "$WIDTH" "$HEIGHT"
+pause 1
+xdotool windowfocus "$WINDOW"
+# A wider side bar for the tree
+key ctrl+alt+l
+pause 3
+xdotool mousemove 347 500 mousedown 1 mousemove 420 500 mousemove 470 500 mouseup 1
+pause 1
+key ctrl+shift+b
+pause 15
+
+# --- scenes ----------------------------------------------------------------------------------------------------
+
+if wants solution-explorer; then
+    echo "Scene: solution-explorer"
+    reset
+    tree_focus
+    tree_open Contoso src Shop.Core Orders
+    tree_select Shop.Web; key Right; pause 1.5
+    tree_select Pages; key Right; pause 1.5
+    tree_select Index.cshtml; key Right; pause 1
+    key ctrl+p; type_text "Order.cs"; pause 1.5; key Return; pause 3
+    shot solution-explorer
+fi
+
+if wants dependencies; then
+    echo "Scene: dependencies"
+    reset
+    tree_focus
+    tree_open Contoso src Shop.Core Dependencies Analyzers
+    tree_select Shop.Generators; key Right; pause 2
+    tree_select Shop.Generators.B; key Right; pause 2
+    tree_select Product.Describe; key Return; pause 3
+    tree_focus
+    tree_open Contoso src Shop.Web Dependencies Packages Microsoft.EntityFrameworkCore.Sqlite
+    tree_select Microsoft.EntityFrameworkCore.Sqlite.Core; key Right; pause 2
+    close_panel
+    shot dependencies
+fi
+
+if wants context-menu; then
+    echo "Scene: context-menu"
+    reset
+    tree_focus
+    tree_open Contoso src
+    click 165 "$(shop_web_y)" 3
+    pause 2
+    shot context-menu
+    key Escape
+fi
+
+if wants error-list; then
+    echo "Scene: error-list"
+    reset
+    key ctrl+p; type_text "PriceCalculator.cs"; pause 1.5; key Return; pause 3
+    command "Show Error List" 3
+    shot error-list
+fi
+
+if wants tests; then
+    echo "Scene: tests"
+    reset
+    command "Testing: Focus on Test Explorer View" 3
+    command "Test: Run All Tests" 90
+    command "Test Results: Focus on Test Results View" 2
+    key ctrl+p; type_text "OrderTests.cs"; pause 1.5; key Return; pause 4
+    shot tests
+fi
+
+if wants nuget; then
+    echo "Scene: nuget"
+    reset
+    shop_web_menu 303
+    pause 15
+    close_panel
+    shot nuget
+fi
+
+if wants new-project; then
+    echo "Scene: new-project"
+    reset
+    command "Create New Project..." 20
+    # Step 1: search, select a template (its description shows on the right)
+    click 700 138; type_text "Razor Pages"; pause 1.5
+    click 600 175; pause 1
+    close_panel
+    shot new-project
+    # Step 2: double-clicking the template opens "Configure your new project"
+    double_click 600 175; pause 2
+    shot new-project-configure
+    command "View: Close All Editors" 1
+fi
+
+if wants publish; then
+    echo "Scene: publish"
+    reset
+    shop_web_menu 517
+    pause 5
+    close_panel
+    shot publish
+fi
+
+echo "Done: $OUT"

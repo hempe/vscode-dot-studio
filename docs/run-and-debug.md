@@ -14,6 +14,7 @@ Commit them to give the team a default startup project, or add them to `.gitigno
 
 Profiles from `Properties/launchSettings.json` with `"commandName": "Project"` apply when the app starts: `applicationUrl`, `environmentVariables`, `commandLineArgs`. With `launchBrowser`, the browser opens at `launchUrl` once the app logs "Now listening on".
 
+- **Open Launch Settings** on a project that can be started opens its `Properties/launchSettings.json`. A project without one gets it first, with the profiles `dotnet new` writes: `http` and `https` with free ports for web projects, one profile named after the project for the others. Visual Studio hides this file behind Properties > Debug > "Open debug launch profiles UI".
 - **Set as Startup Project** asks for the profile when there are several.
 - **Set Launch Profile...** on the startup project picks another one.
 - Edits to `launchSettings.json` are picked up; a removed or renamed profile falls back to another.

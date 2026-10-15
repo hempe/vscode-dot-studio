@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Shop.Core/Shop.Core.csproj" />
+    <Project Path="src/Shop.Generators/Shop.Generators.csproj" />
+    <Project Path="src/Shop.Web/Shop.Web.csproj" />
+    <Project Path="src/Shop.Worker/Shop.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj" />
+    <Project Path="tests/Shop.Core.Tests/Shop.Core.Tests.csproj" />
+    <Project Path="tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj" />
+  </Folder>
+</Solution>

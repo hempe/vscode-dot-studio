@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Startup",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/Shop.Web/bin/Debug/net10.0/Shop.Web.dll",
+            "launchSettingsProfile": "http",
+            "cwd": "${workspaceFolder}/src/Shop.Web",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "preLaunchTask": "StartupPreBuild",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+                "uriFormat": "%s"
+            }
+        }
+    ]
+}

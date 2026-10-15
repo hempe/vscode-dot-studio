@@ -1,4 +1,4 @@
-import { isExecutableProject } from '../../../parsers/projectKind';
+import { isExecutableProject, isWebProject } from '../../../parsers/projectKind';
 
 const project = (sdk: string, body = '') =>
     `<Project Sdk="${sdk}"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${body}</PropertyGroup></Project>`;
@@ -32,5 +32,14 @@ describe('isExecutableProject', () => {
             '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" /></ItemGroup></Project>'
         )).toBe(false);
         expect(isExecutableProject(project('MSTest.Sdk/3.6.4', '<OutputType>Exe</OutputType>'))).toBe(false);
+    });
+});
+
+describe('isWebProject', () => {
+    it('is true for the web SDK only', () => {
+        expect(isWebProject(project('Microsoft.NET.Sdk.Web'))).toBe(true);
+        expect(isWebProject('<Project><Sdk Name="Microsoft.NET.Sdk.Web/10.0.100" /></Project>')).toBe(true);
+        expect(isWebProject(project('Microsoft.NET.Sdk.Worker'))).toBe(false);
+        expect(isWebProject(project('Microsoft.NET.Sdk', '<OutputType>Exe</OutputType>'))).toBe(false);
     });
 });

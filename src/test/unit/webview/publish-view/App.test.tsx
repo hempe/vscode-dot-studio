@@ -21,6 +21,12 @@ const init = (overrides: Partial<PublishInit> = {}): PublishInit => ({
     ...overrides,
 });
 
+/** Picks a value in one of the Select dropdowns */
+function choose(label: string, value: string) {
+    fireEvent.click(screen.getByLabelText(label));
+    fireEvent.click(screen.getAllByRole('option').find(o => o.getAttribute('data-value') === value)!);
+}
+
 function setup(data: PublishInit) {
     const sent: PublishRequest[] = [];
     render(<App api={{ postMessage: (request: PublishRequest) => sent.push(request) }} />);
@@ -77,10 +83,10 @@ describe('Publish tab', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Show all settings' }));
 
         expect(screen.getByLabelText('Produce single file')).toHaveProperty('disabled', true);
-        fireEvent.change(screen.getByLabelText('Deployment mode'), { target: { value: 'self-contained' } });
+        choose('Deployment mode', 'self-contained');
         expect(screen.getByLabelText('Target runtime')).toHaveProperty('value', 'linux-x64');
         fireEvent.click(screen.getByLabelText('Produce single file'));
-        fireEvent.change(screen.getByLabelText('Target framework'), { target: { value: 'net8.0' } });
+        choose('Target framework', 'net8.0');
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
         expect(last(sent)).toEqual({
@@ -95,7 +101,7 @@ describe('Publish tab', () => {
             profiles: [{ name: 'FolderProfile', target: 'Folder', publishFolder: '/x', settings: { ...settings, selfContained: true, runtimeIdentifier: 'linux-x64', singleFile: true, readyToRun: true, trimmed: true } }],
         }));
         fireEvent.click(screen.getByRole('button', { name: 'Show all settings' }));
-        fireEvent.change(screen.getByLabelText('Target runtime'), { target: { value: '' } });
+        choose('Target runtime', '');
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
         expect((last(sent) as any).settings).toEqual({ ...settings, selfContained: false, runtimeIdentifier: undefined, singleFile: false, readyToRun: false, trimmed: false });

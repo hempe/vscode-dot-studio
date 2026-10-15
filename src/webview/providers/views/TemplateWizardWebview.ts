@@ -16,6 +16,7 @@ export class TemplateWizardWebview {
     <title>${title.replace(/[<>&"]/g, '')}</title>
     <style>
         body { padding: 0 20px 20px; color: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
+        #root { max-width: 1200px; }
         h1 { font-size: 1.4em; font-weight: 400; margin: 16px 0; }
         h2 { font-size: 1.1em; font-weight: 600; margin: 4px 0 8px; }
         .toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
@@ -36,25 +37,25 @@ export class TemplateWizardWebview {
         .template[aria-selected=true] { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
         .template .meta { opacity: 0.7; font-size: 0.9em; margin-left: 8px; }
         .description { opacity: 0.85; line-height: 1.4; }
-        .field { display: grid; grid-template-columns: 160px minmax(0, 480px); align-items: center; gap: 8px; margin: 8px 0; }
+        .field { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: center; gap: 8px; margin: 8px 0; }
         .field .hint { grid-column: 2; opacity: 0.7; font-size: 0.9em; margin-top: -4px; }
-        .check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; max-width: 640px; }
+        .check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
         details { margin: 12px 0; }
         summary { cursor: pointer; }
-        .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; max-width: 648px; }
+        .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
         button.action { padding: 5px 14px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; font: inherit; cursor: pointer;
             background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
         button.action.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
         button.action:disabled { opacity: 0.5; cursor: default; }
-        .error { white-space: pre-wrap; color: var(--vscode-errorForeground); border-left: 3px solid var(--vscode-inputValidation-errorBorder); padding: 4px 8px; margin: 12px 0; max-width: 640px; }
+        .error { white-space: pre-wrap; color: var(--vscode-errorForeground); border-left: 3px solid var(--vscode-inputValidation-errorBorder); padding: 4px 8px; margin: 12px 0; }
         .empty { padding: 8px; opacity: 0.7; }
-        .summary { display: grid; grid-template-columns: 180px minmax(0, 520px); gap: 6px 12px; margin: 16px 0; }
+        .summary { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 6px 12px; margin: 16px 0; }
         .summary dt { opacity: 0.8; }
         .summary dd { margin: 0; overflow-wrap: anywhere; }
         .status { margin: 8px 0; opacity: 0.9; }
         .status.ok { color: var(--vscode-testing-iconPassed, inherit); }
         .status.failed { color: var(--vscode-errorForeground); }
-        .note { opacity: 0.8; max-width: 640px; line-height: 1.4; }
+        .note { opacity: 0.8; line-height: 1.4; }
         a.link { color: var(--vscode-textLink-foreground); cursor: pointer; }
     </style>
 </head>

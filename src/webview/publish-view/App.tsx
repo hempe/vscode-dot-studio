@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FolderSettings, PublishInit, PublishMessage, PublishProfileView, PublishRequest } from '../../types/publish';
+import { Select } from '../shared/Select';
 
 export interface PublishApi {
     postMessage(message: PublishRequest): void;
@@ -39,12 +40,10 @@ const FolderField: React.FC<{ id: string; label: string; value: string; onChange
     </div>
 );
 
-const Select: React.FC<{ id: string; label: string; value: string; options: [string, string][]; onChange(value: string): void }> = ({ id, label, value, options, onChange }) => (
+const SelectField: React.FC<{ id: string; label: string; value: string; options: [string, string][]; onChange(value: string): void }> = ({ id, label, value, options, onChange }) => (
     <div className="field">
         <label htmlFor={id}>{label}</label>
-        <select id={id} value={value} onChange={e => onChange(e.target.value)}>
-            {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
-        </select>
+        <Select id={id} value={value} onChange={onChange} options={options.map(([optionValue, optionLabel]) => ({ value: optionValue, label: optionLabel }))} />
     </div>
 );
 
@@ -78,14 +77,14 @@ const SettingsForm: React.FC<{
     return (
         <section>
             <h2>Profile settings</h2>
-            <Select id="configuration" label="Configuration" value={settings.configuration}
+            <SelectField id="configuration" label="Configuration" value={settings.configuration}
                 options={configurations.map(c => [c, c])} onChange={configuration => update({ configuration })} />
-            <Select id="framework" label="Target framework" value={settings.targetFramework ?? ''}
+            <SelectField id="framework" label="Target framework" value={settings.targetFramework ?? ''}
                 options={frameworks.map(f => [f, f])} onChange={targetFramework => update({ targetFramework })} />
-            <Select id="deployment" label="Deployment mode" value={settings.selfContained ? 'self-contained' : 'framework-dependent'}
+            <SelectField id="deployment" label="Deployment mode" value={settings.selfContained ? 'self-contained' : 'framework-dependent'}
                 options={[['framework-dependent', 'Framework-dependent'], ['self-contained', 'Self-contained']]}
                 onChange={mode => update({ selfContained: mode === 'self-contained' })} />
-            <Select id="runtime" label="Target runtime" value={settings.runtimeIdentifier ?? ''}
+            <SelectField id="runtime" label="Target runtime" value={settings.runtimeIdentifier ?? ''}
                 options={[['', 'Portable'], ...init.runtimes.map((r): [string, string] => [r, r])]}
                 onChange={runtime => update({ runtimeIdentifier: runtime || undefined, ...(runtime ? {} : { selfContained: false }) })} />
             <FolderField id="location" label="Target location" value={settings.publishDir}
@@ -223,9 +222,8 @@ export const App: React.FC<{ api: PublishApi }> = ({ api }) => {
             ) : (
                 <section>
                     <div className="toolbar">
-                        <select aria-label="Publish profile" value={profile.name} onChange={e => setSelected(e.target.value)}>
-                            {init.profiles.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                        </select>
+                        <Select aria-label="Publish profile" value={profile.name} onChange={setSelected}
+                            options={init.profiles.map(p => ({ value: p.name, label: p.name }))} />
                         <button className="action primary" disabled={publishing || profile.target !== 'Folder'}
                             onClick={() => api.postMessage({ type: 'publish', profile: profile.name })}>
                             {publishing ? 'Publishing...' : 'Publish'}

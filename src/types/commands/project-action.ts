@@ -239,6 +239,11 @@ export declare type ManageUserSecretsActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type OpenLaunchSettingsActionCmd = {
+    readonly action: 'openLaunchSettings';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type PublishActionCmd = {
     readonly action: 'publish';
     readonly nodeId: NodeIdString;
@@ -293,4 +298,5 @@ export type ProjectActionCmd =
     | OpenInTerminalActionCmd
     | CopyFullPathActionCmd
     | ManageUserSecretsActionCmd
+    | OpenLaunchSettingsActionCmd
     | PublishActionCmd;

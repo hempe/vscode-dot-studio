@@ -73,6 +73,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Command | Key | What it does |
 |---|---|---|
 | Set as Startup Project |  | Makes the project the one F5 and Ctrl+F5 start; asks for the launch profile if it has several. Writes the `Startup` configuration to `.vscode/launch.json`. |
+| Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
 
@@ -80,6 +81,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 
 | Command | Key | What it does |
 |---|---|---|
+| Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
 
@@ -88,6 +90,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Command | Key | What it does |
 |---|---|---|
 | Set Launch Profile... |  | Picks another launch profile (`Properties/launchSettings.json`) of the startup project. |
+| Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
 

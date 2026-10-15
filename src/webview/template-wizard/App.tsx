@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { TemplateOption, WizardInit, WizardMessage, WizardRequest, WizardTemplate } from '../../types/templateWizard';
+import { Select } from '../shared/Select';
 
 export interface WizardApi {
     postMessage(message: WizardRequest): void;
@@ -77,11 +78,8 @@ const OptionField: React.FC<{ option: TemplateOption; value: string | boolean; o
             <label htmlFor={id}>{option.name}</label>
             {option.type === 'choice'
                 ? (
-                    <select id={id} value={String(value)} onChange={e => onChange(e.target.value)}>
-                        {(option.choices ?? []).map(choice => (
-                            <option key={choice.value} value={choice.value}>{choice.value}{choice.description ? ` - ${choice.description}` : ''}</option>
-                        ))}
-                    </select>
+                    <Select id={id} value={String(value)} onChange={onChange}
+                        options={(option.choices ?? []).map(choice => ({ value: choice.value, label: choice.description ? `${choice.value} - ${choice.description}` : choice.value }))} />
                 )
                 : <input id={id} type="text" value={String(value)} onChange={e => onChange(e.target.value)} />}
             <div className="hint">{option.label}</div>
@@ -194,10 +192,8 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
         <>
             <div className="toolbar">
                 <input type="text" placeholder="Search templates" aria-label="Search templates" value={search} onChange={e => setSearch(e.target.value)} autoFocus />
-                <select aria-label="Category" value={category} onChange={e => setCategory(e.target.value)}>
-                    <option value="">All categories</option>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <Select aria-label="Category" value={category} onChange={setCategory}
+                    options={[{ value: '', label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
             </div>
             <div className="layout">
                 <div className="templates">
@@ -210,11 +206,13 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
                     />
                 </div>
                 <div className="details">
-                    {selected && (
+                    {selected ? (
                         <>
                             <h2>{selected.name}</h2>
                             <div className="description">{selected.description}</div>
                         </>
+                    ) : (
+                        <div className="description">Select a template to see what it creates.</div>
                     )}
                 </div>
             </div>

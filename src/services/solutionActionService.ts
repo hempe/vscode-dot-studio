@@ -13,6 +13,7 @@ import { renameFileAndType } from './typeRename';
 import { copyExistingItems } from './existingItems';
 import { runTask } from './runTask';
 import { manageUserSecrets } from './userSecrets';
+import { openLaunchSettings } from './launchSettings';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
@@ -80,6 +81,10 @@ export class SolutionActionService {
 
             case 'manageUserSecrets':
                 await manageUserSecrets(nodeId.path);
+                break;
+
+            case 'openLaunchSettings':
+                await openLaunchSettings(nodeId.path);
                 break;
 
             case 'copyFullPath':

@@ -37,6 +37,8 @@ No solution yet? **.NET: Create New Project...** creates one with its first proj
 3. **Test:** test projects appear in VS Code's Testing view after a build; right-click a test project, folder or file > **Run Tests**. See [Tests](tests.md).
 4. **Packages:** right-click a project > **Manage NuGet Packages...**. See [NuGet](nuget.md).
 
-## For contributors
+## Project
 
-[Manual testing](manual-testing.md) lists what still needs a check in VS Code itself.
+- [Roadmap](roadmap.md): what's next, known bugs and limitations
+- [History](history.md): what's done, phase by phase
+- [Contributing](../CONTRIBUTING.md): build, run and test the extension; [Manual testing](manual-testing.md) lists what still needs a check in VS Code itself

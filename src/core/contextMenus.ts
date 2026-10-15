@@ -52,6 +52,7 @@ export const menuCommands = {
     restoreDependencies: { title: 'Restore Dependencies', description: 'Restores the NuGet packages of the project (`dotnet restore`).' },
     setStartupProject: { title: 'Set as Startup Project', description: 'Makes the project the one F5 and Ctrl+F5 start; asks for the launch profile if it has several. Writes the `Startup` configuration to `.vscode/launch.json`.' },
     chooseLaunchProfile: { title: 'Set Launch Profile...', description: 'Picks another launch profile (`Properties/launchSettings.json`) of the startup project.' },
+    openLaunchSettings: { title: 'Open Launch Settings', description: "Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none." },
     addServiceReference: { title: 'Add Service Reference...', description: 'Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`.' },
     updateServiceReference: { title: 'Update Service Reference', description: "Regenerates the service reference from its WSDL, for the project's current target framework." },
     removeServiceReference: { title: 'Remove Service Reference', description: 'Removes the service reference: deletes its folder after asking; the WCF packages stay.' },
@@ -114,7 +115,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['editProjectFile'],
         ['addNewItem', 'addExistingItem', 'addFile', 'addFolder', 'addServiceReference'],
         ['paste'],
-        [], // setStartupProject or chooseLaunchProfile and the Debug submenu, see below
+        [], // setStartupProject or chooseLaunchProfile, openLaunchSettings and the Debug submenu, see below
         ['manageNuGetPackages', 'manageUserSecrets'],
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean', 'publish'],
@@ -125,15 +126,15 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     // The empty groups keep the items in their slot in the project menu.
     [`project.${EXECUTABLE_PROJECT}`]: [
         [], [], [],
-        ['setStartupProject', 'debug'],
+        ['setStartupProject', 'openLaunchSettings', 'debug'],
     ],
     [`project.${STARTUP_PROJECT}`]: [
         [], [], [],
-        ['debug'],
+        ['openLaunchSettings', 'debug'],
     ],
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: [
         [], [], [],
-        ['chooseLaunchProfile', 'debug'],
+        ['chooseLaunchProfile', 'openLaunchSettings', 'debug'],
     ],
     'folder.connectedServices': [
         ['addServiceReference'],
