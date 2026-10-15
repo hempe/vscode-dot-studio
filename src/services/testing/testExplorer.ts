@@ -4,6 +4,7 @@ import * as path from 'path';
 import { spawn, execFile } from 'child_process';
 import { logger } from '../../core/logger';
 import { sln } from '../../core/utils';
+import { RequestQueue } from '../../core/requestQueue';
 import { SolutionService } from '../solutionService';
 import { BuildConfiguration } from '../buildConfiguration';
 import { DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
@@ -115,6 +116,9 @@ const defaultDeps: TestExplorerDeps = {
         }
     },
 };
+
+/** Test projects processed at once when refreshing, so a solution with many doesn't start dozens of dotnet processes */
+const dotnetQueue = new RequestQueue(4);
 
 const terminal = (text: string) => text.replace(/\r?\n/g, '\r\n');
 
@@ -232,7 +236,8 @@ export class TestExplorer implements vscode.Disposable {
             this.states.delete(projectPath);
         }
 
-        await Promise.all(candidates.map(async projectPath => {
+        // A few test projects at a time: each step starts dotnet (MSBuild, the build, the test app)
+        await Promise.all(candidates.map(projectPath => dotnetQueue.next(async () => {
             const project = await this.deps.evaluate(projectPath, configuration);
             if (!project) {
                 return;
@@ -257,7 +262,7 @@ export class TestExplorer implements vscode.Disposable {
                 await this.discover(state);
                 state.discoveredAt = modified;
             }
-        }));
+        })));
     }
 
     private async discover(state: ProjectState): Promise<void> {

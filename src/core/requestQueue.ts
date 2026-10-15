@@ -60,8 +60,8 @@ export class RequestQueue {
             item.reject(error);
         } finally {
             this.currentlyRunning--;
-            // Process next item in queue
-            setImmediate(() => this.processQueue());
+            // Process next item in queue (a promise rather than setImmediate, which browsers and jsdom lack)
+            void Promise.resolve().then(() => this.processQueue());
         }
     }
 }

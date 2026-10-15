@@ -239,8 +239,6 @@ export class SolutionTreeService {
     static updateNodeInTree(nodes: ProjectNode[], nodeId: NodeIdString, updates: Partial<ProjectNode>, expandedIds?: Set<NodeIdString>): boolean {
         let changed = false;
         for (const node of nodes) {
-            const p = NodeIdService.parse(node.nodeId);
-            log.info("Check ", p.path);
             if (node.nodeId === nodeId) {
                 Object.assign(node, updates);
                 if (!expandedIds)
