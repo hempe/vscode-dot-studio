@@ -31,6 +31,10 @@ export const SYSTEM_DIRECTORIES = [
     '/proc', '/sys', '/dev', '/run', '/usr', '/lib', '/lib64', '/boot', '/etc'
 ];
 
+/** The same on Windows (on any drive, any case) and macOS */
+const WINDOWS_SYSTEM_DIRECTORIES = ['windows', 'program files', 'program files (x86)', 'programdata', '$recycle.bin', 'system volume information'];
+const MACOS_SYSTEM_DIRECTORIES = ['/System', '/Library'];
+
 export const excludePatterns = SKIP_DIRECTORIES.map(dir => `**/${dir}/**`);
 
 export function isExcluded(filePath: string, workspaceRoot?: string): boolean {
@@ -65,9 +69,11 @@ export function shouldSkipDirectory(dirName: string): boolean {
  */
 export function isSystemPath(fullPath: string): boolean {
     const normalizedPath = fullPath.replace(/\\/g, '/');
+    const under = (dir: string) => normalizedPath.startsWith(dir + '/') || normalizedPath === dir;
 
-    // Check if path starts with any system directory
-    return SYSTEM_DIRECTORIES.some(sysDir =>
-        normalizedPath.startsWith(sysDir + '/') || normalizedPath === sysDir
-    );
+    const drive = /^[a-z]:\/([^/]+)/i.exec(normalizedPath);
+    if (drive) {
+        return WINDOWS_SYSTEM_DIRECTORIES.includes(drive[1].toLowerCase());
+    }
+    return [...SYSTEM_DIRECTORIES, ...MACOS_SYSTEM_DIRECTORIES].some(under);
 }
