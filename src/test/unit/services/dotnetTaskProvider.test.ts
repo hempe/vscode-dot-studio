@@ -48,6 +48,8 @@ describe('dotnetTaskArgs', () => {
         expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
         // shinobi.build.emitGeneratedFiles off: no source generator output
         expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug', undefined, false)).not.toContain('-property:EmitCompilerGeneratedFiles=true');
+        expect(dotnetTaskArgs('pack', '/repo/Lib/Lib.csproj', 'Release')).toEqual(
+            ['pack', '/repo/Lib/Lib.csproj', '--configuration', 'Release', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
         // The profile decides configuration, framework and runtime
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
             ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);

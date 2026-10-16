@@ -494,6 +494,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.pack",
+        "title": "Pack",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.publish",
         "title": "Publish...",
         "category": ".NET"
@@ -839,17 +844,17 @@
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "9_group@1"
+          "group": "10_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.revealInExplorer",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "9_group@2"
+          "group": "10_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.openInTerminal",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "9_group@3"
+          "group": "10_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.setStartupProject",
@@ -880,6 +885,11 @@
           "command": "shinobi.solutionExplorer.openLaunchSettings",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'startupWithProfiles'",
           "group": "4_group@2"
+        },
+        {
+          "command": "shinobi.solutionExplorer.pack",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'library'",
+          "group": "8_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.reloadProject",
@@ -1114,12 +1124,12 @@
         {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && inTestProject",
-          "group": "8_group@1"
+          "group": "9_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.debugTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && inTestProject",
-          "group": "8_group@2"
+          "group": "9_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.runTests",
@@ -1285,6 +1295,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.clean",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.pack",
           "when": "false"
         },
         {

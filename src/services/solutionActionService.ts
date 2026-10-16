@@ -15,6 +15,7 @@ import { runTask } from './runTask';
 import { manageUserSecrets } from './userSecrets';
 import { openLaunchSettings } from './launchSettings';
 import { UnloadedProjects } from './unloadedProjects';
+import { packStarted } from './pack';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
@@ -86,6 +87,11 @@ export class SolutionActionService {
 
             case 'openLaunchSettings':
                 await openLaunchSettings(nodeId.path);
+                break;
+
+            case 'pack':
+                packStarted(nodeId.path);
+                await vscode.tasks.executeTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'pack', target: nodeId.path }));
                 break;
 
             case 'unloadProject':

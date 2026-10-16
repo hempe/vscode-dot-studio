@@ -95,6 +95,12 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
 
+**On class libraries**
+
+| Command | Key | What it does |
+|---|---|---|
+| Pack |  | Builds the project's NuGet package (`dotnet pack`) in the active configuration, with the package metadata of the project file (`PackageId`, `Version`, `Authors`, ...), and tells where the `.nupkg` went. |
+
 **On an unloaded project (instead of the menu above)**
 
 | Command | Key | What it does |

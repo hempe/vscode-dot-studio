@@ -33,3 +33,7 @@ The summary shows the target location, configuration, target framework, deployme
 ## Other targets
 
 Profiles for Azure App Service, container registries, FTP or IIS (made in Visual Studio) are listed with a note but not published yet; they are planned (Phase 31). Visual Studio keeps their passwords encrypted in `.pubxml.user`, which can't be read outside Windows.
+
+## Pack (class libraries)
+
+**Pack** in a class library's context menu builds its NuGet package: `dotnet pack` in the active configuration (Debug/Release in the title bar), using the package metadata of the project file (`PackageId`, `Version`, `Authors`, `Description`, ...). When it is done, a message tells which `.nupkg` it wrote and where (the project's `PackageOutputPath`, `bin/<configuration>/` by default) with **Reveal in Explorer** and **Copy Path**. A library with `<IsPackable>false</IsPackable>` writes nothing, and the message says so. Applications and test projects have no Pack.

@@ -51,6 +51,11 @@ describe('contextMenus', () => {
         ]);
     });
 
+    test('Pack is offered on libraries, in its own group below Build', () => {
+        const pack = buildMenuContributions().webviewContext.filter(entry => entry.command === 'shinobi.solutionExplorer.pack');
+        expect(pack).toEqual([expect.objectContaining({ group: '8_group@1', when: expect.stringContaining("nodeType == 'project' && contextValue == 'library'") })]);
+    });
+
     test('an unloaded project gets its own menu instead of the project menu', () => {
         const projectEntries = buildMenuContributions().webviewContext.filter(entry => entry.when.includes(`nodeType == 'project'`));
         const unloaded = projectEntries.filter(entry => entry.when.includes(`contextValue == 'unloaded'`)).map(entry => entry.command);

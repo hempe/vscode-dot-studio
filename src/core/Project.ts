@@ -75,6 +75,11 @@ export class Project {
     }
 
     /** Whether the project references a test framework (it gets Run Tests / Debug Tests) */
+    /** Neither started nor a test project: what Pack makes a NuGet package of */
+    get isLibrary(): boolean {
+        return !this._isExecutable && !this._isTestProject;
+    }
+
     get isTestProject(): boolean {
         return this._isTestProject;
     }

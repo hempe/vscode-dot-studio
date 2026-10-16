@@ -4,7 +4,7 @@ import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
-import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, UNLOADED_PROJECT } from '../core/contextMenus';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, LIBRARY_PROJECT, UNLOADED_PROJECT } from '../core/contextMenus';
 import { UnloadedProjects } from './unloadedProjects';
 import { DebugConfigService } from './debugConfigService';
 import { NodeIdString } from '../types/nodeId';
@@ -162,6 +162,8 @@ export class SolutionTreeService {
                                 : STARTUP_PROJECT;
                         } else if (projectInstance.isExecutable) {
                             itemNode.contextValue = EXECUTABLE_PROJECT;
+                        } else if (projectInstance.isLibrary) {
+                            itemNode.contextValue = LIBRARY_PROJECT;
                         }
                         itemNode.isTestProject = projectInstance.isTestProject;
                     } else {

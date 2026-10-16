@@ -244,6 +244,11 @@ export declare type OpenLaunchSettingsActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type PackActionCmd = {
+    readonly action: 'pack';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type UnloadProjectActionCmd = {
     readonly action: 'unloadProject';
     readonly nodeId: NodeIdString;
@@ -308,6 +313,7 @@ export type ProjectActionCmd =
     | OpenInTerminalActionCmd
     | CopyFullPathActionCmd
     | ManageUserSecretsActionCmd
+    | PackActionCmd
     | UnloadProjectActionCmd
     | ReloadProjectActionCmd
     | OpenLaunchSettingsActionCmd

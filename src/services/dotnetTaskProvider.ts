@@ -10,8 +10,8 @@ import { UnloadedProjects } from './unloadedProjects';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
-export type DotnetTaskAction = 'build' | 'rebuild' | 'clean' | 'restore' | 'publish';
-/** The actions offered for the solution and every project; publish tasks come from publish profiles */
+export type DotnetTaskAction = 'build' | 'rebuild' | 'clean' | 'restore' | 'publish' | 'pack';
+/** The actions offered for the solution and every project; publish tasks come from publish profiles, pack is for libraries */
 export const DOTNET_TASK_ACTIONS: readonly DotnetTaskAction[] = ['build', 'rebuild', 'clean', 'restore'];
 
 export interface DotnetTaskDefinition extends vscode.TaskDefinition {
@@ -39,6 +39,7 @@ export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configu
         case 'rebuild': return ['build', target, ...config, '--no-incremental', ...QUIET, '-property:GenerateFullPaths=true', ...generated];
         case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
+        case 'pack': return ['pack', target, ...config, ...QUIET, '-property:GenerateFullPaths=true'];
         case 'publish': return ['publish', target, `-property:PublishProfile=${profile}`, ...QUIET, '-property:GenerateFullPaths=true'];
     }
 }
@@ -61,7 +62,7 @@ export function createDotnetTask(
         new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles()), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
-    if (action !== 'publish') {
+    if (action !== 'publish' && action !== 'pack') {
         task.group = action === 'build' && sln(target)
             ? { id: vscode.TaskGroup.Build.id, isDefault: true } as vscode.TaskGroup
             : vscode.TaskGroup.Build;
@@ -71,7 +72,8 @@ export function createDotnetTask(
 
 function isDotnetTaskDefinition(definition: vscode.TaskDefinition): definition is DotnetTaskDefinition {
     return typeof definition.target === 'string'
-        && (DOTNET_TASK_ACTIONS.includes(definition.action) || (definition.action === 'publish' && typeof definition.profile === 'string'));
+        && (DOTNET_TASK_ACTIONS.includes(definition.action) || (definition.action === 'publish' && typeof definition.profile === 'string')
+            || definition.action === 'pack');
 }
 
 /** Build, rebuild, clean and restore for the active solution and each of its projects */

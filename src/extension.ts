@@ -15,6 +15,7 @@ import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { SlnxMigration } from './services/slnxMigration';
 import { SolutionDiscovery } from './services/solutionDiscovery';
+import { reportPacked } from './services/pack';
 import { UnloadedProjects } from './services/unloadedProjects';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
@@ -248,6 +249,9 @@ export function activate(context: vscode.ExtensionContext) {
             if ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild', 'restore'].includes(task.definition.action))
                 || task.name === 'StartupPreBuild') {
                 solutionWebviewProvider.refresh();
+            }
+            if (task.definition.type === DOTNET_TASK_TYPE && task.definition.action === 'pack' && event.exitCode === 0) {
+                void reportPacked(task.definition.target);
             }
         })
     );

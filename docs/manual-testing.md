@@ -23,3 +23,4 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
 - [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name
 - [ ] Unload Project: the project greys out as "(unloaded)" and collapses; Build on the solution skips it (`dotnet build` shows no line for it); Reload Project brings it back; survives restarting VS Code; works on `.sln` and `.slnx`
+- [ ] Pack on a class library (Shop.Core in the sample): the Pack item is below Build/Publish only on libraries, not on web, worker or test projects; the terminal shows `dotnet pack`, then a message names the `.nupkg` with Reveal in Explorer and Copy Path; with `<IsPackable>false</IsPackable>` it warns instead

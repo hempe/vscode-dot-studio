@@ -27,6 +27,8 @@ export const EXECUTABLE_PROJECT = 'executable';
 export const STARTUP_PROJECT = 'startup';
 /** `contextValue` of the startup project when it has several launch profiles */
 export const STARTUP_PROJECT_WITH_PROFILES = 'startupWithProfiles';
+/** `contextValue` of class libraries, which can be packed into a NuGet package */
+export const LIBRARY_PROJECT = 'library';
 /** `contextValue` of projects the user unloaded: their menu has no build, add or run items */
 export const UNLOADED_PROJECT = 'unloaded';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
@@ -67,6 +69,7 @@ export const menuCommands = {
     build: { title: 'Build', description: 'Builds the solution or project as a task (`dotnet build`); errors go to the Error List.' },
     rebuild: { title: 'Rebuild', description: 'Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`).' },
     clean: { title: 'Clean', description: 'Deletes the build output (`dotnet clean`).' },
+    pack: { title: 'Pack', description: "Builds the project's NuGet package (`dotnet pack`) in the active configuration, with the package metadata of the project file (`PackageId`, `Version`, `Authors`, ...), and tells where the `.nupkg` went." },
     publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
     copy: { title: 'Copy', description: 'Copies the file or folder; Paste puts a copy into another folder.', key: 'ctrl+c', mac: 'cmd+c' },
     cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
@@ -123,6 +126,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['manageNuGetPackages', 'manageUserSecrets'],
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean', 'publish'],
+        [], // pack in libraries
         [], // runTests, debugTests in test projects
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
@@ -139,6 +143,11 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: [
         [], [], [],
         ['chooseLaunchProfile', 'openLaunchSettings', 'debug'],
+    ],
+    // Libraries can be packed; the empty groups keep the item in its slot in the project menu
+    [`project.${LIBRARY_PROJECT}`]: [
+        [], [], [], [], [], [], [],
+        ['pack'],
     ],
     // Only what works without loading the project
     [`project.${UNLOADED_PROJECT}`]: [
@@ -204,7 +213,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
 
 /** Items added to the menus of rows in test projects (the project, its folders and files), in the empty slots above */
 export const testProjectMenus: Readonly<Partial<Record<NodeType, Menu>>> = {
-    project: [[], [], [], [], [], [], [], ['runTests', 'debugTests']],
+    project: [[], [], [], [], [], [], [], [], ['runTests', 'debugTests']],
     folder: [[], [], [], ['runTests', 'debugTests']],
     file: [[], [], [], ['runTests', 'debugTests']],
 };
@@ -229,6 +238,7 @@ const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
 /** When the extra items of a `<nodeType>.<contextValue>` menu (and of test project menus) show, for the menu reference */
 const conditionNames: Readonly<Record<string, string>> = {
     [`project.${EXECUTABLE_PROJECT}`]: 'On projects that can be started',
+    [`project.${LIBRARY_PROJECT}`]: 'On class libraries',
     [`project.${UNLOADED_PROJECT}`]: 'On an unloaded project (instead of the menu above)',
     [`project.${STARTUP_PROJECT}`]: 'On the startup project',
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: 'On the startup project, when it has several launch profiles',
