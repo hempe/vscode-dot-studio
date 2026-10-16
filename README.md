@@ -54,8 +54,6 @@ Visual Studio's Add New Project and Add New Item wizards, with every `dotnet new
 
 ![Choosing a template](docs/images/new-project.gif)
 
-![Configuring the new project](docs/images/new-project-configure.png)
-
 [Templates](docs/templates.md)
 
 ### Run & Debug
