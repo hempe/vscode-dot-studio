@@ -18,3 +18,7 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] Test Phase 5 (template wizards) in VS Code with ApiDotNetTestProject: Add New Project on the solution and on a solution folder (settings, framework, location), Add New Item on a folder (built-in class, API Controller with read/write actions, a config file), rename a file with nested files
 - [x] Test Phase 6 (Test Explorer) in VS Code with `Shared.Tests` in ApiDotNetTestProject: tests appear after a build, run all and single tests, the failing test shows its message and jumps to its line, debug a test with a breakpoint
 - [ ] Test Phase 2.5 (Error List table) in VS Code: sort, search, column filters, code links, double-click to the line; toggling warnings also removes their markers from the Solution Explorer
+
+## Bug fixes to confirm
+- [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
+- [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name

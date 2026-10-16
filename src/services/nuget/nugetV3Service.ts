@@ -208,8 +208,8 @@ export class NuGetV3Service {
                         return null;
                     }
 
-                    // Compare versions using version utilities
-                    const latestPages = pages.sort((best: any, cur: any) => VersionUtils.compare(cur.upper, best.upper)).slice(0, 2);
+                    // Newest pages first (VersionUtils.compare sorts descending)
+                    const latestPages = pages.sort((a: any, b: any) => VersionUtils.compare(a.upper, b.upper)).slice(0, 2);
 
                     const allItems: any[] = [];
                     for (const latestPage of latestPages) {
@@ -221,7 +221,7 @@ export class NuGetV3Service {
                             const subResponse = await this.makeRequest(latestPage['@id'], accessToken);
                             if (subResponse.statusCode === 200) {
                                 const subData = JSON.parse(subResponse.body);
-                                allItems.push(subData.items || []);
+                                allItems.push(...(subData.items || []));
                             } else {
                                 log.warn(`Failed to fetch latest page ${latestPage['@id']}, status ${subResponse.statusCode}`);
                             }
@@ -576,14 +576,12 @@ export class NuGetV3Service {
                 return null;
             }
 
-            const sorted = validEntries.sort((best: any, current: any) => {
-                const vBest = best?.version ?? "0.0.0";
-                const vCur = current.version ?? "0.0.0";
+            // Newest first
+            const sorted = validEntries.sort((a: any, b: any) => {
                 try {
-                    return VersionUtils.compare(vCur, vBest) > 0 ? current : best;
+                    return VersionUtils.compare(a?.version ?? "0.0.0", b?.version ?? "0.0.0");
                 } catch {
-                    // fallback if version comparison fails
-                    return vCur > vBest ? current : best;
+                    return 0;
                 }
             });
 

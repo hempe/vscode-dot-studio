@@ -7,8 +7,7 @@ What still needs a check in VS Code itself is listed in [manual-testing.md](manu
 ## Known bugs
 
 Found along the way, to be fixed:
-- [ ] NuGet manager: installed packages show "by Unknown" instead of their authors
-- [ ] Solution Explorer: names wider than the view are cut off without an ellipsis or a tooltip (long package names under Dependencies)
+- none open
 
 ## Known limitations
 

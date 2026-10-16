@@ -174,7 +174,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                             }}>
                                                 {pkg.id}
                                             </span>
-                                            {pkg.authors && (
+                                            {!!pkg.authors?.length && (
                                                 <span style={{
                                                     fontWeight: 'normal',
                                                     fontSize: '12px',

@@ -138,6 +138,17 @@ export class SolutionWebView {
     
                         .node-name {
                             font-size: var(--vscode-font-size);
+                            min-width: 0;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        }
+
+                        .node-icon,
+                        .expand-icon,
+                        .expand-icon-placeholder,
+                        .diagnostic-badge,
+                        .diagnostic-dot {
+                            flex-shrink: 0;
                         }
 
                         /* Glyphs of font-based icon themes (e.g. Seti) size relative to the text, as in the explorer */

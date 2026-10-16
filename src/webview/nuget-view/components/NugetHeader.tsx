@@ -16,13 +16,15 @@ export default function NugetHeader({ selectedPackage }: NugetHeaderProps) {
         }}>
             {selectedPackage.id}
         </h2>
-        <div style={{
-            fontSize: '12px',
-            color: 'var(--vscode-descriptionForeground)',
-            marginBottom: '8px'
-        }}>
-            by {formatAuthors(selectedPackage.authors)}
-        </div>
+        {!!selectedPackage.authors?.length && (
+            <div style={{
+                fontSize: '12px',
+                color: 'var(--vscode-descriptionForeground)',
+                marginBottom: '8px'
+            }}>
+                by {formatAuthors(selectedPackage.authors)}
+            </div>
+        )}
     </div>
     );
 }

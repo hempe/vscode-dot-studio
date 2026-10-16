@@ -406,7 +406,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     <>
                         <span
                             className={`node-name ${node.isStartupProject ? 'startup-project' : ''} ${marker ? `diagnostic-${marker.severity}` : ''}`}
-                            title={markerTitle}
+                            title={markerTitle ? `${node.name}\n${markerTitle}` : node.name}
                         >{node.name}</span>
                         {marker && (node.type === 'file' || node.type === 'solutionItem'
                             ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} title={markerTitle}>{markerCount(marker)}</span>
