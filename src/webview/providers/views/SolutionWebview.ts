@@ -122,6 +122,11 @@ export class SolutionWebView {
                             color: var(--vscode-list-activeSelectionForeground);
                         }
 
+                        /* Unloaded projects, as Visual Studio greys them out */
+                        .tree-node.unloaded {
+                            opacity: 0.55;
+                        }
+
                         .tree-node.active .node-name {
                             font-weight: bold;
                         }

@@ -83,6 +83,12 @@ In a **multi-root workspace**, every folder is searched; the folder that holds t
 
 There is no offer when a `.slnx` of the same name already exists.
 
+## Unload and reload projects
+
+**Unload Project** on a project (like Visual Studio's) leaves it out of solution builds: the project stays in the tree, greyed out as "(unloaded)", collapsed and without files, and its menu shrinks to Reload Project, Edit Project File, Remove, Delete and the path commands. Build, Rebuild, Clean and Restore on the solution (and Ctrl+Shift+B) then run through a solution filter of the other projects, which the extension writes to your temp folder. **Reload Project** takes it back.
+
+Unloaded projects are remembered per workspace and solution, not stored in the solution file. A loaded project that references an unloaded one still builds it, and building the unloaded project itself (or starting it with F5) still works.
+
 ## Moving the Solution Explorer
 
 `shinobi.solutionExplorer.location`: `sidebar` (default) or `secondary-sidebar`, the side bar on the right, like Visual Studio's.

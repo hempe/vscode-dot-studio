@@ -49,6 +49,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Command | Key | What it does |
 |---|---|---|
 | Edit Project File |  | Opens the project file (`.csproj`) in the editor, like double-clicking the project. |
+| Unload Project |  | Leaves the project out of solution builds and shows it greyed out and collapsed in the tree; Reload Project undoes it. Remembered for this workspace. |
 | Add New Item... |  | Opens the Add New Item wizard: C# types with the folder's namespace, or any `dotnet new` item template. |
 | Add Existing Item... |  | Copies files from anywhere into the project or folder; asks before replacing a file with the same name. |
 | Add File... |  | Creates an empty file; type its name in the tree. |
@@ -93,6 +94,18 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
+
+**On an unloaded project (instead of the menu above)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Reload Project |  | Takes the unloaded project back into solution builds and shows its files again. |
+| Edit Project File |  | Opens the project file (`.csproj`) in the editor, like double-clicking the project. |
+| Remove from Solution |  | Removes the project from the solution; its files stay on disk. |
+| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking. |
+| Copy Full Path |  | Copies the full path of the item to the clipboard. |
+| Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
+| Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
 
 **In test projects**
 

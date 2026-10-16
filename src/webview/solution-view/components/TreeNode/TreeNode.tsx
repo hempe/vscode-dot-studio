@@ -316,7 +316,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
@@ -407,7 +407,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                         <span
                             className={`node-name ${node.isStartupProject ? 'startup-project' : ''} ${marker ? `diagnostic-${marker.severity}` : ''}`}
                             title={markerTitle ? `${node.name}\n${markerTitle}` : node.name}
-                        >{node.name}</span>
+                        >{node.isUnloaded ? `${node.name} (unloaded)` : node.name}</span>
                         {marker && (node.type === 'file' || node.type === 'solutionItem'
                             ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} title={markerTitle}>{markerCount(marker)}</span>
                             : <span className={`diagnostic-dot diagnostic-${marker.severity}`} title={markerTitle} />)}

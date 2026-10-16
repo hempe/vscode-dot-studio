@@ -15,6 +15,7 @@ import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { SlnxMigration } from './services/slnxMigration';
 import { SolutionDiscovery } from './services/solutionDiscovery';
+import { UnloadedProjects } from './services/unloadedProjects';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { openNewSolutionWizard, TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
@@ -71,6 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
     BuildConfiguration.initialize(context.workspaceState);
     SlnxMigration.initialize(context.workspaceState);
     SolutionDiscovery.initialize(context.workspaceState);
+    UnloadedProjects.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
     PublishPanel.extensionUri = context.extensionUri;
@@ -249,6 +251,8 @@ export function activate(context: vscode.ExtensionContext) {
             }
         })
     );
+
+    context.subscriptions.push(UnloadedProjects.onDidChange(() => solutionWebviewProvider.refresh()));
 
     // Watch only .NET solution and project files to reduce load
     const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln*');

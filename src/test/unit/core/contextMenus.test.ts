@@ -40,14 +40,32 @@ describe('contextMenus', () => {
 
     test('menu entries keep the order and separators of the node type menu', () => {
         const projectEntries = buildMenuContributions().webviewContext
-            .filter(entry => entry.when.endsWith(`nodeType == 'project'`));
+            .filter(entry => entry.when.endsWith(`nodeType == 'project' && contextValue != 'unloaded'`));
 
-        expect(projectEntries.slice(0, 4)).toEqual([
+        expect(projectEntries.slice(0, 5)).toEqual([
             expect.objectContaining({ command: 'shinobi.solutionExplorer.editProjectFile', group: '1_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.unloadProject', group: '1_group@2' }),
             expect.objectContaining({ command: 'shinobi.solutionExplorer.addNewItem', group: '2_group@1' }),
             expect.objectContaining({ command: 'shinobi.solutionExplorer.addExistingItem', group: '2_group@2' }),
             expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@3' }),
         ]);
+    });
+
+    test('an unloaded project gets its own menu instead of the project menu', () => {
+        const projectEntries = buildMenuContributions().webviewContext.filter(entry => entry.when.includes(`nodeType == 'project'`));
+        const unloaded = projectEntries.filter(entry => entry.when.includes(`contextValue == 'unloaded'`)).map(entry => entry.command);
+
+        expect(unloaded).toEqual([
+            'shinobi.solutionExplorer.reloadProject',
+            'shinobi.solutionExplorer.editProjectFile',
+            'shinobi.solutionExplorer.removeProject',
+            'shinobi.solutionExplorer.deleteProject',
+            'shinobi.solutionExplorer.copyFullPath',
+            'shinobi.solutionExplorer.revealInExplorer',
+            'shinobi.solutionExplorer.openInTerminal',
+        ]);
+        expect(projectEntries.filter(entry => entry.command === 'shinobi.solutionExplorer.build')
+            .every(entry => entry.when.endsWith(`contextValue != 'unloaded'`))).toBe(true);
     });
 
     test('dependency categories get menus by context value', () => {

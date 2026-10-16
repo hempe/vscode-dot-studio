@@ -22,3 +22,4 @@ Features that unit and integration tests cover, but that still need a run in VS 
 ## Bug fixes to confirm
 - [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
 - [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name
+- [ ] Unload Project: the project greys out as "(unloaded)" and collapses; Build on the solution skips it (`dotnet build` shows no line for it); Reload Project brings it back; survives restarting VS Code; works on `.sln` and `.slnx`

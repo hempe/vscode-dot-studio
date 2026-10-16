@@ -4,7 +4,8 @@ import { Solution } from '../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../core/logger';
-import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES } from '../core/contextMenus';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, UNLOADED_PROJECT } from '../core/contextMenus';
+import { UnloadedProjects } from './unloadedProjects';
 import { DebugConfigService } from './debugConfigService';
 import { NodeIdString } from '../types/nodeId';
 
@@ -141,8 +142,14 @@ export class SolutionTreeService {
                 isStartupProject: itemType === 'project' && absolutePath === startupProjectPath,
             };
 
-            // Check if project nodes actually have children (optimized check)
-            if (itemType === 'project') {
+            if (itemType === 'project' && UnloadedProjects.isUnloaded(solution.solutionPath, absolutePath)) {
+                // Unloaded: stays in the tree, collapsed and without children, until it is reloaded
+                itemNode.isUnloaded = true;
+                itemNode.contextValue = UNLOADED_PROJECT;
+                itemNode.hasChildren = false;
+                itemNode.isStartupProject = false;
+            } else if (itemType === 'project') {
+                // Check if project nodes actually have children (optimized check)
                 try {
                     const projectInstance = solution.getProject(absolutePath);
                     if (projectInstance) {

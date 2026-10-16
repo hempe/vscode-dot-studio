@@ -6,6 +6,7 @@ import { BuildConfiguration } from './buildConfiguration';
 import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
 import { solutionWorkspaceFolder } from './workspaceFolders';
+import { UnloadedProjects } from './unloadedProjects';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -50,12 +51,14 @@ export function createDotnetTask(
     const { action, target } = definition;
     const configuration = definition.configuration ?? BuildConfiguration.active;
     const targetName = path.basename(target, sln(target) ?? path.extname(target));
+    // Unloaded projects are left out of solution builds through a solution filter
+    const buildTarget = sln(target) ? UnloadedProjects.buildTarget(target, SolutionService.getActiveSolution()?.projects.keys() ?? []) : target;
     const task = new vscode.Task(
         definition,
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, target, configuration, definition.profile, Settings.emitGeneratedFiles()), { cwd: path.dirname(target) }),
+        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles()), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish') {

@@ -14,6 +14,7 @@ import { copyExistingItems } from './existingItems';
 import { runTask } from './runTask';
 import { manageUserSecrets } from './userSecrets';
 import { openLaunchSettings } from './launchSettings';
+import { UnloadedProjects } from './unloadedProjects';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
@@ -86,6 +87,15 @@ export class SolutionActionService {
             case 'openLaunchSettings':
                 await openLaunchSettings(nodeId.path);
                 break;
+
+            case 'unloadProject':
+            case 'reloadProject': {
+                const solution = SolutionService.getActiveSolution();
+                if (solution) {
+                    await UnloadedProjects.setUnloaded(solution.solutionPath, nodeId.path, cmd.action === 'unloadProject');
+                }
+                break;
+            }
 
             case 'copyFullPath':
                 await vscode.env.clipboard.writeText(nodeId.path);

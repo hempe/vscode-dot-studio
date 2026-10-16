@@ -23,7 +23,7 @@ Found along the way, to be fixed:
 - [x] Open and switch solutions: "Open Solution..." (the workspace's solutions, or any via Browse), the choice is remembered, like Visual Studio's File > Open > Solution
 - [x] Open Launch Settings on projects that can be started: opens `Properties/launchSettings.json`, created with the profiles `dotnet new` writes when missing (shorter than Visual Studio's Properties > Debug > Open debug launch profiles UI)
 - [x] Convert .sln to .slnx: opening a .sln offers to convert it (`dotnet sln migrate`), then to delete the .sln, and opens the .slnx; "Don't Ask Again" per solution
-- [ ] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
+- [x] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
 - [ ] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
 - [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release
 

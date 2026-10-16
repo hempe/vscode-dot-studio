@@ -27,6 +27,8 @@ export const EXECUTABLE_PROJECT = 'executable';
 export const STARTUP_PROJECT = 'startup';
 /** `contextValue` of the startup project when it has several launch profiles */
 export const STARTUP_PROJECT_WITH_PROFILES = 'startupWithProfiles';
+/** `contextValue` of projects the user unloaded: their menu has no build, add or run items */
+export const UNLOADED_PROJECT = 'unloaded';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
 export const IN_TEST_PROJECT = 'inTestProject';
 
@@ -34,6 +36,8 @@ export const FOCUSED_NODE_TYPE_CONTEXT = 'shinobi.solutionExplorer.focusedNodeTy
 
 export const menuCommands = {
     openFile: { title: 'Open', description: 'Opens the file in the editor. Generated files open read-only.' },
+    unloadProject: { title: 'Unload Project', description: 'Leaves the project out of solution builds and shows it greyed out and collapsed in the tree; Reload Project undoes it. Remembered for this workspace.' },
+    reloadProject: { title: 'Reload Project', description: 'Takes the unloaded project back into solution builds and shows its files again.' },
     editProjectFile: { title: 'Edit Project File', description: 'Opens the project file (`.csproj`) in the editor, like double-clicking the project.' },
     addNewProject: { title: 'Add New Project...', description: 'Opens the Add New Project wizard; the new project goes into the solution or into this solution folder.' },
     addExistingProject: { title: 'Add Existing Project...', description: 'Adds a project file from disk to the solution or to this solution folder.' },
@@ -112,7 +116,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['removeSolutionFolder', 'rename'],
     ],
     project: [
-        ['editProjectFile'],
+        ['editProjectFile', 'unloadProject'],
         ['addNewItem', 'addExistingItem', 'addFile', 'addFolder', 'addServiceReference'],
         ['paste'],
         [], // setStartupProject or chooseLaunchProfile, openLaunchSettings and the Debug submenu, see below
@@ -135,6 +139,12 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: [
         [], [], [],
         ['chooseLaunchProfile', 'openLaunchSettings', 'debug'],
+    ],
+    // Only what works without loading the project
+    [`project.${UNLOADED_PROJECT}`]: [
+        ['reloadProject', 'editProjectFile'],
+        ['removeProject', 'deleteProject'],
+        ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
     'folder.connectedServices': [
         ['addServiceReference'],
@@ -219,6 +229,7 @@ const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
 /** When the extra items of a `<nodeType>.<contextValue>` menu (and of test project menus) show, for the menu reference */
 const conditionNames: Readonly<Record<string, string>> = {
     [`project.${EXECUTABLE_PROJECT}`]: 'On projects that can be started',
+    [`project.${UNLOADED_PROJECT}`]: 'On an unloaded project (instead of the menu above)',
     [`project.${STARTUP_PROJECT}`]: 'On the startup project',
     [`project.${STARTUP_PROJECT_WITH_PROFILES}`]: 'On the startup project, when it has several launch profiles',
     'folder.connectedServices': 'On the Connected Services folder',
@@ -317,7 +328,10 @@ function menuEntries() {
     return [
         ...Object.entries(contextMenus).map(([key, menu]) => {
             const [nodeType, contextValue] = key.split('.') as [NodeType, string | undefined];
-            return { nodeType, condition: contextValue ? ` && contextValue == '${contextValue}'` : '', menu: menu as Menu };
+            // The plain project menu is replaced by the unloaded project one
+            const condition = contextValue ? ` && contextValue == '${contextValue}'`
+                : nodeType === 'project' ? ` && contextValue != '${UNLOADED_PROJECT}'` : '';
+            return { nodeType, condition, menu: menu as Menu };
         }),
         ...Object.entries(testProjectMenus).map(([nodeType, menu]) =>
             ({ nodeType: nodeType as NodeType, condition: ` && ${IN_TEST_PROJECT}`, menu: menu as Menu })),

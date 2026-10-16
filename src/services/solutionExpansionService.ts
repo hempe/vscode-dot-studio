@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { logger } from '../core/logger';
+import { UnloadedProjects } from './unloadedProjects';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
 import { NodeIdService } from './nodeIdService';
@@ -32,6 +33,11 @@ export class SolutionExpansionService {
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 log.warn('No active solution for expand operation');
+                return;
+            }
+
+            // An unloaded project has no children until it is reloaded
+            if (node.type === 'project' && node.path && UnloadedProjects.isUnloaded(solution.solutionPath, node.path)) {
                 return;
             }
 

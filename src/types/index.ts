@@ -41,6 +41,8 @@ export interface ProjectNode {
     hasChildren?: boolean;
     readonly isLoading?: boolean;
     readonly isStartupProject?: boolean;
+    /** Projects the user unloaded: greyed out, collapsed, left out of solution builds */
+    readonly isUnloaded?: boolean;
     /** Project nodes of test projects: they and everything in them get Run Tests / Debug Tests */
     readonly isTestProject?: boolean;
     readonly nodeId: NodeIdString;
