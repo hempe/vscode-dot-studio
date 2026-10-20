@@ -30,8 +30,8 @@ Found along the way, to be fixed:
 ## Phase 17: Code Cleanup & Refactoring
 **Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
 
-- [ ] Code Cleanup on the solution, a project, folder or file: fix all errors, warnings and/or infos, format, remove and sort usings (`dotnet format`)
-- [ ] Fix all occurrences of a diagnostic (e.g. IDE0090) in the project or solution, from the Error List
+- [ ] Code Cleanup, like Visual Studio's Analyze > Code Cleanup (Ctrl+K, Ctrl+E): on the open file the editor's Format Document, Organize Imports and code style Fix All in one command; on a file, folder, project or the solution in the tree a menu entry with progress that runs `dotnet format` (whitespace, usings and code style at info severity, reading `.editorconfig`), since Visual Studio's own cleanup cannot be called from here
+- [x] Fix all occurrences of a diagnostic (e.g. IDE0090) in the document, project or solution: covered by the C# extension (Ctrl+. on the diagnostic), not duplicated
 - [ ] Sync Namespaces on a project or folder: every namespace matches its folder, as in Visual Studio
 - [ ] Check which refactorings the C# extension covers in VS Code (Extract Interface, Move Type to File, Change Signature, Fix All in document/project/solution) and fill the gaps, e.g. Visual Studio's dialogs for Extract Interface and Change Signature
 

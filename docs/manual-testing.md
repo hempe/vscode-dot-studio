@@ -20,6 +20,7 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] Test Phase 2.5 (Error List table) in VS Code: sort, search, column filters, code links, double-click to the line; toggling warnings also removes their markers from the Solution Explorer
 
 ## Bug fixes to confirm
+- [ ] Fix all occurrences (Phase 17 counts it as covered by the C# extension): Ctrl+. on a code style diagnostic such as IDE0090 offers to fix all occurrences in the document, project and solution; if a scope is missing, the roadmap item goes back to open
 - [x] .NET Framework with Mono on Linux: the extension offers to install Mono Debug and F5 on a `net48` project debugs it (confirmed 2026-10-20)
 - [x] .NET Framework with Mono on Linux: Start Without Debugging (the button, on .NET and on `net48`) and a launch profile's `commandLineArgs` reach the program (confirmed 2026-10-20)
 - [ ] .NET Framework with Mono on Linux, still open (`src/__fixtures__/net-framework`, copy it elsewhere): the Ctrl+F5 key did nothing on one Linux setup while the button worked (is it `inDebugMode` or the desktop taking the key? check Developer: Toggle Keyboard Shortcuts Troubleshooting); `environmentVariables` of the profile reach the program; with `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and `Legacy.App` as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono (also right after editing `TargetFrameworks` in the open project, no reload needed)
