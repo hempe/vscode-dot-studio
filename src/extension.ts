@@ -29,6 +29,7 @@ import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
 import { workspaceFolderOf } from './services/workspaceFolders';
 import { attachToProcess } from './services/attach/attachToProcess';
+import { initDevCertCheck, trustDevCertificate } from './services/devCert/devCertCheck';
 import { StartupChoice } from './services/startupProfiles/startupChoice';
 import { refreshStartup, selectStartupProfile, startupProfilesChanged } from './services/startupProfiles/startProfile';
 
@@ -56,6 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
     logger.info('.NET Extension is now active!');
 
     void checkCSharpExtension(context);
+    initDevCertCheck(context);
 
     // The workspace folder a file belongs to (multi-root workspaces)
     const rootOf = (filePath: string) => workspaceFolderOf(filePath)?.uri.fsPath;
@@ -212,6 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
             solutionWebviewProvider.refresh();
         }),
         vscode.commands.registerCommand('shinobi.debug.attachToProcess', () => attachToProcess()),
+        vscode.commands.registerCommand('shinobi.debug.trustDevCertificate', () => trustDevCertificate()),
         vscode.commands.registerCommand('shinobi.solution.selectStartupProfile', () => selectStartupProfile()),
         StartupChoice.onDidChange(async () => {
             await refreshStartup();

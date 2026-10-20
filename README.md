@@ -68,6 +68,10 @@ Attach to Process (command palette) lists the running .NET programs with their p
 
 ![Attach to Process](docs/images/attach-to-process.gif)
 
+Starting a project with an `https://` launch profile checks once whether the HTTPS development certificate is trusted and offers to trust it (also in the command palette: Trust HTTPS Development Certificate).
+
+![HTTPS development certificate](docs/images/dev-cert.gif)
+
 [Run & Debug](docs/run-and-debug.md)
 
 ### Configuration Manager

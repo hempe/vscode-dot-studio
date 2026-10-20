@@ -116,6 +116,16 @@
         }
       },
       {
+        "title": "Run & Debug",
+        "properties": {
+          "shinobi.debug.checkDevCertificate": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "When a project with an `https://` launch profile starts (F5, Ctrl+F5, Start New Instance, startup profiles), check once per session whether the HTTPS development certificate is trusted and offer to trust it. Off: nothing is checked. *Trust HTTPS Development Certificate* in the command palette works either way."
+          }
+        }
+      },
+      {
         "title": "Build",
         "properties": {
           "shinobi.build.emitGeneratedFiles": {
@@ -322,6 +332,11 @@
       {
         "command": "shinobi.debug.attachToProcess",
         "title": "Attach to Process...",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.debug.trustDevCertificate",
+        "title": "Trust HTTPS Development Certificate",
         "category": ".NET"
       },
       {

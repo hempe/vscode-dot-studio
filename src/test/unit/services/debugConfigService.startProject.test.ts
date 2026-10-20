@@ -63,6 +63,11 @@ jest.mock('../../../services/dotnetTaskProvider', () => ({
     createDotnetTask: (definition: any) => ({ definition }),
 }));
 
+const devCertChecks: any[][] = [];
+jest.mock('../../../services/devCert/devCertCheck', () => ({
+    checkDevCertificateBeforeStart: (profiles: any[]) => { devCertChecks.push(profiles); },
+}));
+
 import { DebugConfigService } from '../../../services/debugConfigService';
 
 describe('DebugConfigService: starting a project that is not the startup project', () => {
@@ -86,6 +91,7 @@ describe('DebugConfigService: starting a project that is not the startup project
         env.builds = [];
         env.started = [];
         env.messages = [];
+        devCertChecks.length = 0;
         apiPath = writeProject('Api', 'net10.0', {
             http: { commandName: 'Project', launchBrowser: true, launchUrl: 'swagger', applicationUrl: 'http://localhost:5181' },
             https: { commandName: 'Project', applicationUrl: 'https://localhost:7275' },
@@ -112,6 +118,12 @@ describe('DebugConfigService: starting a project that is not the startup project
             serverReadyAction: expect.objectContaining({ uriFormat: '%s/swagger' }),
         }));
         expect(config.preLaunchTask).toBeUndefined();
+    });
+
+    it('hands the launch profile to the HTTPS certificate check without waiting for it', async () => {
+        await DebugConfigService.startProject(apiPath, false);
+
+        expect(devCertChecks).toEqual([[expect.objectContaining({ name: 'http', applicationUrl: 'http://localhost:5181' })]]);
     });
 
     it('starts without debugging and on the newest framework of multi-targeted projects', async () => {

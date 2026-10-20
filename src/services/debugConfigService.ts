@@ -16,6 +16,7 @@ import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
 import { solutionWorkspaceFolder } from './workspaceFolders';
 import { BuildConfiguration } from './buildConfiguration';
+import { checkDevCertificateBeforeStart } from './devCert/devCertCheck';
 
 const execFileAsync = promisify(execFile);
 
@@ -351,6 +352,7 @@ export class DebugConfigService {
             ? this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'))?.launchSettingsProfile
             : undefined;
         const profile = profiles.find(p => p.name === currentProfile) ?? profiles[0];
+        checkDevCertificateBeforeStart([profile]);
 
         const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: projectPath }));
         if (exitCode !== 0) {
@@ -379,7 +381,10 @@ export class DebugConfigService {
             vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
             return;
         }
-        const startupType = this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'))?.type;
+        const startupConfig = this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'));
+        const startupType = startupConfig?.type;
+        const startupProfiles = this.readLaunchProfiles(path.dirname(this.getStartupProject()!));
+        checkDevCertificateBeforeStart([startupProfiles.find(profile => profile.name === startupConfig?.launchSettingsProfile)]);
         if (startupType === 'mono' && !await ensureMonoDebugging()) {
             return;
         }
@@ -399,14 +404,23 @@ export class DebugConfigService {
             return true;
         }
         const { value } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
-        const types = (Array.isArray(value?.configurations) ? value.configurations : [])
-            .filter((config: any) => names.includes(config?.name))
-            .map((config: any) => config.type);
+        const configs = (Array.isArray(value?.configurations) ? value.configurations : []).filter((config: any) => names.includes(config?.name));
+        const types = configs.map((config: any) => config.type);
+        checkDevCertificateBeforeStart(configs.map((config: any) => this.configurationLaunchProfile(config, workspaceFolder.uri.fsPath)));
         if (types.includes('mono') && !await ensureMonoDebugging()) {
             return true;
         }
         await vscode.debug.startDebugging(workspaceFolder, 'Startup', { noDebug });
         return true;
+    }
+
+    /** The launch profile a launch configuration of ours names (`launchSettingsProfile` in the project folder `cwd`) */
+    private static configurationLaunchProfile(config: any, workspacePath: string): LaunchProfile | undefined {
+        if (typeof config?.launchSettingsProfile !== 'string' || typeof config?.cwd !== 'string') {
+            return undefined;
+        }
+        const projectDir = path.resolve(config.cwd.replace('${workspaceFolder}', workspacePath));
+        return this.readLaunchProfiles(projectDir).find(profile => profile.name === config.launchSettingsProfile);
     }
 
     /**

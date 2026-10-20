@@ -134,6 +134,20 @@ Without the picker, a launch configuration in `.vscode/launch.json` does the sam
 }
 ```
 
+## HTTPS development certificate
+
+ASP.NET Core's `https://localhost` needs the HTTPS development certificate, and the browser warns about it until the system trusts it. When a project starts with a launch profile that has an `https://` entry in its `applicationUrl` (F5, Ctrl+F5, Start New Instance, Start Without Debugging, or a startup profile with such a project), the extension checks the certificate once per VS Code window with `dotnet dev-certs https --check-trust-machine-readable`.
+
+![The HTTPS certificate notification](images/dev-cert.gif)
+
+- The check runs next to the start and never delays it. A check that fails (no `dotnet`, no answer within 15 seconds) is only written to the log, nothing is shown.
+- No valid certificate, or one that nothing trusts: a notification says so, with the buttons **Trust Certificate** (runs `dotnet dev-certs https --trust` in a terminal called "HTTPS certificate", which creates the certificate first when there is none; the next start checks again), **Not Now** (silent until the window is reloaded) and **Don't Ask Again** (stored in VS Code's global state; the command below still works).
+- A trusted certificate, or one that is trusted by some stores only (what Linux reports), shows nothing. An expired certificate counts as none.
+- **.NET: Trust HTTPS Development Certificate** in the command palette does the same on demand: it says "The HTTPS development certificate is trusted." when it is, and trusts otherwise.
+- The setting `shinobi.debug.checkDevCertificate` (default on) switches the check on starts off.
+
+On Windows and macOS `dotnet dev-certs https --trust` opens the system's own confirmation. On Linux trusting is only partial: .NET's documentation says it sets up trust for the .NET tools (OpenSSL), not for browsers, which keep their own certificate stores and need manual steps that differ by distribution. After Trust Certificate the browser may keep warning on Linux; see [dotnet dev-certs](https://learn.microsoft.com/dotnet/core/tools/dotnet-dev-certs) and [Enforce HTTPS in ASP.NET Core](https://learn.microsoft.com/aspnet/core/security/enforcing-ssl).
+
 ## While debugging
 
 Breakpoints, Variables, Watch, Call Stack and the Debug Console (Visual Studio's Immediate window) are VS Code's Run and Debug view. Exception breakpoints are in its Breakpoints section. Visual Studio's Diagnostic Tools, Hot Reload and Edit and Continue are not available (Hot Reload is planned).

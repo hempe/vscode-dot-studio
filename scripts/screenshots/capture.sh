@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-code-cleanup gif-sync-namespaces}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-code-cleanup gif-sync-namespaces}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -345,6 +345,25 @@ if wants gif-attach-to-process; then
     key Escape; pause 1
     record_stop attach-to-process
     stop_app
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-dev-cert; then
+    echo "Scene: gif-dev-cert"
+    reset
+    # Starts the startup project with its https launch profile; the notification only shows while the machine's HTTPS development
+    # certificate is not trusted (nothing in this scene trusts it). launch.json of the work copy is put back afterwards
+    cp "$SOLUTION/.vscode/launch.json" "$WORK/launch.json.orig"
+    sed -i 's/"launchSettingsProfile": "http"/"launchSettingsProfile": "https"/' "$SOLUTION/.vscode/launch.json"
+    sleep 3
+    record_start
+    pause 1
+    command "Start Without Debugging" 1
+    pause 9
+    record_stop dev-cert
+    command "Debug: Stop" 2
+    cp "$WORK/launch.json.orig" "$SOLUTION/.vscode/launch.json"
+    sleep 3
     command "View: Close All Editors" 1
 fi
 

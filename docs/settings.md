@@ -21,6 +21,12 @@ Settings > Extensions > Shinobi .NET, grouped as below.
 | `shinobi.diagnostics.showWarnings` | `true` | Warnings, likewise (Warnings toggle) |
 | `shinobi.diagnostics.showInfos` | `false` | Infos and suggestions, Visual Studio's "Messages" (Messages toggle); replaces `shinobi.solutionExplorer.diagnostics.showInfos` |
 
+### Run & Debug
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.debug.checkDevCertificate` | `true` | When a project with an `https://` launch profile starts, check once per session whether the HTTPS development certificate is trusted and offer to trust it. Off: nothing is checked (the *Trust HTTPS Development Certificate* command still works) |
+
 ### Build
 
 | Setting | Default | |
