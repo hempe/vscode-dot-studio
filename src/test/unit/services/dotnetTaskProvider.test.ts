@@ -1,6 +1,7 @@
 const env = {
-    solution: undefined as undefined | { solutionPath: string; projects: Map<string, unknown> },
+    solution: undefined as undefined | { solutionPath: string; projects: Map<string, unknown>; configurationModel?: any },
     configuration: 'Debug',
+    platform: 'Any CPU',
 };
 
 jest.mock('vscode', () => {
@@ -32,7 +33,7 @@ jest.mock('../../../services/solutionService', () => ({
 }));
 
 jest.mock('../../../services/buildConfiguration', () => ({
-    BuildConfiguration: { get active() { return env.configuration; } },
+    BuildConfiguration: { get active() { return env.configuration; }, get activePlatform() { return env.platform; } },
 }));
 
 import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvider, DOTNET_TASK_TYPE } from '../../../services/dotnetTaskProvider';
@@ -53,6 +54,53 @@ describe('dotnetTaskArgs', () => {
         // The profile decides configuration, framework and runtime
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
             ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+    });
+});
+
+describe('dotnetTaskArgs platform', () => {
+    test.each(['build', 'rebuild', 'clean', 'pack'] as const)('%s passes the platform unless it is Any CPU', action => {
+        expect(dotnetTaskArgs(action, '/repo/All.sln', 'Debug', undefined, false, 'x64')).toContain('-property:Platform=x64');
+        expect(dotnetTaskArgs(action, '/repo/All.sln', 'Debug', undefined, false, 'Any CPU').join(' ')).not.toContain('Platform=');
+        expect(dotnetTaskArgs(action, '/repo/All.sln', 'Debug').join(' ')).not.toContain('Platform=');
+    });
+
+    test('restore and publish take no platform', () => {
+        expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug', undefined, false, 'x64')).toEqual(['restore', '/repo/All.sln']);
+    });
+});
+
+describe('createDotnetTask mapping', () => {
+    const model = {
+        configurations: ['Debug', 'Release'], platforms: ['Any CPU', 'x64'],
+        mappings: { 'Api/Api.csproj': { 'Release|x64': { configuration: 'Debug', platform: 'Any CPU', build: true } } },
+    };
+    afterEach(() => { env.solution = undefined; env.configuration = 'Debug'; env.platform = 'Any CPU'; });
+
+    test('a solution target passes the active platform', () => {
+        env.platform = 'x64';
+        const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/All.sln' }) as any;
+        expect(task.execution.args).toContain('-property:Platform=x64');
+    });
+
+    test('a project target builds in the configuration and platform the solution maps it to', () => {
+        env.solution = { solutionPath: '/repo/All.sln', projects: new Map(), configurationModel: model };
+        env.configuration = 'Release';
+        env.platform = 'x64';
+        const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/Api/Api.csproj' }) as any;
+        expect(task.execution.args.slice(2, 4)).toEqual(['--configuration', 'Debug']);
+        expect(task.execution.args.join(' ')).not.toContain('Platform=');
+
+        const other = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/Lib/Lib.csproj' }) as any;
+        expect(other.execution.args.slice(2, 4)).toEqual(['--configuration', 'Release']);
+        expect(other.execution.args).toContain('-property:Platform=x64');
+    });
+
+    test('the definition can still pin the configuration of a project', () => {
+        env.solution = { solutionPath: '/repo/All.sln', projects: new Map(), configurationModel: model };
+        env.configuration = 'Release';
+        env.platform = 'x64';
+        const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/Api/Api.csproj', configuration: 'Release' }) as any;
+        expect(task.execution.args.slice(2, 4)).toEqual(['--configuration', 'Release']);
     });
 });
 

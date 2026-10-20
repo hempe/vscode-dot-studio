@@ -4,7 +4,8 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../core/logger';
-import { BuildConfiguration } from './buildConfiguration';
+import { activeProjectBuild } from './activeBuild';
+import { platformProperty } from './configurationManager/configurationManager';
 
 const execFileAsync = promisify(execFile);
 const log = logger('Pack');
@@ -32,11 +33,11 @@ export function packagesWrittenSince(dir: string, since: number): string[] {
 }
 
 /** Where `dotnet pack` puts the packages of the project (its PackageOutputPath) */
-async function packageOutputDirectory(projectPath: string, configuration: string): Promise<string> {
+async function packageOutputDirectory(projectPath: string, configuration: string, platform?: string): Promise<string> {
     const projectDir = path.dirname(projectPath);
     try {
         const { stdout } = await execFileAsync('dotnet', [
-            'msbuild', projectPath, '-nologo', '-getProperty:PackageOutputPath', `-property:Configuration=${configuration}`,
+            'msbuild', projectPath, '-nologo', '-getProperty:PackageOutputPath', `-property:Configuration=${configuration}`, ...platformProperty(platform),
         ], { cwd: projectDir, timeout: 60000 });
         const dir = (JSON.parse(stdout) as { Properties?: { PackageOutputPath?: string } }).Properties?.PackageOutputPath;
         if (dir) {
@@ -52,7 +53,8 @@ async function packageOutputDirectory(projectPath: string, configuration: string
 export async function reportPacked(projectPath: string): Promise<void> {
     const projectName = path.basename(projectPath, path.extname(projectPath));
     const since = (startedAt.get(projectPath) ?? Date.now()) - 1000;
-    const dir = await packageOutputDirectory(projectPath, BuildConfiguration.active);
+    const { configuration, platform } = activeProjectBuild(projectPath);
+    const dir = await packageOutputDirectory(projectPath, configuration, platform);
     const packages = packagesWrittenSince(dir, since);
     if (packages.length === 0) {
         vscode.window.showWarningMessage(`Pack ${projectName} wrote no package to ${dir}. Is the project packable (<IsPackable>false</IsPackable>)?`);

@@ -7,6 +7,8 @@ import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
 import { solutionWorkspaceFolder } from './workspaceFolders';
 import { UnloadedProjects } from './unloadedProjects';
+import { platformProperty } from './configurationManager/configurationManager';
+import { activeProjectBuild } from './activeBuild';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -31,8 +33,8 @@ const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
  * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
  * builds write the source generators' output for Dependencies > Analyzers
  */
-export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string, emitGeneratedFiles = true): string[] {
-    const config = ['--configuration', configuration];
+export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string, emitGeneratedFiles = true, platform?: string): string[] {
+    const config = ['--configuration', configuration, ...platformProperty(platform)];
     const generated = emitGeneratedFiles ? [EMIT_GENERATED_FILES] : [];
     switch (action) {
         case 'build': return ['build', target, ...config, ...QUIET, '-property:GenerateFullPaths=true', ...generated];
@@ -50,7 +52,10 @@ export function createDotnetTask(
     scope: vscode.WorkspaceFolder | vscode.TaskScope = solutionWorkspaceFolder() ?? vscode.TaskScope.Workspace
 ): vscode.Task {
     const { action, target } = definition;
-    const configuration = definition.configuration ?? BuildConfiguration.active;
+    // A solution build applies the solution's mapping itself; a project build ignores the solution, so the mapping is applied here
+    const projectBuild = sln(target) ? undefined : activeProjectBuild(target);
+    const configuration = definition.configuration ?? projectBuild?.configuration ?? BuildConfiguration.active;
+    const platform = projectBuild ? projectBuild.platform : BuildConfiguration.activePlatform;
     const targetName = path.basename(target, sln(target) ?? path.extname(target));
     // Unloaded projects are left out of solution builds through a solution filter
     const buildTarget = sln(target) ? UnloadedProjects.buildTarget(target, SolutionService.getActiveSolution()?.projects.keys() ?? []) : target;
@@ -59,7 +64,7 @@ export function createDotnetTask(
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles()), { cwd: path.dirname(target) }),
+        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish' && action !== 'pack') {

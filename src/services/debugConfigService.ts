@@ -8,7 +8,8 @@ import { VersionUtils } from './versionUtils';
 import { parseJsonc, upsertArrayItem } from '../core/jsonc';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { BuildConfiguration } from './buildConfiguration';
+import { activeProjectBuild } from './activeBuild';
+import { platformProperty } from './configurationManager/configurationManager';
 import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { runTask } from './runTask';
 import { EMIT_GENERATED_FILES } from './analyzers';
@@ -117,11 +118,11 @@ export class DebugConfigService {
 
 
             const relativeProjectPath = path.relative(workspacePath, absoluteProjectPath);
-            const { config: startupConfig, framework: selectedFramework, configuration } =
+            const { config: startupConfig, framework: selectedFramework, configuration, platform } =
                 await this.launchConfiguration(absoluteProjectPath, workspacePath, framework, profile, 'Startup', 'StartupPreBuild');
 
             // tasks.json first: it names the startup project, which is read back when launch.json changes
-            await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined);
+            await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined, platform);
 
             // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
             this.upsertJsoncArrayItem(
@@ -163,8 +164,8 @@ export class DebugConfigService {
         const selectedFramework = await this.determineTargetFramework(projectPath, framework);
         log.info(`Selected framework for ${projectPath}: ${selectedFramework}`);
 
-        const configuration = BuildConfiguration.active;
-        const targetPath = await this.resolveTargetPath(projectPath, configuration, selectedFramework);
+        const { configuration, platform } = activeProjectBuild(projectPath);
+        const targetPath = await this.resolveTargetPath(projectPath, configuration, selectedFramework, platform);
         const relativeTargetPath = path.relative(workspacePath, targetPath);
         const program = relativeTargetPath.startsWith('..') || path.isAbsolute(relativeTargetPath)
             ? targetPath
@@ -203,7 +204,7 @@ export class DebugConfigService {
             ...(preLaunchTask && { preLaunchTask }),
             ...(debugType !== 'mono' && profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
         };
-        return { config, framework: selectedFramework, configuration };
+        return { config, framework: selectedFramework, configuration, platform };
     }
 
     /**
@@ -266,7 +267,7 @@ export class DebugConfigService {
      * (`TargetPath`): respects OutputPath, AssemblyName, the artifacts layout and Directory.Build.props.
      * Falls back to the default `bin/<configuration>/<framework>/<project>.dll` when evaluation fails.
      */
-    private static async resolveTargetPath(projectPath: string, configuration: string, framework: string | null): Promise<string> {
+    private static async resolveTargetPath(projectPath: string, configuration: string, framework: string | null, platform?: string): Promise<string> {
         const projectDir = path.dirname(projectPath);
         const fallback = path.join(projectDir, 'bin', configuration, framework || 'net*',
             `${path.basename(projectPath, path.extname(projectPath))}.${this.isNetFramework(framework) ? 'exe' : 'dll'}`);
@@ -274,6 +275,7 @@ export class DebugConfigService {
             const { stdout } = await execFileAsync('dotnet', [
                 'msbuild', projectPath, '-nologo', '-getProperty:TargetPath',
                 `-property:Configuration=${configuration}`,
+                ...platformProperty(platform),
                 ...(framework ? [`-property:TargetFramework=${framework}`] : []),
             ], { cwd: projectDir, timeout: 60000 });
             const targetPath = stdout.trim().split(/\r?\n/).pop()?.trim();
@@ -383,7 +385,7 @@ export class DebugConfigService {
     /**
      * Updates tasks.json with the StartupPreBuild task
      */
-    private static async updateTasksJson(tasksJsonPath: string, projectPath: string, configuration: string, framework?: string | undefined): Promise<void> {
+    private static async updateTasksJson(tasksJsonPath: string, projectPath: string, configuration: string, framework?: string | undefined, platform?: string): Promise<void> {
         try {
             // Create the StartupPreBuild task
             const prebuildTask = {
@@ -395,6 +397,7 @@ export class DebugConfigService {
                     projectPath,
                     ...(framework ? ['--framework', framework] : []),
                     '--configuration', configuration,
+                    ...platformProperty(platform),
                     '/property:GenerateFullPaths=true',
                     '/consoleloggerparameters:NoSummary',
                     ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])

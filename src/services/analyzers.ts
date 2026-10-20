@@ -3,6 +3,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../core/logger';
+import { platformProperty } from './configurationManager/configurationManager';
 
 const execFileAsync = promisify(execFile);
 const log = logger('Analyzers');
@@ -84,7 +85,7 @@ const cache = new Map<string, { stamp: string; result: Promise<ProjectAnalyzers>
  * Asks MSBuild for the analyzers of a project and where its generated files go, for a configuration and
  * framework. Cached until the project file or its restore output (`project.assets.json`) changes.
  */
-export function queryAnalyzers(projectPath: string, configuration: string, framework?: string): Promise<ProjectAnalyzers> {
+export function queryAnalyzers(projectPath: string, configuration: string, framework?: string, platform?: string): Promise<ProjectAnalyzers> {
     const projectDir = path.dirname(projectPath);
     const mtime = (file: string) => {
         try {
@@ -93,7 +94,7 @@ export function queryAnalyzers(projectPath: string, configuration: string, frame
             return 0;
         }
     };
-    const key = `${projectPath}|${configuration}|${framework ?? ''}`;
+    const key = `${projectPath}|${configuration}|${framework ?? ''}|${platform ?? ''}`;
     const stamp = `${mtime(projectPath)}|${mtime(path.join(projectDir, 'obj', 'project.assets.json'))}`;
     const cached = cache.get(key);
     if (cached?.stamp === stamp) {
@@ -113,6 +114,7 @@ export function queryAnalyzers(projectPath: string, configuration: string, frame
         '-getItem:Analyzer', '-getProperty:CompilerGeneratedFilesOutputPath',
         EMIT_GENERATED_FILES,
         `-property:Configuration=${configuration}`,
+        ...platformProperty(platform),
         ...(framework ? [`-property:TargetFramework=${framework}`] : []),
     ], { cwd: projectDir, timeout: 60000, maxBuffer: 16 * 1024 * 1024 })
         .then(({ stdout }) => parseAnalyzerQuery(stdout, projectDir))

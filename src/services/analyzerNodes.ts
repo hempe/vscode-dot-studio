@@ -2,11 +2,12 @@ import * as path from 'path';
 import { NodeId, NodeIdService } from './nodeIdService';
 import { ProjectChild } from '../types';
 import { analyzerAssemblies, generatedFiles, queryAnalyzers, sourceGenerators } from './analyzers';
-import { BuildConfiguration } from './buildConfiguration';
+import { activeProjectBuild } from './activeBuild';
 import { activeFrameworkOf as frameworkOf } from './projectFramework';
 
 async function generatedDirOf(projectPath: string): Promise<string | undefined> {
-    return (await queryAnalyzers(projectPath, BuildConfiguration.active, frameworkOf(projectPath))).generatedDir;
+    const { configuration, platform } = activeProjectBuild(projectPath);
+    return (await queryAnalyzers(projectPath, configuration, frameworkOf(projectPath), platform)).generatedDir;
 }
 
 /**
@@ -16,7 +17,8 @@ async function generatedDirOf(projectPath: string): Promise<string | undefined> 
  */
 export async function analyzerChildren(node: NodeId): Promise<ProjectChild[] | undefined> {
     if (node.type === 'dependencyCategory' && node.name === 'analyzers') {
-        const { analyzers, generatedDir } = await queryAnalyzers(node.path, BuildConfiguration.active, frameworkOf(node.path));
+        const { configuration, platform } = activeProjectBuild(node.path);
+        const { analyzers, generatedDir } = await queryAnalyzers(node.path, configuration, frameworkOf(node.path), platform);
         return analyzerAssemblies(analyzers, generatedDir).map(analyzer => ({
             type: 'analyzer',
             name: analyzer.name,

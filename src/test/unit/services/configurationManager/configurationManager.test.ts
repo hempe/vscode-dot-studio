@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readConfigurationModel, renderConfigurationModel, configurationProjectsOf } from '../../../../services/configurationManager/configurationManager';
+import { mappedBuild, platformProperty, readConfigurationModel, renderConfigurationModel, configurationProjectsOf } from '../../../../services/configurationManager/configurationManager';
 import { addPlatform } from '../../../../services/configurationManager/model';
 import { SolutionFileParser } from '../../../../parsers/solutionFileParser';
 import { SolutionXFileParser } from '../../../../parsers/solutionXFileParser';
@@ -37,4 +37,30 @@ describe('configurationProjectsOf', () => {
         const slnxFolder = slnx.replace('  <Project Path="src/App', '  <Folder Name="/Items/" />\n  <Project Path="src/App');
         expect(configurationProjectsOf(await SolutionXFileParser.parse(slnxFolder)).map(r => r.path)).toEqual(projects.map(p => p.path));
     });
+});
+
+describe('mappedBuild', () => {
+    const model = {
+        configurations: ['Debug', 'Release'], platforms: ['Any CPU', 'x64'],
+        mappings: {
+            'src/App/App.csproj': { 'Release|x64': { configuration: 'Debug', platform: 'Any CPU', build: false } },
+        },
+    };
+    const solution = '/work/All.sln';
+
+    it('is the active pair by default', () => {
+        expect(mappedBuild(model, solution, '/work/src/Lib/Lib.csproj', 'Release', 'x64')).toEqual({ configuration: 'Release', platform: 'x64', build: true });
+    });
+
+    it('applies the mapping of a nested project path', () => {
+        const mapped = mappedBuild(model, solution, '/work/src/App/App.csproj', 'Release', 'x64');
+        expect(mapped).toEqual({ configuration: 'Debug', platform: 'Any CPU', build: false });
+        expect(platformProperty(mapped.platform)).toEqual([]);
+    });
+});
+
+it('passes a platform to MSBuild unless it is Any CPU', () => {
+    expect(platformProperty('x64')).toEqual(['-property:Platform=x64']);
+    expect(platformProperty('Any CPU')).toEqual([]);
+    expect(platformProperty(undefined)).toEqual([]);
 });
