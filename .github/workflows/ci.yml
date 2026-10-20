@@ -1,7 +1,7 @@
 name: CI
 
 # Typecheck, test and build on every push to master and every pull request.
-# Linux is the gate; Windows runs too (the extension is used there) and is informational until it is green.
+# Linux and Windows are both gates.
 on:
   push:
     branches: [master]
@@ -15,8 +15,6 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # Remove this line once the Windows job is green, to make it a gate as well
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     strategy:
       fail-fast: false
       matrix:
