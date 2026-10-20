@@ -8,6 +8,8 @@ import { renameProjectInSln, renameProjectInSlnx, retargetProjectReferences } fr
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
 import { DebugConfigService } from '../services/debugConfigService';
+import { configurationProjectsOf, readConfigurationModel } from '../services/configurationManager/configurationManager';
+import { ConfigurationModel } from '../services/configurationManager/model';
 import { Project } from './Project';
 import { logger } from './logger';
 import { SimpleDebounceManager } from '../services/debounceManager';
@@ -37,6 +39,8 @@ export class Solution {
     private _fileWatcher?: vscode.FileSystemWatcher;
     private _launchJsonWatcher?: vscode.FileSystemWatcher;
     private _solutionFile?: SolutionFile;
+    private _solutionText = '';
+    private _configurationModel?: ConfigurationModel;
     private _projects: Map<string, Project> = new Map();
     private _fileTree: Record<string, SolutionFileTreeNode> = {}; // Solution files tree structure
     private _isInitialized = false;
@@ -212,6 +216,8 @@ export class Solution {
         try {
             const solutionContent = await this._handler.read();
             this._solutionFile = await this._handler.parse(solutionContent);
+            this._solutionText = solutionContent;
+            this._configurationModel = undefined;
 
             // Build file tree for solution folders and solution items
             this.buildSolutionFileTree();
@@ -422,9 +428,31 @@ export class Solution {
      * Applies a text edit to the .slnx file and re-parses it
      */
     private async editSlnx(edit: (content: string) => string): Promise<void> {
+        await this.editSolutionText(edit);
+    }
+
+    /**
+     * Reads the solution file's text, writes what `edit` returns and re-parses it, so the model is fresh on return
+     */
+    async editSolutionText(edit: (content: string, type: 'sln' | 'slnx') => string): Promise<void> {
         const content = await this._handler.read();
-        await this._handler.write(edit(content));
+        await this._handler.write(edit(content, this.isSlnx ? 'slnx' : 'sln'));
         await this.parseSolutionFile();
+    }
+
+    /**
+     * The solution file's projects (not solution folders), as the configuration code identifies them
+     */
+    get configurationProjects(): Array<{ path: string; guid: string }> {
+        return configurationProjectsOf(this._solutionFile);
+    }
+
+    /**
+     * The solution's configurations, platforms and project mappings, read from the text of the last parse
+     */
+    get configurationModel(): ConfigurationModel {
+        this._configurationModel ??= readConfigurationModel(this.isSlnx ? 'slnx' : 'sln', this._solutionText, this.configurationProjects);
+        return this._configurationModel;
     }
 
     /**
