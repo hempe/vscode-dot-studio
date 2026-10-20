@@ -8,6 +8,7 @@ Keys for Windows and Linux; on macOS use Cmd instead of Ctrl where VS Code does 
 |---|---|---|
 | Ctrl+F5 | Start Without Debugging: runs the startup project without the debugger | Anywhere, while not debugging |
 | Ctrl+[, S | Sync with Active Document: selects the active editor's file in the Solution Explorer (macOS: Cmd+[, S) | Anywhere |
+| Ctrl+K, Ctrl+E | Code Cleanup of the open C# file (macOS: Cmd+K, Cmd+E) | C# editor |
 | Ctrl+Alt+L | Focus Solution Explorer. Some Linux desktops (XFCE, KDE) lock the screen with it; rebind one or the other | Anywhere |
 | Ctrl+C | Copy the file or folder (macOS: Cmd+C) | Solution Explorer |
 | Ctrl+X | Cut the file or folder (Paste moves it) (macOS: Cmd+X) | Solution Explorer |
@@ -58,6 +59,7 @@ What a Visual Studio user reaches for, and what it is in VS Code (with the C# ex
 | Ctrl+T / Ctrl+, | **Ctrl+P** (files), **Ctrl+T** (symbols) | Go to all |
 | Ctrl+R, T / Ctrl+R, Ctrl+T | **Ctrl+; C** / **Ctrl+; Ctrl+C** | Run / debug the test at the cursor |
 | Ctrl+R, A | **Ctrl+; A** | Run all tests |
+| Ctrl+K, Ctrl+E | Ctrl+K, Ctrl+E | Code Cleanup (this extension: format, unused usings, `.editorconfig` fixes; no sorting of usings) |
 | Ctrl+[, S | Ctrl+[, S | Sync with Active Document (this extension) |
 | Ctrl+Alt+L | Ctrl+Alt+L | Focus the Solution Explorer (this extension) |
 | Ctrl+\\, E | **.NET: Show Error List** (no key; VS Code's Ctrl+\\ splits the editor) | Show the Error List, a tab in the panel |

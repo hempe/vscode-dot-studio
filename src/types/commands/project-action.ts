@@ -269,6 +269,11 @@ export declare type ConfigurationManagerActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type CodeCleanupActionCmd = {
+    readonly action: 'codeCleanup';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -323,4 +328,5 @@ export type ProjectActionCmd =
     | ReloadProjectActionCmd
     | OpenLaunchSettingsActionCmd
     | PublishActionCmd
-    | ConfigurationManagerActionCmd;
+    | ConfigurationManagerActionCmd
+    | CodeCleanupActionCmd;

@@ -43,17 +43,17 @@ describe('contextMenus', () => {
             .filter(entry => entry.when.endsWith(`nodeType == 'project' && contextValue != 'unloaded'`));
 
         expect(projectEntries.slice(0, 5)).toEqual([
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.editProjectFile', group: '1_group@1' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.unloadProject', group: '1_group@2' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addNewItem', group: '2_group@1' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addExistingItem', group: '2_group@2' }),
-            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '2_group@3' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.editProjectFile', group: '01_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.unloadProject', group: '01_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addNewItem', group: '02_group@1' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addExistingItem', group: '02_group@2' }),
+            expect.objectContaining({ command: 'shinobi.solutionExplorer.addFile', group: '02_group@3' }),
         ]);
     });
 
     test('Pack is offered on libraries, in its own group below Build', () => {
         const pack = buildMenuContributions().webviewContext.filter(entry => entry.command === 'shinobi.solutionExplorer.pack');
-        expect(pack).toEqual([expect.objectContaining({ group: '8_group@1', when: expect.stringContaining("nodeType == 'project' && contextValue == 'library'") })]);
+        expect(pack).toEqual([expect.objectContaining({ group: '08_group@1', when: expect.stringContaining("nodeType == 'project' && contextValue == 'library'") })]);
     });
 
     test('an unloaded project gets its own menu instead of the project menu', () => {
@@ -137,6 +137,7 @@ describe('contextMenus', () => {
         expect(nodeTypes('manageUserSecrets')).toEqual(['project']);
         expect(nodeTypes('publish')).toEqual(['project']);
         expect(nodeTypes('configurationManager')).toEqual(['solution']);
+        expect(nodeTypes('codeCleanup')).toEqual(['solution', 'project', 'folder', 'file']);
     });
 
     test('docs/context-menus.md is up to date (run `npm run generate:menus`)', () => {
@@ -155,6 +156,18 @@ describe('contextMenus', () => {
         expect(project).toContain('**In test projects**');
         expect(reference).toContain('| Delete | Delete (macOS: Cmd+Backspace) |');
         expect(reference).not.toContain('## temporary');
+    });
+});
+
+describe('Code Cleanup in the editor', () => {
+    test('has a palette command for C# files and the chord Ctrl+K Ctrl+E, listed in the shortcuts page', () => {
+        const binding = (packageJson.contributes.keybindings as { command: string; key: string; mac?: string; when: string }[])
+            .find(b => b.command === 'shinobi.codeCleanup.file');
+        expect(binding).toMatchObject({ key: 'ctrl+k ctrl+e', mac: 'cmd+k cmd+e', when: 'editorTextFocus && editorLangId == csharp' });
+        expect((packageJson.contributes.commands as { command: string }[]).some(c => c.command === 'shinobi.codeCleanup.file')).toBe(true);
+        const palette = (packageJson.contributes.menus.commandPalette as { command: string; when: string }[])
+            .find(entry => entry.command === 'shinobi.codeCleanup.file');
+        expect(palette?.when).toBe('editorLangId == csharp');
     });
 });
 

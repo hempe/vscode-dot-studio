@@ -70,6 +70,14 @@ Visual Studio's Build > Configuration Manager: add, rename and remove the soluti
 
 [Configuration Manager](docs/configuration-manager.md)
 
+### Code Cleanup
+
+Visual Studio's Analyze > Code Cleanup: formatting, unused usings and the code style fixes your `.editorconfig` asks for, on a file, folder, project or the whole solution, with progress and Cancel. Right-click a node > Code Cleanup, or press Ctrl+K, Ctrl+E in a C# file. It runs `dotnet format`, so the result matches your pipeline.
+
+![Code Cleanup of a project](docs/images/code-cleanup.gif)
+
+[Code Cleanup](docs/code-cleanup.md)
+
 ### Publish
 
 Visual Studio's Publish tab for folder publishing, with the same `.pubxml` profiles, so teammates on Visual Studio see the same ones.

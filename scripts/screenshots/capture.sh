@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-code-cleanup}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -80,11 +80,12 @@ tree_select() { pause 1.2; type_text "$1"; pause 1.2; }
 # Opens Shop.Web's context menu and clicks an entry by its offset below the click (from context-menu.png).
 # After Collapse All and opening the solution and src, rows are 20.6 px apart from y=81: the solution, Solution Items,
 # src, then src's projects in order.
-shop_web_y() {
-    local index
-    index="$(ls "$SOLUTION/src" | sort -f | grep -n -x Shop.Web | cut -d: -f1)"
+project_y() {
+    local dir="$1" index
+    index="$(ls "$SOLUTION/$dir" | sort -f | grep -n -x "$2" | cut -d: -f1)"
     echo $(( 81 + (3 + index - 1) * 206 / 10 ))
 }
+shop_web_y() { project_y src Shop.Web; }
 shop_web_menu() {
     local y; y="$(shop_web_y)"
     tree_focus; tree_open Contoso src; click 165 "$y" 3; pause 1.5; click 280 $(( y + $1 ))
@@ -295,6 +296,41 @@ if wants gif-configuration-manager; then
     click 1479 536; pause 2
     record_stop configuration-manager
     cp "$WORK/Contoso.slnx.orig" "$SOLUTION/Contoso.slnx"
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-code-cleanup; then
+    echo "Scene: gif-code-cleanup"
+    reset
+    # A messy file in the work copy only (removed again: the other scenes don't know it)
+    cat > "$SOLUTION/src/Shop.Core/Pricing/Rounding.cs" <<'CS'
+using System;
+using System.Text;
+using System.Linq;
+namespace Shop.Core.Pricing;
+public static class Rounding
+{
+        public static decimal ToCents(decimal price)
+        {
+              if (price < 0) { return 0; }
+          return Math.Round( price , 2 );
+        }
+   public static string Label(decimal price)
+   {
+         return $"{ToCents(price)} EUR";
+   }
+}
+CS
+    sleep 2
+    key ctrl+p; type_text "Rounding.cs"; pause 1.5; key Return; pause 2
+    tree_focus; tree_open Contoso src
+    record_start
+    pause 2
+    click 165 "$(project_y src Shop.Core)" 3; pause 1.5
+    # Code Cleanup is 527 px below the project row (from the menu's screenshot)
+    click 280 $(( $(project_y src Shop.Core) + 527 )); pause 12
+    record_stop code-cleanup
+    rm -f "$SOLUTION/src/Shop.Core/Pricing/Rounding.cs"
     command "View: Close All Editors" 1
 fi
 

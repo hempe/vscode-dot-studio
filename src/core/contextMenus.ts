@@ -72,6 +72,7 @@ export const menuCommands = {
     pack: { title: 'Pack', description: "Builds the project's NuGet package (`dotnet pack`) in the active configuration, with the package metadata of the project file (`PackageId`, `Version`, `Authors`, ...), and tells where the `.nupkg` went." },
     publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
     configurationManager: { title: 'Configuration Manager...', description: 'Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses.' },
+    codeCleanup: { title: 'Code Cleanup', description: "Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting." },
     copy: { title: 'Copy', description: 'Copies the file or folder; Paste puts a copy into another folder.', key: 'ctrl+c', mac: 'cmd+c' },
     cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
     paste: { title: 'Paste', description: 'Pastes the copied or cut file or folder into this folder or project.', key: 'ctrl+v', mac: 'cmd+v' },
@@ -110,6 +111,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['addNewProject', 'addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
         ['manageNuGetPackagesForSolution'],
         ['build', 'rebuild', 'clean', 'restoreNugets', 'configurationManager'],
+        ['codeCleanup'],
         ['runTests', 'debugTests'],
         ['rename'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
@@ -129,6 +131,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['build', 'rebuild', 'clean', 'publish'],
         [], // pack in libraries
         [], // runTests, debugTests in test projects
+        ['codeCleanup'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
     // Only projects that can be started; libraries and test projects can't be.
@@ -167,13 +170,16 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['copy', 'cut', 'paste'],
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
+        ['codeCleanup'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
+    // The menu can't tell C# files from others: Code Cleanup says so for the others
     file: [
         ['openFile'],
         ['copy', 'cut', 'paste'],
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
+        ['codeCleanup'],
         ['copyFullPath', 'revealInExplorer'],
     ],
     dependencies: [
@@ -362,11 +368,12 @@ export function buildMenuContributions() {
         category: '.NET',
     }));
 
+    // Group names sort as text: two digits keep group 10 after group 9 (the project menu has more than nine)
     const webviewContext = menuEntries().flatMap(({ nodeType, condition, menu }) =>
         menu.flatMap((group, groupIndex) => group.map((item, index): { command?: string; submenu?: string; when: string; group: string } => ({
             ...(isSubmenu(item) ? { submenu: submenuId(item) } : { command: COMMAND_PREFIX + item }),
             when: `${webviewWhen} && nodeType == '${nodeType}'${condition}`,
-            group: `${groupIndex + 1}_group@${index + 1}`,
+            group: `${String(groupIndex + 1).padStart(2, '0')}_group@${index + 1}`,
         })))
     );
 
@@ -378,7 +385,7 @@ export function buildMenuContributions() {
     const generatedSubmenus = submenuIds.map(id => ({ id: submenuId(id), label: submenus[id].label }));
     const submenuItems = Object.fromEntries(submenuIds.map(id => [
         submenuId(id),
-        submenus[id].items.map((action, index) => ({ command: COMMAND_PREFIX + action, group: `1_group@${index + 1}` })),
+        submenus[id].items.map((action, index) => ({ command: COMMAND_PREFIX + action, group: `01_group@${index + 1}` })),
     ]));
 
     const commandPalette = actions.map(action => ({ command: COMMAND_PREFIX + action, when: 'false' }));

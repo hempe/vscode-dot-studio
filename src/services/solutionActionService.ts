@@ -18,6 +18,8 @@ import { UnloadedProjects } from './unloadedProjects';
 import { packStarted } from './pack';
 import { ConfigurationManagerPanel } from '../webview/providers/ConfigurationManagerPanel';
 import { PublishPanel } from '../webview/providers/PublishPanel';
+import { runCodeCleanup } from './codeCleanup/codeCleanup';
+import { projectForPath } from './templates/templateService';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
@@ -84,6 +86,10 @@ export class SolutionActionService {
 
             case 'configurationManager':
                 ConfigurationManagerPanel.show();
+                break;
+
+            case 'codeCleanup':
+                await this._handleCodeCleanup(nodeId);
                 break;
 
             case 'manageUserSecrets':
@@ -250,6 +256,22 @@ export class SolutionActionService {
     }
 
     // Private action handlers
+
+    private static async _handleCodeCleanup(nodeId: NodeId): Promise<void> {
+        if (nodeId.type === 'solution' || nodeId.type === 'project') {
+            await runCodeCleanup({ kind: nodeId.type, path: nodeId.path });
+            return;
+        }
+        if (nodeId.type !== 'folder' && nodeId.type !== 'file') {
+            return;
+        }
+        const projectPath = projectForPath(nodeId.path);
+        if (!projectPath) {
+            vscode.window.showInformationMessage('Code Cleanup works on files and folders of a project of the solution.');
+            return;
+        }
+        await runCodeCleanup({ kind: nodeId.type, path: nodeId.path, projectPath });
+    }
 
     private static async _handleOpenFile(nodeId: NodeId): Promise<void> {
         try {

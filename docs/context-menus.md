@@ -17,6 +17,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Clean |  | Deletes the build output (`dotnet clean`). |
 | Restore NuGet Packages |  | Restores the NuGet packages of the solution (`dotnet restore`). |
 | Configuration Manager... |  | Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses. |
+| Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Run Tests |  | Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer. |
 | Debug Tests |  | Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
@@ -66,6 +67,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Rebuild |  | Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`). |
 | Clean |  | Deletes the build output (`dotnet clean`). |
 | Publish... |  | Opens the Publish tab of the project: publish profiles, settings and the Publish button. |
+| Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
@@ -134,6 +136,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
 | Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
+| Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
@@ -168,6 +171,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
 | Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
+| Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 
