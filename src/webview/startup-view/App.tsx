@@ -135,8 +135,7 @@ export const App: React.FC<{ api: StartupProjectsApi }> = ({ api }) => {
                     {' '}Single startup project
                 </label>
             </div>
-            <div className="field">
-                <span />
+            <div style={{ maxWidth: 360, margin: '4px 0 8px 24px' }}>
                 <Select aria-label="Single startup project" value={single} disabled={startable.length === 0}
                     options={single || startable.length === 0 ? startable : [{ value: '', label: '(none)' }, ...startable]}
                     onChange={project => { if (project) { setMode('single'); api.postMessage({ type: 'setSingle', project }); } }} />
@@ -175,7 +174,7 @@ export const App: React.FC<{ api: StartupProjectsApi }> = ({ api }) => {
 
                     <div className="field">
                         <label htmlFor="profile-name">Profile name</label>
-                        <input id="profile-name" type="text" value={shown.name} onChange={e => edit({ name: e.target.value })} />
+                        <input id="profile-name" type="text" style={{ maxWidth: 360 }} value={shown.name} onChange={e => edit({ name: e.target.value })} />
                         {nameProblem && <span className="hint" role="status">{nameProblem}</span>}
                     </div>
                     <div className="check">

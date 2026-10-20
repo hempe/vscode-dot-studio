@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-code-cleanup gif-sync-namespaces}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-code-cleanup gif-sync-namespaces}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -296,6 +296,32 @@ if wants gif-configuration-manager; then
     click 1479 536; pause 2
     record_stop configuration-manager
     cp "$WORK/Contoso.slnx.orig" "$SOLUTION/Contoso.slnx"
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-startup-projects; then
+    echo "Scene: gif-startup-projects"
+    reset
+    # The scene writes a profile (the user file), launch.json and tasks.json of the work copy; the other scenes get them back as they were
+    cp "$SOLUTION/.vscode/launch.json" "$WORK/launch.json.orig"
+    cp "$SOLUTION/.vscode/tasks.json" "$WORK/tasks.json.orig"
+    # Opened before the recording starts: the tab takes a moment to load
+    command "Configure Startup Projects..." 4
+    record_start
+    # Multiple startup projects, then Start for Shop.Web and Shop.Worker, Apply (positions from the tab's layout)
+    click 502 195; pause 1.5
+    click 965 477; pause 1; click 900 521; pause 1
+    click 965 513; pause 1; click 900 561; pause 1
+    click 1547 676; pause 3
+    # What F5 starts now: the profile is in the picker
+    command "Select Startup Profile..." 2
+    pause 1; key Escape; pause 1
+    record_stop startup-projects
+    # Without the profile file the extension falls back to the single project (and rewrites launch.json), then the originals are put back
+    rm -f "$SOLUTION"/Contoso.slnLaunch "$SOLUTION"/Contoso.slnLaunch.user
+    sleep 3
+    cp "$WORK/launch.json.orig" "$SOLUTION/.vscode/launch.json"
+    cp "$WORK/tasks.json.orig" "$SOLUTION/.vscode/tasks.json"
     command "View: Close All Editors" 1
 fi
 

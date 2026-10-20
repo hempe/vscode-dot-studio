@@ -60,6 +60,10 @@ Visual Studio's Add New Project and Add New Item wizards, with every `dotnet new
 
 Set as Startup Project with its launch profiles, Open Launch Settings (creates `launchSettings.json` when there is none), F5, Ctrl+F5, Debug > Start New Instance, Debug/Release. The browser opens when the web app is ready.
 
+Several startup projects work like Visual Studio's "Multiple startup projects": right-click the solution > Configure Startup Projects..., choose which projects start (with or without the debugger), their launch profile and order, and F5 starts them all. The profiles are stored in a `.slnLaunch` file next to the solution, the one Visual Studio reads, so a team shares them.
+
+![Configure Startup Projects](docs/images/startup-projects.gif)
+
 [Run & Debug](docs/run-and-debug.md)
 
 ### Configuration Manager

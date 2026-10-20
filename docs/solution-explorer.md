@@ -23,7 +23,7 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 | Button | What it does |
 |---|---|
-| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. The active one shows next to the view title; its menu also has the platform and the [Configuration Manager](configuration-manager.md) |
+| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. The active one shows next to the view title; its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
 | Select Framework | The target framework of multi-targeted startup projects |
 | ▷ Start Debugging | F5: starts the selected launch configuration, normally the startup project |
 | ▷ Start Without Debugging | Ctrl+F5: runs the startup project without the debugger |
@@ -45,6 +45,8 @@ Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses 
 | F5 / Ctrl+F5 | Start with / without debugging |
 
 **Selecting several nodes** works like in Visual Studio: Ctrl+click (macOS: Cmd+click) adds or removes a node, Shift+click selects the range from the last clicked node. Right-clicking a selected node opens the menu for the selection; these commands then act on all selected nodes that offer them, asking once: Delete, Remove from Solution, Remove (references, solution items), Copy, Cut (Paste puts them all into the target), Build, Rebuild and Clean (one after the other). The other commands act on the clicked node. Right-clicking a node outside the selection selects only that node.
+
+On the solution node, **Configure Startup Projects...** opens the tab for one startup project or a [profile of several](run-and-debug.md#startup-profiles-several-startup-projects), and **Configuration Manager...** the [Configuration Manager](configuration-manager.md).
 
 Sync Namespaces, on projects and folders, is described in [Sync Namespaces](sync-namespaces.md). Every right-click menu, command by command: [Context menus](context-menus.md). All keys, including Visual Studio's in VS Code: [Keyboard shortcuts](keyboard-shortcuts.md).
 

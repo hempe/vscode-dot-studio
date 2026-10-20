@@ -38,6 +38,23 @@ A startup profile starts several projects with one F5, like Visual Studio's "Mul
 
 Profiles use Visual Studio's own file (Visual Studio 2022 17.11 and later): `<Solution>.slnLaunch` next to the solution. Commit it and colleagues in Visual Studio and in VS Code share the same profiles. Profiles you keep for yourself go in `<Solution>.slnLaunch.user` (Visual Studio's name for its unshared file is not confirmed yet).
 
+![Configure Startup Projects](images/startup-projects.gif)
+
+### Configure Startup Projects
+
+Right-click the solution > **Configure Startup Projects...** (also in the title bar's ⚙ menu and the command palette) opens the tab, like Visual Studio's Solution Properties > Configure Startup Projects:
+
+- **Single startup project** and a dropdown of the projects that can be started: the same as **Set as Startup Project**, applied when you pick one. Choosing the radio goes back to the single startup project.
+- **Multiple startup projects** shows the profiles of the solution above a table with every project of the solution (default action None):
+  - **Action**: None, Start or Start without debugging.
+  - **Launch profile**: the profiles of the project's `launchSettings.json` that run the project; `(default)` leaves the choice to the extension (the first one).
+  - **Order**: the arrows move a project up or down; projects start in the order of the table.
+- Select a profile in the list to edit it, **New profile** starts one (named `Startup`, `Startup 2`, ...), **Delete** removes the selected one. A rename is a change of the **Profile name**.
+- **Share profile** puts the profile into the `.slnLaunch` file next to the solution (for source control, Visual Studio reads it); unticked it goes to the `.slnLaunch.user` file. Changing the box moves the profile between the two files.
+- **Apply** writes the file and makes the profile the one F5 starts. Nothing is saved before: "Unsaved changes" shows until you apply, and Apply stays disabled while the name is empty or another profile has it. If a profile file cannot be read (half edited, a merge conflict), the tab says so and writes nothing to it.
+
+Keys of a profile that this extension does not know stay as they are when you apply.
+
 **Select Startup Profile...** in the title bar's ⚙ menu (shown once a `.slnLaunch` file exists) or the command palette chooses what F5 starts: `Single: <project>` (the startup project) or a profile; profiles of the `.user` file are marked "user file". The active profile's name shows next to the view title instead of the framework (`Debug · Feature Profile`). **Set as Startup Project** on a project goes back to a single startup project. The choice is kept per workspace.
 
 | | |
@@ -46,9 +63,9 @@ Profiles use Visual Studio's own file (Visual Studio 2022 17.11 and later): `<So
 | **Ctrl+F5** | The same, every project without the debugger |
 | **Stop** (Shift+F5, the toolbar) | Stops every project of the profile. A project that ends on its own leaves the others running |
 
-The Run and Debug view lists one session per project. Each project uses its newest framework and the launch profile set in the file (`DebugTarget`), else its first one (the startup project keeps its own).
+Projects that are [unloaded](solution-explorer.md#unload-and-reload-projects) are left out of the build, so they are not started either; they start again once reloaded. The Run and Debug view lists one session per project. Each project uses its newest framework and the launch profile set in the file (`DebugTarget`), else its first one (the startup project keeps its own).
 
-There is no dialog to create profiles yet ("Configure Startup Projects..." comes next); meanwhile write the file by hand, paths relative to the solution:
+The file format (a JSON array of profiles, paths relative to the solution), if you prefer to edit it by hand or want to see what the tab writes:
 
 ```json
 [
@@ -63,7 +80,7 @@ There is no dialog to create profiles yet ("Configure Startup Projects..." comes
 ```
 
 How it works: the profile is written to `.vscode/launch.json` as one configuration per project (named `<profile>: <project>`) and a compound named `Startup` that lists them, builds the solution first (`StartupPreBuild` in `tasks.json`) and stops them together (`stopAll`). It replaces the single `Startup` configuration while the profile is active, and is rewritten when the profile, the configuration or a launch profile changes. Limits:
-- Projects the solution does not have are skipped, with a warning.
+- Projects the solution does not have are skipped, with a warning. Adding or removing a project in the solution file updates the launches.
 - A failed build stops the start with VS Code's own prompt, as for a single startup project.
 - A profile that starts no project makes F5 fall back to the next entry of the Run and Debug view; Ctrl+F5 says so.
 - If the `.slnLaunch` file cannot be read (for example half edited), F5 keeps starting what it started before; if the file or the profile is gone, F5 starts the single startup project again.
