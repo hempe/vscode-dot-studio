@@ -1,0 +1,109 @@
+name: Release
+
+# Publish a release on GitHub (Releases > Draft a new release > choose or create the tag, e.g. v0.1.0 > Publish release);
+# tick "Set as a pre-release" for a pre-release. The version comes from the tag (package.json is not edited in git), and
+# the same .vsix goes to the Visual Studio Marketplace, Open VSX and the GitHub release. Release notes left empty are
+# filled from the CHANGELOG.md section of that version.
+# A store is skipped while its token secret (VSCE_PAT, OVSX_PAT) is not set, so the workflow works before the accounts exist.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      TAG: ${{ github.event.release.tag_name }}
+      PRERELEASE: ${{ github.event.release.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Version from the tag
+        id: version
+        shell: bash
+        run: |
+          if [[ ! "$TAG" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "The tag must look like v1.2.3 (or 1.2.3), not $TAG" >&2
+            exit 1
+          fi
+          echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - name: Only commits of master are released
+        shell: bash
+        run: |
+          if ! git branch -r --contains "$(git rev-parse HEAD)" | grep -qx '  origin/master'; then
+            echo "The tagged commit is not on master" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      # Fails when the version has no changelog entry (the Marketplace shows CHANGELOG.md too)
+      - name: Changelog section
+        run: node scripts/release-notes.js "${{ steps.version.outputs.version }}" > release-notes.md
+
+      - name: Package
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
+          npx vsce package "${{ steps.version.outputs.version }}" --no-git-tag-version --no-update-package-json --no-dependencies "${flags[@]}" --out shinobi-dotnet.vsix
+
+      - name: Publish to the Visual Studio Marketplace
+        if: ${{ env.VSCE_PAT != '' }}
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
+          npx vsce publish --packagePath shinobi-dotnet.vsix --pat "$VSCE_PAT" "${flags[@]}"
+
+      - name: Publish to Open VSX
+        if: ${{ env.OVSX_PAT != '' }}
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
+          npx ovsx publish shinobi-dotnet.vsix --pat "$OVSX_PAT" "${flags[@]}"
+
+      - name: Attach the .vsix to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" shinobi-dotnet.vsix --clobber
+          if [[ -z "$(gh release view "$TAG" --json body --jq .body | tr -d '[:space:]')" ]]; then
+            gh release edit "$TAG" --notes-file release-notes.md
+          fi
+
+      - name: Which stores got it
+        shell: bash
+        run: |
+          marketplace="skipped, no VSCE_PAT secret"; if [[ -n "$VSCE_PAT" ]]; then marketplace="yes"; fi
+          openvsx="skipped, no OVSX_PAT secret"; if [[ -n "$OVSX_PAT" ]]; then openvsx="yes"; fi
+          {
+            echo "## Released ${{ steps.version.outputs.version }}"
+            echo "- GitHub release: yes"
+            echo "- Visual Studio Marketplace: $marketplace"
+            echo "- Open VSX: $openvsx"
+          } >> "$GITHUB_STEP_SUMMARY"

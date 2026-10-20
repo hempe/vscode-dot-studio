@@ -1,0 +1,64 @@
+name: CI
+
+# Typecheck, test and build on every push to master and every pull request.
+# Linux is the gate; Windows runs too (the extension is used there) and is informational until it is green.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Remove this line once the Windows job is green, to make it a gate as well
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Several tests run the real dotnet CLI (they skip themselves without it), and the .NET 8 and 10 SDKs are the ones the extension targets
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # The production build (webpack, extension and webviews), as `vsce package` runs it
+      - run: npm run build
+
+  package:
+    name: Package
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      # Proves that a .vsix can be built from this commit; the file is kept for download
+      - run: npx vsce package --no-dependencies --out shinobi-dotnet-ci.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: shinobi-dotnet-ci.vsix
+          retention-days: 14
