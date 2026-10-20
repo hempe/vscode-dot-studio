@@ -27,6 +27,12 @@ Settings > Extensions > Shinobi .NET, grouped as below.
 |---|---|---|
 | `shinobi.build.emitGeneratedFiles` | `true` | Builds started by this extension write what source generators produce, so Dependencies > Analyzers can show it. Off: builds write nothing extra, and generators show no files |
 
+### Code Cleanup
+
+| Setting | Default | |
+|---|---|---|
+| `shinobi.codeCleanup.severity` | `warn` | Which code style rules of the `.editorconfig` Code Cleanup fixes, by the severity the rule has there: `info` (suggestions, warnings and errors), `warn` (warnings and errors) or `error` (errors only) |
+
 ### Tests
 
 | Setting | Default | |

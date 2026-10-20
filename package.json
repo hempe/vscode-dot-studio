@@ -126,6 +126,26 @@
         }
       },
       {
+        "title": "Code Cleanup",
+        "properties": {
+          "shinobi.codeCleanup.severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warn",
+              "error"
+            ],
+            "enumDescriptions": [
+              "Apply the style fixes the .editorconfig sets to suggestion, warning or error",
+              "Apply the style fixes the .editorconfig sets to warning or error",
+              "Apply only the style fixes the .editorconfig sets to error"
+            ],
+            "default": "warn",
+            "markdownDescription": "Which code style rules of the `.editorconfig` Code Cleanup fixes, by the severity the rule has there (`dotnet format style --severity`)."
+          }
+        }
+      },
+      {
         "title": "Tests",
         "properties": {
           "shinobi.tests.discoverAfterBuild": {
