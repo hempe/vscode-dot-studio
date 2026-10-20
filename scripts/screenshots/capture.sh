@@ -219,7 +219,7 @@ fi
 if wants nuget; then
     echo "Scene: nuget"
     reset
-    shop_web_menu 303
+    shop_web_menu 327
     pause 15
     close_panel
     shot nuget
@@ -243,7 +243,7 @@ fi
 if wants publish; then
     echo "Scene: publish"
     reset
-    shop_web_menu 517
+    shop_web_menu 541
     pause 5
     close_panel
     shot publish
@@ -264,7 +264,7 @@ if wants gif-nuget; then
     echo "Scene: gif-nuget"
     reset
     record_start
-    shop_web_menu 303
+    shop_web_menu 327
     pause 10
     close_panel
     record_stop nuget
