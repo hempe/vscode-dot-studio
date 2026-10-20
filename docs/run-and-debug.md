@@ -32,9 +32,45 @@ IIS Express, Docker and similar profiles don't apply.
 
 Start New Instance uses the project's first launch profile and newest framework; on the startup project, its chosen profile and framework. If the build fails, nothing starts.
 
+## Startup profiles (several startup projects)
+
+A startup profile starts several projects with one F5, like Visual Studio's "Multiple startup projects". Each project has an action: **Start** (with the debugger), **Start without debugging**, or none; they start in the profile's order.
+
+Profiles use Visual Studio's own file (Visual Studio 2022 17.11 and later): `<Solution>.slnLaunch` next to the solution. Commit it and colleagues in Visual Studio and in VS Code share the same profiles. Profiles you keep for yourself go in `<Solution>.slnLaunch.user` (Visual Studio's name for its unshared file is not confirmed yet).
+
+**Select Startup Profile...** in the title bar's ⚙ menu (shown once a `.slnLaunch` file exists) or the command palette chooses what F5 starts: `Single: <project>` (the startup project) or a profile; profiles of the `.user` file are marked "user file". The active profile's name shows next to the view title instead of the framework (`Debug · Feature Profile`). **Set as Startup Project** on a project goes back to a single startup project. The choice is kept per workspace.
+
+| | |
+|---|---|
+| **F5** | Builds the solution once, then starts every project of the profile: **Start** ones in the debugger, **Start without debugging** ones without it |
+| **Ctrl+F5** | The same, every project without the debugger |
+| **Stop** (Shift+F5, the toolbar) | Stops every project of the profile. A project that ends on its own leaves the others running |
+
+The Run and Debug view lists one session per project. Each project uses its newest framework and the launch profile set in the file (`DebugTarget`), else its first one (the startup project keeps its own).
+
+There is no dialog to create profiles yet ("Configure Startup Projects..." comes next); meanwhile write the file by hand, paths relative to the solution:
+
+```json
+[
+  {
+    "Name": "Feature Profile",
+    "Projects": [
+      { "Path": "src\\Shop.Web\\Shop.Web.csproj", "Action": "Start" },
+      { "Path": "src\\Shop.Worker\\Shop.Worker.csproj", "Action": "StartWithoutDebugging" }
+    ]
+  }
+]
+```
+
+How it works: the profile is written to `.vscode/launch.json` as one configuration per project (named `<profile>: <project>`) and a compound named `Startup` that lists them, builds the solution first (`StartupPreBuild` in `tasks.json`) and stops them together (`stopAll`). It replaces the single `Startup` configuration while the profile is active, and is rewritten when the profile, the configuration or a launch profile changes. Limits:
+- Projects the solution does not have are skipped, with a warning.
+- A failed build stops the start with VS Code's own prompt, as for a single startup project.
+- A profile that starts no project makes F5 fall back to the next entry of the Run and Debug view; Ctrl+F5 says so.
+- If the `.slnLaunch` file cannot be read (for example half edited), F5 keeps starting what it started before; if the file or the profile is gone, F5 starts the single startup project again.
+
 ## Debug / Release
 
-The ⚙ button in the Solution Explorer's title bar switches the solution configuration for builds, F5 and tests, with the configurations the solution file defines. The active configuration (and framework) shows next to the view title and is kept per workspace.
+The ⚙ button in the Solution Explorer's title bar switches the solution configuration for builds, F5 and tests, with the configurations the solution file defines. The active configuration (and framework, or the [startup profile](#startup-profiles-several-startup-projects)) shows next to the view title and is kept per workspace.
 
 Solutions with several platforms (Any CPU, x64) add **Select Solution Platform...** to that menu, and the view title shows both (`Debug | x64`). Which configuration and platform each project builds in, and whether it builds, is set in the [Configuration Manager](configuration-manager.md); F5 and the build before it use the project's mapped values.
 
