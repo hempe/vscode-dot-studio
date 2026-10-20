@@ -1,4 +1,4 @@
-import { parseJsonc, upsertArrayItem } from '../../../core/jsonc';
+import { parseJsonc, removeArrayItems, upsertArrayItem } from '../../../core/jsonc';
 
 const isStartup = (item: any) => item?.name === 'Startup';
 
@@ -91,5 +91,29 @@ describe('upsertArrayItem', () => {
 
         expect(updated).toMatch(/\n\t\t\{/);
         expect(updated).not.toMatch(/\n {2}/);
+    });
+});
+
+describe('removeArrayItems', () => {
+    const text = `{
+    // my configs
+    "configurations": [
+        { "name": "Startup" },
+        { "name": "Mine" },
+        { "name": "Profile: Api" }
+    ]
+}
+`;
+
+    it('removes the matching items and keeps comments and the others', () => {
+        const updated = removeArrayItems(text, 'configurations', item => item?.name !== 'Mine');
+
+        expect(updated).toContain('// my configs');
+        expect(parseJsonc(updated).value).toEqual({ configurations: [{ name: 'Mine' }] });
+    });
+
+    it('returns the text unchanged when nothing matches or the array is missing', () => {
+        expect(removeArrayItems(text, 'configurations', () => false)).toBe(text);
+        expect(removeArrayItems(text, 'compounds', () => true)).toBe(text);
     });
 });

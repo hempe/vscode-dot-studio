@@ -60,3 +60,18 @@ export function upsertArrayItem(
     const insertAt = position === 'first' ? 0 : array.length;
     return applyEdits(text, modify(text, [arrayKey, insertAt], item, { formattingOptions, isArrayInsertion: true }));
 }
+
+/** Removes every item of the top-level array `arrayKey` that matches `isMatch`; the text is unchanged when none does */
+export function removeArrayItems(text: string, arrayKey: string, isMatch: (item: any) => boolean): string {
+    const { value } = parseJsonc(text);
+    const array: unknown[] = Array.isArray(value?.[arrayKey]) ? value[arrayKey] : [];
+    const formattingOptions = detectFormatting(text);
+    let result = text;
+    // From the end, so the indexes of the items still to remove stay valid
+    for (let index = array.length - 1; index >= 0; index--) {
+        if (isMatch(array[index])) {
+            result = applyEdits(result, modify(result, [arrayKey, index], undefined, { formattingOptions }));
+        }
+    }
+    return result;
+}
