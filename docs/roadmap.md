@@ -78,7 +78,7 @@ Found along the way, to be fixed:
 - [ ] IIS Web Deploy, only on Windows where `msdeploy` exists
 
 ## Not Planned
-- Running and debugging .NET Framework 4.x projects (Mono): SDK-style projects that target `net4x` load, build and use the NuGet manager, see [Troubleshooting](troubleshooting.md#known-limitations)
+- ASP.NET (IIS Express), tests and old-style project files on .NET Framework 4.x: SDK-style `net4x` projects load, build, use the NuGet manager and run and debug with Mono on Linux and macOS, see [Troubleshooting](troubleshooting.md#known-limitations)
 - `packages.config` and old-style project files
 - Code navigation features that the C# extension already provides (Go to Definition, Find References, symbol search)
 - Diagnostic Tools / profiler UI (the `dotnet-trace`, `dotnet-counters` and `dotnet-gcdump` CLI tools cover it)

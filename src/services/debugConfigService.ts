@@ -1,3 +1,4 @@
+import { ensureMonoDebugging, splitArguments } from './monoDebug';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -185,17 +186,22 @@ export class DebugConfigService {
             debugType = 'coreclr';
         }
 
+        // The mono debugger does not read launchSettings.json: its arguments and environment go into the configuration
+        const profileSettings = debugType === 'mono'
+            ? { args: splitArguments(profile?.commandLineArgs), ...(profile?.environmentVariables && { env: profile.environmentVariables }) }
+            : profile ? { launchSettingsProfile: profile.name } : { args: [] };
+
         const config = {
             name,
             type: debugType,
             request: 'launch',
             program,
-            ...(profile ? { launchSettingsProfile: profile.name } : { args: [] }),
+            ...profileSettings,
             cwd: `\${workspaceFolder}/${relativeProjectDir}`,
             console: 'integratedTerminal',
             ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
             ...(preLaunchTask && { preLaunchTask }),
-            ...(profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
+            ...(debugType !== 'mono' && profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
         };
         return { config, framework: selectedFramework, configuration };
     }
@@ -226,6 +232,9 @@ export class DebugConfigService {
 
         const framework = isStartup ? this.getActiveFramework() ?? undefined : undefined;
         const { config } = await this.launchConfiguration(projectPath, workspaceFolder.uri.fsPath, framework, profile);
+        if (config.type === 'mono' && !await ensureMonoDebugging()) {
+            return;
+        }
         await vscode.debug.startDebugging(workspaceFolder, config, { noDebug });
     }
 
@@ -234,6 +243,10 @@ export class DebugConfigService {
         const workspaceFolder = solutionWorkspaceFolder();
         if (!workspaceFolder || !this.getStartupProject()) {
             vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
+            return;
+        }
+        const startupType = this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'))?.type;
+        if (startupType === 'mono' && !await ensureMonoDebugging()) {
             return;
         }
         await vscode.debug.startDebugging(workspaceFolder, 'Startup', { noDebug });
@@ -363,8 +376,8 @@ export class DebugConfigService {
     private static isNetFramework(framework: string | null): boolean {
         if (!framework) return false;
 
-        // .NET Framework patterns: net472, net48, net481, etc.
-        return /^net\d\d\d+$/.test(framework);
+        // .NET Framework patterns: net40, net45, net48, net472, net481 (modern ones have a dot: net8.0)
+        return /^net\d{2,3}$/.test(framework);
     }
 
     /**
@@ -558,6 +571,10 @@ export class DebugConfigService {
             .filter(([, profile]) => profile?.commandName === 'Project')
             .map(([name, profile]) => ({
                 name,
+                commandLineArgs: typeof profile.commandLineArgs === 'string' ? profile.commandLineArgs : undefined,
+                environmentVariables: profile.environmentVariables && typeof profile.environmentVariables === 'object'
+                    ? Object.fromEntries(Object.entries(profile.environmentVariables as Record<string, unknown>).map(([key, value]) => [key, String(value)]))
+                    : undefined,
                 applicationUrl: typeof profile.applicationUrl === 'string' ? profile.applicationUrl : undefined,
                 launchBrowser: profile.launchBrowser === true,
                 launchUrl: typeof profile.launchUrl === 'string' ? profile.launchUrl : undefined,
@@ -579,6 +596,8 @@ export class DebugConfigService {
 
 interface LaunchProfile {
     readonly name: string;
+    readonly commandLineArgs?: string;
+    readonly environmentVariables?: Record<string, string>;
     readonly applicationUrl?: string;
     readonly launchBrowser: boolean;
     readonly launchUrl?: string;

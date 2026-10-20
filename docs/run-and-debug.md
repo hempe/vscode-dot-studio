@@ -40,6 +40,12 @@ The ⚙ button in the Solution Explorer's title bar switches the solution config
 
 The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work.
 
+## .NET Framework projects on Linux and macOS
+
+SDK-style projects that target .NET Framework (`net48`, `net472`, ...) run and debug with Mono: install Mono (the `mono` command must work) and Microsoft's [Mono Debug](https://marketplace.visualstudio.com/items?itemName=ms-vscode.mono-debug) extension (`ms-vscode.mono-debug`). The `Startup` configuration then has the type `mono` and points at the `.exe`; the launch profile's `commandLineArgs` and `environmentVariables` go into its `args` and `env` (Mono Debug does not read `launchSettings.json`, and has no `applicationUrl` or browser launch). Ctrl+F5, Start New Instance and Start Without Debugging tell what is missing before they start; with plain F5, VS Code reports the missing debug type. In a multi-targeted project (`net48;net10.0`) F5 picks the newest framework, Select Framework switches to `net48`.
+
+It is meant for console, worker and desktop-style programs. ASP.NET on .NET Framework (IIS Express), test projects, and old-style project files are not supported; on Windows, use Visual Studio for .NET Framework.
+
 ## Attach to Process
 
 Visual Studio's Debug > Attach to Process is a launch configuration of the C# extension. Add it to `.vscode/launch.json` (next to `Startup`):

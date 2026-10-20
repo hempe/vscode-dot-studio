@@ -9,6 +9,8 @@ const env = {
     builds: [] as string[],
     started: [] as { config: any; options: any }[],
     messages: [] as string[],
+    /** Whether Mono and the Mono Debug extension are available */
+    monoOk: true,
 };
 
 jest.mock('vscode', () => {
@@ -46,6 +48,11 @@ jest.mock('vscode', () => {
         },
     };
 }, { virtual: true });
+
+jest.mock('../../../services/monoDebug', () => ({
+    ...jest.requireActual('../../../services/monoDebug'),
+    ensureMonoDebugging: async () => env.monoOk,
+}));
 
 jest.mock('../../../services/buildConfiguration', () => ({
     BuildConfiguration: { get active() { return 'Debug'; } },
@@ -143,6 +150,79 @@ describe('DebugConfigService: starting a project that is not the startup project
         const { config } = env.started[0];
         expect(config.launchSettingsProfile).toBe('https');
         expect(config.program).toBe('${workspaceFolder}/Api/bin/Debug/net8.0/Api.dll');
+    });
+});
+
+// On Windows .NET Framework programs run natively (the `clr` type), Mono is for Linux and macOS
+const describeMono = process.platform === 'win32' ? describe.skip : describe;
+
+describeMono('DebugConfigService: .NET Framework projects with Mono', () => {
+    let appPath: string;
+
+    beforeEach(() => {
+        env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'start-mono-'));
+        env.buildExitCode = 0;
+        env.builds = [];
+        env.started = [];
+        env.messages = [];
+        env.monoOk = true;
+        const dir = path.join(env.workspacePath, 'Legacy');
+        fs.mkdirSync(path.join(dir, 'Properties'), { recursive: true });
+        appPath = path.join(dir, 'Legacy.csproj');
+        fs.writeFileSync(appPath, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework></PropertyGroup></Project>');
+        fs.writeFileSync(path.join(dir, 'Properties', 'launchSettings.json'), JSON.stringify({
+            profiles: { Legacy: { commandName: 'Project', commandLineArgs: '--verbose "two words"', environmentVariables: { MODE: 'test' } } },
+        }));
+    });
+
+    afterEach(() => fs.rmSync(env.workspacePath, { recursive: true, force: true }));
+
+    it('starts the .exe with the mono debugger and the launch profile as arguments and environment', async () => {
+        await DebugConfigService.startProject(appPath, false);
+
+        const { config } = env.started[0];
+        expect(config).toEqual(expect.objectContaining({
+            type: 'mono',
+            request: 'launch',
+            program: '${workspaceFolder}/Legacy/bin/Debug/net48/Legacy.exe',
+            args: ['--verbose', 'two words'],
+            env: { MODE: 'test' },
+            cwd: '${workspaceFolder}/Legacy',
+        }));
+        expect(config.launchSettingsProfile).toBeUndefined();
+        expect(config.stopAtEntry).toBeUndefined();
+    });
+
+    it('starts without debugging the same way', async () => {
+        await DebugConfigService.startProject(appPath, true);
+
+        expect(env.started[0].options).toEqual({ noDebug: true });
+        expect(env.started[0].config.type).toBe('mono');
+    });
+
+    it('does not start when Mono or the Mono Debug extension is missing', async () => {
+        env.monoOk = false;
+
+        await DebugConfigService.startProject(appPath, false);
+
+        expect(env.started).toEqual([]);
+    });
+
+    it('checks Mono before F5 and Ctrl+F5 start a .NET Framework startup project', async () => {
+        fs.mkdirSync(path.join(env.workspacePath, '.vscode'));
+        fs.writeFileSync(path.join(env.workspacePath, '.vscode', 'launch.json'), JSON.stringify({
+            configurations: [{ name: 'Startup', type: 'mono', request: 'launch' }],
+        }));
+        fs.writeFileSync(path.join(env.workspacePath, '.vscode', 'tasks.json'), JSON.stringify({
+            tasks: [{ label: 'StartupPreBuild', args: ['build', path.join('Legacy', 'Legacy.csproj'), '--framework', 'net48'] }],
+        }));
+        env.monoOk = false;
+        await DebugConfigService.startStartupProject(false);
+        expect(env.started).toEqual([]);
+
+        env.monoOk = true;
+        await DebugConfigService.startStartupProject(false);
+        expect(env.started).toEqual([{ config: 'Startup', options: { noDebug: false } }]);
     });
 });
 
