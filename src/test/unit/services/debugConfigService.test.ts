@@ -41,7 +41,7 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
     let projectPath: string;
 
     beforeEach(() => {
-        env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'debugconfig-'));
+        env.workspacePath = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'debugconfig-')));
         env.warnings = [];
         env.pick = undefined;
         env.pickItems = undefined;

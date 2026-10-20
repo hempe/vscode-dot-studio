@@ -107,7 +107,7 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
     });
 
     it('lists the profiles of a project', () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publish-'));
+        const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'publish-')));
         try {
             const dir = path.join(root, 'Properties', 'PublishProfiles');
             fs.mkdirSync(dir, { recursive: true });

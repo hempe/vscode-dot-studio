@@ -20,7 +20,7 @@ describe('SolutionDiscovery.discoverSolutions', () => {
         return file;
     };
 
-    beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-')); });
+    beforeEach(() => { root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-'))); });
     afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
     it('finds a solution in the opened folder', async () => {
@@ -64,7 +64,7 @@ describe('SolutionDiscovery.discoverAndSelectSolution', () => {
     };
 
     beforeEach(() => {
-        root = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-'));
+        root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-')));
         state.clear();
         ui.picks = 0;
         SolutionDiscovery.initialize({ get: (key: string) => state.get(key), update: async (key: string, value: unknown) => { state.set(key, value); } } as any);
@@ -91,7 +91,7 @@ describe('SolutionDiscovery.discoverAndSelectSolution', () => {
     });
 
     it('looks in every folder of a multi-root workspace', async () => {
-        const second = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-'));
+        const second = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-')));
         try {
             touch('src/Web.slnx');
             const api = path.join(second, 'Api.sln');

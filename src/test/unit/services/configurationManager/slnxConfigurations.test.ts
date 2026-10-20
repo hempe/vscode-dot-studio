@@ -182,7 +182,7 @@ describe('renderSlnxModel', () => {
     });
 
     it('keeps CRLF line endings', () => {
-        const source = content.replace(/\n/g, '\r\n');
+        const source = content.replace(/\r?\n/g, '\r\n');
         const model = setMapping(readSlnxModel(source, projects), APP, 'Debug', 'x64', { configuration: 'Debug', platform: 'x64', build: false });
         const rendered = renderSlnxModel(source, model, projects);
         expect(rendered.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/);

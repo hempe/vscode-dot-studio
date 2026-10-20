@@ -41,7 +41,7 @@ beforeEach(() => {
     hasCSharp = true;
     confirm = 'Sync';
     showInformationMessage.mockImplementation(async (text: string) => (/^Sync namespaces/.test(text) ? confirm : undefined));
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-ns-'));
+    dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-ns-')));
 });
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 

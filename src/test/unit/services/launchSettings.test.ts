@@ -53,7 +53,7 @@ describe('launch settings', () => {
 
     describe('ensureLaunchSettings', () => {
         let dir: string;
-        beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'launch-settings-')); });
+        beforeEach(() => { dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'launch-settings-'))); });
         afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
         it('creates Properties/launchSettings.json for a project without one', async () => {

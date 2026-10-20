@@ -1,0 +1,13 @@
+# Deterministic line endings: LF in the working tree on every OS, so tests that
+# compare against generated files behave the same on Windows and Linux.
+* text=auto eol=lf
+
+# Visual Studio writes CRLF; tests read these as CRLF.
+src/__fixtures__/configurations/Sample.sln text eol=crlf
+src/__fixtures__/service-references/PayLoop/Connected[[:space:]]Services/CardOperations/CardOperations.wsdl text eol=crlf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.cache binary

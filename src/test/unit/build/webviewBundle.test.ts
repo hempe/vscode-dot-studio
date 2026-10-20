@@ -23,7 +23,7 @@ describe('webview bundles build', () => {
         const fs = require('fs') as typeof import('fs');
         const configs = require(path.join(__dirname, '../../../../webpack.config.js'));
         const webview = (Array.isArray(configs) ? configs : [configs]).find((config: { name?: string }) => config.name === 'webview');
-        const out = fs.mkdtempSync(path.join(os.tmpdir(), 'webview-build-'));
+        const out = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'webview-build-')));
         webpack({ ...webview, mode: 'development', output: { ...webview.output, path: out } }, (error: Error | null, stats: any) => {
             fs.rmSync(out, { recursive: true, force: true });
             expect(error).toBeNull();

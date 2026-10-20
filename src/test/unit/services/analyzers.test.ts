@@ -35,7 +35,7 @@ describe('analyzers', () => {
         let generatedDir: string;
 
         beforeEach(() => {
-            generatedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'generated-'));
+            generatedDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'generated-')));
             const write = (relative: string) => {
                 const file = path.join(generatedDir, relative);
                 fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -74,7 +74,7 @@ describe('analyzers', () => {
     });
 
     withDotnet('asks MSBuild for framework analyzers and generators referenced as projects, without building them', async () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'analyzers-'));
+        const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'analyzers-')));
         try {
             const project = (name: string, content: string) => {
                 fs.mkdirSync(path.join(root, name));

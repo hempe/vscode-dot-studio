@@ -38,7 +38,7 @@ describe('offering to convert a .sln to .slnx', () => {
     });
 
     beforeEach(() => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'slnx-'));
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'slnx-')));
         sln = path.join(dir, 'App.sln');
         fs.writeFileSync(sln, 'Microsoft Visual Studio Solution File, Format Version 12.00');
         ui.choices = [];

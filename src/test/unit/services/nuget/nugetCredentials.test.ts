@@ -17,7 +17,7 @@ ${credentials}
 
 describe('NuGet.Config files', () => {
     it('lists the configs from the folder up, then the user config, whatever their case', () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nugetcfg-'));
+        const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'nugetcfg-')));
         const repo = path.join(root, 'repo');
         const src = path.join(repo, 'src');
         const home = path.join(root, 'home');

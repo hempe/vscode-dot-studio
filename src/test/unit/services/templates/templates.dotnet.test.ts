@@ -50,7 +50,7 @@ describe('templates with dotnet new', () => {
 
     beforeEach(async () => {
         ui.errors = [];
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-tpl-'));
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-tpl-')));
         libProject = path.join(dir, 'src', 'Lib', 'Lib.csproj');
         fs.mkdirSync(path.dirname(libProject), { recursive: true });
         fs.writeFileSync(libProject, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>');

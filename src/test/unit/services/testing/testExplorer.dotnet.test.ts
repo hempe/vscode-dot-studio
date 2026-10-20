@@ -101,7 +101,7 @@ describe('Test Explorer with dotnet', () => {
     let dir: string;
 
     beforeAll(() => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-tests-'));
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-tests-')));
         for (const [file, content] of Object.entries(projects)) {
             fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
             fs.writeFileSync(path.join(dir, file), content);

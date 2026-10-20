@@ -33,7 +33,7 @@ describe('rejected feed credentials', () => {
     beforeEach(() => {
         token++;
         Object.assign(ui, { warnings: [], choices: [], inputs: [], infos: [], opened: [] });
-        workspace.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'feedauth-'));
+        workspace.dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'feedauth-')));
         configFile = path.join(workspace.dir, 'nuget.config');
         fs.writeFileSync(configFile, `<?xml version="1.0" encoding="utf-8"?>
 <configuration>

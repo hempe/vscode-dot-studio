@@ -14,7 +14,7 @@ describe('dotnet-svcutil integration', () => {
     jest.setTimeout(120000);
 
     it('regenerates the PayLoop reference for net10.0 like Visual Studio would', async () => {
-        const project = fs.mkdtempSync(path.join(os.tmpdir(), 'svcint-'));
+        const project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcint-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
         const install = hasDotnet ? await findSvcutil(project) : undefined;
         if (!install) {

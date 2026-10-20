@@ -26,7 +26,7 @@ describe('generateServiceReference', () => {
     let added: string[];
 
     beforeEach(() => {
-        project = fs.mkdtempSync(path.join(os.tmpdir(), 'svcgen-'));
+        project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcgen-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
         projectPath = path.join(project, 'PayLoop.csproj');
         fs.writeFileSync(projectPath, fs.readFileSync(projectPath, 'utf8').replace('net471', 'net10.0'));
@@ -101,7 +101,7 @@ describe('explainSvcutilFailure', () => {
 
 describe('removeServiceReference', () => {
     it('deletes the folder, and Connected Services with WCFMetadata when it was the last one', async () => {
-        const project = fs.mkdtempSync(path.join(os.tmpdir(), 'svcrm-'));
+        const project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcrm-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
         const projectPath = path.join(project, 'PayLoop.csproj');
 

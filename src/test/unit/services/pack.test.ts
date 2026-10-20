@@ -8,7 +8,7 @@ jest.mock('../../../services/buildConfiguration', () => ({ BuildConfiguration: {
 import { packagesWrittenSince } from '../../../services/pack';
 
 describe('packagesWrittenSince', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-pack-'));
+    const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-pack-')));
     afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
     const write = (name: string, seconds: number) => {

@@ -138,6 +138,7 @@ describe('contextMenus', () => {
         expect(nodeTypes('publish')).toEqual(['project']);
         expect(nodeTypes('configurationManager')).toEqual(['solution']);
         expect(nodeTypes('codeCleanup')).toEqual(['solution', 'project', 'folder', 'file']);
+        expect(nodeTypes('syncNamespaces')).toEqual(['project', 'folder']);
     });
 
     test('docs/context-menus.md is up to date (run `npm run generate:menus`)', () => {

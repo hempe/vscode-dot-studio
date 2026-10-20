@@ -34,7 +34,7 @@ describe('connected service metadata', () => {
     });
 
     it('reads and writes references created with the svcutil CLI in their own format', () => {
-        const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'svcref-'));
+        const folder = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcref-')));
         const params = { providerId: 'Microsoft.Tools.ServiceModel.Svcutil', version: '8.0.0', options: { inputs: ['a.wsdl'], outputFile: 'Reference.cs' } };
         fs.writeFileSync(path.join(folder, 'dotnet-svcutil.params.json'), JSON.stringify(params, null, 2) + '\n');
 
@@ -45,7 +45,7 @@ describe('connected service metadata', () => {
     });
 
     it('names the file in the error for malformed metadata', () => {
-        const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'svcref-'));
+        const folder = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcref-')));
         fs.writeFileSync(path.join(folder, 'ConnectedService.json'), '{ "ExtendedData": ');
         expect(() => readServiceReference(folder)).toThrow(/ConnectedService\.json/);
         fs.rmSync(folder, { recursive: true });

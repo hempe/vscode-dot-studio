@@ -31,7 +31,7 @@ describe('new project defaults', () => {
     });
 
     it('finds the project file a template created', () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'newproj-'));
+        const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'newproj-')));
         expect(findProjectFile(dir)).toBeUndefined();
         fs.writeFileSync(path.join(dir, 'Lib.fsproj'), '<Project />');
         expect(findProjectFile(dir)).toBe(path.join(dir, 'Lib.fsproj'));

@@ -21,7 +21,7 @@ describe('packageChildren (packages under Dependencies expand like Visual Studio
     let root: string;
 
     beforeEach(() => {
-        root = fs.mkdtempSync(path.join(os.tmpdir(), 'package-nodes-'));
+        root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'package-nodes-')));
         env.projectPath = path.join(root, 'Web.csproj');
         fs.mkdirSync(path.join(root, 'obj'));
         fs.writeFileSync(path.join(root, 'obj', 'project.assets.json'), JSON.stringify({

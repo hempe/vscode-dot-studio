@@ -52,7 +52,7 @@ jest.mock('vscode', () => {
         controller, runs, TestMessage,
         tests: { createTestController: () => controller },
         TestRunProfileKind: { Run: 1, Debug: 2 },
-        Uri: { file: (p: string) => ({ fsPath: p }) },
+        Uri: { file: (p: string) => ({ fsPath: require('path').normalize(p) }) },
         Range: class { constructor(public startLine: number, public startCharacter: number, public endLine: number, public endCharacter: number) { } },
         Location: class { constructor(public uri: unknown, public range: unknown) { } },
         tasks: { onDidEndTaskProcess: () => disposable },
@@ -97,6 +97,7 @@ async function replayApp(args: string[]) {
 
 const mock = vscode as any;
 const projectPath = '/repo/X3/X3.csproj';
+const native = (p: string) => path.normalize(p);
 
 function explorer(overrides: Record<string, unknown> = {}) {
     return new TestExplorer({
@@ -172,21 +173,21 @@ describe('TestExplorer', () => {
         const all = ['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2'];
 
         it('runs a whole test project', async () => {
-            await explorer().runTestsAt(projectPath, false);
+            await explorer().runTestsAt(native(projectPath), false);
             expect(ran()).toEqual(all);
         });
 
         it('runs the tests in a file or folder', async () => {
-            await explorer().runTestsAt('/repo/X3/MathTests.cs', false);
+            await explorer().runTestsAt(native('/repo/X3/MathTests.cs'), false);
             expect(ran()).toEqual(all);
 
             mock.runs.length = 0;
-            await explorer().runTestsAt('/repo/X3', false);
+            await explorer().runTestsAt(native('/repo/X3'), false);
             expect(ran()).toEqual(all);
         });
 
         it('runs every test project for the solution', async () => {
-            await explorer().runTestsAt('/repo/X.slnx', false);
+            await explorer().runTestsAt(native('/repo/X.slnx'), false);
             expect(ran()).toEqual(all);
         });
 
@@ -198,14 +199,14 @@ describe('TestExplorer', () => {
                 modified: () => modified,
             });
 
-            await tests.runTestsAt('/repo/X3/MathTests.cs', false);
+            await tests.runTestsAt(native('/repo/X3/MathTests.cs'), false);
 
             expect(built).toContain(projectPath);
             expect(ran()).toEqual(all);
         });
 
         it('says so when there are no tests', async () => {
-            await explorer().runTestsAt('/repo/X3/Helpers', false);
+            await explorer().runTestsAt(native('/repo/X3/Helpers'), false);
             expect(mock.runs).toEqual([]);
             expect(mock.messages).toEqual(['No tests found in Helpers.']);
         });

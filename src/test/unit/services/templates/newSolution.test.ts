@@ -14,7 +14,7 @@ const consoleTemplate = { identity: 'Microsoft.Common.Console.CSharp', name: 'Co
 
 describe('createSolutionWithProject (Visual Studio\'s "Create a new project")', () => {
     let root: string;
-    beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'newsln-')); });
+    beforeEach(() => { root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'newsln-'))); });
     afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
     withDotnet('creates a .slnx with the project in its own folder', async () => {

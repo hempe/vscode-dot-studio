@@ -9,7 +9,7 @@ describe('copyExistingItems', () => {
     let target: string;
 
     beforeEach(() => {
-        root = fs.mkdtempSync(path.join(os.tmpdir(), 'existing-items-'));
+        root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'existing-items-')));
         source = path.join(root, 'elsewhere');
         target = path.join(root, 'Project', 'Models');
         fs.mkdirSync(source, { recursive: true });

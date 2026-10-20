@@ -81,7 +81,7 @@ describe('DebugConfigService: starting a project that is not the startup project
     };
 
     beforeEach(() => {
-        env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'start-project-'));
+        env.workspacePath = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'start-project-')));
         env.buildExitCode = 0;
         env.builds = [];
         env.started = [];
@@ -160,7 +160,7 @@ describeMono('DebugConfigService: .NET Framework projects with Mono', () => {
     let appPath: string;
 
     beforeEach(() => {
-        env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'start-mono-'));
+        env.workspacePath = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'start-mono-')));
         env.buildExitCode = 0;
         env.builds = [];
         env.started = [];
@@ -228,7 +228,7 @@ describeMono('DebugConfigService: .NET Framework projects with Mono', () => {
 
 describe('DebugConfigService.startStartupProject (Ctrl+F5)', () => {
     beforeEach(() => {
-        env.workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), 'start-startup-'));
+        env.workspacePath = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'start-startup-')));
         env.started = [];
         env.messages = [];
     });

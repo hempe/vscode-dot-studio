@@ -35,7 +35,7 @@ describe('SolutionService.discoverAndInitializeSolution with an invalid .slnx', 
     let slnxPath: string;
 
     beforeEach(() => {
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'solution-load-'));
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'solution-load-')));
         slnxPath = path.join(dir, 'Test.slnx');
         ui.errors = [];
         jest.spyOn(SolutionDiscovery, 'discoverAndSelectSolution').mockResolvedValue(slnxPath);

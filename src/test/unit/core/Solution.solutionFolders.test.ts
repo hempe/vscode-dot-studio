@@ -133,7 +133,7 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
 
     beforeEach(async () => {
         ui.errors = [];
-        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-sf-'));
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-sf-')));
         file = path.join(dir, fileName);
         fs.writeFileSync(file, initialContent);
         fs.writeFileSync(path.join(dir, 'README.md'), '# readme');

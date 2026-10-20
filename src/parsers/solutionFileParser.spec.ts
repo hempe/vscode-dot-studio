@@ -56,7 +56,7 @@ EndGlobal`;
       const regularProject = result.projects.find(p => p.name === 'TestProject');
       expect(regularProject).toBeDefined();
       expect(regularProject!.typeGuid).toBe('{9A19103F-16F7-4668-BE54-9A1E7A4F7556}');
-      expect(regularProject!.path).toBe('TestProject/TestProject.csproj');
+      expect(regularProject!.path.split(path.sep).join('/')).toBe('TestProject/TestProject.csproj');
       expect(regularProject!.guid).toBe('{12345678-1234-1234-1234-123456789012}');
 
       // Test solution folder
@@ -163,7 +163,7 @@ Random content here`;
       const solutionItems = result.projects.find(p => p.name === 'Solution Items');
 
       expect(webApp).toBeDefined();
-      expect(webApp!.path).toBe('src/WebApp/WebApp.csproj');
+      expect(webApp!.path.split(path.sep).join('/')).toBe('src/WebApp/WebApp.csproj');
       expect(webApp!.guid).toBe('{A1B2C3D4-5678-9ABC-DEF0-123456789ABC}');
 
       expect(classLibrary).toBeDefined();
