@@ -23,7 +23,7 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 | Button | What it does |
 |---|---|
-| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. The active one shows next to the view title |
+| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. The active one shows next to the view title; its menu also has the platform and the [Configuration Manager](configuration-manager.md) |
 | Select Framework | The target framework of multi-targeted startup projects |
 | ▷ Start Debugging | F5: starts the selected launch configuration, normally the startup project |
 | ▷ Start Without Debugging | Ctrl+F5: runs the startup project without the debugger |

@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -279,6 +279,22 @@ if wants gif-new-project; then
     click 600 175; pause 1.5
     double_click 600 175; pause 3
     record_stop new-project
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-configuration-manager; then
+    echo "Scene: gif-configuration-manager"
+    reset
+    # The scene edits the solution file (x64, Build off); the other scenes get it back as it was
+    cp "$SOLUTION/Contoso.slnx" "$WORK/Contoso.slnx.orig"
+    record_start
+    command "Configuration Manager..." 4
+    # Edit Platforms..., add x64 (the platform dropdown appears), then switch Build off for Shop.Worker
+    click 720 178; pause 1.5
+    click 610 280; type_text "x64"; pause 1; click 999 280; pause 2
+    click 1479 536; pause 2
+    record_stop configuration-manager
+    cp "$WORK/Contoso.slnx.orig" "$SOLUTION/Contoso.slnx"
     command "View: Close All Editors" 1
 fi
 

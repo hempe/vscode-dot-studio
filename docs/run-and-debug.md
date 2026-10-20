@@ -36,6 +36,8 @@ Start New Instance uses the project's first launch profile and newest framework;
 
 The ⚙ button in the Solution Explorer's title bar switches the solution configuration for builds, F5 and tests, with the configurations the solution file defines. The active configuration (and framework) shows next to the view title and is kept per workspace.
 
+Solutions with several platforms (Any CPU, x64) add **Select Solution Platform...** to that menu, and the view title shows both (`Debug | x64`). Which configuration and platform each project builds in, and whether it builds, is set in the [Configuration Manager](configuration-manager.md); F5 and the build before it use the project's mapped values.
+
 **Select Framework** in the title bar picks the target framework of multi-targeted startup projects.
 
 The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work.

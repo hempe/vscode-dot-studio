@@ -133,3 +133,13 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 ## Phase 15: Scale
 - [x] Multi-root workspaces: a solution in any workspace folder, not only the first
 - [x] Measure and improve loading and refreshing on large solutions: with 300 projects, loading takes about 0.4 s and a refresh with 50 expanded projects 35 ms (was 2 s); test projects are evaluated and built a few at a time
+
+## Phase 16: Visual Studio Basics, Part 2
+**Goal**: The larger everyday features of Visual Studio that are still missing.
+
+- [x] Open and switch solutions: "Open Solution..." (the workspace's solutions, or any via Browse), the choice is remembered, like Visual Studio's File > Open > Solution
+- [x] Open Launch Settings on projects that can be started: opens `Properties/launchSettings.json`, created with the profiles `dotnet new` writes when missing (shorter than Visual Studio's Properties > Debug > Open debug launch profiles UI)
+- [x] Convert .sln to .slnx: opening a .sln offers to convert it (`dotnet sln migrate`), then to delete the .sln, and opens the .slnx; "Don't Ask Again" per solution
+- [x] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
+- [x] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
+- [x] Configuration Manager like Visual Studio's (solution context menu, title-bar menu or command palette): an editor tab with the active configuration and platform, Edit Configurations... and Edit Platforms... (add with "Copy settings from", rename, remove; renaming keeps each project's own names), and a grid with each project's configuration, platform and Build; written to the .sln sections or the .slnx elements (only deviations from the default) at once; Select Solution Platform... in the title bar, the view title shows `Debug | x64`; solution builds pass `--configuration` and `-property:Platform` (MSBuild skips projects with Build off), single-project builds, F5, Pack and the analyzers use the project's mapped values. Limits: the project dropdowns list what the project file declares, single-project builds run even with Build off

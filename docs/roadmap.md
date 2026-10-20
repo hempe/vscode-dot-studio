@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–15 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, and readiness for others. Phase 16 is the second round of Visual Studio basics (solutions, projects, configurations), phase 17 code cleanup and refactoring, phases 18–21 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–16 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, and the second round of Visual Studio basics (solutions, projects, configurations). Phase 17 code cleanup and refactoring, phases 18–21 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -16,16 +16,6 @@ Found along the way, to be fixed:
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
 - [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
-
-## Phase 16: Visual Studio Basics, Part 2
-**Goal**: The larger everyday features of Visual Studio that are still missing.
-
-- [x] Open and switch solutions: "Open Solution..." (the workspace's solutions, or any via Browse), the choice is remembered, like Visual Studio's File > Open > Solution
-- [x] Open Launch Settings on projects that can be started: opens `Properties/launchSettings.json`, created with the profiles `dotnet new` writes when missing (shorter than Visual Studio's Properties > Debug > Open debug launch profiles UI)
-- [x] Convert .sln to .slnx: opening a .sln offers to convert it (`dotnet sln migrate`), then to delete the .sln, and opens the .slnx; "Don't Ask Again" per solution
-- [x] Unload / Reload Project: an unloaded project stays in the tree greyed out as "(unloaded)" and is skipped by solution builds (through a solution filter) until it is reloaded; remembered per workspace, like Visual Studio's per-user setting
-- [x] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
-- [ ] Configuration Manager: solution configurations and platforms (Debug/Release, Any CPU/x64) to add, rename and remove; which configuration and platform each project builds in and whether it builds at all; written to the .sln/.slnx; the platform picked next to Debug/Release
 
 ## Phase 17: Code Cleanup & Refactoring
 **Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.

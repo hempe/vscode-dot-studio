@@ -62,6 +62,14 @@ Set as Startup Project with its launch profiles, Open Launch Settings (creates `
 
 [Run & Debug](docs/run-and-debug.md)
 
+### Configuration Manager
+
+Visual Studio's Build > Configuration Manager: add, rename and remove the solution's configurations and platforms (Debug/Release, Any CPU/x64), pick the active pair, and set per project which configuration and platform it builds in and whether it builds at all. Right-click the solution > Configuration Manager.... The changes go straight into the `.sln` or `.slnx`.
+
+![The Configuration Manager](docs/images/configuration-manager.gif)
+
+[Configuration Manager](docs/configuration-manager.md)
+
 ### Publish
 
 Visual Studio's Publish tab for folder publishing, with the same `.pubxml` profiles, so teammates on Visual Studio see the same ones.

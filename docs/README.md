@@ -14,6 +14,7 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 | [Tests](tests.md) | The Test Explorer for Microsoft.Testing.Platform and VSTest projects |
 | [NuGet](nuget.md) | Browse, Installed (with transitive packages), Updates, Consolidate, private feeds |
 | [Templates](templates.md) | Add New Project and Add New Item |
+| [Configuration Manager](configuration-manager.md) | Solution configurations and platforms, and what each project builds in |
 | [Publish](publish.md) | The Publish tab and Folder profiles |
 | [Connected Services](connected-services.md) | WCF/SOAP service references |
 | [Settings](settings.md) | This extension's settings and the C# extension defaults it changes |
