@@ -97,15 +97,15 @@ export class SolutionFileParser {
         }
 
         // Enhance projects with framework information
-        await this.enhanceProjectsWithFrameworks(solution, solutionDir);
+        await this.addTargetFrameworks(solution, solutionDir);
 
         return solution;
     }
 
     /**
-     * Enhance projects with framework information by parsing their project files
+     * Enhance projects with framework information by parsing their project files (.sln and .slnx)
      */
-    private static async enhanceProjectsWithFrameworks(solution: SolutionFile, solutionDir: string): Promise<void> {
+    static async addTargetFrameworks(solution: SolutionFile, solutionDir: string): Promise<void> {
         const parser = new xml2js.Parser();
 
         for (const project of solution.projects) {

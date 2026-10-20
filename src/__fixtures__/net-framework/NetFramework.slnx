@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Legacy.App/Legacy.App.csproj" />
+  <Project Path="Multi.Lib/Multi.Lib.csproj" />
+</Solution>

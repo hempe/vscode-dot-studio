@@ -20,6 +20,7 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] Test Phase 2.5 (Error List table) in VS Code: sort, search, column filters, code links, double-click to the line; toggling warnings also removes their markers from the Solution Explorer
 
 ## Bug fixes to confirm
+- [ ] SDK-style projects that target .NET Framework (`src/__fixtures__/net-framework`, as .sln and .slnx): the tree shows files and the Newtonsoft.Json package, Build works, Select Framework on `Multi.Lib` lists `net48` and `net10.0` (on the .slnx too, which listed nothing before), the NuGet manager installs and removes a package
 - [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
 - [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name
 - [ ] Unload Project: the project greys out as "(unloaded)" and collapses; Build on the solution skips it (`dotnet build` shows no line for it); Reload Project brings it back; survives restarting VS Code; works on `.sln` and `.slnx`

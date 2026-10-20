@@ -1,0 +1,1 @@
+SDK-style projects that target .NET Framework (`net48`, and `net48;net10.0`), as a .sln and a .slnx. Both build with `dotnet build` (the SDK supplies the reference assemblies), so the tree, the NuGet manager and builds work for them; running and debugging does not.

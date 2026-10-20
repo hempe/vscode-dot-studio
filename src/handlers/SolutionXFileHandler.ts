@@ -1,7 +1,9 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import { ISolutionFileHandler } from './ISolutionFileHandler';
 import { SolutionFile } from '../types/solution';
 import { SolutionXFileParser } from '../parsers/solutionXFileParser';
+import { SolutionFileParser } from '../parsers/solutionFileParser';
 import { logger } from '../core/logger';
 
 const log = logger('SolutionXFileHandler');
@@ -47,6 +49,7 @@ export class SolutionXFileHandler implements ISolutionFileHandler {
         try {
             log.debug(`Parsing .slnx file content from: ${this.filePath}`);
             const solutionFile = await SolutionXFileParser.parse(content);
+            await SolutionFileParser.addTargetFrameworks(solutionFile, path.dirname(this.filePath));
             return solutionFile;
         } catch (error) {
             log.error(`Error parsing .slnx file: ${this.filePath}`, error);
