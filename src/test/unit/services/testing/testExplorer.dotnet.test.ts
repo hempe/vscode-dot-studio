@@ -107,7 +107,14 @@ describe('Test Explorer with dotnet', () => {
             fs.writeFileSync(path.join(dir, file), content);
         }
     });
-    afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+    afterAll(() => {
+        try {
+            // On Windows a dotnet build server can still hold a file of the folder for a moment
+            fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+        } catch {
+            // a leftover temp folder must not fail the suite
+        }
+    });
 
     it('builds, discovers and runs xUnit v3 and MSTest runner tests', async () => {
         if (!hasDotnet || spawnSync('dotnet', ['restore', path.join(dir, 'X3')]).status !== 0 || spawnSync('dotnet', ['restore', path.join(dir, 'MR')]).status !== 0) {

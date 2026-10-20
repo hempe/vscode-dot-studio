@@ -9,7 +9,14 @@ import { packagesWrittenSince } from '../../../services/pack';
 
 describe('packagesWrittenSince', () => {
     const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-pack-')));
-    afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+    afterAll(() => {
+        try {
+            // On Windows a dotnet build server can still hold a file of the folder for a moment
+            fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+        } catch {
+            // a leftover temp folder must not fail the suite
+        }
+    });
 
     const write = (name: string, seconds: number) => {
         const file = path.join(dir, name);

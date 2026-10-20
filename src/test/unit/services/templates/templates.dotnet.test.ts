@@ -62,7 +62,7 @@ describe('templates with dotnet new', () => {
 
     afterEach(() => {
         solution.dispose();
-        fs.rmSync(dir, { recursive: true, force: true });
+        fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
     });
 
     withDotnet('creates a project with the chosen options next to the others, in the solution folder', async () => {
