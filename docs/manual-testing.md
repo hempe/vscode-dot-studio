@@ -21,7 +21,7 @@ Features that unit and integration tests cover, but that still need a run in VS 
 
 ## Bug fixes to confirm
 - [x] .NET Framework with Mono on Linux: the extension offers to install Mono Debug and F5 on a `net48` project debugs it (confirmed 2026-10-20)
-- [ ] .NET Framework with Mono on Linux, the rest (`src/__fixtures__/net-framework`, copy it elsewhere): Ctrl+F5 runs without the debugger; a `Properties/launchSettings.json` with `commandLineArgs` and `environmentVariables` reaches the program; with `Legacy.App` set to `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono
+- [ ] .NET Framework with Mono on Linux, the rest (`src/__fixtures__/net-framework`, copy it elsewhere): Ctrl+F5 runs without the debugger; a `Properties/launchSettings.json` with `commandLineArgs` and `environmentVariables` reaches the program; with `Legacy.App` set to `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono (also right after editing `TargetFrameworks` in the open project, no reload needed)
 - [ ] SDK-style projects that target .NET Framework (`src/__fixtures__/net-framework`, as .sln and .slnx): the tree shows files and the Newtonsoft.Json package, Build works, Select Framework on `Multi.Lib` lists `net48` and `net10.0` (on the .slnx too, which listed nothing before), the NuGet manager installs and removes a package
 - [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
 - [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
 import { isExecutableProject } from '../parsers/projectKind';
+import { parseTargetFrameworks } from '../parsers/targetFrameworks';
 import { isTestProjectCandidate } from '../services/testing/testProjects';
 import { serviceFolderKind } from '../services/serviceReferences/connectedService';
 import { SolutionProject } from '../types/solution';
@@ -241,8 +242,10 @@ export class Project {
 
             this._projectStructure = await parser.parseProjectFiles(this._projectPath);
             this._dependencies = this._projectStructure.dependencies || [];
-            this._frameworks = this._solutionProject.targetFrameworks || [];
             const projectXml = await fs.promises.readFile(this._projectPath, 'utf8');
+            // From the project file itself, so editing TargetFrameworks shows up without reloading the solution
+            const declared = await parseTargetFrameworks(projectXml).catch(() => []);
+            this._frameworks = declared.length > 0 ? declared : this._solutionProject.targetFrameworks || [];
             this._isExecutable = isExecutableProject(projectXml);
             this._isTestProject = isTestProjectCandidate(projectXml);
 
