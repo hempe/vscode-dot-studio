@@ -63,19 +63,49 @@ function ensureNew(list: string[], name: string, kind: string): void {
     }
 }
 
-/** Rewrites every mapping key and mapping value for `transform` of one half of the pair */
-function mapPairs(model: ConfigurationModel, part: 'configuration' | 'platform', transform: (name: string) => string | undefined): ConfigurationModel {
+/** Drops the mappings whose key uses a solution-side name `drop` says goes away; values are left alone */
+function dropPairs(model: ConfigurationModel, part: 'configuration' | 'platform', drop: (name: string) => boolean): ConfigurationModel {
     const mappings: ConfigurationModel['mappings'] = {};
     for (const [project, pairs] of Object.entries(model.mappings)) {
         const next: Record<string, ProjectMapping> = {};
         for (const [key, mapping] of Object.entries(pairs)) {
             const [configuration, platform] = key.split('|');
-            const renamed = transform(part === 'configuration' ? configuration : platform);
-            if (renamed === undefined) {
-                continue;
+            if (!drop(part === 'configuration' ? configuration : platform)) {
+                next[key] = mapping;
             }
-            const targetName = transform(mapping[part]) ?? mapping[part];
-            next[part === 'configuration' ? pairKey(renamed, platform) : pairKey(configuration, renamed)] = { ...mapping, [part]: targetName };
+        }
+        if (Object.keys(next).length > 0) {
+            mappings[project] = next;
+        }
+    }
+    return { ...model, mappings };
+}
+
+/**
+ * Renames the solution-side half of the mapping keys. The projects keep their own names: explicit mapping values stay,
+ * and a project without an explicit mapping gets one that points at the old name.
+ */
+function renamePairs(model: ConfigurationModel, part: 'configuration' | 'platform', from: string, to: string, projects: readonly string[]): ConfigurationModel {
+    const others = part === 'configuration' ? model.platforms : model.configurations;
+    const keyFor = (name: string, other: string) => part === 'configuration' ? pairKey(name, other) : pairKey(other, name);
+    const mappings: ConfigurationModel['mappings'] = {};
+    for (const [project, pairs] of Object.entries(model.mappings)) {
+        const next: Record<string, ProjectMapping> = {};
+        for (const [key, mapping] of Object.entries(pairs)) {
+            const [configuration, platform] = key.split('|');
+            const isRenamed = (part === 'configuration' ? configuration : platform) === from;
+            next[isRenamed ? keyFor(to, part === 'configuration' ? platform : configuration) : key] = { ...mapping };
+        }
+        mappings[project] = next;
+    }
+    for (const project of projects) {
+        const next = { ...mappings[project] };
+        for (const other of others) {
+            if (!model.mappings[project]?.[keyFor(from, other)]) {
+                next[keyFor(to, other)] = part === 'configuration'
+                    ? { configuration: from, platform: other, build: true }
+                    : { configuration: other, platform: from, build: true };
+            }
         }
         if (Object.keys(next).length > 0) {
             mappings[project] = next;
@@ -123,21 +153,21 @@ export function addPlatform(model: ConfigurationModel, name: string, copyFrom?: 
     return { ...model, platforms: [...model.platforms, name], mappings };
 }
 
-export function renameConfiguration(model: ConfigurationModel, from: string, to: string): ConfigurationModel {
+export function renameConfiguration(model: ConfigurationModel, from: string, to: string, projects: readonly string[]): ConfigurationModel {
     to = validName(to);
     if (from.toLowerCase() !== to.toLowerCase()) {
         ensureNew(model.configurations, to, 'configuration');
     }
-    const renamed = mapPairs(model, 'configuration', name => name === from ? to : name);
+    const renamed = renamePairs(model, 'configuration', from, to, projects);
     return { ...renamed, configurations: model.configurations.map(name => name === from ? to : name) };
 }
 
-export function renamePlatform(model: ConfigurationModel, from: string, to: string): ConfigurationModel {
+export function renamePlatform(model: ConfigurationModel, from: string, to: string, projects: readonly string[]): ConfigurationModel {
     to = validName(to);
     if (from.toLowerCase() !== to.toLowerCase()) {
         ensureNew(model.platforms, to, 'platform');
     }
-    const renamed = mapPairs(model, 'platform', name => name === from ? to : name);
+    const renamed = renamePairs(model, 'platform', from, to, projects);
     return { ...renamed, platforms: model.platforms.map(name => name === from ? to : name) };
 }
 
@@ -145,7 +175,7 @@ export function removeConfiguration(model: ConfigurationModel, name: string): Co
     if (model.configurations.length <= 1) {
         throw new Error('The last configuration cannot be removed');
     }
-    const kept = mapPairs(model, 'configuration', existing => existing === name ? undefined : existing);
+    const kept = dropPairs(model, 'configuration', existing => existing === name);
     return { ...kept, configurations: model.configurations.filter(existing => existing !== name) };
 }
 
@@ -153,6 +183,6 @@ export function removePlatform(model: ConfigurationModel, name: string): Configu
     if (model.platforms.length <= 1) {
         throw new Error('The last platform cannot be removed');
     }
-    const kept = mapPairs(model, 'platform', existing => existing === name ? undefined : existing);
+    const kept = dropPairs(model, 'platform', existing => existing === name);
     return { ...kept, platforms: model.platforms.filter(existing => existing !== name) };
 }
