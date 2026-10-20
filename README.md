@@ -120,6 +120,7 @@ Add, update and remove WCF/SOAP service references, compatible with the ones Vis
 
 - VS Code 1.74 or later, or VSCodium or another Open VSX editor
 - The .NET SDK 8.0 or later; `.slnx` solutions need 9.0.200 or later
+- Linux and Windows are tested (the test suite runs on both in CI); macOS should work but is not tested
 - A C# extension, for editing C# and debugging: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [its open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. C# Dev Kit isn't needed.
 
 ## Getting started
@@ -143,6 +144,10 @@ Most things are where you expect them. The differences, in short:
 
 File nesting, Track Active Item, where the Solution Explorer sits, which diagnostics show, test discovery and more: [Settings](docs/settings.md).
 
+## Privacy
+
+The extension sends no telemetry. Its only network use is the NuGet Package Manager, which talks to the package sources in your `NuGet.Config` (nuget.org by default, and private feeds with the credentials you configured there) to search, show details and update packages. Everything else runs the `dotnet` command on your machine; the .NET SDK has its own telemetry settings (`DOTNET_CLI_TELEMETRY_OPTOUT`).
+
 ## Issues and development
 
 Found a bug or miss something from Visual Studio? [Open an issue](https://github.com/hempe/vscode-dot-studio/issues). [Troubleshooting](docs/troubleshooting.md) lists known limitations. To build, run or change the extension, see [DEVELOPER.md](DEVELOPER.md).
@@ -150,3 +155,5 @@ Found a bug or miss something from Visual Studio? [Open an issue](https://github
 ## License
 
 [MIT](LICENCE.md)
+
+Shinobi .NET is an independent project. It is not affiliated with, endorsed by or sponsored by Microsoft. Visual Studio, Visual Studio Code and .NET are trademarks of Microsoft Corporation, mentioned here only to say what this extension is modelled on.

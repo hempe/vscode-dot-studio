@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–16 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, and the second round of Visual Studio basics (solutions, projects, configurations). Phase 17 code cleanup and refactoring, phases 18–21 the second round for run & debug, the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–18 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second round for run & debug. Phases 19–21 are the second round for the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -16,21 +16,6 @@ Found along the way, to be fixed:
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
 - [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
-
-## Phase 17: Code Cleanup & Refactoring
-**Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
-
-- [ ] Code Cleanup, like Visual Studio's Analyze > Code Cleanup (Ctrl+K, Ctrl+E), on a file, folder, project or the solution in the tree and on the open file: `dotnet format` whitespace, unused usings (IDE0005) and the code style fixes the `.editorconfig` sets to warning or above (setting for the severity), with progress, cancel and a summary. `dotnet format` does not sort usings; the open file may also get the editor's Organize Imports if the C# server offers it
-- [x] Fix all occurrences of a diagnostic (e.g. IDE0090) in the document, project or solution: covered by the C# extension ("Fix All: ..." next to each fix), not duplicated
-- [ ] Sync Namespaces on a project or folder, like Visual Studio's: for each C# file the language server's "Change namespace to '...'" action is applied (it also fixes references in other files), one file at a time with progress; needs the C# extension and IDE0130 reporting (`dotnet_diagnostic.IDE0130.severity` and `dotnet_style_namespace_match_folder` in `.editorconfig`)
-- [x] Refactorings: the C# extension's Roslyn server (`muhammad-sammy.csharp` 2.160.9, asked over LSP on 2026-10-20) already offers and applies what the team uses daily: file-scoped namespaces, primary constructor (and remove fields), Extract interface (no dialog: a new interface in the same file with the public members), Move type to its own file, Extract method, plus Introduce local/parameter, Inline temporary variable, Use implicit type
-- [ ] Refactorings the server does not offer: Change Signature, Move to namespace, Pull members up, and Visual Studio's dialog for Extract Interface (name, file, members); check in the editor first, then build the dialogs only if they are missed
-
-## Phase 18: Run & Debug, Part 2
-- [ ] Multiple startup projects (e.g. API plus worker or frontend), each with its own launch profile, like Visual Studio's "Configure Startup Projects"
-- [ ] Hot Reload (`dotnet watch`)
-- [ ] HTTPS development certificate: detect an untrusted one and help trust it (`dotnet dev-certs https --trust`, fiddly on Linux)
-- [ ] Attach to Process: pick a running .NET process (by name, project or port) and attach the C# debugger, like Visual Studio's Debug > Attach to Process
 
 ## Phase 19: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
@@ -49,6 +34,8 @@ Found along the way, to be fixed:
 - [ ] gRPC clients from `.proto` files (Visual Studio's "Add Connected Service > gRPC")
 
 ## Phase 30: Later
+- [ ] Refactorings the C# extension's Roslyn server does not offer: Change Signature, Move to namespace, Pull members up, and Visual Studio's dialog for Extract Interface (name, file, members); only if they are missed
+- [ ] Hot Reload with the debugger attached: not possible with netcoredbg (`dotnet watch` refuses assembly updates while a debugger is attached); revisit if a debugger that does Edit and Continue is available (Microsoft's, in Microsoft's C# extension)
 - [ ] Solution filters (`.slnf`): load part of a big solution
 - [ ] EF Core migrations from the context menu (Add Migration, Update Database), Visual Studio's Package Manager Console commands
 - [ ] Scaffolding ("New Scaffolded Item": controllers with EF, Identity), a wizard like Add New Item
