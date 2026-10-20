@@ -19,7 +19,7 @@ import { FOCUSED_NODE_TYPE_CONTEXT, MenuCommandAction, menuCommands, nodeTypesWi
 import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
 import { IconThemeService } from '../../services/iconThemeService';
-import { BuildConfiguration, solutionConfigurations } from '../../services/buildConfiguration';
+import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../services/buildConfiguration';
 import { DebugConfigService } from '../../services/debugConfigService';
 import { Solution } from '../../core/Solution';
 import { projectForPath } from '../../services/templates/templateService';
@@ -345,6 +345,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         BuildConfiguration.setAvailable(solutionConfigurations(solution.solutionFile));
+        BuildConfiguration.setAvailablePlatforms(solutionPlatforms(solution.solutionFile));
 
         // Listen to the solution once per loaded solution (it is replaced e.g. after a rename)
         if (this._listenedSolution !== solution) {
@@ -381,7 +382,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     /** Shows the active configuration and framework next to the view title, like Visual Studio's toolbar */
     private _updateDescription(solution: Solution) {
         if (this._view) {
-            this._view.description = [BuildConfiguration.active, solution.getActiveFramework()].filter(Boolean).join(' · ');
+            const platform = BuildConfiguration.availablePlatforms.length > 1 ? BuildConfiguration.activePlatform : undefined;
+            this._view.description = [[BuildConfiguration.active, platform].filter(Boolean).join(' | '), solution.getActiveFramework()].filter(Boolean).join(' · ');
         }
     }
 

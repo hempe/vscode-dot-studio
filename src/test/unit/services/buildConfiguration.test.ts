@@ -10,7 +10,7 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { BuildConfiguration, solutionConfigurations } from '../../../services/buildConfiguration';
+import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../../services/buildConfiguration';
 import { SolutionFile } from '../../../types/solution';
 
 const memento = () => {
@@ -92,5 +92,81 @@ describe('BuildConfiguration', () => {
     it('uses the first configuration of a solution without Debug', () => {
         BuildConfiguration.setAvailable(['Dev', 'Prod']);
         expect(BuildConfiguration.active).toBe('Dev');
+    });
+});
+
+describe('solutionPlatforms', () => {
+    it('lists each platform of the solution once, whatever the configurations', () => {
+        expect(solutionPlatforms(solutionWith({
+            'Debug|Any CPU': 'Debug|Any CPU',
+            'Debug|x64': 'Debug|x64',
+            'Release|Any CPU': 'Release|Any CPU',
+            'Release|x64': 'Release|x64',
+        }))).toEqual(['Any CPU', 'x64']);
+    });
+
+    it('defaults to Any CPU', () => {
+        expect(solutionPlatforms(solutionWith())).toEqual(['Any CPU']);
+        expect(solutionPlatforms(undefined)).toEqual(['Any CPU']);
+    });
+});
+
+describe('BuildConfiguration platform', () => {
+    let changes: string[];
+    let listener: { dispose(): void };
+
+    beforeEach(() => {
+        BuildConfiguration.initialize(memento() as any);
+        BuildConfiguration.setAvailable(['Debug', 'Release']);
+        BuildConfiguration.setAvailablePlatforms(['Any CPU']);
+        changes = [];
+        listener = BuildConfiguration.onDidChange(configuration => changes.push(configuration));
+    });
+
+    afterEach(() => listener.dispose());
+
+    it('starts on Any CPU', () => {
+        expect(BuildConfiguration.availablePlatforms).toEqual(['Any CPU']);
+        expect(BuildConfiguration.activePlatform).toBe('Any CPU');
+        expect(contexts['shinobi.solution.platform']).toBe('Any CPU');
+        expect(contexts['shinobi.solution.availablePlatforms']).toEqual(['Any CPU']);
+    });
+
+    it('switches and tells listeners once', async () => {
+        BuildConfiguration.setAvailablePlatforms(['Any CPU', 'x64']);
+        await BuildConfiguration.setPlatform('x64');
+        await BuildConfiguration.setPlatform('x64');
+        expect(BuildConfiguration.activePlatform).toBe('x64');
+        expect(contexts['shinobi.solution.platform']).toBe('x64');
+        expect(changes).toEqual(['Debug']);
+    });
+
+    it('ignores platforms the solution does not have', async () => {
+        await BuildConfiguration.setPlatform('x64');
+        expect(BuildConfiguration.activePlatform).toBe('Any CPU');
+        expect(changes).toEqual([]);
+    });
+
+    it('falls back when the solution drops the chosen platform', async () => {
+        BuildConfiguration.setAvailablePlatforms(['Any CPU', 'x64']);
+        await BuildConfiguration.setPlatform('x64');
+        changes.length = 0;
+
+        BuildConfiguration.setAvailablePlatforms(['Any CPU']);
+
+        expect(BuildConfiguration.activePlatform).toBe('Any CPU');
+        expect(changes).toEqual(['Debug']);
+    });
+
+    it('does not fire when the available platforms change nothing', () => {
+        BuildConfiguration.setAvailablePlatforms(['Any CPU', 'x64']);
+        expect(changes).toEqual([]);
+    });
+
+    it('uses Any CPU when available, else the first platform', () => {
+        BuildConfiguration.setAvailablePlatforms(['x86', 'Any CPU']);
+        expect(BuildConfiguration.activePlatform).toBe('Any CPU');
+        BuildConfiguration.setAvailablePlatforms(['x86', 'x64']);
+        expect(BuildConfiguration.activePlatform).toBe('x86');
     });
 });
