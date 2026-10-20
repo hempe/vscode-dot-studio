@@ -78,6 +78,14 @@ Visual Studio's Analyze > Code Cleanup: formatting, unused usings and the code s
 
 [Code Cleanup](docs/code-cleanup.md)
 
+### Sync Namespaces
+
+Visual Studio's Sync Namespaces: right-click a project or folder > Sync Namespaces changes the namespaces of its C# files to match the root namespace and the folders, and the C# language server updates the references in other files. It asks first, shows progress with Cancel and ends with a summary. Needs a C# extension and IDE0130 reporting in your `.editorconfig`.
+
+![Sync Namespaces of a project](docs/images/sync-namespaces.gif)
+
+[Sync Namespaces](docs/sync-namespaces.md)
+
 ### Publish
 
 Visual Studio's Publish tab for folder publishing, with the same `.pubxml` profiles, so teammates on Visual Studio see the same ones.

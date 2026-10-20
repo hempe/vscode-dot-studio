@@ -549,6 +549,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.syncNamespaces",
+        "title": "Sync Namespaces",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.copy",
         "title": "Copy",
         "category": ".NET"
@@ -911,6 +916,11 @@
           "group": "10_group@1"
         },
         {
+          "command": "shinobi.solutionExplorer.syncNamespaces",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
+          "group": "10_group@2"
+        },
+        {
           "command": "shinobi.solutionExplorer.copyFullPath",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
           "group": "11_group@1"
@@ -1059,6 +1069,11 @@
           "command": "shinobi.solutionExplorer.codeCleanup",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "05_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.syncNamespaces",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
+          "group": "05_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
@@ -1394,6 +1409,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.codeCleanup",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.syncNamespaces",
           "when": "false"
         },
         {

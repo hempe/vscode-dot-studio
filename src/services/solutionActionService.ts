@@ -19,6 +19,7 @@ import { packStarted } from './pack';
 import { ConfigurationManagerPanel } from '../webview/providers/ConfigurationManagerPanel';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { runCodeCleanup } from './codeCleanup/codeCleanup';
+import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
@@ -90,6 +91,12 @@ export class SolutionActionService {
 
             case 'codeCleanup':
                 await this._handleCodeCleanup(nodeId);
+                break;
+
+            case 'syncNamespaces':
+                if (nodeId.type === 'project' || nodeId.type === 'folder') {
+                    await runSyncNamespaces({ kind: nodeId.type, path: nodeId.path });
+                }
                 break;
 
             case 'manageUserSecrets':

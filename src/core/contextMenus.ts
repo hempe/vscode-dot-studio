@@ -73,6 +73,7 @@ export const menuCommands = {
     publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
     configurationManager: { title: 'Configuration Manager...', description: 'Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses.' },
     codeCleanup: { title: 'Code Cleanup', description: "Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting." },
+    syncNamespaces: { title: 'Sync Namespaces', description: "Changes the namespaces of the C# files of the project or folder to match the project's root namespace and the folders (the language server's \"Change namespace\" action, which also updates references in other files); needs the C# extension and IDE0130 reporting in `.editorconfig`. Asks first, with progress and Cancel." },
     copy: { title: 'Copy', description: 'Copies the file or folder; Paste puts a copy into another folder.', key: 'ctrl+c', mac: 'cmd+c' },
     cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
     paste: { title: 'Paste', description: 'Pastes the copied or cut file or folder into this folder or project.', key: 'ctrl+v', mac: 'cmd+v' },
@@ -131,7 +132,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['build', 'rebuild', 'clean', 'publish'],
         [], // pack in libraries
         [], // runTests, debugTests in test projects
-        ['codeCleanup'],
+        ['codeCleanup', 'syncNamespaces'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
     // Only projects that can be started; libraries and test projects can't be.
@@ -170,7 +171,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['copy', 'cut', 'paste'],
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
-        ['codeCleanup'],
+        ['codeCleanup', 'syncNamespaces'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
     ],
     // The menu can't tell C# files from others: Code Cleanup says so for the others

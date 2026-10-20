@@ -68,6 +68,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Clean |  | Deletes the build output (`dotnet clean`). |
 | Publish... |  | Opens the Publish tab of the project: publish profiles, settings and the Publish button. |
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
+| Sync Namespaces |  | Changes the namespaces of the C# files of the project or folder to match the project's root namespace and the folders (the language server's "Change namespace" action, which also updates references in other files); needs the C# extension and IDE0130 reporting in `.editorconfig`. Asks first, with progress and Cancel. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
@@ -137,6 +138,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
 | Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
+| Sync Namespaces |  | Changes the namespaces of the C# files of the project or folder to match the project's root namespace and the folders (the language server's "Change namespace" action, which also updates references in other files); needs the C# extension and IDE0130 reporting in `.editorconfig`. Asks first, with progress and Cancel. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |

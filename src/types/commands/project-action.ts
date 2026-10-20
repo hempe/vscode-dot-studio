@@ -274,6 +274,11 @@ export declare type CodeCleanupActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type SyncNamespacesActionCmd = {
+    readonly action: 'syncNamespaces';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -329,4 +334,5 @@ export type ProjectActionCmd =
     | OpenLaunchSettingsActionCmd
     | PublishActionCmd
     | ConfigurationManagerActionCmd
-    | CodeCleanupActionCmd;
+    | CodeCleanupActionCmd
+    | SyncNamespacesActionCmd;

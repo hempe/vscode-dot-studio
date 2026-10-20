@@ -16,6 +16,7 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 | [Templates](templates.md) | Add New Project and Add New Item |
 | [Configuration Manager](configuration-manager.md) | Solution configurations and platforms, and what each project builds in |
 | [Code Cleanup](code-cleanup.md) | Format, remove unused usings and apply `.editorconfig` fixes on a file, folder, project or solution |
+| [Sync Namespaces](sync-namespaces.md) | Change the namespaces of a project's or folder's C# files to match their folders |
 | [Publish](publish.md) | The Publish tab and Folder profiles |
 | [Connected Services](connected-services.md) | WCF/SOAP service references |
 | [Settings](settings.md) | This extension's settings and the C# extension defaults it changes |

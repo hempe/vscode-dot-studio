@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-code-cleanup}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-code-cleanup gif-sync-namespaces}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -331,6 +331,47 @@ CS
     click 280 $(( $(project_y src Shop.Core) + 527 )); pause 12
     record_stop code-cleanup
     rm -f "$SOLUTION/src/Shop.Core/Pricing/Rounding.cs"
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-sync-namespaces; then
+    echo "Scene: gif-sync-namespaces"
+    reset
+    # Files with wrong namespaces and an .editorconfig that makes IDE0130 report, in the work copy only (removed
+    # again: the other scenes don't know them). The language server needs a moment to load the solution
+    cat > "$SOLUTION/.editorconfig" <<'EC'
+[*.cs]
+dotnet_diagnostic.IDE0130.severity = warning
+dotnet_style_namespace_match_folder = true
+EC
+    cat > "$SOLUTION/src/Shop.Core/Orders/Shipment.cs" <<'CS'
+namespace Shop.Core.Legacy;
+
+public record Shipment(string Carrier, decimal Cost);
+CS
+    cat > "$SOLUTION/src/Shop.Core/Pricing/ShippingCost.cs" <<'CS'
+using Shop.Core.Legacy;
+
+namespace Shop.Core.Pricing;
+
+public static class ShippingCost
+{
+    public static decimal Of(Shipment shipment) => shipment.Cost;
+}
+CS
+    sleep 2
+    key ctrl+p; type_text "Shipment.cs"; pause 1.5; key Return; pause 25
+    tree_focus; tree_open Contoso src
+    record_start
+    pause 2
+    click 165 "$(project_y src Shop.Core)" 3; pause 1.5
+    # Sync Namespaces is 553 px below the project row, under Code Cleanup
+    click 280 $(( $(project_y src Shop.Core) + 553 )); pause 3
+    # the confirmation: Sync is the default button
+    key Return; pause 15
+    record_stop sync-namespaces
+    rm -f "$SOLUTION/.editorconfig" "$SOLUTION/src/Shop.Core/Orders/Shipment.cs" "$SOLUTION/src/Shop.Core/Pricing/ShippingCost.cs"
+    command "File: Save All" 1
     command "View: Close All Editors" 1
 fi
 
