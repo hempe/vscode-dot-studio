@@ -17,6 +17,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Clean |  | Deletes the build output (`dotnet clean`). |
 | Restore NuGet Packages |  | Restores the NuGet packages of the solution (`dotnet restore`). |
 | Configuration Manager... |  | Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses. |
+| Configure Startup Projects... |  | Opens the Configure Startup Projects tab: the single startup project, or a profile that starts several projects (with the action, launch profile and order of each) and is shared with Visual Studio through the `.slnLaunch` file. |
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Run Tests |  | Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer. |
 | Debug Tests |  | Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit. |

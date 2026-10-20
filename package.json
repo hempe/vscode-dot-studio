@@ -315,6 +315,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.startupProjects.open",
+        "title": "Configure Startup Projects...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.configurationManager.open",
         "title": "Configuration Manager...",
         "category": ".NET"
@@ -559,6 +564,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.startupProjects",
+        "title": "Configure Startup Projects...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.copy",
         "title": "Copy",
         "category": ".NET"
@@ -715,6 +725,10 @@
           "group": "4_startup@1"
         },
         {
+          "command": "shinobi.startupProjects.open",
+          "group": "4_startup@2"
+        },
+        {
           "command": "shinobi.configurationManager.open",
           "group": "9_manager@1"
         }
@@ -769,6 +783,11 @@
           "command": "shinobi.solutionExplorer.configurationManager",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "03_group@5"
+        },
+        {
+          "command": "shinobi.solutionExplorer.startupProjects",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "03_group@6"
         },
         {
           "command": "shinobi.solutionExplorer.codeCleanup",
@@ -1423,6 +1442,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.syncNamespaces",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.startupProjects",
           "when": "false"
         },
         {

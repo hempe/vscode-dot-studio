@@ -22,6 +22,7 @@ import { initializeTemplates } from './services/templates/templateService';
 import { openNewSolutionWizard, TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
 import { PublishPanel } from './webview/providers/PublishPanel';
 import { ConfigurationManagerPanel } from './webview/providers/ConfigurationManagerPanel';
+import { StartupProjectsPanel } from './webview/providers/StartupProjectsPanel';
 import { runCodeCleanupOnActiveFile } from './services/codeCleanup/activeFileCleanup';
 import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
@@ -87,6 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
     PublishPanel.extensionUri = context.extensionUri;
     PublishPanel.state = context.workspaceState;
     ConfigurationManagerPanel.extensionUri = context.extensionUri;
+    StartupProjectsPanel.extensionUri = context.extensionUri;
     // The expired-token message needs the configured sources to know which feed a request went to
     setFeedSources(() => PackageBrowseService.getPackageSources());
     const testExplorer = new TestExplorer();
@@ -254,6 +256,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
         vscode.commands.registerCommand('shinobi.configurationManager.open', () => ConfigurationManagerPanel.show()),
+        vscode.commands.registerCommand('shinobi.startupProjects.open', () => StartupProjectsPanel.show()),
         vscode.commands.registerCommand('shinobi.codeCleanup.file', () => runCodeCleanupOnActiveFile()),
         vscode.commands.registerCommand('shinobi.solution.new', () => openNewSolutionWizard()),
         vscode.commands.registerCommand('shinobi.errorList.show', () => vscode.commands.executeCommand(`${ERROR_LIST_VIEW}.focus`)),
@@ -282,7 +285,11 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(UnloadedProjects.onDidChange(() => solutionWebviewProvider.refresh()));
+    // Unloaded projects are left out of the build and of the startup profile's launches
+    context.subscriptions.push(UnloadedProjects.onDidChange(() => {
+        void refreshStartup();
+        solutionWebviewProvider.refresh();
+    }));
 
     // Watch only .NET solution and project files to reduce load
     const solutionWatcher = vscode.workspace.createFileSystemWatcher('**/*.sln*');

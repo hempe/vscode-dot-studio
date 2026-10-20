@@ -137,6 +137,7 @@ describe('contextMenus', () => {
         expect(nodeTypes('manageUserSecrets')).toEqual(['project']);
         expect(nodeTypes('publish')).toEqual(['project']);
         expect(nodeTypes('configurationManager')).toEqual(['solution']);
+        expect(nodeTypes('startupProjects')).toEqual(['solution']);
         expect(nodeTypes('codeCleanup')).toEqual(['solution', 'project', 'folder', 'file']);
         expect(nodeTypes('syncNamespaces')).toEqual(['project', 'folder']);
     });

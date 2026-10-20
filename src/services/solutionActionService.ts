@@ -17,6 +17,7 @@ import { openLaunchSettings } from './launchSettings';
 import { UnloadedProjects } from './unloadedProjects';
 import { packStarted } from './pack';
 import { ConfigurationManagerPanel } from '../webview/providers/ConfigurationManagerPanel';
+import { StartupProjectsPanel } from '../webview/providers/StartupProjectsPanel';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
@@ -87,6 +88,10 @@ export class SolutionActionService {
 
             case 'configurationManager':
                 ConfigurationManagerPanel.show();
+                break;
+
+            case 'startupProjects':
+                StartupProjectsPanel.show();
                 break;
 
             case 'codeCleanup':

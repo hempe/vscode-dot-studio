@@ -279,6 +279,11 @@ export declare type SyncNamespacesActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type StartupProjectsActionCmd = {
+    readonly action: 'startupProjects';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -334,5 +339,6 @@ export type ProjectActionCmd =
     | OpenLaunchSettingsActionCmd
     | PublishActionCmd
     | ConfigurationManagerActionCmd
+    | StartupProjectsActionCmd
     | CodeCleanupActionCmd
     | SyncNamespacesActionCmd;

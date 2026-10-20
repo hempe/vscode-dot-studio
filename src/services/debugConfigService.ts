@@ -697,6 +697,11 @@ export class DebugConfigService {
         return this.readLaunchProfiles(path.dirname(projectPath)).length > 1;
     }
 
+    /** The names of the launch profiles of the project that `dotnet run` can use, in the order of its launchSettings.json */
+    static launchProfileNames(projectPath: string): string[] {
+        return this.readLaunchProfiles(path.dirname(projectPath)).map(profile => profile.name);
+    }
+
     /** Asks for another launch profile of the startup project, keeping its framework */
     static async chooseLaunchProfile(projectPath: string): Promise<void> {
         await this.updateStartupConfiguration(projectPath, this.getActiveFramework() ?? undefined, true);

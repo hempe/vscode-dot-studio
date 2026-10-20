@@ -48,6 +48,7 @@ module.exports = [
             'template-wizard': './src/webview/template-wizard/index.tsx',
             'publish-view': './src/webview/publish-view/index.tsx',
             'configuration-view': './src/webview/configuration-view/index.tsx',
+            'startup-view': './src/webview/startup-view/index.tsx',
             'error-list': './src/webview/error-list/index.tsx'
         },
         output: {
