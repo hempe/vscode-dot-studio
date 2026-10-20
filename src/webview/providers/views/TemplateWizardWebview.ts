@@ -56,6 +56,16 @@ export class TemplateWizardWebview {
         .status.ok { color: var(--vscode-testing-iconPassed, inherit); }
         .status.failed { color: var(--vscode-errorForeground); }
         .note { opacity: 0.8; line-height: 1.4; }
+        .names { list-style: none; margin: 0 0 12px; padding: 0; }
+        .names li { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+        .names .name, .names input { flex: 0 1 240px; min-width: 120px; }
+        .add-row { align-items: center; }
+        .add-row input { flex: 0 1 240px; }
+        table.grid { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        table.grid th { text-align: left; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); }
+        table.grid td { padding: 4px 8px; }
+        table.grid tr:hover td { background: var(--vscode-list-hoverBackground); }
+        input[type=checkbox]:focus-visible, button.action:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
         a.link { color: var(--vscode-textLink-foreground); cursor: pointer; }
     </style>
 </head>
