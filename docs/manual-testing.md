@@ -20,7 +20,8 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] Test Phase 2.5 (Error List table) in VS Code: sort, search, column filters, code links, double-click to the line; toggling warnings also removes their markers from the Solution Explorer
 
 ## Bug fixes to confirm
-- [ ] .NET Framework with Mono on Linux (`src/__fixtures__/net-framework`, project `Legacy.App`): without the Mono Debug extension Ctrl+F5 offers to install it; with it, Set as Startup Project then F5 stops at a breakpoint in `Program.cs` and prints the JSON, Ctrl+F5 runs it; a `Properties/launchSettings.json` with `commandLineArgs` and `environmentVariables` reaches the program; on `Multi.Lib`'s `net48;net10.0` Select Framework switches between the two
+- [x] .NET Framework with Mono on Linux: the extension offers to install Mono Debug and F5 on a `net48` project debugs it (confirmed 2026-10-20)
+- [ ] .NET Framework with Mono on Linux, the rest (`src/__fixtures__/net-framework`, copy it elsewhere): Ctrl+F5 runs without the debugger; a `Properties/launchSettings.json` with `commandLineArgs` and `environmentVariables` reaches the program; with `Legacy.App` set to `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono
 - [ ] SDK-style projects that target .NET Framework (`src/__fixtures__/net-framework`, as .sln and .slnx): the tree shows files and the Newtonsoft.Json package, Build works, Select Framework on `Multi.Lib` lists `net48` and `net10.0` (on the .slnx too, which listed nothing before), the NuGet manager installs and removes a package
 - [ ] NuGet manager: installed packages show their authors (also big packages like Serilog), and no "by Unknown" for packages without any
 - [ ] Solution Explorer: a name wider than the view ends in an ellipsis and its tooltip shows the full name
