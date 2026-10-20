@@ -285,6 +285,10 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.configurationManager.open",
+        "title": "Configuration Manager..."
+      },
+      {
         "command": "shinobi.solution.debug",
         "title": "Start Debugging",
         "icon": "$(debug-start)"
