@@ -81,7 +81,7 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 ### Every release
 
 1. Make sure what should go out is on `master` and the CI badge/run of that commit is green (Actions > CI; the Windows job is informational until it has been green once).
-2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0 - 2026-12-01` followed by what changed for users. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
+2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0` (a date after it is fine) followed by what changed for users since the last release. The first release (`0.1.0`) is just "Initial release" with a short summary of the features, not a history. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
 3. Commit and push that to `master`.
 4. GitHub > Releases > **Draft a new release**: choose "Create new tag" and type `v0.2.0` (the tag is the version, `v` + `major.minor.patch`, nothing else), target `master`. Tick **Set as a pre-release** for a first or risky release. Leave the notes empty to use the changelog section, or write them. Click **Publish release**.
 5. Watch Actions > Release. It runs typecheck and tests, builds one `.vsix` with the tag's version, publishes it to the Visual Studio Marketplace (VS Code) and Open VSX (VSCodium), and attaches it to the release. The run's summary says which stores got it.
@@ -99,6 +99,26 @@ Version numbers: `major.minor.patch`. For the Marketplace's pre-release channel 
 
 ### One-time setup (do this before the first release)
 
-- [ ] **Visual Studio Marketplace:** a Microsoft account, an Azure DevOps organization (dev.azure.com), a Personal Access Token with scope *Marketplace > Manage* for all accessible organizations, and the publisher `shinobi` created at marketplace.visualstudio.com/manage. Store the token as the repository secret `VSCE_PAT` (Settings > Secrets and variables > Actions).
-- [ ] **Open VSX (VSCodium):** sign in at open-vsx.org with GitHub, create an Eclipse account and sign the Publisher Agreement, create an access token, run `npx ovsx create-namespace shinobi -p <token>` once, and store the token as the secret `OVSX_PAT`. Optional: ask for the namespace to be verified (instructions in the Open VSX wiki) so the listing does not show "unverified publisher".
-- [ ] Until a secret exists, the workflow skips that store and still makes the GitHub release, so you can try the whole flow with a pre-release first.
+Nothing here is needed for development, only for publishing. Never put a token into the repository: they live only as repository secrets (GitHub > the repository > Settings > Secrets and variables > Actions > New repository secret).
+
+**Visual Studio Marketplace (VS Code)**
+
+- [ ] A Microsoft account (a personal one works).
+- [ ] An Azure DevOps organization at dev.azure.com (free, it only exists to issue the token).
+- [ ] A Personal Access Token there: User settings > Personal access tokens > New Token; Organization **All accessible organizations**; Scopes **Custom defined**, show all scopes, **Marketplace > Manage**; the longest expiry (one year). Write the expiry date down: after it the release fails with 401 until a new token replaces the secret.
+- [ ] The publisher at marketplace.visualstudio.com/manage: **Create publisher** with the ID `shinobi` (it must match `publisher` in `package.json` and cannot be changed later; the display name can).
+- [ ] The token as the repository secret **`VSCE_PAT`**.
+
+**Open VSX (VSCodium, and other editors that do not use Microsoft's store)**
+
+- [ ] Sign in at open-vsx.org with GitHub.
+- [ ] An Eclipse Foundation account at accounts.eclipse.org, with the same email, and your GitHub username filled in on its profile.
+- [ ] Back on open-vsx.org: your profile > **Log in with Eclipse**, then sign the **Publisher Agreement** (publishing is refused until you did).
+- [ ] An access token: open-vsx.org > Settings > **Access Tokens** > Generate New Token.
+- [ ] The namespace, once: `npx ovsx create-namespace shinobi -p <token>` (it must match the publisher `shinobi`). Check the token with `npx ovsx verify-pat shinobi -p <token>`.
+- [ ] The token as the repository secret **`OVSX_PAT`**.
+- [ ] Optional: ask for the namespace to be verified (an issue at github.com/EclipseFdn/open-vsx.org, "Namespace ownership") so the listing does not say "unverified publisher".
+
+**First release**
+
+- [ ] Until a secret exists, the workflow skips that store and still makes the GitHub release. Publish `0.1.0` as a **pre-release** first (odd minor = pre-release channel), look at both listings, then publish `0.2.0` as the first stable release.

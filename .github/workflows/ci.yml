@@ -22,15 +22,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
       # Several tests run the real dotnet CLI (they skip themselves without it), and the .NET 8 and 10 SDKs are the ones the extension targets
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -38,7 +38,8 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      # The github-actions reporter turns failing tests into annotations on the run
+      - run: npm test -- --reporters=default --reporters=github-actions
       # The production build (webpack, extension and webviews), as `vsce package` runs it
       - run: npm run build
 
@@ -47,9 +48,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -57,7 +58,7 @@ jobs:
       - run: npm ci
       # Proves that a .vsix can be built from this commit; the file is kept for download
       - run: npx vsce package --no-dependencies --out shinobi-dotnet-ci.vsix
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: shinobi-dotnet-ci.vsix
