@@ -96,8 +96,8 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
     });
 
     it("resolves the publish folder against the project, also with Visual Studio's backslashes", () => {
-        expect(publishDirOf('/repo/Web/Web.csproj', 'bin\\Release\\net8.0\\publish\\')).toBe(path.join('/repo/Web', 'bin', 'Release', 'net8.0', 'publish'));
-        expect(publishDirOf('/repo/Web/Web.csproj', '/srv/www/web/')).toBe(path.join('/srv/www/web'));
+        expect(publishDirOf('/repo/Web/Web.csproj', 'bin\\Release\\net8.0\\publish\\')).toBe(path.resolve('/repo/Web', 'bin', 'Release', 'net8.0', 'publish'));
+        expect(publishDirOf('/repo/Web/Web.csproj', '/srv/www/web/')).toBe(path.resolve('/srv/www/web'));
     });
 
     it('names new profiles like Visual Studio: FolderProfile, FolderProfile1, ...', () => {

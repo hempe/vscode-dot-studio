@@ -54,6 +54,7 @@ import { changedFilesFromReports, failureReason, runCodeCleanup } from '../../..
 beforeEach(() => {
     jest.clearAllMocks();
     calls.length = 0;
+    cancelListener = undefined;
     severitySetting = 'warn';
     behave = () => ({});
 });
@@ -117,7 +118,10 @@ describe('runCodeCleanup', () => {
     it('stops when cancelled', async () => {
         behave = () => ({ hang: true });
         const done = runCodeCleanup({ kind: 'project', path: '/w/Web/Web.csproj' });
-        await new Promise(resolve => setTimeout(resolve, 20));
+        // Wait until the first step is running (a fixed delay is too short on a slow machine)
+        while (!calls.some(c => c.args[0] === 'format')) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
         cancelListener?.();
         await done;
 

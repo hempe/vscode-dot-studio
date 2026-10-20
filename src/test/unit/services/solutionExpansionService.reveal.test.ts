@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { SolutionExpansionService } from '../../../services/solutionExpansionService';
 import { NodeIdService } from '../../../services/nodeIdService';
 import { ProjectNode } from '../../../types';
@@ -16,14 +17,14 @@ const context = () => {
     } as any;
 };
 
-const solutionId = NodeIdService.generateSolutionId('/repo/App.slnx');
-const apiId = NodeIdService.generateProjectId('/repo/src/Api/Api.csproj');
-const testsId = NodeIdService.generateProjectId('/repo/test/Api.Tests/Api.Tests.csproj');
-const controllersId = NodeIdService.generateFolderId('/repo/src/Api/Controllers');
-const controllerId = NodeIdService.generateFileId('/repo/src/Api/Controllers/HomeController.cs');
-const pageId = NodeIdService.generateFileId('/repo/src/Api/Pages/Index.cshtml');
-const pageCodeId = NodeIdService.generateFileId('/repo/src/Api/Pages/Index.cshtml.cs');
-const pagesId = NodeIdService.generateFolderId('/repo/src/Api/Pages');
+const solutionId = NodeIdService.generateSolutionId(path.resolve('/repo/App.slnx'));
+const apiId = NodeIdService.generateProjectId(path.resolve('/repo/src/Api/Api.csproj'));
+const testsId = NodeIdService.generateProjectId(path.resolve('/repo/test/Api.Tests/Api.Tests.csproj'));
+const controllersId = NodeIdService.generateFolderId(path.resolve('/repo/src/Api/Controllers'));
+const controllerId = NodeIdService.generateFileId(path.resolve('/repo/src/Api/Controllers/HomeController.cs'));
+const pageId = NodeIdService.generateFileId(path.resolve('/repo/src/Api/Pages/Index.cshtml'));
+const pageCodeId = NodeIdService.generateFileId(path.resolve('/repo/src/Api/Pages/Index.cshtml.cs'));
+const pagesId = NodeIdService.generateFolderId(path.resolve('/repo/src/Api/Pages'));
 const srcFolderId = NodeIdService.generateSolutionFolderId('src', '/repo/App.slnx', 'guid-src');
 
 /** A tree as the Solution Explorer has it before anything below the projects was expanded */
@@ -41,7 +42,7 @@ const tree = (): ProjectNode[] => [{
 /** Children the projects and folders load when expanded */
 const children: Record<string, ProjectNode[]> = {
     [apiId]: [
-        { type: 'dependencies', name: 'Dependencies', nodeId: NodeIdService.generateDependenciesId('/repo/src/Api/Api.csproj'), hasChildren: true },
+        { type: 'dependencies', name: 'Dependencies', nodeId: NodeIdService.generateDependenciesId(path.resolve('/repo/src/Api/Api.csproj')), hasChildren: true },
         { type: 'folder', name: 'Controllers', nodeId: controllersId, hasChildren: true },
         { type: 'folder', name: 'Pages', nodeId: pagesId, hasChildren: true },
     ],
@@ -67,7 +68,7 @@ describe('SolutionExpansionService.revealPath (Sync with Active Document)', () =
         const nodes = tree();
         const ctx = context();
 
-        const revealed = await SolutionExpansionService.revealPath('/repo/src/Api/Controllers/HomeController.cs', nodes, ctx, load);
+        const revealed = await SolutionExpansionService.revealPath(path.resolve('/repo/src/Api/Controllers/HomeController.cs'), nodes, ctx, load);
 
         expect(revealed).toBe(controllerId);
         expect([srcFolderId, apiId, controllersId].map(id => find(nodes, id)?.expanded)).toEqual([true, true, true]);
@@ -80,7 +81,7 @@ describe('SolutionExpansionService.revealPath (Sync with Active Document)', () =
     it('expands the parent of a nested file', async () => {
         const nodes = tree();
 
-        const revealed = await SolutionExpansionService.revealPath('/repo/src/Api/Pages/Index.cshtml.cs', nodes, context(), load);
+        const revealed = await SolutionExpansionService.revealPath(path.resolve('/repo/src/Api/Pages/Index.cshtml.cs'), nodes, context(), load);
 
         expect(revealed).toBe(pageCodeId);
         expect(find(nodes, pageId)?.expanded).toBe(true);
@@ -89,7 +90,7 @@ describe('SolutionExpansionService.revealPath (Sync with Active Document)', () =
     it('finds nothing for files outside the solution', async () => {
         const nodes = tree();
 
-        expect(await SolutionExpansionService.revealPath('/elsewhere/Notes.md', nodes, context(), load)).toBeUndefined();
+        expect(await SolutionExpansionService.revealPath(path.resolve('/elsewhere/Notes.md'), nodes, context(), load)).toBeUndefined();
         expect(find(nodes, apiId)?.expanded).toBe(false);
     });
 });
@@ -98,7 +99,7 @@ describe('SolutionExpansionService.collapseAll', () => {
     it('collapses everything but the solution, like Visual Studio', async () => {
         const nodes = tree();
         const ctx = context();
-        await SolutionExpansionService.revealPath('/repo/src/Api/Controllers/HomeController.cs', nodes, ctx, load);
+        await SolutionExpansionService.revealPath(path.resolve('/repo/src/Api/Controllers/HomeController.cs'), nodes, ctx, load);
 
         SolutionExpansionService.collapseAll(nodes, ctx);
 

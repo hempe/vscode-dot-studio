@@ -21,7 +21,7 @@ describe('analyzers', () => {
 
     it('reads the analyzer assemblies and the generated files folder from MSBuild', () => {
         expect(parseAnalyzerQuery(msbuildOutput, '/repo/Web')).toEqual({
-            generatedDir: path.join('/repo/Web', 'obj', 'Debug', 'net10.0', 'generated'),
+            generatedDir: path.resolve('/repo/Web', 'obj', 'Debug', 'net10.0', 'generated'),
             analyzers: ['Microsoft.AspNetCore.Analyzers', 'System.Text.Json.SourceGeneration'],
         });
     });

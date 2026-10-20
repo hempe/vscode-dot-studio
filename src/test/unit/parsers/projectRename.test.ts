@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { renameProjectInSln, renameProjectInSlnx, retargetProjectReferences } from '../../../parsers/projectRename';
 
 describe('renaming a project', () => {
@@ -39,10 +40,10 @@ describe('renaming a project', () => {
     <ProjectReference Include="../../src/Shared/Shared.csproj" />
   </ItemGroup>
 </Project>`;
-        const updated = retargetProjectReferences(project, '/repo/tests/Api.Tests', '/repo/src/Api/Api.csproj', '/repo/src/Api/Shop.Api.csproj');
+        const updated = retargetProjectReferences(project, path.resolve('/repo/tests/Api.Tests'), path.resolve('/repo/src/Api/Api.csproj'), path.resolve('/repo/src/Api/Shop.Api.csproj'));
 
         expect(updated).toContain('<ProjectReference Include="..\\..\\src\\Api\\Shop.Api.csproj" />');
         expect(updated).toContain('<ProjectReference Include="../../src/Shared/Shared.csproj" />');
-        expect(retargetProjectReferences(project, '/repo/tests/Api.Tests', '/repo/src/Other/Other.csproj', '/repo/src/Other/New.csproj')).toBe(project);
+        expect(retargetProjectReferences(project, path.resolve('/repo/tests/Api.Tests'), path.resolve('/repo/src/Other/Other.csproj'), path.resolve('/repo/src/Other/New.csproj'))).toBe(project);
     });
 });

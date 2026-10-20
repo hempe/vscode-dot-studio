@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { encodeSourceName, findCredential, nugetConfigFiles } from '../../../../services/nuget/nugetCredentials';
+import { encodeSourceName, findCredential, nugetConfigFiles, userConfigDir } from '../../../../services/nuget/nugetCredentials';
 import { feedHelp } from '../../../../services/nuget/feedHelp';
 
 const config = (credentials: string) => `<?xml version="1.0" encoding="utf-8"?>
@@ -21,17 +21,25 @@ describe('NuGet.Config files', () => {
         const repo = path.join(root, 'repo');
         const src = path.join(repo, 'src');
         const home = path.join(root, 'home');
+        const appData = process.env.APPDATA;
+        process.env.APPDATA = path.join(home, 'AppData', 'Roaming'); // where Windows looks for the user config
+        const userDir = userConfigDir(home);
         fs.mkdirSync(src, { recursive: true });
-        fs.mkdirSync(path.join(home, '.nuget', 'NuGet'), { recursive: true });
+        fs.mkdirSync(userDir, { recursive: true });
         fs.writeFileSync(path.join(src, 'nuget.config'), '<configuration />');
         fs.writeFileSync(path.join(repo, 'NuGet.Config'), '<configuration />');
-        fs.writeFileSync(path.join(home, '.nuget', 'NuGet', 'NuGet.Config'), '<configuration />');
+        fs.writeFileSync(path.join(userDir, 'NuGet.Config'), '<configuration />');
 
         expect(nugetConfigFiles(src, home)).toEqual([
             path.join(src, 'nuget.config'),
             path.join(repo, 'NuGet.Config'),
-            path.join(home, '.nuget', 'NuGet', 'NuGet.Config'),
+            path.join(userDir, 'NuGet.Config'),
         ]);
+        if (appData === undefined) {
+            delete process.env.APPDATA;
+        } else {
+            process.env.APPDATA = appData;
+        }
         fs.rmSync(root, { recursive: true });
     });
 });
