@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { parseStringPromise } from 'xml2js';
 import { VersionUtils } from './versionUtils';
-import { parseJsonc, upsertArrayItem } from '../core/jsonc';
+import { parseJsonc, removeArrayItems, upsertArrayItem } from '../core/jsonc';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { activeProjectBuild } from './activeBuild';
@@ -15,10 +15,23 @@ import { runTask } from './runTask';
 import { EMIT_GENERATED_FILES } from './analyzers';
 import { Settings } from './settings';
 import { solutionWorkspaceFolder } from './workspaceFolders';
+import { BuildConfiguration } from './buildConfiguration';
 
 const execFileAsync = promisify(execFile);
 
 const log = logger('DebugConfigService');
+
+/** A project of a multi-project startup profile, as the "Startup" compound starts it */
+export interface ProfileProjectLaunch {
+    projectPath: string;
+    /** The name of its launch configuration, unique in launch.json */
+    name: string;
+    /** Visual Studio's "Start without debugging" */
+    noDebug: boolean;
+    /** The launch profile to use when the project has it, else its first one */
+    launchProfile?: string;
+    framework?: string;
+}
 
 export class DebugConfigService {
     /**
@@ -83,16 +96,18 @@ export class DebugConfigService {
     /**
      * Updates the workspace launch.json with the "Startup" configuration.
      * `askForProfile` (Set as Startup Project) lets the user pick the launch profile when the project has
-     * several; otherwise the profile already in the configuration is kept. Cancelling the pick changes nothing.
+     * several; otherwise the profile already in the configuration is kept (`launchProfile` when there is none,
+     * e.g. coming back from a multi-project profile). Cancelling the pick changes nothing.
+     * Replaces a multi-project "Startup" compound. Resolves with whether the configuration was written.
      */
-    static async updateStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false): Promise<void> {
+    static async updateStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false, launchProfile?: string): Promise<boolean> {
         try {
             log.info(`updateStartupConfiguration called with project: ${startupProjectPath}, framework: ${framework}`);
 
             const workspaceFolder = solutionWorkspaceFolder();
             if (!workspaceFolder) {
                 log.error('No workspace folder found');
-                return;
+                return false;
             }
 
             log.info(`Workspace folder: ${workspaceFolder.uri.fsPath}`);
@@ -105,10 +120,10 @@ export class DebugConfigService {
             const absoluteProjectPath = path.isAbsolute(startupProjectPath)
                 ? startupProjectPath
                 : path.join(workspacePath, startupProjectPath);
-            const profile = await this.pickLaunchProfile(path.dirname(absoluteProjectPath), launchJsonPath, askForProfile);
+            const profile = await this.pickLaunchProfile(path.dirname(absoluteProjectPath), launchJsonPath, askForProfile, launchProfile);
             if (profile === null) {
                 log.info('Launch profile choice cancelled, startup configuration unchanged');
-                return;
+                return false;
             }
 
             // Ensure .vscode folder exists
@@ -124,6 +139,9 @@ export class DebugConfigService {
             // tasks.json first: it names the startup project, which is read back when launch.json changes
             await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined, platform);
 
+            // A compound and a configuration with the same name make VS Code refuse to start
+            this.removeStartupProfileConfiguration(launchJsonPath);
+
             // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
             this.upsertJsoncArrayItem(
                 launchJsonPath,
@@ -138,9 +156,118 @@ export class DebugConfigService {
 
             // Set the "Startup" configuration as the active debug configuration
             await this.setActiveDebugConfiguration(workspaceFolder, 'Startup');
+            return true;
         } catch (error) {
             log.error('Error updating startup configuration:', error);
+            return false;
         }
+    }
+
+    /**
+     * Writes a multi-project startup profile as the "Startup" launch entry: one configuration per project (named
+     * `<profile>: <project>`, `noDebug` for "Start without debugging") and a compound named "Startup" that lists them,
+     * builds `buildTarget` (the solution) once through the "StartupPreBuild" task and has `stopAll`.
+     *
+     * Why a compound, and not sessions started one by one with `parentSession`: plain F5 is VS Code's own key and runs
+     * the selected launch entry by name, so "Startup" keeps working for F5, the Run and Debug view and the title bar.
+     * VS Code (checked in its 1.136 source) runs a compound's `preLaunchTask` once and starts nothing when it fails;
+     * with `stopAll` it terminates every session of the compound as soon as one is terminated or disconnected by the
+     * user (Stop, Shift+F5, the toolbar), while a program that exits on its own only ends its own session: Visual
+     * Studio's behaviour. `startDebugging` with `noDebug` (Ctrl+F5) is passed on to every session of the compound, and
+     * a `noDebug` in a configuration is kept, which gives mixed actions with plain F5. A parent session would not help:
+     * stopping a parent does not stop its children, `lifecycleManagedByParent` only forwards a child's stop to its parent.
+     * The single "Startup" configuration is removed (the names would clash); updateStartupConfiguration puts it back.
+     */
+    static async updateStartupProfileConfiguration(launches: readonly ProfileProjectLaunch[], buildTarget: string): Promise<void> {
+        try {
+            const workspaceFolder = solutionWorkspaceFolder();
+            if (!workspaceFolder) {
+                return;
+            }
+            const workspacePath = workspaceFolder.uri.fsPath;
+            const vscodeFolder = path.join(workspacePath, '.vscode');
+            const launchJsonPath = path.join(vscodeFolder, 'launch.json');
+
+            const configs: Array<{ name: string; noDebug?: boolean }> = [];
+            for (const launch of launches) {
+                const profiles = this.readLaunchProfiles(path.dirname(launch.projectPath));
+                const profile = profiles.find(candidate => candidate.name === launch.launchProfile) ?? profiles[0];
+                const { config } = await this.launchConfiguration(launch.projectPath, workspacePath, launch.framework, profile, launch.name);
+                configs.push(launch.noDebug ? { ...config, noDebug: true } : config);
+            }
+
+            if (!fs.existsSync(vscodeFolder)) {
+                fs.mkdirSync(vscodeFolder, { recursive: true });
+            }
+            const relativeTarget = path.relative(workspacePath, buildTarget);
+            await this.updateTasksJson(path.join(vscodeFolder, 'tasks.json'), relativeTarget.startsWith('..') ? buildTarget : relativeTarget,
+                BuildConfiguration.active, undefined, BuildConfiguration.activePlatform);
+
+            const original = fs.existsSync(launchJsonPath)
+                ? fs.readFileSync(launchJsonPath, 'utf8')
+                : JSON.stringify({ version: '0.2.0', configurations: [] }, null, 4) + '\n';
+            const { value, errors } = parseJsonc(original);
+            if (errors.length > 0) {
+                log.error(`Not updating ${launchJsonPath}, it has syntax errors:`, errors);
+                vscode.window.showWarningMessage('.vscode/launch.json has syntax errors and was not updated. Fix them and select the startup profile again.');
+                return;
+            }
+            const names = configs.map(config => config.name);
+            const previous = this.compoundConfigurationNames(value);
+            let text = removeArrayItems(original, 'configurations', (config: any) =>
+                config?.name === 'Startup' || (previous.includes(config?.name) && !names.includes(config?.name)));
+            // Inserted from the last, so new entries end up first and in the profile's order
+            for (const config of [...configs].reverse()) {
+                text = upsertArrayItem(text, 'configurations', (item: any) => item?.name === config.name, config, 'first');
+            }
+            text = upsertArrayItem(text, 'compounds', (item: any) => item?.name === 'Startup',
+                { name: 'Startup', configurations: names, preLaunchTask: 'StartupPreBuild', stopAll: true }, 'first');
+            if (text !== original) {
+                log.info(`Writing the startup profile to ${launchJsonPath}: ${names.join(', ')}`);
+                fs.writeFileSync(launchJsonPath, text, 'utf8');
+            }
+        } catch (error) {
+            log.error('Error updating the startup profile configuration:', error);
+        }
+    }
+
+    /** Whether launch.json starts a multi-project profile (the "Startup" compound) */
+    static hasStartupProfileConfiguration(): boolean {
+        const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
+        return !!workspacePath && !!this.readStartupCompound(path.join(workspacePath, '.vscode', 'launch.json'));
+    }
+
+    /** Removes the "Startup" compound and the configurations it lists; a launch.json without it is left alone */
+    static removeStartupProfileConfiguration(launchJsonPath = path.join(solutionWorkspaceFolder()?.uri.fsPath ?? '', '.vscode', 'launch.json')): void {
+        if (!this.readStartupCompound(launchJsonPath)) {
+            return;
+        }
+        const original = fs.readFileSync(launchJsonPath, 'utf8');
+        const names = this.compoundConfigurationNames(parseJsonc(original).value);
+        const text = removeArrayItems(
+            removeArrayItems(original, 'compounds', (item: any) => item?.name === 'Startup'),
+            'configurations', (config: any) => names.includes(config?.name));
+        log.info(`Removing the startup profile from ${launchJsonPath}`);
+        fs.writeFileSync(launchJsonPath, text, 'utf8');
+    }
+
+    /** The configuration names the "Startup" compound of a parsed launch.json lists */
+    private static compoundConfigurationNames(launchJson: any): string[] {
+        const compound = Array.isArray(launchJson?.compounds) ? launchJson.compounds.find((item: any) => item?.name === 'Startup') : undefined;
+        return Array.isArray(compound?.configurations)
+            ? compound.configurations.map((item: any) => typeof item === 'string' ? item : item?.name).filter((name: unknown) => typeof name === 'string')
+            : [];
+    }
+
+    /** The "Startup" compound of launch.json, if any (undefined too when the file has syntax errors) */
+    private static readStartupCompound(launchJsonPath: string): any {
+        if (!fs.existsSync(launchJsonPath)) {
+            return undefined;
+        }
+        const { value, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
+        return errors.length > 0 || !Array.isArray(value?.compounds)
+            ? undefined
+            : value.compounds.find((item: any) => item?.name === 'Startup');
     }
 
     /**
@@ -239,9 +366,15 @@ export class DebugConfigService {
         await vscode.debug.startDebugging(workspaceFolder, config, { noDebug });
     }
 
-    /** Starts the startup project through its "Startup" configuration (F5 / Ctrl+F5), which builds it first */
+    /**
+     * Starts the startup project through its "Startup" configuration (F5 / Ctrl+F5), which builds it first,
+     * or the startup profile through the "Startup" compound (see updateStartupProfileConfiguration)
+     */
     static async startStartupProject(noDebug: boolean): Promise<void> {
         const workspaceFolder = solutionWorkspaceFolder();
+        if (workspaceFolder && await this.startStartupProfile(workspaceFolder, noDebug)) {
+            return;
+        }
         if (!workspaceFolder || !this.getStartupProject()) {
             vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
             return;
@@ -251,6 +384,29 @@ export class DebugConfigService {
             return;
         }
         await vscode.debug.startDebugging(workspaceFolder, 'Startup', { noDebug });
+    }
+
+    /** Starts the "Startup" compound when launch.json has one; false when it has none */
+    private static async startStartupProfile(workspaceFolder: vscode.WorkspaceFolder, noDebug: boolean): Promise<boolean> {
+        const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
+        const compound = this.readStartupCompound(launchJsonPath);
+        if (!compound) {
+            return false;
+        }
+        const names = this.compoundConfigurationNames({ compounds: [compound] });
+        if (names.length === 0) {
+            vscode.window.showInformationMessage('The startup profile starts no project. Set the Action of a project to Start or Start Without Debugging.');
+            return true;
+        }
+        const { value } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
+        const types = (Array.isArray(value?.configurations) ? value.configurations : [])
+            .filter((config: any) => names.includes(config?.name))
+            .map((config: any) => config.type);
+        if (types.includes('mono') && !await ensureMonoDebugging()) {
+            return true;
+        }
+        await vscode.debug.startDebugging(workspaceFolder, 'Startup', { noDebug });
+        return true;
     }
 
     /**
@@ -511,15 +667,16 @@ export class DebugConfigService {
     /**
      * The launch profile for the "Startup" configuration: the user's pick when `ask` is set and the project
      * has several, else the profile already configured (if it still exists), else the first one.
+     * `preferred` stands in for the configured profile when launch.json has no "Startup" configuration.
      * Returns undefined without profiles and null when the user cancels the pick.
      */
-    private static async pickLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean): Promise<LaunchProfile | undefined | null> {
+    private static async pickLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean, preferred?: string): Promise<LaunchProfile | undefined | null> {
         const profiles = this.readLaunchProfiles(projectDir);
         if (profiles.length <= 1) {
             return profiles[0];
         }
 
-        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile;
+        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile ?? preferred;
         if (ask) {
             const picked = await vscode.window.showQuickPick(
                 profiles.map(profile => ({
@@ -543,6 +700,13 @@ export class DebugConfigService {
     /** Asks for another launch profile of the startup project, keeping its framework */
     static async chooseLaunchProfile(projectPath: string): Promise<void> {
         await this.updateStartupConfiguration(projectPath, this.getActiveFramework() ?? undefined, true);
+    }
+
+    /** The launch profile of the "Startup" configuration, if it has one */
+    static getStartupLaunchProfile(): string | undefined {
+        const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
+        const profile = workspacePath ? this.readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile : undefined;
+        return typeof profile === 'string' ? profile : undefined;
     }
 
     /** The "Startup" configuration currently in launch.json, if any */

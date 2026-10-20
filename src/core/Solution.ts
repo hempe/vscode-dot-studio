@@ -8,6 +8,7 @@ import { renameProjectInSln, renameProjectInSlnx, retargetProjectReferences } fr
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
 import { DebugConfigService } from '../services/debugConfigService';
+import { StartupChoice } from '../services/startupProfiles/startupChoice';
 import { configurationProjectsOf, readConfigurationModel } from '../services/configurationManager/configurationManager';
 import { ConfigurationModel } from '../services/configurationManager/model';
 import { Project } from './Project';
@@ -1298,7 +1299,10 @@ export class Solution {
 
             // Update launch.json with the new startup project (this is now the source of truth)
             log.info(`About to update launch.json with startup project: ${projectPath}`);
-            await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true);
+            if (await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true)) {
+                // Like Visual Studio, a single startup project replaces a multi-project startup profile
+                await StartupChoice.useSingle(this.solutionPath);
+            }
             log.info(`Finished updating launch.json`);
 
             // Note: No need to emit change event here - the launch.json file watcher will handle UI updates

@@ -310,6 +310,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solution.selectStartupProfile",
+        "title": "Select Startup Profile...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.configurationManager.open",
         "title": "Configuration Manager...",
         "category": ".NET"
@@ -703,6 +708,11 @@
           "command": "shinobi.solution.selectPlatform",
           "when": "shinobi.solution.hasSeveralPlatforms",
           "group": "3_platform@1"
+        },
+        {
+          "command": "shinobi.solution.selectStartupProfile",
+          "when": "shinobi.solution.hasStartupProfiles",
+          "group": "4_startup@1"
         },
         {
           "command": "shinobi.configurationManager.open",

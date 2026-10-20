@@ -20,7 +20,8 @@ import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
 import { IconThemeService } from '../../services/iconThemeService';
 import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../services/buildConfiguration';
-import { DebugConfigService } from '../../services/debugConfigService';
+import { StartupChoice } from '../../services/startupProfiles/startupChoice';
+import { refreshStartup } from '../../services/startupProfiles/startProfile';
 import { Solution } from '../../core/Solution';
 import { projectForPath } from '../../services/templates/templateService';
 import { openNewItemWizard } from './TemplateWizardPanel';
@@ -353,7 +354,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this._listenedSolution = solution;
             // Bring the startup configuration in line with the active configuration and the MSBuild
             // output path once per solution, e.g. when the configuration changed in another session
-            void DebugConfigService.refreshStartupConfiguration();
+            StartupChoice.updateContext(solution.solutionPath);
+            void refreshStartup();
             void vscode.commands.executeCommand('shinobi.internal.refreshTests');
             this._solutionChangeListener = solution.onDidChange(() => {
                 log.info('Solution changed (including launch.json), updating tree...');
@@ -379,11 +381,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         return await SolutionTreeService.buildSolutionTree(solution);
     }
 
-    /** Shows the active configuration and framework next to the view title, like Visual Studio's toolbar */
+    /**
+     * Shows the active configuration and framework next to the view title, like Visual Studio's toolbar;
+     * the startup profile's name instead of the framework while a profile is active
+     */
     private _updateDescription(solution: Solution) {
         if (this._view) {
             const platform = BuildConfiguration.availablePlatforms.length > 1 ? BuildConfiguration.activePlatform : undefined;
-            this._view.description = [[BuildConfiguration.active, platform].filter(Boolean).join(' | '), solution.getActiveFramework()].filter(Boolean).join(' · ');
+            const startup = StartupChoice.activeProfileName(solution.solutionPath) ?? solution.getActiveFramework();
+            this._view.description = [[BuildConfiguration.active, platform].filter(Boolean).join(' | '), startup].filter(Boolean).join(' · ');
         }
     }
 

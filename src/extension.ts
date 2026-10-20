@@ -27,6 +27,8 @@ import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
 import { workspaceFolderOf } from './services/workspaceFolders';
+import { StartupChoice } from './services/startupProfiles/startupChoice';
+import { refreshStartup, selectStartupProfile, startupProfilesChanged } from './services/startupProfiles/startProfile';
 
 const logger = loggerFn('Extensions');
 
@@ -65,6 +67,9 @@ export function activate(context: vscode.ExtensionContext) {
         const fileName = filePath.split('/').pop() || '';
         logger.info(`File ${changeType}: ${fileName}`);
 
+        // The **/*.sln* watcher also sees the startup profiles (.slnLaunch, .slnLaunch.user)
+        void startupProfilesChanged(filePath).then(changed => changed && solutionWebviewProvider.refresh());
+
         // Let the solution provider handle the specific file change
         solutionWebviewProvider.handleFileChange(filePath, changeType);
     };
@@ -73,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
 
     BuildConfiguration.initialize(context.workspaceState);
+    StartupChoice.initialize(context.workspaceState);
     SlnxMigration.initialize(context.workspaceState);
     SolutionDiscovery.initialize(context.workspaceState);
     UnloadedProjects.initialize(context.workspaceState);
@@ -199,7 +205,12 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
         BuildConfiguration.onDidChange(async () => {
-            await DebugConfigService.refreshStartupConfiguration();
+            await refreshStartup();
+            solutionWebviewProvider.refresh();
+        }),
+        vscode.commands.registerCommand('shinobi.solution.selectStartupProfile', () => selectStartupProfile()),
+        StartupChoice.onDidChange(async () => {
+            await refreshStartup();
             solutionWebviewProvider.refresh();
         }),
         vscode.commands.registerCommand('shinobi.solution.debug', async () => {
@@ -295,8 +306,9 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
         const startupProject = DebugConfigService.getStartupProject();
-        if (startupProject && path.dirname(path.dirname(uri.fsPath)) === path.dirname(startupProject)) {
-            await DebugConfigService.refreshStartupConfiguration();
+        if ((startupProject && path.dirname(path.dirname(uri.fsPath)) === path.dirname(startupProject))
+            || DebugConfigService.hasStartupProfileConfiguration()) {
+            await refreshStartup();
         }
         solutionWebviewProvider.refresh();
     };
