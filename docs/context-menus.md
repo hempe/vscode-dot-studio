@@ -16,6 +16,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Rebuild |  | Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`). |
 | Clean |  | Deletes the build output (`dotnet clean`). |
 | Restore NuGet Packages |  | Restores the NuGet packages of the solution (`dotnet restore`). |
+| Configuration Manager... |  | Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses. |
 | Run Tests |  | Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer. |
 | Debug Tests |  | Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |

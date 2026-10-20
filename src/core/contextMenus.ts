@@ -71,6 +71,7 @@ export const menuCommands = {
     clean: { title: 'Clean', description: 'Deletes the build output (`dotnet clean`).' },
     pack: { title: 'Pack', description: "Builds the project's NuGet package (`dotnet pack`) in the active configuration, with the package metadata of the project file (`PackageId`, `Version`, `Authors`, ...), and tells where the `.nupkg` went." },
     publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
+    configurationManager: { title: 'Configuration Manager...', description: 'Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses.' },
     copy: { title: 'Copy', description: 'Copies the file or folder; Paste puts a copy into another folder.', key: 'ctrl+c', mac: 'cmd+c' },
     cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
     paste: { title: 'Paste', description: 'Pastes the copied or cut file or folder into this folder or project.', key: 'ctrl+v', mac: 'cmd+v' },
@@ -108,7 +109,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     solution: [
         ['addNewProject', 'addExistingProject', 'addSolutionFolder', 'addSolutionItem'],
         ['manageNuGetPackagesForSolution'],
-        ['build', 'rebuild', 'clean', 'restoreNugets'],
+        ['build', 'rebuild', 'clean', 'restoreNugets', 'configurationManager'],
         ['runTests', 'debugTests'],
         ['rename'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],

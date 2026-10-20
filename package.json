@@ -285,8 +285,14 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solution.selectPlatform",
+        "title": "Select Solution Platform...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.configurationManager.open",
-        "title": "Configuration Manager..."
+        "title": "Configuration Manager...",
+        "category": ".NET"
       },
       {
         "command": "shinobi.solution.debug",
@@ -508,6 +514,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.configurationManager",
+        "title": "Configuration Manager...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.copy",
         "title": "Copy",
         "category": ".NET"
@@ -652,6 +663,15 @@
           "command": "shinobi.solution.selectConfiguration",
           "when": "shinobi.solution.hasOtherConfigurations",
           "group": "2_other@1"
+        },
+        {
+          "command": "shinobi.solution.selectPlatform",
+          "when": "shinobi.solution.hasSeveralPlatforms",
+          "group": "3_platform@1"
+        },
+        {
+          "command": "shinobi.configurationManager.open",
+          "group": "9_manager@1"
         }
       ],
       "webview/context": [
@@ -699,6 +719,11 @@
           "command": "shinobi.solutionExplorer.restoreNugets",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "3_group@4"
+        },
+        {
+          "command": "shinobi.solutionExplorer.configurationManager",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
+          "group": "3_group@5"
         },
         {
           "command": "shinobi.solutionExplorer.runTests",
@@ -1307,6 +1332,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.publish",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.configurationManager",
           "when": "false"
         },
         {

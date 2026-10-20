@@ -16,6 +16,7 @@ import { manageUserSecrets } from './userSecrets';
 import { openLaunchSettings } from './launchSettings';
 import { UnloadedProjects } from './unloadedProjects';
 import { packStarted } from './pack';
+import { ConfigurationManagerPanel } from '../webview/providers/ConfigurationManagerPanel';
 import { PublishPanel } from '../webview/providers/PublishPanel';
 import { DebugConfigService } from './debugConfigService';
 import { dependentRenames } from './templates/dependentRenames';
@@ -79,6 +80,10 @@ export class SolutionActionService {
 
             case 'publish':
                 PublishPanel.show(nodeId.path);
+                break;
+
+            case 'configurationManager':
+                ConfigurationManagerPanel.show();
                 break;
 
             case 'manageUserSecrets':

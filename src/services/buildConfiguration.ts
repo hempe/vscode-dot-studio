@@ -14,6 +14,8 @@ const PLATFORM_STATE_KEY = 'shinobi.solution.platform';
 export const PLATFORM_CONTEXT = 'shinobi.solution.platform';
 /** Context key with the solution's platforms */
 export const AVAILABLE_PLATFORMS_CONTEXT = 'shinobi.solution.availablePlatforms';
+/** True when the solution has a platform to choose between (for the `when` of the picker, which cannot test an array's length) */
+export const SEVERAL_PLATFORMS_CONTEXT = 'shinobi.solution.hasSeveralPlatforms';
 
 export const DEFAULT_CONFIGURATIONS: readonly string[] = ['Debug', 'Release'];
 export const DEFAULT_PLATFORM = 'Any CPU';
@@ -130,5 +132,6 @@ export class BuildConfiguration {
             this._available.some(name => !DEFAULT_CONFIGURATIONS.includes(name)));
         void vscode.commands.executeCommand('setContext', PLATFORM_CONTEXT, this.activePlatform);
         void vscode.commands.executeCommand('setContext', AVAILABLE_PLATFORMS_CONTEXT, this._availablePlatforms);
+        void vscode.commands.executeCommand('setContext', SEVERAL_PLATFORMS_CONTEXT, this._availablePlatforms.length > 1);
     }
 }

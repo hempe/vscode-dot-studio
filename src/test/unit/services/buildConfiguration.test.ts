@@ -130,6 +130,7 @@ describe('BuildConfiguration platform', () => {
         expect(BuildConfiguration.activePlatform).toBe('Any CPU');
         expect(contexts['shinobi.solution.platform']).toBe('Any CPU');
         expect(contexts['shinobi.solution.availablePlatforms']).toEqual(['Any CPU']);
+        expect(contexts['shinobi.solution.hasSeveralPlatforms']).toBe(false);
     });
 
     it('switches and tells listeners once', async () => {
@@ -138,6 +139,7 @@ describe('BuildConfiguration platform', () => {
         await BuildConfiguration.setPlatform('x64');
         expect(BuildConfiguration.activePlatform).toBe('x64');
         expect(contexts['shinobi.solution.platform']).toBe('x64');
+        expect(contexts['shinobi.solution.hasSeveralPlatforms']).toBe(true);
         expect(changes).toEqual(['Debug']);
     });
 

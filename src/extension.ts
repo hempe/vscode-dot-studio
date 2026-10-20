@@ -187,6 +187,16 @@ export function activate(context: vscode.ExtensionContext) {
                 await BuildConfiguration.set(picked.label);
             }
         }),
+        vscode.commands.registerCommand('shinobi.solution.selectPlatform', async () => {
+            const active = BuildConfiguration.activePlatform;
+            const picked = await vscode.window.showQuickPick(
+                BuildConfiguration.availablePlatforms.map(name => ({ label: name, description: name === active ? '(current)' : undefined })),
+                { placeHolder: 'Solution platform' }
+            );
+            if (picked) {
+                await BuildConfiguration.setPlatform(picked.label);
+            }
+        }),
         BuildConfiguration.onDidChange(async () => {
             await DebugConfigService.refreshStartupConfiguration();
             solutionWebviewProvider.refresh();

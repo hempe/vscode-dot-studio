@@ -264,6 +264,11 @@ export declare type PublishActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type ConfigurationManagerActionCmd = {
+    readonly action: 'configurationManager';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -317,4 +322,5 @@ export type ProjectActionCmd =
     | UnloadProjectActionCmd
     | ReloadProjectActionCmd
     | OpenLaunchSettingsActionCmd
-    | PublishActionCmd;
+    | PublishActionCmd
+    | ConfigurationManagerActionCmd;
