@@ -1,0 +1,19 @@
+[
+  {
+    "Name": "Feature Profile",
+    "Projects": [
+      {
+        "Path": "src\\OrchardCore.Cms.Web\\OrchardCore.Cms.Web.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "src\\OrchardCore.Modules\\OrchardCore.Media\\OrchardCore.Media.csproj",
+        "Action": "StartWithoutDebugging"
+      },
+      {
+        "Path": "src\\OrchardCore.Modules\\OrchardCore.Search\\OrchardCore.Search.csproj",
+        "Action": "None"
+      }
+    ]
+  }
+]
