@@ -103,7 +103,27 @@ It is meant for console, worker and desktop-style programs. ASP.NET on .NET Fram
 
 ## Attach to Process
 
-Visual Studio's Debug > Attach to Process is a launch configuration of the C# extension. Add it to `.vscode/launch.json` (next to `Startup`):
+Visual Studio's Debug > Attach to Process: run **.NET: Attach to Process...** from the command palette, or from the `...` menu in the Solution Explorer's title bar. A picker lists the running .NET programs, and picking one attaches the C# extension's debugger (`coreclr`) to it.
+
+![Attach to Process](images/attach-to-process.gif)
+
+Each entry reads like `Shop.Web (pid 1234) :5181`: the program, its process id and the TCP ports it listens on. The description is the project of the open solution it belongs to; the second line is the command line. Programs of the solution's projects come first, the others follow by name. Type a project name, a port or a pid to filter.
+
+What counts as a .NET program:
+- `dotnet App.dll` (also `dotnet exec`, and the test hosts `dotnet test` starts),
+- apphosts (`Shop.Web`, `Shop.Web.exe`) that sit in a project's `bin` folder, or have their `.dll` and `.runtimeconfig.json` beside them.
+
+The dotnet command line tool itself (`dotnet build`, `dotnet run`, `dotnet watch`), MSBuild, the compiler servers and the language servers are left out. A program is matched to a project by its name (the assembly name against the project's name) or by living in the project's `bin` folder.
+
+The processes come from `ps` (Linux, macOS) or PowerShell's `Get-CimInstance Win32_Process` (Windows), the ports from `ss` (or `lsof`) on Linux, `lsof` on macOS and `netstat` on Windows. A missing port tool only means no ports in the list.
+
+Limits:
+- Only `coreclr` (.NET and .NET Core). Mono and .NET Framework processes cannot be attached.
+- It needs a C# extension for the debugger; without one, the command points to the extension to install.
+- Only processes on this machine are listed, not remote ones.
+- Starting the app first is up to you (Ctrl+F5, `dotnet run`, a terminal); the picker says so when nothing runs.
+
+Without the picker, a launch configuration in `.vscode/launch.json` does the same with VS Code's own process list:
 
 ```jsonc
 {
@@ -113,8 +133,6 @@ Visual Studio's Debug > Attach to Process is a launch configuration of the C# ex
     "processId": "${command:pickProcess}"
 }
 ```
-
-Select **Attach** in VS Code's Run and Debug view and press F5: a list of running processes appears; pick your app (search by name). A picker with project names and ports like Visual Studio's is planned (Phase 18).
 
 ## While debugging
 

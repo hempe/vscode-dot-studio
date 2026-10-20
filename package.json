@@ -320,6 +320,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.debug.attachToProcess",
+        "title": "Attach to Process...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.configurationManager.open",
         "title": "Configuration Manager...",
         "category": ".NET"
@@ -676,6 +681,11 @@
           "command": "shinobi.solution.collapseAll",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@5"
+        },
+        {
+          "command": "shinobi.debug.attachToProcess",
+          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
+          "group": "2_debug@1"
         },
         {
           "command": "shinobi.solution.open",

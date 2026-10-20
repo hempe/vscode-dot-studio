@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-code-cleanup gif-sync-namespaces}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-code-cleanup gif-sync-namespaces}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -29,7 +29,11 @@ WORK="$(mktemp -d /tmp/shinobi-shots-XXXX)"
 export DISPLAY=":$DISPLAY_NUMBER"
 XVFB_PID=""
 CODE_PID=""
+APP_PID=""
+# Stops the sample web app of the attach scene (it runs in its own process group, apphost child included)
+stop_app() { [ -n "$APP_PID" ] && { kill -- "-$APP_PID" 2>/dev/null || true; APP_PID=""; }; return 0; }
 cleanup() {
+    stop_app
     [ -n "$FFMPEG_PID" ] && kill "$FFMPEG_PID" 2>/dev/null || true
     [ -n "$CODE_PID" ] && kill "$CODE_PID" 2>/dev/null || true
     [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
@@ -322,6 +326,25 @@ if wants gif-startup-projects; then
     sleep 3
     cp "$WORK/launch.json.orig" "$SOLUTION/.vscode/launch.json"
     cp "$WORK/tasks.json.orig" "$SOLUTION/.vscode/tasks.json"
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-attach-to-process; then
+    echo "Scene: gif-attach-to-process"
+    reset
+    # The sample web app runs without the debugger, in its own process group so that stop_app ends dotnet run and the app
+    setsid dotnet run --no-build --project "$SOLUTION/src/Shop.Web" --urls http://localhost:5181 >"$WORK/app.log" 2>&1 &
+    APP_PID=$!
+    pause 8
+    record_start
+    pause 1
+    key ctrl+shift+p; pause 0.8; type_text "Attach to Process"; pause 1.5; key Return; pause 3
+    # filtering by the port, then by the project
+    type_text "5181"; pause 2
+    key ctrl+a; type_text "Shop.Web"; pause 2
+    key Escape; pause 1
+    record_stop attach-to-process
+    stop_app
     command "View: Close All Editors" 1
 fi
 

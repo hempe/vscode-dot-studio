@@ -9,7 +9,7 @@ Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explo
 | [Solution Explorer](solution-explorer.md) | The tree, title bar, keys, Dependencies, errors in the tree |
 | [Context menus](context-menus.md) | Every right-click menu of the Solution Explorer, command by command |
 | [Keyboard shortcuts](keyboard-shortcuts.md) | This extension's keys, and Visual Studio's keys in VS Code |
-| [Run & Debug](run-and-debug.md) | Startup project, several startup projects, launch profiles, Debug/Release, F5, Ctrl+F5, Start New Instance |
+| [Run & Debug](run-and-debug.md) | Startup project, several startup projects, launch profiles, Debug/Release, F5, Ctrl+F5, Start New Instance, Attach to Process |
 | [Error List](error-list.md) | Errors, warnings and messages as a table |
 | [Tests](tests.md) | The Test Explorer for Microsoft.Testing.Platform and VSTest projects |
 | [NuGet](nuget.md) | Browse, Installed (with transitive packages), Updates, Consolidate, private feeds |

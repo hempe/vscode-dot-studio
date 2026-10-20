@@ -64,6 +64,10 @@ Several startup projects work like Visual Studio's "Multiple startup projects": 
 
 ![Configure Startup Projects](docs/images/startup-projects.gif)
 
+Attach to Process (command palette) lists the running .NET programs with their project and ports and attaches the debugger to the one you pick.
+
+![Attach to Process](docs/images/attach-to-process.gif)
+
 [Run & Debug](docs/run-and-debug.md)
 
 ### Configuration Manager

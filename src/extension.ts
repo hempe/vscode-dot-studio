@@ -28,6 +28,7 @@ import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
 import { workspaceFolderOf } from './services/workspaceFolders';
+import { attachToProcess } from './services/attach/attachToProcess';
 import { StartupChoice } from './services/startupProfiles/startupChoice';
 import { refreshStartup, selectStartupProfile, startupProfilesChanged } from './services/startupProfiles/startProfile';
 
@@ -210,6 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
             await refreshStartup();
             solutionWebviewProvider.refresh();
         }),
+        vscode.commands.registerCommand('shinobi.debug.attachToProcess', () => attachToProcess()),
         vscode.commands.registerCommand('shinobi.solution.selectStartupProfile', () => selectStartupProfile()),
         StartupChoice.onDidChange(async () => {
             await refreshStartup();
