@@ -56,6 +56,13 @@ export class Solution {
 
     public readonly onDidChange = this._changeEmitter.event;
 
+    private _parseEmitter = new vscode.EventEmitter<void>();
+    /**
+     * Fires after the solution file was read again (it changed on disk, or an edit of the extension wrote it), unlike
+     * `onDidChange`, which also fires for launch.json and project changes. For what depends on the project list only.
+     */
+    public readonly onDidParse = this._parseEmitter.event;
+
     /** Settles when the solution is loaded; rejects with the reason if it could not be loaded */
     public readonly ready: Promise<void>;
 
@@ -224,6 +231,7 @@ export class Solution {
             this.buildSolutionFileTree();
 
             log.debug(`Parsed solution with ${this._solutionFile.projects.length} projects`);
+            this._parseEmitter.fire();
         } catch (error) {
             log.error('Error parsing solution file:', error);
             throw error;
@@ -1262,6 +1270,7 @@ export class Solution {
 
         // Dispose event emitter
         this._changeEmitter.dispose();
+        this._parseEmitter.dispose();
 
         // Dispose file watcher and other disposables
         for (const disposable of this._disposables) {

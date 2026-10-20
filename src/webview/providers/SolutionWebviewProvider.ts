@@ -41,6 +41,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _selectedNodeIds: NodeIdString[] = [];
 
     private _solutionChangeListener?: vscode.Disposable;
+    private _solutionParseListener?: vscode.Disposable;
     /** The solution `_solutionChangeListener` listens to; another one is loaded e.g. after renaming the solution */
     private _listenedSolution?: Solution;
     private _activeEditorListener?: vscode.Disposable;
@@ -351,12 +352,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Listen to the solution once per loaded solution (it is replaced e.g. after a rename)
         if (this._listenedSolution !== solution) {
             this._solutionChangeListener?.dispose();
+            this._solutionParseListener?.dispose();
             this._listenedSolution = solution;
             // Bring the startup configuration in line with the active configuration and the MSBuild
             // output path once per solution, e.g. when the configuration changed in another session
             StartupChoice.updateContext(solution.solutionPath);
             void refreshStartup();
             void vscode.commands.executeCommand('shinobi.internal.refreshTests');
+            // A project the startup profile names was added or removed: its launches follow (refreshes run one after another;
+            // a refresh does not touch the solution file, so this does not loop)
+            this._solutionParseListener = solution.onDidParse(() => void refreshStartup());
             this._solutionChangeListener = solution.onDidChange(() => {
                 log.info('Solution changed (including launch.json), updating tree...');
                 this._updateViewDebouncer.trigger();
@@ -738,6 +743,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this._solutionChangeListener.dispose();
             this._solutionChangeListener = undefined;
         }
+        this._solutionParseListener?.dispose();
+        this._solutionParseListener = undefined;
         if (this._activeEditorListener) {
             this._activeEditorListener.dispose();
             this._activeEditorListener = undefined;

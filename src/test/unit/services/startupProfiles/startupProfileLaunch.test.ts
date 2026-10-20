@@ -12,6 +12,7 @@ const env = {
     /** What the quick pick returns, given its items */
     pick: (_items: any[]) => undefined as any,
     pickedFrom: [] as any[],
+    unloaded: [] as string[],
 };
 
 jest.mock('vscode', () => ({
@@ -49,7 +50,7 @@ jest.mock('../../../../services/solutionService', () => ({
     SolutionService: { getActiveSolution: () => env.solution },
 }));
 jest.mock('../../../../services/unloadedProjects', () => ({
-    UnloadedProjects: { buildTarget: (solutionPath: string) => solutionPath },
+    UnloadedProjects: { buildTarget: (solutionPath: string) => solutionPath, isUnloaded: (_solutionPath: string, projectPath: string) => env.unloaded.includes(projectPath) },
 }));
 
 import { DebugConfigService } from '../../../../services/debugConfigService';
@@ -128,6 +129,7 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         env.warnings = [];
         env.messages = [];
         env.monoOk = true;
+        env.unloaded = [];
         env.pick = () => undefined;
         solutionPath = path.join(env.workspacePath, 'Shop.sln');
         apiPath = writeProject('Api', 'net10.0', {
@@ -168,6 +170,21 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         // Once, not on every refresh
         await refreshStartup();
         expect(env.warnings).toEqual(['The startup profile "Both" names projects the solution does not have, they are skipped: Gone/Gone.csproj']);
+    }, 60000);
+
+    it('leaves unloaded projects out of the launches, and starts them again once reloaded', async () => {
+        await activate();
+        env.unloaded = [path.join(env.workspacePath, 'Worker', 'Worker.csproj')];
+        await refreshStartup();
+        expect(launchJson().configurations).toEqual([API_CONFIG]);
+        expect(launchJson().compounds).toEqual([{ ...COMPOUND, configurations: ['Both: Api'] }]);
+
+        env.unloaded = [];
+        await refreshStartup();
+        // The compound has the order, not the list of configurations
+        expect(launchJson().configurations).toEqual(expect.arrayContaining([API_CONFIG, WORKER_CONFIG]));
+        expect(launchJson().configurations).toHaveLength(2);
+        expect(launchJson().compounds).toEqual([COMPOUND]);
     }, 60000);
 
     it('replaces the single "Startup" configuration, keeps the others, and puts it back for "Single"', async () => {

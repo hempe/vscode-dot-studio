@@ -96,7 +96,10 @@ async function writeProfileStartup(profile: StartupProfile, solutionPath: string
     if (!solution) {
         return;
     }
-    const { launches, missing } = planProfileLaunch(profile, solutionPath, solution.configurationProjects);
+    const planned = planProfileLaunch(profile, solutionPath, solution.configurationProjects);
+    const missing = planned.missing;
+    // Unloaded projects are left out of the build, so they are not started either
+    const launches = planned.launches.filter(launch => !UnloadedProjects.isUnloaded(solutionPath, launch.projectPath));
     // Once per profile and set of missing projects, not on every refresh
     const warning = missing.length > 0
         ? `The startup profile "${profile.name}" names projects the solution does not have, they are skipped: ${missing.join(', ')}`
@@ -165,7 +168,7 @@ export async function startupProfilesChanged(filePath: string): Promise<boolean>
 }
 
 /** The startup project before a profile replaces it, to come back to with "Single: ..." */
-function currentSingle() {
+export function currentSingle() {
     const projectPath = DebugConfigService.getStartupProject();
     return projectPath
         ? { projectPath, framework: DebugConfigService.getActiveFramework() ?? undefined, launchProfile: DebugConfigService.getStartupLaunchProfile() }
