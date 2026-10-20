@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-code-cleanup gif-sync-namespaces}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -144,8 +144,8 @@ echo "Starting VS Code ($THEME)"
 Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" -nolisten tcp >/dev/null 2>&1 &
 XVFB_PID=$!
 pause 2
-# Webviews stay blank with GPU compositing in Xvfb
-"$CODE" --disable-gpu --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" \
+# Webviews stay blank with GPU compositing in Xvfb. dotnet watch (the hot reload scene) opens no browser
+DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER=1 "$CODE" --disable-gpu --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" \
     --extensionDevelopmentPath="$REPO" --disable-workspace-trust --new-window "$SOLUTION" >"$WORK/code.log" 2>&1 &
 CODE_PID=$!
 pause 20
@@ -364,6 +364,32 @@ if wants gif-dev-cert; then
     command "Debug: Stop" 2
     cp "$WORK/launch.json.orig" "$SOLUTION/.vscode/launch.json"
     sleep 3
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-hot-reload; then
+    echo "Scene: gif-hot-reload"
+    reset
+    # Edits Index.cshtml of the work copy (put back afterwards); dotnet watch runs in the "Shop.Web (watch)" terminal
+    cp "$SOLUTION/src/Shop.Web/Pages/Index.cshtml" "$WORK/Index.cshtml.orig"
+    key ctrl+p; type_text "Index.cshtml"; pause 1.5; key Return; pause 2
+    tree_focus; tree_open Contoso src
+    record_start
+    pause 1
+    # Debug is 292 px below the project row; Start with Hot Reload is the third entry of its submenu
+    click 165 "$(shop_web_y)" 3; pause 1.5
+    click 280 $(( $(shop_web_y) + 292 )); pause 1.5
+    # (the mouse leaves the side bar's edge, which would stay highlighted)
+    click 470 $(( $(shop_web_y) + 340 )); xdotool mousemove 1000 400; pause 14
+    # The edit in the editor, saved: the terminal reports the hot reload
+    click 900 300; key ctrl+g; type_text "8"; key Return; key End; key Left Left Left Left Left
+    type_text " to Contoso"; key ctrl+s; pause 8
+    record_stop hot-reload
+    # Closing the terminal stops dotnet watch and the app
+    command "Terminal: Kill the Active Terminal Instance" 5
+    cp "$WORK/Index.cshtml.orig" "$SOLUTION/src/Shop.Web/Pages/Index.cshtml"
+    for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -f "[d]otnet-watch|Shop[.]Web/bin" >/dev/null || break; sleep 1; done
+    if pgrep -af "[d]otnet-watch|Shop[.]Web/bin"; then echo "  dotnet watch is still running"; else echo "  dotnet watch stopped"; fi
     command "View: Close All Editors" 1
 fi
 

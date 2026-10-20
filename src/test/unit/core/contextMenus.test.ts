@@ -107,7 +107,10 @@ describe('contextMenus', () => {
         expect(submenuItems['shinobi.solutionExplorer.debug'].map(item => item.command)).toEqual([
             'shinobi.solutionExplorer.startNewInstance',
             'shinobi.solutionExplorer.startWithoutDebugging',
+            'shinobi.solutionExplorer.startWithHotReload',
         ]);
+        // Only in the submenu: not offered on libraries, test projects or unloaded projects
+        expect(webviewContext.some(entry => entry.command === 'shinobi.solutionExplorer.startWithHotReload')).toBe(false);
     });
 
     it('offers Run Tests and Debug Tests on the solution and on everything in test projects', () => {

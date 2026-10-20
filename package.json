@@ -340,6 +340,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.debug.startWithHotReload",
+        "title": "Start with Hot Reload",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.configurationManager.open",
         "title": "Configuration Manager...",
         "category": ".NET"
@@ -531,6 +536,11 @@
       {
         "command": "shinobi.solutionExplorer.startWithoutDebugging",
         "title": "Start Without Debugging",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.startWithHotReload",
+        "title": "Start with Hot Reload",
         "category": ".NET"
       },
       {
@@ -1430,6 +1440,10 @@
           "when": "false"
         },
         {
+          "command": "shinobi.solutionExplorer.startWithHotReload",
+          "when": "false"
+        },
+        {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "false"
         },
@@ -1534,6 +1548,10 @@
         {
           "command": "shinobi.solutionExplorer.startWithoutDebugging",
           "group": "01_group@2"
+        },
+        {
+          "command": "shinobi.solutionExplorer.startWithHotReload",
+          "group": "01_group@3"
         }
       ]
     },

@@ -346,12 +346,7 @@ export class DebugConfigService {
             return;
         }
         const projectName = path.basename(projectPath, path.extname(projectPath));
-        const isStartup = this.getStartupProject() === projectPath;
-        const profiles = this.readLaunchProfiles(path.dirname(projectPath));
-        const currentProfile = isStartup
-            ? this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'))?.launchSettingsProfile
-            : undefined;
-        const profile = profiles.find(p => p.name === currentProfile) ?? profiles[0];
+        const profile = this.startLaunchProfile(projectPath);
         checkDevCertificateBeforeStart([profile]);
 
         const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: projectPath }));
@@ -360,12 +355,31 @@ export class DebugConfigService {
             return;
         }
 
-        const framework = isStartup ? this.getActiveFramework() ?? undefined : undefined;
+        const framework = this.getStartupProject() === projectPath ? this.getActiveFramework() ?? undefined : undefined;
         const { config } = await this.launchConfiguration(projectPath, workspaceFolder.uri.fsPath, framework, profile);
         if (config.type === 'mono' && !await ensureMonoDebugging()) {
             return;
         }
         await vscode.debug.startDebugging(workspaceFolder, config, { noDebug });
+    }
+
+    /**
+     * The launch profile Start New Instance uses: on the startup project its chosen profile, else the first one;
+     * undefined when the project has no profile `dotnet run` can use
+     */
+    static startLaunchProfile(projectPath: string): LaunchProfile | undefined {
+        const profiles = this.readLaunchProfiles(path.dirname(projectPath));
+        const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
+        const currentProfile = workspacePath && this.getStartupProject() === projectPath
+            ? this.readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile
+            : undefined;
+        return profiles.find(p => p.name === currentProfile) ?? profiles[0];
+    }
+
+    /** The framework Start New Instance runs: on the startup project its chosen one, else the newest; null when unknown */
+    static startFramework(projectPath: string): Promise<string | null> {
+        const preferred = this.getStartupProject() === projectPath ? this.getActiveFramework() ?? undefined : undefined;
+        return this.determineTargetFramework(projectPath, preferred);
     }
 
     /**
@@ -780,7 +794,7 @@ export class DebugConfigService {
     }
 }
 
-interface LaunchProfile {
+export interface LaunchProfile {
     readonly name: string;
     readonly commandLineArgs?: string;
     readonly environmentVariables?: Record<string, string>;

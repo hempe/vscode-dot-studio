@@ -23,6 +23,7 @@ import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { DebugConfigService } from './debugConfigService';
+import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
@@ -68,6 +69,10 @@ export class SolutionActionService {
             case 'startNewInstance':
             case 'startWithoutDebugging':
                 await DebugConfigService.startProject(nodeId.path, cmd.action === 'startWithoutDebugging');
+                break;
+
+            case 'startWithHotReload':
+                await startWithHotReload(nodeId.path);
                 break;
 
             case 'runTests':

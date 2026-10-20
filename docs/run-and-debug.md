@@ -29,6 +29,7 @@ IIS Express, Docker and similar profiles don't apply.
 | **Ctrl+F5** | Runs the startup project without the debugger. Also in the title bar |
 | **Debug > Start New Instance** | On any project that can be started: builds it and starts it in the debugger next to what already runs, without making it the startup project |
 | **Debug > Start Without Debugging** | The same without the debugger |
+| **Debug > Start with Hot Reload** | Runs the project with `dotnet watch`: code changes apply while it runs, see [Hot Reload](#hot-reload) |
 
 Start New Instance uses the project's first launch profile and newest framework; on the startup project, its chosen profile and framework. If the build fails, nothing starts.
 
@@ -134,9 +135,31 @@ Without the picker, a launch configuration in `.vscode/launch.json` does the sam
 }
 ```
 
+## Hot Reload
+
+Right-click a project that can be started > **Debug > Start with Hot Reload**, or run **.NET: Start with Hot Reload** from the command palette (the startup project; without one it asks which project). It runs
+
+```
+dotnet watch run --project <project> --launch-profile <profile> --non-interactive --configuration <configuration> --framework <framework>
+```
+
+in a terminal named `<project> (watch)`, with the same launch profile and framework as Start New Instance (the startup project's chosen ones, else the first profile and the newest framework) and the active solution configuration. A project without a launch profile runs with `--no-launch-profile`. `dotnet watch` builds the project itself and opens the browser when the profile has `launchBrowser`.
+
+![Start with Hot Reload](images/hot-reload.gif)
+
+- **Save a file and the running app changes.** C# code and Razor pages and views: `dotnet watch` applies the change to the running process (the terminal says "Hot reload succeeded"); state in memory stays. Reload the page to see a server-side change.
+- **Changes it cannot apply restart the app** ("rude edits", e.g. a new field in a struct, a changed method signature in some cases): the terminal says "Restart is needed to apply the changes", the app stops and starts again with a new process.
+- **Start it again** for the same project to restart it: the old terminal is closed first.
+- **Stop it by closing the terminal** (the trash icon of the terminal, or Ctrl+C in it). That stops `dotnet watch` and the app.
+- **No debugger.** Breakpoints do not hit in an app started this way.
+- .NET Framework projects (`net48`, also with Mono) are not supported by `dotnet watch`: a message says so; use Start Without Debugging.
+- The HTTPS development certificate is checked as with the other ways of starting (see below).
+
+**The difference from Visual Studio:** Visual Studio applies Hot Reload while the debugger is attached (F5, its own debugger applies the changes, with Edit and Continue). That is not available in VS Code with the open-source C# extension (`muhammad-sammy.csharp`, debugger netcoredbg): netcoredbg cannot apply code changes, and attaching it to the app `dotnet watch` runs breaks Hot Reload. Tried with SDK 10.0.111 and netcoredbg 3.2.0-1: `dotnet watch` applied an edit to the running app; with netcoredbg attached to that app (`netcoredbg --attach <pid>`), the next edit failed with "The runtime failed to applying the change: Assembly updates cannot be applied while a debugger is attached." followed by "Further changes won't be applied to this process.", and the app kept the old code, also after the debugger detached, until the next restart. So there is no "Hot Reload with the debugger" here: use F5 to debug, Start with Hot Reload to edit a running app. With Microsoft's C# extension (`ms-dotnettools.csharp`, debugger vsdbg) this was not tried; Microsoft's own Hot Reload with the debugger comes with its C# Dev Kit, which this extension does not use.
+
 ## HTTPS development certificate
 
-ASP.NET Core's `https://localhost` needs the HTTPS development certificate, and the browser warns about it until the system trusts it. When a project starts with a launch profile that has an `https://` entry in its `applicationUrl` (F5, Ctrl+F5, Start New Instance, Start Without Debugging, or a startup profile with such a project), the extension checks the certificate once per VS Code window with `dotnet dev-certs https --check-trust-machine-readable`.
+ASP.NET Core's `https://localhost` needs the HTTPS development certificate, and the browser warns about it until the system trusts it. When a project starts with a launch profile that has an `https://` entry in its `applicationUrl` (F5, Ctrl+F5, Start New Instance, Start Without Debugging, Start with Hot Reload, or a startup profile with such a project), the extension checks the certificate once per VS Code window with `dotnet dev-certs https --check-trust-machine-readable`.
 
 ![The HTTPS certificate notification](images/dev-cert.gif)
 
@@ -150,4 +173,4 @@ On Windows and macOS `dotnet dev-certs https --trust` opens the system's own con
 
 ## While debugging
 
-Breakpoints, Variables, Watch, Call Stack and the Debug Console (Visual Studio's Immediate window) are VS Code's Run and Debug view. Exception breakpoints are in its Breakpoints section. Visual Studio's Diagnostic Tools, Hot Reload and Edit and Continue are not available (Hot Reload is planned).
+Breakpoints, Variables, Watch, Call Stack and the Debug Console (Visual Studio's Immediate window) are VS Code's Run and Debug view. Exception breakpoints are in its Breakpoints section. Visual Studio's Diagnostic Tools and Edit and Continue are not available, and Hot Reload works only without the debugger ([Hot Reload](#hot-reload)).

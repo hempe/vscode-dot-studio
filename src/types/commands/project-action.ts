@@ -214,6 +214,11 @@ export declare type StartWithoutDebuggingActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type StartWithHotReloadActionCmd = {
+    readonly action: 'startWithHotReload';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type RunTestsActionCmd = {
     readonly action: 'runTests';
     readonly nodeId: NodeIdString;
@@ -328,6 +333,7 @@ export type ProjectActionCmd =
     | AddExistingItemActionCmd
     | StartNewInstanceActionCmd
     | StartWithoutDebuggingActionCmd
+    | StartWithHotReloadActionCmd
     | RunTestsActionCmd
     | DebugTestsActionCmd
     | OpenInTerminalActionCmd

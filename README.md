@@ -72,6 +72,10 @@ Starting a project with an `https://` launch profile checks once whether the HTT
 
 ![HTTPS development certificate](docs/images/dev-cert.gif)
 
+Debug > Start with Hot Reload runs a project with `dotnet watch`: saved code changes apply to the running app (without the debugger).
+
+![Start with Hot Reload](docs/images/hot-reload.gif)
+
 [Run & Debug](docs/run-and-debug.md)
 
 ### Configuration Manager

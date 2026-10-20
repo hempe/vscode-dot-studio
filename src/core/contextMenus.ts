@@ -64,6 +64,7 @@ export const menuCommands = {
     removeServiceReference: { title: 'Remove Service Reference', description: 'Removes the service reference: deletes its folder after asking; the WCF packages stay.' },
     startNewInstance: { title: 'Start New Instance', description: 'Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project.' },
     startWithoutDebugging: { title: 'Start Without Debugging', description: 'Builds the project and runs it without the debugger, without making it the startup project.' },
+    startWithHotReload: { title: 'Start with Hot Reload', description: 'Runs the project with `dotnet watch` in a terminal named `<project> (watch)`, without the debugger: saved code changes are applied to the running app, changes it cannot apply restart it. Starting it again restarts it; closing the terminal stops it.' },
     runTests: { title: 'Run Tests', description: 'Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer.' },
     debugTests: { title: 'Debug Tests', description: 'Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit.' },
     build: { title: 'Build', description: 'Builds the solution or project as a task (`dotnet build`); errors go to the Error List.' },
@@ -94,7 +95,7 @@ export type MenuCommandAction = keyof typeof menuCommands;
 
 /** Submenus of the context menus, e.g. Visual Studio's "Debug >" on projects */
 export const submenus = {
-    debug: { label: 'Debug', description: "Visual Studio's Debug submenu of projects that can be started.", items: ['startNewInstance', 'startWithoutDebugging'] },
+    debug: { label: 'Debug', description: "Visual Studio's Debug submenu of projects that can be started.", items: ['startNewInstance', 'startWithoutDebugging', 'startWithHotReload'] },
 } as const satisfies Record<string, { readonly label: string; readonly description: string; readonly items: readonly MenuCommandAction[] }>;
 
 export type SubmenuId = keyof typeof submenus;

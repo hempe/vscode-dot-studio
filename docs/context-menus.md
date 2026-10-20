@@ -82,6 +82,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
+| Debug > Start with Hot Reload |  | Runs the project with `dotnet watch` in a terminal named `<project> (watch)`, without the debugger: saved code changes are applied to the running app, changes it cannot apply restart it. Starting it again restarts it; closing the terminal stops it. |
 
 **On the startup project**
 
@@ -90,6 +91,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
+| Debug > Start with Hot Reload |  | Runs the project with `dotnet watch` in a terminal named `<project> (watch)`, without the debugger: saved code changes are applied to the running app, changes it cannot apply restart it. Starting it again restarts it; closing the terminal stops it. |
 
 **On the startup project, when it has several launch profiles**
 
@@ -99,6 +101,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Open Launch Settings |  | Opens the project's `Properties/launchSettings.json` (URLs, environment variables, command line arguments of its launch profiles); creates it with the default profiles first if it has none. |
 | Debug > Start New Instance |  | Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project. |
 | Debug > Start Without Debugging |  | Builds the project and runs it without the debugger, without making it the startup project. |
+| Debug > Start with Hot Reload |  | Runs the project with `dotnet watch` in a terminal named `<project> (watch)`, without the debugger: saved code changes are applied to the running app, changes it cannot apply restart it. Starting it again restarts it; closing the terminal stops it. |
 
 **On class libraries**
 
