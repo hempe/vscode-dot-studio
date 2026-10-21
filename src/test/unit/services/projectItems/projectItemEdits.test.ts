@@ -121,3 +121,19 @@ describe('includeItemCount', () => {
         expect(includeItemCount(project, dir, at('x.txt'), false, [])).toBe(1);
     });
 });
+
+describe('MSBuild escaping', () => {
+    test('item paths escape the characters MSBuild would read as syntax, % first', () => {
+        expect(excludeEdit(project, dir, at('a;b%c$(X)@\'(1)*?.txt'), false, items))
+            .toContain('<None Remove="a%3Bb%25c%24%28X%29%40%27%281%29%2A%3F.txt" />');
+        expect(excludeEdit(project, dir, at('a b', '(x)'), true, items)).toContain('<None Remove="a b\\%28x%29\\**" />');
+        expect(includeEdit(project, dir, at('Gen', '$(X).cs'), false, [])).toContain('<Compile Include="Gen\\%24%28X%29.cs" />');
+    });
+
+    test('Include finds the escaped Remove, whatever the case of the hex digits', () => {
+        const excluded = excludeEdit(project, dir, at('a;b.txt'), false, items);
+        expect(includeEdit(excluded, dir, at('a;b.txt'), false, [])).toBe(project);
+        const lower = excluded.replace('%3B', '%3b');
+        expect(includeEdit(lower, dir, at('a;b.txt'), false, [])).toBe(project);
+    });
+});

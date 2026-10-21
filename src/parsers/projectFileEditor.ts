@@ -165,14 +165,19 @@ export class ProjectFileEditor {
         return result;
     }
 
-    /** Takes `value` out of the `Remove` items; `removed` tells whether there was one */
+    /**
+     * Takes `value` (MSBuild-escaped, as written) out of the `Remove` items; `removed` tells whether there was one.
+     * Entries are compared unescaped, so `a%3bb.txt` matches `a%3Bb.txt`.
+     */
     static removeRemoveItem(content: string, value: string): { content: string; removed: boolean } {
         const entries = (itemValue: string) => itemValue.split(';').map(entry => entry.trim()).filter(Boolean);
-        const matching = this.findItemElements(content, 'Remove').filter(item => entries(item.value).includes(value));
+        const wanted = this.unescapeMsbuild(value);
+        const matches = (entry: string) => this.unescapeMsbuild(entry) === wanted;
+        const matching = this.findItemElements(content, 'Remove').filter(item => entries(item.value).some(matches));
         let result = content;
         // From the end, so the offsets of the earlier items stay valid
         for (const item of matching.reverse()) {
-            const rest = entries(item.value).filter(entry => entry !== value);
+            const rest = entries(item.value).filter(entry => !matches(entry));
             if (rest.length > 0) {
                 const text = result.slice(item.start, item.end)
                     .replace(/(\bRemove\s*=\s*)(?:"[^"]*"|'[^']*')/, (_all, prefix: string) => `${prefix}"${this.escape(rest.join(';'))}"`);
@@ -298,6 +303,11 @@ export class ProjectFileEditor {
 
     private static escape(value: string): string {
         return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /** Reverses MSBuild's `%XX` escaping */
+    private static unescapeMsbuild(value: string): string {
+        return value.replace(/%([0-9A-Fa-f]{2})/g, (_all, hex: string) => String.fromCharCode(parseInt(hex, 16)));
     }
 
     private static unescape(value: string): string {

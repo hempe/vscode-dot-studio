@@ -9,7 +9,7 @@ const isBelow = (relative: string) =>
     relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 
 /**
- * MSBuild item paths, relative to the project folder, with backslashes like the project templates.
+ * MSBuild item paths, relative to the project folder, with backslashes like the project templates, escaped.
  * Throws for the project folder itself and anything outside it: `Remove="\**"` would match the whole drive.
  */
 function itemPath(projectDir: string, target: string): string {
@@ -17,7 +17,15 @@ function itemPath(projectDir: string, target: string): string {
     if (!isBelow(relative)) {
         throw new Error(`${target} is not inside the project folder ${projectDir}`);
     }
-    return relative.replace(/\//g, '\\');
+    return escapeMsbuild(relative.replace(/\//g, '\\'));
+}
+
+/**
+ * MSBuild's escaping (`%XX`) of the characters it would read as separators, properties, item lists,
+ * metadata or wildcards, so the item matches the file literally: `a;b.txt` -> `a%3Bb.txt`.
+ */
+export function escapeMsbuild(value: string): string {
+    return value.replace(/[%;$@'()*?]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 /**

@@ -82,4 +82,37 @@ describe('Exclude/Include against real MSBuild', () => {
         const after = await exclude(at('K.cs'));
         expect(after.isIncluded(at('K.cs'))).toBe(false);
     }, TIMEOUT);
+
+    const specialNames = ['a;b.txt', '$(X).txt', 'a%b.txt', 'a b.txt', 'a@b.txt', "it's (1).txt", 'star*.txt', 'q?.txt'];
+
+    withDotnet('names with MSBuild special characters are excluded and included literally', async () => {
+        setUp(sdkProject(), ['Program.cs', 'starry.txt', 'qq.txt', ...specialNames]);
+        let items = await evaluate();
+        for (const name of specialNames) {
+            expect([name, items.isIncluded(at(name))]).toEqual([name, true]);
+        }
+        for (const name of specialNames) {
+            items = await exclude(at(name));
+            expect([name, items.isIncluded(at(name))]).toEqual([name, false]);
+        }
+        // the wildcards were taken literally
+        expect(items.isIncluded(at('starry.txt'))).toBe(true);
+        expect(items.isIncluded(at('qq.txt'))).toBe(true);
+        for (const name of specialNames) {
+            items = await include(at(name));
+            expect([name, items.isIncluded(at(name))]).toEqual([name, true]);
+        }
+        expect(fs.readFileSync(projectPath, 'utf8')).toBe(sdkProject());
+    }, TIMEOUT);
+
+    withDotnet('names with MSBuild special characters left out by DefaultItemExcludes get a literal Include', async () => {
+        setUp(sdkProject('\n  <PropertyGroup>\n    <DefaultItemExcludes>$(DefaultItemExcludes);Out\\**</DefaultItemExcludes>\n  </PropertyGroup>\n'),
+            ['Program.cs', 'Out/starry.txt', ...specialNames.map(name => `Out/${name}`)]);
+        let items = await evaluate();
+        for (const name of specialNames) {
+            items = await include(at('Out', name));
+            expect([name, items.isIncluded(at('Out', name))]).toEqual([name, true]);
+        }
+        expect(items.isIncluded(at('Out', 'starry.txt'))).toBe(false);
+    }, TIMEOUT);
 });
