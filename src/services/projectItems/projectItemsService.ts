@@ -67,7 +67,13 @@ export class ProjectItemsService {
         }
         if ((this.generation.get(projectPath) ?? 0) === generation) {
             this.cache.set(projectPath, items ?? null);
-            this.listeners.forEach(listener => listener(projectPath));
+            for (const listener of [...this.listeners]) {
+                try {
+                    listener(projectPath);
+                } catch (error) {
+                    log.warn(`A listener failed after evaluating ${projectPath}:`, error);
+                }
+            }
         }
         return items;
     }

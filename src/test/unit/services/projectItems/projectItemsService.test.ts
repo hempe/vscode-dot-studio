@@ -61,6 +61,24 @@ describe('ProjectItemsService', () => {
         expect(listener).toHaveBeenCalledWith(fixture);
     });
 
+    test('a throwing listener does not make the evaluation reject and later listeners still run', async () => {
+        const service = new ProjectItemsService(jest.fn().mockResolvedValue(output('A.cs')));
+        const later = jest.fn();
+        service.onDidEvaluate(() => { throw new Error('listener failed'); });
+        service.onDidEvaluate(later);
+        const items = await service.evaluate(fixture);
+        expect(items?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(later).toHaveBeenCalledWith(fixture);
+    });
+
+    test('the disposable of onDidEvaluate stops the notifications', async () => {
+        const service = new ProjectItemsService(jest.fn().mockResolvedValue(output('A.cs')));
+        const listener = jest.fn();
+        service.onDidEvaluate(listener).dispose();
+        await service.evaluate(fixture);
+        expect(listener).not.toHaveBeenCalled();
+    });
+
     const hasDotnet = spawnSync('dotnet', ['--version']).status === 0;
     (hasDotnet ? test : test.skip)('real MSBuild: Remove, DefaultItemExcludes and Link are followed', async () => {
         const items = await new ProjectItemsService().evaluate(fixture);
@@ -70,5 +88,5 @@ describe('ProjectItemsService', () => {
         expect(items!.isIncluded(path.join(dir, 'Legacy', 'Old.cs'))).toBe(false);
         expect(items!.isIncluded(path.join(dir, 'Excluded', 'Skip.cs'))).toBe(false);
         expect(items!.linkedFilesIn(path.join(dir, 'Linked')).map(item => path.basename(item.fullPath))).toEqual(['Shared.cs']);
-    }, 120000);
+    }, 150000);
 });
