@@ -1,5 +1,7 @@
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { excludeEdit, includeEdit, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
 import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
@@ -91,5 +93,31 @@ describe('membershipApplied', () => {
         expect(membershipApplied(items, at('Other.cs'), false, false)).toBe(false);
         expect(membershipApplied(items, at('Sub'), true, false)).toBe(true);
         expect(membershipApplied(items, at('Gen'), true, false)).toBe(false);
+    });
+});
+
+describe('listFilesUnder', () => {
+    let root: string;
+    beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'list-files-')); });
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    test('skips build output, dot folders, node_modules and user files', async () => {
+        for (const file of ['a.cs', 'deep/b.txt', 'bin/x.dll', 'obj/y.json', '.git/HEAD', '.vs/state', 'deep/.idea/z',
+            'node_modules/p/index.js', 'App.csproj.user', 'App.suo', '.editorconfig']) {
+            fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+            fs.writeFileSync(path.join(root, file), '');
+        }
+        expect((await listFilesUnder(root)).map(file => path.relative(root, file)).sort())
+            .toEqual(['.editorconfig', 'a.cs', path.join('deep', 'b.txt')]);
+    });
+});
+
+describe('includeItemCount', () => {
+    test('counts the Include items a folder Include would add, none when it deletes a Remove', () => {
+        const files = [at('Gen', 'a.cs'), at('Gen', 'b.cs')];
+        expect(includeItemCount(project, dir, at('Gen'), true, files)).toBe(2);
+        const excluded = excludeEdit(project, dir, at('Gen'), true, items);
+        expect(includeItemCount(excluded, dir, at('Gen'), true, files)).toBe(0);
+        expect(includeItemCount(project, dir, at('x.txt'), false, [])).toBe(1);
     });
 });

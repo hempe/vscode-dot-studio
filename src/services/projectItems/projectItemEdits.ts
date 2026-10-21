@@ -49,10 +49,9 @@ const itemTypeForNewItem = (file: string) => path.extname(file).toLowerCase() ==
 
 /** Visual Studio's Exclude From Project for an SDK-style project: `Remove` items for the file, or for everything under the folder, per item type */
 export function excludeEdit(content: string, projectDir: string, target: string, isFolder: boolean, items: ProjectItems): string {
-    const relative = itemPath(projectDir, target);
+    const value = removeValue(projectDir, target, isFolder);
     // every item type that lists the file: one left behind keeps it in the project
     const types = isFolder ? items.itemTypesUnder(target) : items.itemTypesOf(target);
-    const value = isFolder ? `${relative}\\**` : relative;
     return (types.length > 0 ? types : ['None']).reduce(
         (edited, type) => ProjectFileEditor.excludeItem(edited, type, value), content);
 }
@@ -63,8 +62,7 @@ export function excludeEdit(content: string, projectDir: string, target: string,
  * @param filesUnder the files on disk under the folder (only used for a folder)
  */
 export function includeEdit(content: string, projectDir: string, target: string, isFolder: boolean, filesUnder: readonly string[]): string {
-    const relative = itemPath(projectDir, target);
-    const removed = ProjectFileEditor.removeRemoveItem(content, isFolder ? `${relative}\\**` : relative);
+    const removed = ProjectFileEditor.removeRemoveItem(content, removeValue(projectDir, target, isFolder));
     if (removed.removed) {
         return removed.content;
     }
@@ -73,16 +71,38 @@ export function includeEdit(content: string, projectDir: string, target: string,
         ProjectFileEditor.includeItem(edited, itemTypeForNewItem(file), itemPath(projectDir, file)), content);
 }
 
-/** Every file under a folder, skipping bin and obj */
+/** Include In Project asks first when it would add more `Include` items than this */
+export const INCLUDE_CONFIRM_LIMIT = 200;
+
+/** How many `Include` items includeEdit would add: none when it deletes a `Remove` item instead */
+export function includeItemCount(content: string, projectDir: string, target: string, isFolder: boolean, filesUnder: readonly string[]): number {
+    if (ProjectFileEditor.removeRemoveItem(content, removeValue(projectDir, target, isFolder)).removed) {
+        return 0;
+    }
+    return isFolder ? filesUnder.length : 1;
+}
+
+/** The `Remove` value Exclude writes for the file or folder */
+function removeValue(projectDir: string, target: string, isFolder: boolean): string {
+    const relative = itemPath(projectDir, target);
+    return isFolder ? `${relative}\\**` : relative;
+}
+
+/** Folders Include In Project never adds files from: build output, tool folders (.git, .vs...) and packages */
+const skipFolder = (name: string) => BUILD_OUTPUT_FOLDERS.includes(name) || name.startsWith('.') || name === 'node_modules';
+/** Per-user files Visual Studio keeps next to the project */
+const skipFile = (name: string) => /\.(user|suo)$/i.test(name);
+
+/** Every file under a folder that Include In Project would add */
 export async function listFilesUnder(folder: string): Promise<string[]> {
     const files: string[] = [];
     for (const entry of await fs.promises.readdir(folder, { withFileTypes: true })) {
         const full = path.join(folder, entry.name);
         if (entry.isDirectory()) {
-            if (!BUILD_OUTPUT_FOLDERS.includes(entry.name)) {
+            if (!skipFolder(entry.name)) {
                 files.push(...await listFilesUnder(full));
             }
-        } else {
+        } else if (!skipFile(entry.name)) {
             files.push(full);
         }
     }

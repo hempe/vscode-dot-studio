@@ -23,7 +23,7 @@ import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { ProjectItemsService } from './projectItems/projectItemsService';
-import { excludeEdit, includeEdit, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -1279,9 +1279,20 @@ export class SolutionActionService {
             }
             const projectDir = path.dirname(projectPath);
             const content = await fs.promises.readFile(projectPath, 'utf8');
+            const filesUnder = !exclude && isFolder ? await listFilesUnder(target) : [];
+            const adding = exclude ? 0 : includeItemCount(content, projectDir, target, isFolder, filesUnder);
+            if (adding > INCLUDE_CONFIRM_LIMIT) {
+                const choice = await vscode.window.showWarningMessage(`Include ${adding} files?`, {
+                    modal: true,
+                    detail: `${path.basename(target)} is not excluded by a Remove item, so each file under it gets an Include item in the project file.`,
+                }, 'Include');
+                if (choice !== 'Include') {
+                    return;
+                }
+            }
             const edited = exclude
                 ? excludeEdit(content, projectDir, target, isFolder, items!)
-                : includeEdit(content, projectDir, target, isFolder, isFolder ? await listFilesUnder(target) : []);
+                : includeEdit(content, projectDir, target, isFolder, filesUnder);
             if (edited !== content) {
                 await fs.promises.writeFile(projectPath, edited, 'utf8');
             }
