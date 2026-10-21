@@ -52,9 +52,9 @@ export function projectForPath(fileOrFolder: string): string | undefined {
     return projects
         .filter(project => {
             const relative = path.relative(path.dirname(project), fileOrFolder);
-            return !relative.startsWith('..') && !path.isAbsolute(relative);
+            return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
         })
-        .sort((a, b) => b.length - a.length)[0];
+        .sort((a, b) => path.dirname(b).length - path.dirname(a).length)[0];
 }
 
 function wizardTemplate(template: TemplateInfo, recent = false): WizardTemplate {
