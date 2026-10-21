@@ -18,7 +18,7 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 - `.slnx` files need the .NET SDK 9.0.200 or later; check with `dotnet --version`.
 - The `.slnx` has a folder name without `/` around it, the same folder twice, or a project path that doesn't exist. `dotnet sln list` shows what the SDK thinks of the file.
 
-**Files are missing or extra.** The tree shows what is on disk under each project's folder; `bin`, `obj` and similar folders are left out. Files a project includes from outside its folder (linked files) and files it excludes aren't reflected yet.
+**Files are missing or extra.** The tree shows the files the project contains (what MSBuild evaluates, including linked files from other folders); `bin`, `obj` and similar folders are left out. A file the project excludes is hidden; turn on Show All Files in the title bar to see it greyed out, and use Include In Project to put it back. The item list is read through MSBuild, so until it is known (or when it fails) the tree shows everything on disk.
 
 **Packages under Dependencies don't expand.** They expand from the last restore (`obj/project.assets.json`); build or restore the project.
 
