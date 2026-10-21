@@ -53,9 +53,17 @@ No drag support exists. Cut/Paste of files and folders is implemented in `Soluti
 
 - `SolutionWebviewProvider` handles `moveNodes` and calls `SolutionActionService.moveNodes(nodeIds, targetNodeId, copy)`.
 - It decodes the IDs, re-validates with `canDrop`, then:
-  - files/folders: for each source, `_pasteOne(source, targetFolder, copy ? 'copy' : 'cut')` (a file target means its parent folder, a project target its project folder); one namespace prompt batch per drop, as Cut/Paste does today.
+  - files/folders: for each source, `_pasteOne(source, targetFolder, copy ? 'copy' : 'cut')` (a file target means its parent folder, a project target its project folder); then the namespaces, see below.
   - projects, solution folders, solution items: `Solution.moveToSolutionFolder(kind, id, targetFolderGuid | undefined)`.
 - Errors show a message; the tree refreshes through the normal solution/project change events.
+
+### Namespaces after a move
+
+Moving a C# file to another folder or project changes the namespace it should have. Today `_pasteOne` checks this only for a single moved `.cs` file, and asks once per file (a modal each); a moved folder is not checked at all (folder rename is). Dragging would make both visible, so the shared move path is fixed and Cut/Paste gets the same behaviour:
+- After a move (not after a copy), the C# files that were moved are collected: the file itself, or for a folder every `.cs` file under it (`NamespaceService.getCSharpFilesInDirectory`), at their new location.
+- One prompt per drop, the one the folder rename uses: Update All, Review Each, Skip (`_updateNamespacesInFiles`); with a single file, the existing single-file prompt.
+- Files whose namespace already matches the new location are not counted; if none need an update there is no prompt.
+- Nothing is changed without the user's choice, as today.
 
 ### Solution file moves
 
@@ -68,7 +76,7 @@ No drag support exists. Cut/Paste of files and folders is implemented in `Soluti
 
 - `dropRules`: every row of the table, multi-select filtering, descendant and self cycles, drop on the same parent is a no-op.
 - `.sln` and `.slnx` reparenting on fixtures (`src/__fixtures__/solution-hierarchy`): project to folder, folder to folder (with children), to root, solution item between folders, duplicate name refused, cycle refused; unrelated lines and formatting unchanged.
-- File moves and copies through the paste path with a temp folder.
+- File moves and copies through the paste path with a temp folder, and the namespace step: a moved folder with several `.cs` files gives one prompt, a copy gives none, files that already match give none.
 - TreeNode/SolutionTree drag tests in the webview (drag start payload, valid and invalid highlight, drop message, Ctrl copy, no drag while renaming).
 - The webview bundle test stays green (`dropRules` must not pull in `vscode`).
 
