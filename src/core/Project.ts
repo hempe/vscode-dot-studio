@@ -54,6 +54,7 @@ export class Project {
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
     private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
     private _reevaluateTimer?: ReturnType<typeof setTimeout>; // New files: evaluate once a burst is over
+    private _evaluatedProjectFile?: string; // Stamp of the project file the last evaluation was asked for
 
     public readonly onDidChange = this._changeEmitter.event;
 
@@ -164,7 +165,7 @@ export class Project {
             // Project file itself changed
             await this.parseProjectFile();
             this._changeEmitter.fire(); // Simple event - just notify change
-            await this.reevaluateItems();
+            await this.reevaluateItemsIfProjectFileChanged();
         } else {
             // Other file created: one the cached item list already includes (a checkout recreating it) needs no
             // MSBuild; an unknown one shows as excluded until evaluated again, once per burst of new files
@@ -188,7 +189,7 @@ export class Project {
             log.info(`Project file changed: ${fileName}`);
             await this.parseProjectFile();
             this._changeEmitter.fire(); // Simple event - just notify change
-            await this.reevaluateItems();
+            await this.reevaluateItemsIfProjectFileChanged();
         }
         // For other file changes, we don't need to do anything unless we want to show modification indicators
     }
@@ -809,8 +810,30 @@ export class Project {
 
     /** The project file or a props file changed, or the items were edited: evaluate again */
     async reevaluateItems(): Promise<void> {
+        this._evaluatedProjectFile = this.projectFileStamp();
         ProjectItemsService.instance.invalidate(this._projectPath);
         await this.evaluateItems();
+    }
+
+    /**
+     * A watcher saw the project file change. When it is the version an evaluation was already asked for (an edit
+     * of ours like Include or Exclude, or a second watcher of the same folder), that evaluation reads it: no new one.
+     */
+    private async reevaluateItemsIfProjectFileChanged(): Promise<void> {
+        const stamp = this.projectFileStamp();
+        if (stamp !== undefined && stamp === this._evaluatedProjectFile) {
+            return;
+        }
+        await this.reevaluateItems();
+    }
+
+    private projectFileStamp(): string | undefined {
+        try {
+            const stat = fs.statSync(this._projectPath);
+            return `${stat.mtimeMs}|${stat.size}`;
+        } catch {
+            return undefined;
+        }
     }
 
     /** New files may match a glob: evaluate again when no file was created for a moment */

@@ -191,6 +191,57 @@ describe('Project file tree with the item overlay', () => {
         }
     });
 
+    test('bursts of new files and a project file edit while MSBuild runs start one more MSBuild, not one per burst', async () => {
+        const project = await newProject();
+        (ProjectItemsService.instance.evaluate as jest.Mock).mockRestore();
+        const finishers: (() => void)[] = [];
+        const run = jest.spyOn(ProjectItemsService.instance as unknown as { run(projectPath: string): Promise<string> }, 'run')
+            .mockImplementation(() => new Promise<string>(resolve => finishers.push(() => resolve(JSON.stringify({
+                Items: { Compile: [{ Identity: 'Program.cs', FullPath: path.join(dir, 'Program.cs') }] },
+            })))));
+        jest.useFakeTimers();
+        try {
+            for (let i = 0; i < 5; i++) {
+                await create(project, `First${i}.cs`);
+            }
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(run).toHaveBeenCalledTimes(1);
+            for (let burst = 0; burst < 3; burst++) {
+                for (let i = 0; i < 5; i++) {
+                    await create(project, `Later${burst}-${i}.cs`);
+                }
+                await jest.advanceTimersByTimeAsync(1000);
+            }
+            // An edit of the project file (Include, Exclude) evaluates again; resolves when the evaluation it asked for ends
+            const edited = project.reevaluateItems();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(run).toHaveBeenCalledTimes(1);
+            finishers.shift()!();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(run).toHaveBeenCalledTimes(2);
+            finishers.shift()!();
+            await edited;
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(run).toHaveBeenCalledTimes(2);
+            expect(ProjectItemsService.instance.get(projectPath)?.isIncluded(path.join(dir, 'Program.cs'))).toBe(true);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('the watcher event of a project file edit already evaluated (Include, Exclude) does not evaluate again', async () => {
+        const project = await newProject();
+        const invalidate = jest.spyOn(ProjectItemsService.instance, 'invalidate');
+        const changed = (project as unknown as { handleFileChanged(uri: { fsPath: string }): Promise<void> });
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><Compile Remove="Old.cs" /></ItemGroup></Project>');
+        await project.reevaluateItems();
+        await changed.handleFileChanged({ fsPath: projectPath });
+        expect(invalidate).toHaveBeenCalledTimes(1);
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+        await changed.handleFileChanged({ fsPath: projectPath });
+        expect(invalidate).toHaveBeenCalledTimes(2);
+    });
+
     test('a new file the item list already includes does not evaluate again', async () => {
         withItems();
         const project = await newProject();
