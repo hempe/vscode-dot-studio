@@ -320,7 +320,8 @@ export class Project {
                     nonEmptyFolders.add(full);
                 }
             }
-            const laidOut = layoutFolder(folderPath, disk, ProjectItemsService.instance.get(this._projectPath), showAll, nonEmptyFolders);
+            const items = ProjectItemsService.instance.get(this._projectPath);
+            const laidOut = layoutFolder(folderPath, disk, items, showAll, nonEmptyFolders);
 
             const children: ProjectFileNode[] = [];
             const folders = laidOut.filter(entry => entry.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
@@ -331,7 +332,8 @@ export class Project {
                     type: 'folder',
                     children: [], // Will be loaded on demand
                     isLoaded: false,
-                    hasChildren: nonEmptyFolders.has(folder.path) || folder.state === 'linked',
+                    // a disk folder can be empty and still hold linked files
+                    hasChildren: nonEmptyFolders.has(folder.path) || folder.state === 'linked' || !!items?.hasLinkedUnder(folder.path),
                     ...(folder.state ? { itemState: folder.state } : {}),
                 });
             }

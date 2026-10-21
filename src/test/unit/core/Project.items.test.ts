@@ -165,4 +165,18 @@ describe('Project file tree with the item overlay', () => {
         expect(fired(project)).not.toHaveBeenCalled();
         expect(load).not.toHaveBeenCalled();
     });
+
+    test('an empty disk folder that holds linked files can be expanded', async () => {
+        fs.mkdirSync(path.join(dir, 'Shared'));
+        const outside = path.join(os.tmpdir(), 'Elsewhere', 'Common.cs');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [
+                { Identity: 'Program.cs', FullPath: path.join(dir, 'Program.cs') },
+                { Identity: outside, FullPath: outside, Link: 'Shared/Common.cs' },
+            ] },
+        }), dir));
+        const project = await newProject();
+        const shared = (await project.loadFolderChildren(dir)).find(node => node.name === 'Shared');
+        expect(shared?.hasChildren).toBe(true);
+    });
 });

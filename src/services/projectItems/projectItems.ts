@@ -91,6 +91,12 @@ export class ProjectItems {
         return this.virtualKeys.some(virtualKey => virtualKey.startsWith(prefix));
     }
 
+    /** Whether a linked file is shown under the folder (at any depth) */
+    hasLinkedUnder(folder: string): boolean {
+        const prefix = key(folder) + path.sep;
+        return this.entries.some((entry, index) => entry.linked && this.virtualKeys[index].startsWith(prefix));
+    }
+
     /** The item types of the files under the folder, for excluding all of them */
     itemTypesUnder(folder: string): string[] {
         const prefix = key(folder) + path.sep;

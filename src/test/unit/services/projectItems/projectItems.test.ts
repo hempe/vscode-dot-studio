@@ -31,6 +31,13 @@ describe('parseMsbuildItems', () => {
         expect(items.hasIncludedUnder(at('Other'))).toBe(false);
     });
 
+    test('a folder has linked files when one is shown under it; real files do not count', () => {
+        expect(items.hasLinkedUnder(at('Linked'))).toBe(true);
+        expect(items.hasLinkedUnder(at('Linked', 'Deep'))).toBe(true);
+        expect(items.hasLinkedUnder(at('Sub'))).toBe(false);
+        expect(items.hasLinkedUnder(dir)).toBe(true);
+    });
+
     test('lists linked files and folders of a folder', () => {
         expect(items.linkedFilesIn(at('Linked', 'Deep')).map(item => item.fullPath)).toEqual([path.resolve('/work/Shared/Shared.cs')]);
         expect(items.linkedFilesIn(dir)).toEqual([]);
