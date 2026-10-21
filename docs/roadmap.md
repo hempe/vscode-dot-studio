@@ -16,6 +16,7 @@ Found along the way, to be fixed:
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
 - [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
+- [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
 
 ## Phase 19: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
