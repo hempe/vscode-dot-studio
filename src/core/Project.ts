@@ -56,9 +56,11 @@ export class Project {
 
     public readonly onDidChange = this._changeEmitter.event;
 
+    /** @param _isUnloaded whether the user unloaded the project: then MSBuild does not evaluate it */
     constructor(
         private _projectPath: string,
-        private _solutionProject: SolutionProject
+        private _solutionProject: SolutionProject,
+        private readonly _isUnloaded: () => boolean = () => false
     ) {
         this.initialize();
     }
@@ -769,6 +771,9 @@ export class Project {
 
     /** Asks MSBuild what the project contains, then shows the tree accordingly (it was drawn from the disk before) */
     async evaluateItems(): Promise<void> {
+        if (this._isUnloaded()) {
+            return;
+        }
         const service = ProjectItemsService.instance;
         const before = service.version(this._projectPath);
         await service.evaluate(this._projectPath);

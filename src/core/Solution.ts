@@ -16,6 +16,7 @@ import { logger } from './logger';
 import { SimpleDebounceManager } from '../services/debounceManager';
 import { SolutionFolderNodeId } from '../services/nodeIdService';
 import { workspaceFolderOf } from '../services/workspaceFolders';
+import { UnloadedProjects } from '../services/unloadedProjects';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -116,6 +117,13 @@ export class Solution {
 
             // Set up file watcher for launch.json
             this.setupLaunchJsonWatcher();
+
+            // A reloaded project was not evaluated by MSBuild while unloaded (the others return their cached list)
+            this._disposables.push(UnloadedProjects.onDidChange(() => {
+                for (const project of this._projects.values()) {
+                    void project.evaluateItems();
+                }
+            }));
 
             // Parse the solution file initially
             await this.parseSolutionFile();
@@ -279,7 +287,7 @@ export class Solution {
                 const absolutePath = path.resolve(path.dirname(this._solutionPath), solutionProject.path);
 
                 try {
-                    const project = new Project(absolutePath, solutionProject);
+                    const project = new Project(absolutePath, solutionProject, () => UnloadedProjects.isUnloaded(this._solutionPath, absolutePath));
 
                     // Subscribe to project changes
                     project.onDidChange(() => {
