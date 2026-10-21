@@ -14,6 +14,10 @@ import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../types';
 import { workspaceFolderOf } from '../services/workspaceFolders';
+import { ProjectItemsService } from '../services/projectItems/projectItemsService';
+import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
+import { ShowAllFiles } from '../services/showAllFiles';
+import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
 
 export interface ProjectFileNode {
     name: string;
@@ -22,6 +26,7 @@ export interface ProjectFileNode {
     children?: ProjectFileNode[];
     isLoaded?: boolean; // Track if children have been loaded
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
+    itemState?: ItemState; // What the project's items say about it (undefined while unknown)
 }
 
 export interface ProjectDependency {
@@ -40,6 +45,7 @@ export class Project {
     private _frameworks: string[] = [];
     private _isExecutable = false;
     private _isTestProject = false;
+    private _isSdkStyle = false;
     private _changeEmitter = new vscode.EventEmitter<void>();
     private _isInitialized = false;
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
@@ -109,6 +115,7 @@ export class Project {
             await this.initializeFileTree();
 
             this._isInitialized = true;
+            void this.evaluateItems();
             log.info(`Initialized project: ${this.name}`);
         } catch (error) {
             log.error(`Failed to initialize project ${this.name}:`, error);
@@ -147,9 +154,12 @@ export class Project {
             // Project file itself changed
             await this.parseProjectFile();
             this._changeEmitter.fire(); // Simple event - just notify change
+            await this.reevaluateItems();
         } else {
-            // Other file created - update file tree if it's in a loaded area
+            // Other file created: a file the cached item list does not know shows as excluded until evaluated again
+            ProjectItemsService.instance.invalidate(this._projectPath);
             await this.handleFileSystemChange(filePath, 'created');
+            void this.evaluateItems();
         }
     }
 
@@ -166,6 +176,7 @@ export class Project {
             log.info(`Project file changed: ${fileName}`);
             await this.parseProjectFile();
             this._changeEmitter.fire(); // Simple event - just notify change
+            await this.reevaluateItems();
         }
         // For other file changes, we don't need to do anything unless we want to show modification indicators
     }
@@ -248,6 +259,7 @@ export class Project {
             this._frameworks = declared.length > 0 ? declared : this._solutionProject.targetFrameworks || [];
             this._isExecutable = isExecutableProject(projectXml);
             this._isTestProject = isTestProjectCandidate(projectXml);
+            this._isSdkStyle = /<Project\b[^>]*\bSdk\s*=/.test(projectXml) || /<Sdk\s+Name\s*=/.test(projectXml);
 
             log.debug(`Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);
         } catch (error) {
@@ -256,6 +268,7 @@ export class Project {
             this._frameworks = [];
             this._isExecutable = false;
             this._isTestProject = false;
+            this._isSdkStyle = false;
         }
     }
 
@@ -279,41 +292,47 @@ export class Project {
      */
     async loadFolderChildren(folderPath: string): Promise<ProjectFileNode[]> {
         try {
-            const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
-            const children: ProjectFileNode[] = [];
-
-            // Separate folders and files
-            const folders: fs.Dirent[] = [];
-            const rawFiles: fs.Dirent[] = [];
-
-            for (const entry of entries) {
-                if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
-                    folders.push(entry);
-                } else if (entry.isFile()) {
-                    rawFiles.push(entry);
+            const showAll = ShowAllFiles.isOn();
+            let entries: fs.Dirent[] = [];
+            try {
+                entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
+            } catch (error) {
+                // A folder that only exists because of linked files has nothing on disk
+                if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                    throw error;
                 }
             }
 
-            // Add folders first (sorted)
-            for (const folder of folders.sort((a, b) => a.name.localeCompare(b.name))) {
-                const folderFullPath = path.join(folderPath, folder.name);
-                const hasChildren = await this.checkFolderHasChildren(folderFullPath);
+            const disk = entries
+                .filter(entry => entry.isFile() || (entry.isDirectory() && (!shouldSkipDirectory(entry.name) || (showAll && BUILD_OUTPUT_FOLDERS.includes(entry.name)))))
+                .map(entry => ({ name: entry.name, isDirectory: entry.isDirectory() }));
+            const nonEmptyFolders = new Set<string>();
+            for (const entry of disk.filter(entry => entry.isDirectory)) {
+                const full = path.join(folderPath, entry.name);
+                if (await this.checkFolderHasChildren(full)) {
+                    nonEmptyFolders.add(full);
+                }
+            }
+            const laidOut = layoutFolder(folderPath, disk, ProjectItemsService.instance.get(this._projectPath), showAll, nonEmptyFolders);
 
+            const children: ProjectFileNode[] = [];
+            const folders = laidOut.filter(entry => entry.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
+            for (const folder of folders) {
                 children.push({
                     name: folder.name,
-                    path: folderFullPath,
+                    path: folder.path,
                     type: 'folder',
                     children: [], // Will be loaded on demand
                     isLoaded: false,
-                    hasChildren
+                    hasChildren: nonEmptyFolders.has(folder.path) || folder.state === 'linked',
+                    ...(folder.state ? { itemState: folder.state } : {}),
                 });
             }
 
-            // Apply file nesting to files
-            const fileList = rawFiles.map(file => ({
-                name: file.name,
-                path: path.join(folderPath, file.name)
-            }));
+            // Apply file nesting to files (the nested ones keep their own state through `files`)
+            const files = laidOut.filter(entry => !entry.isDirectory);
+            const fileStates = new Map(files.map(file => [file.path, file.state]));
+            const fileList = files.map(file => ({ name: file.name, path: file.path }));
 
             const nestedFiles = FileNestingService.nestFiles(fileList, Settings.fileNesting());
 
@@ -323,7 +342,8 @@ export class Project {
                     const node: ProjectFileNode = {
                         name: nestedFile.name,
                         path: nestedFile.path,
-                        type: 'file'
+                        type: 'file',
+                        ...(fileStates.get(nestedFile.path) ? { itemState: fileStates.get(nestedFile.path) } : {}),
                     };
 
                     // If this file has nested children, add them and mark as expandable
@@ -708,12 +728,16 @@ export class Project {
     /** A file or folder for the tree; files bring the files nested under them (Index.cshtml.cs under Index.cshtml) */
     private toProjectChild(node: ProjectFileNode): ProjectChild {
         const isFolder = node.type === 'folder';
+        const itemValue = !this._isSdkStyle ? undefined
+            : node.itemState === 'excluded' ? EXCLUDED_ITEM
+            : node.itemState === 'included' ? INCLUDED_ITEM : undefined;
         return {
             type: node.type,
             name: node.name,
             hasChildren: node.hasChildren,
             nodeId: isFolder ? NodeIdService.generateFolderId(node.path) : NodeIdService.generateFileId(node.path),
-            contextValue: isFolder ? this.folderContextValue(node.path) : undefined,
+            contextValue: isFolder ? this.folderContextValue(node.path) ?? itemValue : itemValue,
+            ...(node.itemState === 'excluded' || node.itemState === 'linked' ? { itemState: node.itemState } : {}),
             // Folders load their children when expanded; nested files are known with their parent
             ...(!isFolder && node.children?.length ? { children: node.children.map(child => this.toProjectChild(child)) } : {}),
         };
@@ -738,6 +762,33 @@ export class Project {
         }
     }
 
+    /** Asks MSBuild what the project contains, then shows the tree accordingly (it was drawn from the disk before) */
+    async evaluateItems(): Promise<void> {
+        const items = await ProjectItemsService.instance.evaluate(this._projectPath);
+        if (items) {
+            await this.reloadLoadedFolders();
+            this._changeEmitter.fire();
+        }
+    }
+
+    /** The project file or a props file changed, or the items were edited: evaluate again */
+    async reevaluateItems(): Promise<void> {
+        ProjectItemsService.instance.invalidate(this._projectPath);
+        await this.evaluateItems();
+    }
+
+    private async reloadLoadedFolders(): Promise<void> {
+        const loaded = Array.from(this._collapsedState.entries()).filter(([, isCollapsed]) => !isCollapsed).map(([folderPath]) => folderPath);
+        const projectDir = path.dirname(this._projectPath);
+        for (const folderPath of [projectDir, ...loaded.filter(folderPath => folderPath !== projectDir)]) {
+            const node = this.findNodeById(folderPath);
+            if (node) {
+                node.children = await this.loadFolderChildren(folderPath);
+                node.isLoaded = true;
+            }
+        }
+    }
+
     /**
      * Forces a refresh of the project (re-parse project file and refresh loaded tree areas)
      */
@@ -746,18 +797,7 @@ export class Project {
 
         await this.parseProjectFile();
 
-        // Re-load any expanded folders
-        const expandedFolders = Array.from(this._collapsedState.entries())
-            .filter(([_, isCollapsed]) => !isCollapsed)
-            .map(([path, _]) => path);
-
-        for (const folderPath of expandedFolders) {
-            const node = this.findNodeById(folderPath);
-            if (node) {
-                node.children = await this.loadFolderChildren(folderPath);
-                node.isLoaded = true;
-            }
-        }
+        await this.reloadLoadedFolders();
 
         this._changeEmitter.fire(); // Simple event - just notify change
     }

@@ -17,6 +17,7 @@ import { SlnxMigration } from './services/slnxMigration';
 import { SolutionDiscovery } from './services/solutionDiscovery';
 import { reportPacked } from './services/pack';
 import { UnloadedProjects } from './services/unloadedProjects';
+import { ShowAllFiles } from './services/showAllFiles';
 import { DebugConfigService } from './services/debugConfigService';
 import { initializeTemplates } from './services/templates/templateService';
 import { openNewSolutionWizard, TemplateWizardPanel } from './webview/providers/TemplateWizardPanel';
@@ -87,6 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
     SlnxMigration.initialize(context.workspaceState);
     SolutionDiscovery.initialize(context.workspaceState);
     UnloadedProjects.initialize(context.workspaceState);
+    ShowAllFiles.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     TemplateWizardPanel.extensionUri = context.extensionUri;
     PublishPanel.extensionUri = context.extensionUri;

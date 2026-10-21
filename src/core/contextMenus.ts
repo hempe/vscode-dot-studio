@@ -31,6 +31,10 @@ export const STARTUP_PROJECT_WITH_PROFILES = 'startupWithProfiles';
 export const LIBRARY_PROJECT = 'library';
 /** `contextValue` of projects the user unloaded: their menu has no build, add or run items */
 export const UNLOADED_PROJECT = 'unloaded';
+/** `contextValue` of files and folders the project contains (SDK-style projects): they can be excluded */
+export const INCLUDED_ITEM = 'included';
+/** `contextValue` of files and folders on disk the project does not contain (shown with Show All Files): they can be included */
+export const EXCLUDED_ITEM = 'excluded';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
 export const IN_TEST_PROJECT = 'inTestProject';
 

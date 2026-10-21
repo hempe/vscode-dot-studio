@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ShowAllFiles } from '../../services/showAllFiles';
 import * as path from 'path';
 import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
@@ -340,6 +341,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             solution = await SolutionService.discoverAndInitializeSolution() || undefined;
         } else {
             log.info('Reusing existing active solution:', solution.solutionPath);
+        }
+        if (solution) {
+            ShowAllFiles.setSolution(solution.solutionPath);
         }
         if (!solution) {
             log.info('No solution found or failed to initialize');

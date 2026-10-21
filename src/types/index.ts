@@ -22,6 +22,8 @@ export interface ProjectChild {
     readonly isLoaded?: boolean;
     /** Distinguishes nodes of the same type for context menus, e.g. the dependency category */
     readonly contextValue?: string;
+    /** Files the project does not contain (greyed out) or contains from elsewhere (link overlay); undefined for ordinary items */
+    readonly itemState?: 'excluded' | 'linked';
 }
 
 /**
@@ -43,6 +45,8 @@ export interface ProjectNode {
     readonly isStartupProject?: boolean;
     /** Projects the user unloaded: greyed out, collapsed, left out of solution builds */
     readonly isUnloaded?: boolean;
+    /** Files the project does not contain (greyed out) or contains from elsewhere (link overlay); undefined for ordinary items */
+    readonly itemState?: 'excluded' | 'linked';
     /** Project nodes of test projects: they and everything in them get Run Tests / Debug Tests */
     readonly isTestProject?: boolean;
     readonly nodeId: NodeIdString;
