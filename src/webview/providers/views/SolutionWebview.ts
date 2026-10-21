@@ -122,6 +122,11 @@ export class SolutionWebView {
                             color: var(--vscode-list-activeSelectionForeground);
                         }
 
+                        /* Drag & drop: the row a drop goes into (VS Code's list drop colour) */
+                        .tree-node.drop-target {
+                            background-color: var(--vscode-list-dropBackground);
+                        }
+
                         /* Unloaded projects, as Visual Studio greys them out */
                         .tree-node.unloaded {
                             opacity: 0.55;

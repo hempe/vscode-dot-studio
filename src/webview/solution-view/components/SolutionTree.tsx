@@ -9,8 +9,14 @@ import { NodeType, ProjectNode } from '../../../types';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
 import { UICmd } from '../../../types/commands/ui';
 import { sendToBackend } from '../../nuget-view/shared';
+import { canDrop, dropNodeIndex, DropNode, isDraggable } from '../../../core/dropRules';
+import { isCopyDrag } from '../../shared/dragCopyKey';
 
 const log = logger('SolutionTree');
+/** The drag's data type; the tree keeps the dragged ids itself (a drag's data cannot be read during dragover) */
+export const DRAG_DATA_TYPE = 'application/vnd.shinobi.solution-nodes';
+/** Hovering a collapsed folder this long while dragging expands it, as in Visual Studio */
+const AUTO_EXPAND_DELAY_MS = 700;
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
@@ -157,6 +163,90 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
 
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
     const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
+
+    // Drag & drop
+    const draggedIds = useRef<NodeIdString[]>([]);
+    const [dropTargetId, setDropTargetId] = useState<NodeIdString | undefined>();
+    const expandTimer = useRef<{ nodeId: NodeIdString; timer: ReturnType<typeof setTimeout> } | undefined>(undefined);
+    const dropNodes = React.useMemo(() => dropNodeIndex(treeNodes), [treeNodes]);
+
+    const clearExpandTimer = () => {
+        if (expandTimer.current) {
+            clearTimeout(expandTimer.current.timer);
+            expandTimer.current = undefined;
+        }
+    };
+    useEffect(() => () => clearExpandTimer(), []);
+
+    /** The rules' answer for what is dragged over `targetId`; undefined when nothing is dragged */
+    const dropVerdict = (targetId: NodeIdString, e: React.DragEvent) => {
+        const target = dropNodes.get(targetId);
+        const dragged = draggedIds.current.map(id => dropNodes.get(id)).filter((node): node is DropNode => !!node);
+        return target && dragged.length > 0 ? canDrop(dragged, target, isCopyDrag(e)) : undefined;
+    };
+
+    const handleNodeDragStart = (nodeId: NodeIdString, e: React.DragEvent) => {
+        // As for the context menu: a row outside the selection is dragged alone and becomes the selection
+        const ids = (selectedNodeIds.has(nodeId) ? selection : [nodeId]).filter(id => {
+            const node = dropNodes.get(id);
+            return !!node && isDraggable(node);
+        });
+        // Also cancels the native drag of an icon image in a row that cannot be dragged
+        if (renamingNodeId || ids.length === 0) {
+            e.preventDefault();
+            return;
+        }
+        if (!selectedNodeIds.has(nodeId)) {
+            setSelectedNodeId(nodeId);
+        }
+        draggedIds.current = ids;
+        e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(ids));
+        e.dataTransfer.effectAllowed = 'copyMove';
+    };
+
+    const handleNodeDragOver = (nodeId: NodeIdString, e: React.DragEvent) => {
+        const verdict = dropVerdict(nodeId, e);
+        if (!verdict || verdict.nodes.length === 0) {
+            // No preventDefault: the pointer shows that the drop is not allowed
+            setDropTargetId(undefined);
+            clearExpandTimer();
+            return;
+        }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = verdict.effect;
+        setDropTargetId(nodeId);
+        const node = findNodeById(nodeId, treeNodes);
+        if (!node || node.expanded || !(node.children?.length || node.hasChildren)) {
+            clearExpandTimer();
+        } else if (expandTimer.current?.nodeId !== nodeId) {
+            clearExpandTimer();
+            expandTimer.current = {
+                nodeId,
+                timer: setTimeout(() => {
+                    expandTimer.current = undefined;
+                    onExpandNode?.(nodeId);
+                }, AUTO_EXPAND_DELAY_MS),
+            };
+        }
+    };
+
+    const endDrag = () => {
+        draggedIds.current = [];
+        setDropTargetId(undefined);
+        clearExpandTimer();
+    };
+
+    const handleNodeDrop = (nodeId: NodeIdString, e: React.DragEvent) => {
+        const verdict = dropVerdict(nodeId, e);
+        if (verdict && verdict.nodes.length > 0) {
+            e.preventDefault();
+            sendToBackend({
+                type: 'moveNodes',
+                payload: { nodeIds: verdict.nodes.map(node => node.nodeId), targetNodeId: nodeId, copy: verdict.effect === 'copy' },
+            });
+        }
+        endDrag();
+    };
 
     useEffect(() => {
         if (!revealNodeId || !flatNodes.some(item => item.node.nodeId === revealNodeId)) {
@@ -463,6 +553,13 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             className="solution-tree"
             tabIndex={0}
             data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
+            onDragLeave={e => {
+                // Leaving the tree, not just moving from one row to the next
+                if (!treeRef.current?.contains(e.relatedTarget as Node | null)) {
+                    setDropTargetId(undefined);
+                    clearExpandTimer();
+                }
+            }}
         >
             <LoadingBar visible={showLoadingBar} />
             {treeNodes.map((node) => (
@@ -482,6 +579,11 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     focusedNodeId={focusedNodeId}
                     renamingNodeId={renamingNodeId}
                     markers={markers}
+                    dropTargetId={dropTargetId}
+                    onNodeDragStart={handleNodeDragStart}
+                    onNodeDragOver={handleNodeDragOver}
+                    onNodeDrop={handleNodeDrop}
+                    onNodeDragEnd={endDrag}
                 />
             ))}
         </div>

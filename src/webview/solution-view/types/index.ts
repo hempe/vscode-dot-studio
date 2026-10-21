@@ -1,3 +1,4 @@
+import type { DragEvent } from 'react';
 import { DiagnosticMarkers, NodeType, ProjectNode } from "../../../types";
 import { NodeIdString } from "../../../types/nodeId";
 import { ProjectActionCmd } from "../../../types/commands/project-action";
@@ -24,6 +25,12 @@ export interface TreeNodeProps {
     focusedNodeId?: NodeIdString; // Node ID for focus
     renamingNodeId?: NodeIdString; // Node ID for renaming
     markers?: DiagnosticMarkers; // Error/warning markers by node ID
+    /** Drag & drop (the tree decides what may go where): the row a drop would go into, and the row's drag events */
+    dropTargetId?: NodeIdString;
+    onNodeDragStart?: (nodeId: NodeIdString, e: DragEvent) => void;
+    onNodeDragOver?: (nodeId: NodeIdString, e: DragEvent) => void;
+    onNodeDrop?: (nodeId: NodeIdString, e: DragEvent) => void;
+    onNodeDragEnd?: () => void;
 }
 
 export interface SolutionTreeProps {

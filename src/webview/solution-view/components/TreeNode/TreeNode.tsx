@@ -6,6 +6,7 @@ import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
 import { IN_TEST_PROJECT } from '../../../../core/contextMenus';
+import { isDraggable } from '../../../../core/dropRules';
 import { describeMarker, markerCount } from './diagnosticMarker';
 import { IconThemeContext, themeFontFamily } from './IconThemeContext';
 import { fontGlyph, resolveThemeIcon } from '../../../shared/iconTheme';
@@ -27,13 +28,20 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     selectedNodeIds,
     focusedNodeId,
     renamingNodeId,
-    markers
+    markers,
+    dropTargetId,
+    onNodeDragStart,
+    onNodeDragOver,
+    onNodeDrop,
+    onNodeDragEnd
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
     const nodeIdentifier = node.nodeId;
     const isInTestProject = inTestProject || node.isTestProject;
     const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
+    // Nodes with a move can be dragged, not while a name is being edited (the input needs the mouse)
+    const canDrag = isDraggable(node) && !renamingNodeId && !node.isLoading;
 
     const isActiveFile = false;
 
@@ -316,11 +324,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
+                draggable={canDrag}
+                onDragStart={e => onNodeDragStart?.(nodeIdentifier, e)}
+                onDragOver={e => onNodeDragOver?.(nodeIdentifier, e)}
+                onDrop={e => onNodeDrop?.(nodeIdentifier, e)}
+                onDragEnd={() => onNodeDragEnd?.()}
                 data-vscode-context={node.isTemporary ? undefined : JSON.stringify({
                     webviewSection: 'node',
                     nodeType: node.type,
@@ -438,6 +451,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             focusedNodeId={focusedNodeId}
                             renamingNodeId={renamingNodeId}
                             markers={markers}
+                            dropTargetId={dropTargetId}
+                            onNodeDragStart={onNodeDragStart}
+                            onNodeDragOver={onNodeDragOver}
+                            onNodeDrop={onNodeDrop}
+                            onNodeDragEnd={onNodeDragEnd}
                         />
                     ))}
                 </div>
