@@ -204,7 +204,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public async toggleShowAllFiles(): Promise<void> {
         await ShowAllFiles.toggle();
         const solution = SolutionService.getActiveSolution();
-        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.refresh()));
+        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.reloadFileTree()));
         this.refresh();
     }
 

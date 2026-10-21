@@ -837,6 +837,12 @@ export class Project {
         }
     }
 
+    /** Reads the loaded folders again (e.g. Show All Files was toggled) and redraws once */
+    async reloadFileTree(): Promise<void> {
+        await this.reloadLoadedFolders();
+        this._changeEmitter.fire();
+    }
+
     /**
      * Forces a refresh of the project (re-parse project file and refresh loaded tree areas)
      */

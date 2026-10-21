@@ -82,6 +82,18 @@ describe('Project file tree with the item overlay', () => {
         expect((await project.expandFolder(sub)).map(node => node.name)).toEqual(['A.cs']);
     });
 
+    test('reloadFileTree reads the folders again and redraws once, without parsing the project file', async () => {
+        const project = await newProject();
+        await project.getRootChildren();
+        const parse = jest.spyOn(project as unknown as { parseProjectFile(): Promise<void> }, 'parseProjectFile');
+        fs.writeFileSync(path.join(dir, 'New.cs'), '');
+        fired(project).mockClear();
+        await project.reloadFileTree();
+        expect(fired(project)).toHaveBeenCalledTimes(1);
+        expect(parse).not.toHaveBeenCalled();
+        expect((await project.getRootChildren()).length).toBeGreaterThan(0);
+    });
+
     test('shows everything while the item list is not known', async () => {
         const names = (await (await newProject()).loadFolderChildren(dir)).map(node => node.name);
         expect(names).toEqual(expect.arrayContaining(['Program.cs', 'Old.cs']));
