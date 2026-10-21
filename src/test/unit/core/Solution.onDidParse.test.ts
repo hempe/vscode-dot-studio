@@ -40,6 +40,10 @@ jest.mock('../../../core/constants', () => ({
 }));
 
 import { Solution } from '../../../core/Solution';
+import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+
+// The Projects created here would ask MSBuild for their items (a `dotnet msbuild` per project): not in unit tests
+beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });
 
 describe('Solution.onDidParse', () => {
     let dir: string;

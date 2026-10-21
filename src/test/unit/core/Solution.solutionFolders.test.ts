@@ -51,6 +51,10 @@ import { SolutionTreeService } from '../../../services/solutionTreeService';
 import { NodeIdService } from '../../../services/nodeIdService';
 import { ProjectNode } from '../../../types';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
+import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+
+// The Projects created here would ask MSBuild for their items (a `dotnet msbuild` per project): not in unit tests
+beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });
 
 // As written by `dotnet new sln` + `dotnet sln add src/Lib/Lib.csproj --solution-folder Libs`
 const slnContent = `

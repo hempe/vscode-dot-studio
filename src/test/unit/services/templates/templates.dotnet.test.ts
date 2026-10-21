@@ -39,6 +39,10 @@ import { Solution } from '../../../../core/Solution';
 import { SolutionService } from '../../../../services/solutionService';
 import { createItem, createProject, newItemWizard, newProjectWizard } from '../../../../services/templates/templateService';
 import { initialValues } from '../../../../webview/template-wizard/App';
+import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+
+// The Projects created here would ask MSBuild for their items (a `dotnet msbuild` per project): not in unit tests
+beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 
