@@ -35,6 +35,55 @@ describe('project items from real MSBuild', () => {
     };
     const notIncluded = (items: { isIncluded(file: string): boolean }, files: string[]) => files.filter(file => !items.isIncluded(at(file)));
 
+    withDotnet('every file of a web project with Razor, gRPC, resx and XAML files is included', async () => {
+        const files = [
+            'Program.cs', 'appsettings.json', 'appsettings.Development.json', 'Properties/launchSettings.json', 'libman.json',
+            '.editorconfig', '.gitignore', '.dockerignore', 'Dockerfile', 'README.md', 'web.config', 'App.config', 'Properties/Settings.settings',
+            'Components/App.razor', 'Components/Pages/Home.razor', 'Components/Pages/Home.razor.css', 'Components/_Imports.razor',
+            'Pages/Index.cshtml', 'Pages/Index.cshtml.cs', 'Views/Home/Index.cshtml', 'Views/_ViewImports.cshtml',
+            'wwwroot/css/site.css', 'wwwroot/js/site.js', 'wwwroot/lib/bootstrap/bootstrap.min.css', 'wwwroot/favicon.ico',
+            'Protos/greet.proto', 'Resources/Strings.resx', 'Resources/Strings.de.resx', 'Resources/Strings.resw',
+            'Views/MainWindow.xaml', 'Views/MainWindow.xaml.cs', 'App.xaml', 'Images/logo.png',
+            'Scripts/app.ts', 'tsconfig.json', 'Sql/schema.sql',
+        ];
+        // The WPF and gRPC SDKs move these out of None; written out here so the test needs no workload or package
+        const items = await evaluate(`<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="**\\*.xaml;Protos\\*.proto;Images\\*.png" />
+    <ApplicationDefinition Include="App.xaml" />
+    <Page Include="Views\\*.xaml" />
+    <Resource Include="Images\\*.png" />
+    <Protobuf Include="Protos\\*.proto" GrpcServices="Server" />
+  </ItemGroup>
+</Project>
+`, files);
+        expect(notIncluded(items, ['App.csproj', ...files])).toEqual(['App.csproj']);
+        expect(items.itemTypeOf(at('Components', 'App.razor'))).toBe('Content');
+        expect(items.itemTypeOf(at('Resources', 'Strings.resx'))).toBe('EmbeddedResource');
+        expect(items.itemTypeOf(at('Views', 'MainWindow.xaml'))).toBe('Page');
+        expect(items.itemTypeOf(at('Protos', 'greet.proto'))).toBe('Protobuf');
+    }, TIMEOUT);
+
+    withDotnet('a file whose build action was changed in Visual Studio (None Remove + other Include) is included', async () => {
+        const types = ['CodeAnalysisDictionary', 'DesignData', 'DesignDataWithDesignTimeCreatableTypes', 'EntityDeploy', 'Fakes',
+            'Shadow', 'XamlAppDef', 'TypeScriptCompile', 'MauiXaml', 'MauiCss', 'MauiImage', 'PRIResource', 'AdditionalFiles', 'SplashScreen'];
+        const files = types.map(itemType => `${itemType}.dat`);
+        const items = await evaluate(`<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+${types.map(itemType => `    <None Remove="${itemType}.dat" />\n    <${itemType} Include="${itemType}.dat" />`).join('\n')}
+  </ItemGroup>
+</Project>
+`, files);
+        expect(notIncluded(items, files)).toEqual([]);
+        expect(types.map(itemType => items.itemTypeOf(at(`${itemType}.dat`)))).toEqual(types);
+    }, TIMEOUT);
+
     withDotnet('a multi-targeted project lists its files (evaluated for the first target framework)', async () => {
         const files = ['Greeter.cs', 'notes.txt', 'Sub/Util.cs'];
         const items = await evaluate(`<Project Sdk="Microsoft.NET.Sdk">

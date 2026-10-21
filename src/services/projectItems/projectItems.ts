@@ -2,11 +2,21 @@ import * as path from 'path';
 
 /**
  * Item types whose files belong to the project. A file in none of them counts as excluded, so the list
- * is wide: Razor, WPF, gRPC and the like would otherwise disappear from the tree.
+ * is wide: Razor, WPF, gRPC and the like would otherwise disappear from the tree. A type no project uses
+ * costs nothing (MSBuild lists it empty).
+ * - Visual Studio's build actions: changing one writes `<None Remove="x" /><Type Include="x" />`, so the file
+ *   is then only in that type (CodeAnalysisDictionary ... TypeScriptCompile).
+ * - Types packages move files to, out of `None`/`Content`: Microsoft.Maui.Controls (`*.xaml` to MauiXaml,
+ *   `*.css` to MauiCss), Microsoft.WindowsAppSDK (`*.resw` to PRIResource); MAUI resources from the template.
+ * Not listed on purpose: Watch (dotnet watch only), Folder (folders, shown from disk), EditorConfigFiles and
+ * Analyzer (their files are also None, or lie outside the project).
  */
 export const ITEM_TYPES = [
     'Compile', 'None', 'Content', 'EmbeddedResource', 'Page', 'Resource', 'ApplicationDefinition', 'SplashScreen',
     'AdditionalFiles', 'RazorComponent', 'RazorGenerate', 'Protobuf',
+    'CodeAnalysisDictionary', 'DesignData', 'DesignDataWithDesignTimeCreatableTypes', 'EntityDeploy', 'Fakes', 'Shadow',
+    'XamlAppDef', 'TypeScriptCompile',
+    'MauiXaml', 'MauiCss', 'MauiImage', 'MauiIcon', 'MauiSplashScreen', 'MauiFont', 'MauiAsset', 'PRIResource',
 ] as const;
 
 export interface LinkedItem {

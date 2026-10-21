@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { crossTargetingFramework, parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
+import { ITEM_TYPES, crossTargetingFramework, parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);
@@ -128,6 +128,34 @@ describe('parseMsbuildItems robustness', () => {
 
     test('text after the JSON gives undefined', () => {
         expect(parseMsbuildItems(`${json}\ntrailing text`, dir)).toBeUndefined();
+    });
+});
+
+describe('ITEM_TYPES', () => {
+    // A file only in a type missing here is hidden in the tree; each line names where such files come from
+    const expected: [string, string][] = [
+        ['Compile', 'C# sources'], ['None', 'everything else'], ['Content', 'Razor, wwwroot, appsettings'],
+        ['EmbeddedResource', '*.resx'], ['Page', 'WPF *.xaml'], ['Resource', 'WPF images'], ['ApplicationDefinition', 'WPF App.xaml'],
+        ['SplashScreen', 'WPF'], ['AdditionalFiles', 'analyzer inputs'], ['RazorComponent', 'Razor'], ['RazorGenerate', 'Razor'],
+        ['Protobuf', 'Grpc.Tools *.proto'],
+        ['CodeAnalysisDictionary', 'VS build action'], ['DesignData', 'VS build action'],
+        ['DesignDataWithDesignTimeCreatableTypes', 'VS build action'], ['EntityDeploy', 'VS build action (*.edmx)'],
+        ['Fakes', 'VS build action'], ['Shadow', 'VS build action'], ['XamlAppDef', 'VS build action'],
+        ['TypeScriptCompile', 'Microsoft.TypeScript.MSBuild'],
+        ['MauiXaml', 'Microsoft.Maui.Controls moves *.xaml out of None'], ['MauiCss', 'Microsoft.Maui.Controls moves *.css out of None'],
+        ['MauiImage', 'MAUI template'], ['MauiIcon', 'MAUI template'], ['MauiSplashScreen', 'MAUI template'],
+        ['MauiFont', 'MAUI template'], ['MauiAsset', 'MAUI template'],
+        ['PRIResource', 'Microsoft.WindowsAppSDK moves *.resw out of None'],
+    ];
+
+    test('lists every item type whose files belong to the project', () => {
+        expect([...ITEM_TYPES]).toEqual(expected.map(([itemType]) => itemType));
+    });
+
+    test.each(expected.map(([itemType]) => itemType))('a file only listed as %s is included', itemType => {
+        const items = parseMsbuildItems(JSON.stringify({ Items: { [itemType]: [{ FullPath: at('file.dat') }] } }), dir)!;
+        expect(items.isIncluded(at('file.dat'))).toBe(true);
+        expect(items.itemTypeOf(at('file.dat'))).toBe(itemType);
     });
 });
 
