@@ -35,7 +35,9 @@ export interface ProjectDependency {
     type?: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkReference' | undefined;
 }
 
-const log = logger('Project');;
+const log = logger('Project');
+const REEVALUATE_AFTER_CREATE_MS = 300;
+
 export class Project {
     private _disposables: vscode.Disposable[] = [];
     private _fileWatcher?: vscode.FileSystemWatcher;
@@ -50,6 +52,7 @@ export class Project {
     private _isInitialized = false;
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
     private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
+    private _reevaluateTimer?: ReturnType<typeof setTimeout>; // New files: evaluate once a burst is over
 
     public readonly onDidChange = this._changeEmitter.event;
 
@@ -156,11 +159,12 @@ export class Project {
             this._changeEmitter.fire(); // Simple event - just notify change
             await this.reevaluateItems();
         } else {
-            // Other file created: a file the cached item list does not know shows as excluded until evaluated again
-            // (the last list stays shown meanwhile)
-            ProjectItemsService.instance.invalidate(this._projectPath);
+            // Other file created: one the cached item list already includes (a checkout recreating it) needs no
+            // MSBuild; an unknown one shows as excluded until evaluated again, once per burst of new files
+            if (!ProjectItemsService.instance.get(this._projectPath)?.isIncluded(filePath)) {
+                this.scheduleReevaluation();
+            }
             await this.handleFileSystemChange(filePath, 'created');
-            void this.evaluateItems();
         }
     }
 
@@ -782,6 +786,17 @@ export class Project {
         await this.evaluateItems();
     }
 
+    /** New files may match a glob: evaluate again when no file was created for a moment */
+    private scheduleReevaluation(): void {
+        if (this._reevaluateTimer) {
+            clearTimeout(this._reevaluateTimer);
+        }
+        this._reevaluateTimer = setTimeout(() => {
+            this._reevaluateTimer = undefined;
+            void this.reevaluateItems();
+        }, REEVALUATE_AFTER_CREATE_MS);
+    }
+
     private async reloadLoadedFolders(): Promise<void> {
         const loaded = Array.from(this._collapsedState.entries()).filter(([, isCollapsed]) => !isCollapsed).map(([folderPath]) => folderPath);
         const projectDir = path.dirname(this._projectPath);
@@ -898,6 +913,11 @@ export class Project {
 
     dispose(): void {
         log.info(`Disposing project: ${this.name}`);
+
+        if (this._reevaluateTimer) {
+            clearTimeout(this._reevaluateTimer);
+            this._reevaluateTimer = undefined;
+        }
 
         // Dispose event emitter
         this._changeEmitter.dispose();

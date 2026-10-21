@@ -98,4 +98,61 @@ describe('Project file tree with the item overlay', () => {
         expect(fired(project)).not.toHaveBeenCalled();
         expect(load).not.toHaveBeenCalled();
     });
+
+    type Created = { handleFileCreated(uri: { fsPath: string }): Promise<void> };
+    const create = async (project: Project, name: string) => {
+        fs.writeFileSync(path.join(dir, name), '');
+        await (project as unknown as Created).handleFileCreated({ fsPath: path.join(dir, name) });
+    };
+
+    test('a burst of new files the item list does not know causes one evaluation', async () => {
+        withItems();
+        const project = await newProject();
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        jest.useFakeTimers();
+        try {
+            for (let i = 0; i < 20; i++) {
+                await create(project, `New${i}.cs`);
+            }
+            expect(evaluate).not.toHaveBeenCalled();
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(evaluate).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('a new file the item list already includes does not evaluate again', async () => {
+        withItems();
+        const project = await newProject();
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        const invalidate = jest.spyOn(ProjectItemsService.instance, 'invalidate');
+        evaluate.mockClear();
+        jest.useFakeTimers();
+        try {
+            await create(project, 'Program.cs');
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(evaluate).not.toHaveBeenCalled();
+            expect(invalidate).not.toHaveBeenCalled();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('dispose cancels a pending evaluation', async () => {
+        withItems();
+        const project = await newProject();
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        jest.useFakeTimers();
+        try {
+            await create(project, 'New.cs');
+            project.dispose();
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(evaluate).not.toHaveBeenCalled();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });
