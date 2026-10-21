@@ -10,7 +10,7 @@
 
 ### Solution Explorer
 
-`.sln` and `.slnx` solutions as Visual Studio shows them: solution folders and items, projects with Dependencies, Visual Studio's file nesting (`Index.cshtml` › `Index.cshtml.cs`) and your file icon theme. Errors and warnings show on files, folders and projects. Set the startup project, rename, cut/copy/paste, multi-select, Sync with Active Document, type to find. Show All Files greys out what a project does not contain, and linked files appear with a link badge.
+`.sln` and `.slnx` solutions as Visual Studio shows them: solution folders and items, projects with Dependencies, Visual Studio's file nesting (`Index.cshtml` › `Index.cshtml.cs`) and your file icon theme. Errors and warnings show on files, folders and projects. Set the startup project, rename, cut/copy/paste, multi-select, Sync with Active Document, type to find. The tree shows the project's items: Show All Files greys out what a project does not contain, Exclude From Project and Include In Project take files and folders out and put them back, and linked files appear with a link badge.
 
 Right-click anything for Visual Studio's commands: Build, Rebuild, Clean, Add New Item, Add Existing Item, Add Project Reference, Manage NuGet Packages, Manage User Secrets, Open in Terminal, Edit Project File, and more.
 

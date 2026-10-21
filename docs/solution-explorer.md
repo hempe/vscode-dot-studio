@@ -54,7 +54,7 @@ New items go after every other item of the project file (at the end of the last 
 
 The project is evaluated again afterwards, so the tree changes at once. When the file is still in the project after an Exclude (or still out after an Include), a warning says so: other items decide it, for example an explicit `Include` in a `Directory.Build.targets`, or a `DefaultItemExcludes` set in a `Directory.Build.props`.
 
-<!-- GIF: show-all-files.gif (Task 9) -->
+![Show All Files, Include In Project and Exclude From Project](images/show-all-files.gif)
 
 ## Keyboard
 

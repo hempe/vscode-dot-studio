@@ -23,12 +23,13 @@ Found along the way, to be fixed:
 - [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
 - [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
+- [ ] Exclude From Project and Include In Project work on SDK-style projects only; a linked file has no Exclude, and Delete on it deletes the real file
 - [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
 
 ## Phase 19: Solution Explorer, Part 2
 - [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
-- [ ] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
-- [ ] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
+- [x] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
+- [x] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
 - [ ] Drag & drop of files, folders and projects
 - [ ] The diagnostic rules of each analyzer under Dependencies > Analyzers, like Visual Studio
 - [ ] Project Properties: target framework, nullable, implicit usings, version and the like as a form instead of editing the project file

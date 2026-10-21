@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -466,6 +466,42 @@ CS
     record_stop sync-namespaces
     rm -f "$SOLUTION/.editorconfig" "$SOLUTION/src/Shop.Core/Orders/Shipment.cs" "$SOLUTION/src/Shop.Core/Pricing/ShippingCost.cs"
     command "File: Save All" 1
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-show-all-files; then
+    echo "Scene: gif-show-all-files"
+    # A file the project removes (Legacy/Old.cs, <Compile Remove>), in the work copy only: the file is deleted and the
+    # project file put back afterwards, the other scenes don't know them
+    cp "$SOLUTION/src/Shop.Core/Shop.Core.csproj" "$WORK/Shop.Core.csproj.orig"
+    mkdir -p "$SOLUTION/src/Shop.Core/Legacy"
+    printf 'namespace Shop.Core.Legacy;\n\npublic static class Old\n{\n}\n' > "$SOLUTION/src/Shop.Core/Legacy/Old.cs"
+    sed -i 's|^</Project>|  <ItemGroup>\n    <Compile Remove="Legacy\\Old.cs" />\n  </ItemGroup>\n\n</Project>|' "$SOLUTION/src/Shop.Core/Shop.Core.csproj"
+    sleep 5
+    reset
+    tree_focus; tree_open Contoso src Shop.Core
+    record_start
+    pause 2
+    # The title bar's Show All Files button: Legacy, bin and obj appear greyed out
+    click 395 52; pause 2
+    # Legacy is the fourth row below the project (Dependencies, bin, Catalog, Legacy), Old.cs the fifth once it is open
+    row_y=$(( $(project_y src Shop.Core) + 80 ))
+    click 200 "$row_y"; key Right; pause 1.5
+    row_y=$(( row_y + 20 ))
+    click 200 "$row_y"; pause 1
+    # Include In Project is 137 px below the click (from the menu)
+    click 200 "$row_y" 3; pause 1.5
+    click 280 $(( row_y + 137 )); pause 3
+    # Show All Files off again (bin and obj go, Old.cs is now one row higher), then Exclude From Project in the same slot
+    click 395 52; pause 2
+    row_y=$(( row_y - 20 ))
+    click 200 "$row_y" 3; pause 1.5
+    click 280 $(( row_y + 137 )); pause 3
+    xdotool mousemove 1000 400; pause 1
+    record_stop show-all-files
+    rm -rf "$SOLUTION/src/Shop.Core/Legacy"
+    cp "$WORK/Shop.Core.csproj.orig" "$SOLUTION/src/Shop.Core/Shop.Core.csproj"
+    sleep 3
     command "View: Close All Editors" 1
 fi
 
