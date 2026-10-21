@@ -116,6 +116,19 @@ describe('SolutionXFileParser', () => {
             }
         });
 
+        test('should use the Id of a folder declared after a folder inside it (as a moved folder leaves it)', async () => {
+            const result = await SolutionXFileParser.parse(`<Solution>
+  <Folder Name="/Tools/Shared/">
+    <Project Path="Lib/Lib.csproj" />
+  </Folder>
+  <Folder Name="/Tools/" Id="{0D2BD4A5-4D1E-4D4E-9A7A-111111111111}" />
+</Solution>`);
+
+            const tools = folder(result, 'Tools')!;
+            expect(tools.guid).toBe('{0D2BD4A5-4D1E-4D4E-9A7A-111111111111}');
+            expect(result.nestedProjects).toContainEqual({ childGuid: folder(result, 'Shared')!.guid, parentGuid: tools.guid });
+        });
+
         test('should give same-named folders in different places different ids', async () => {
             const result = await SolutionXFileParser.parse(`<Solution>
   <Folder Name="/a/Inner/" />

@@ -12,6 +12,7 @@
 const ATTRS = `((?:\\s+[\\w:.-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)`;
 const FOLDER_RE = () => new RegExp(`<Folder\\b${ATTRS}\\s*(?:\\/>|>([\\s\\S]*?)<\\/Folder\\s*>)`, 'g');
 const FILE_RE = () => new RegExp(`<File\\b${ATTRS}\\s*(?:\\/>|>\\s*<\\/File\\s*>)`, 'g');
+const PROJECT_RE = () => new RegExp(`<Project\\b${ATTRS}\\s*(?:\\/>|>[\\s\\S]*?<\\/Project\\s*>)`, 'g');
 
 interface FolderElement {
     start: number;
@@ -61,18 +62,7 @@ export class SolutionXFileEditor {
             throw new Error(`Solution folder "${newName}" already exists`);
         }
 
-        const targets = this.findFolderAndDescendants(content, segments);
-
-        for (const folder of targets.reverse()) {
-            const renamedKey = newKey + folder.key.slice(key.length);
-            const element = content.slice(folder.start, folder.end);
-            const updated = element.replace(
-                /(\sName\s*=\s*)("[^"]*"|'[^']*')/,
-                (_, prefix) => `${prefix}"${this.escape(`/${renamedKey}/`)}"`
-            );
-            content = content.slice(0, folder.start) + updated + content.slice(folder.end);
-        }
-        return content;
+        return this.rekeyFolders(content, key, newKey);
     }
 
     /**
@@ -136,17 +126,67 @@ export class SolutionXFileEditor {
             content = this.removeLines(content, file.start, file.end);
             removed = true;
 
-            // Collapse <Folder ...>   </Folder> into <Folder ... />
-            const updated = this.findFolders(content).find(f => f.start === folder.start)!;
-            if (!/\S/.test(content.slice(updated.bodyStart, updated.bodyEnd))) {
-                content = content.slice(0, updated.start) + `<Folder${updated.attrs} />` + content.slice(updated.end);
-            }
+            content = this.collapseIfEmpty(content, folder.start);
         }
 
         if (!removed) {
             throw new Error(`Solution item "${filePath}" not found in solution`);
         }
         return content;
+    }
+
+    /**
+     * Moves a project into the folder (`[]`: the solution root) as one element, child elements included; a folder it
+     * leaves empty becomes self-closing
+     */
+    static moveProject(content: string, projectPath: string, targetSegments: string[]): string {
+        const normalized = this.normalizePath(projectPath).toLowerCase();
+        const project = this.findProjects(content).find(p => this.normalizePath(p.path).toLowerCase() === normalized);
+        if (!project) {
+            throw new Error(`Project "${projectPath}" not found in solution`);
+        }
+        const element = content.slice(project.start, project.end);
+        const fromIndent = this.lineIndent(content, project.start);
+        content = this.removeLines(content, project.start, project.end);
+        if (project.folder) {
+            content = this.collapseIfEmpty(content, project.folder.start);
+        }
+        return targetSegments.length > 0
+            ? this.appendToFolder(content, targetSegments, element, fromIndent)
+            : this.appendToRoot(content, element, fromIndent);
+    }
+
+    /**
+     * Moves a folder and the folders below it into the target folder (`[]`: the solution root): their Names change,
+     * their elements stay where they are. Refuses the folder itself or a folder inside it, and a name the target has.
+     */
+    static moveFolder(content: string, segments: string[], targetSegments: string[]): string {
+        const name = segments[segments.length - 1];
+        const key = segments.join('/');
+        const newKey = [...targetSegments, name].join('/');
+        if (`${targetSegments.join('/')}/`.toLowerCase().startsWith(`${key}/`.toLowerCase())) {
+            throw new Error(`Solution folder "${name}" cannot be moved into itself`);
+        }
+        if (newKey.toLowerCase() === key.toLowerCase()) {
+            return content;
+        }
+        const taken = newKey.toLowerCase();
+        if (this.findFolders(content).some(f => f.key.toLowerCase() === taken || f.key.toLowerCase().startsWith(`${taken}/`))) {
+            throw new Error(`Solution folder "${name}" already exists there`);
+        }
+        return this.rekeyFolders(this.ensureFolderElements(content, targetSegments), key, newKey);
+    }
+
+    /** Moves a solution item from one folder to another; the folder it leaves empty becomes self-closing */
+    static moveFile(content: string, fromSegments: string[], filePath: string, toSegments: string[]): string {
+        const normalized = this.normalizePath(filePath).toLowerCase();
+        const from = this.findFolders(content).find(f => f.key === fromSegments.join('/'));
+        const file = from && this.findFiles(content, from).find(f => this.normalizePath(f.path).toLowerCase() === normalized);
+        if (!from || !file) {
+            throw new Error(`Solution item "${filePath}" not found in solution folder "${fromSegments[fromSegments.length - 1]}"`);
+        }
+        content = this.collapseIfEmpty(this.removeLines(content, file.start, file.end), from.start);
+        return this.addFile(content, toSegments, file.path);
     }
 
     /**
@@ -264,6 +304,103 @@ export class SolutionXFileEditor {
             }
         }
         return files;
+    }
+
+    /** Gives the folder `key` and the folders below it their Name under `newKey` */
+    private static rekeyFolders(content: string, key: string, newKey: string): string {
+        const targets = this.findFolderAndDescendants(content, key.split('/'));
+        for (const folder of targets.reverse()) {
+            const renamedKey = newKey + folder.key.slice(key.length);
+            const element = content.slice(folder.start, folder.end);
+            const updated = element.replace(
+                /(\sName\s*=\s*)("[^"]*"|'[^']*')/,
+                (_, prefix) => `${prefix}"${this.escape(`/${renamedKey}/`)}"`
+            );
+            content = content.slice(0, folder.start) + updated + content.slice(folder.end);
+        }
+        return content;
+    }
+
+    /** `<Folder ...>` with only whitespace inside becomes `<Folder ... />` */
+    private static collapseIfEmpty(content: string, folderStart: number): string {
+        const folder = this.findFolders(content).find(f => f.start === folderStart);
+        if (!folder || folder.selfClosing || /\S/.test(content.slice(folder.bodyStart, folder.bodyEnd))) {
+            return content;
+        }
+        return content.slice(0, folder.start) + `<Folder${folder.attrs} />` + content.slice(folder.end);
+    }
+
+    /** `<Project>` elements, with the folder whose body holds them (none: at the root) */
+    private static findProjects(content: string): { start: number; end: number; path: string; folder?: FolderElement }[] {
+        const folders = this.findFolders(content);
+        const projects: { start: number; end: number; path: string; folder?: FolderElement }[] = [];
+        const re = PROJECT_RE();
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(content)) !== null) {
+            const projectPath = this.getAttribute(match[1], 'Path');
+            if (projectPath) {
+                const start = match.index;
+                const end = start + match[0].length;
+                projects.push({ start, end, path: projectPath, folder: folders.find(f => !f.selfClosing && start >= f.bodyStart && end <= f.bodyEnd) });
+            }
+        }
+        return projects;
+    }
+
+    /** Adds an element as the last child of the folder (its element created when missing), indented for its new depth */
+    private static appendToFolder(content: string, segments: string[], element: string, fromIndent: string): string {
+        content = this.ensureFolderElements(content, segments);
+        const folder = this.findFolders(content).find(f => f.key === segments.join('/'))!;
+        const nl = this.newline(content);
+        const indent = this.lineIndent(content, folder.start);
+        const childIndent = indent + this.indentUnit(content);
+        const moved = this.reindent(element, fromIndent, childIndent);
+        const body = folder.selfClosing ? '' : content.slice(folder.bodyStart, folder.bodyEnd);
+        if (!/\S/.test(body)) {
+            return content.slice(0, folder.start) + `<Folder${folder.attrs}>${nl}${childIndent}${moved}${nl}${indent}</Folder>` + content.slice(folder.end);
+        }
+        const lastChildEnd = folder.bodyStart + body.trimEnd().length;
+        if (!content.slice(lastChildEnd, folder.bodyEnd).includes('\n')) {
+            // </Folder> on the line of the last child: the moved element and </Folder> get lines of their own
+            return content.slice(0, lastChildEnd) + `${nl}${childIndent}${moved}${nl}${indent}` + content.slice(folder.bodyEnd);
+        }
+        const insertAt = this.lineEnd(content, lastChildEnd);
+        return content.slice(0, insertAt) + `${childIndent}${moved}${nl}` + content.slice(insertAt);
+    }
+
+    /** Adds an element after the last project at the solution root, or at the end of the solution */
+    private static appendToRoot(content: string, element: string, fromIndent: string): string {
+        const nl = this.newline(content);
+        const rootProjects = this.findProjects(content).filter(p => !p.folder);
+        const last = rootProjects[rootProjects.length - 1];
+        if (last) {
+            const indent = this.lineIndent(content, last.start);
+            const moved = this.reindent(element, fromIndent, indent);
+            const lineBreak = /^[ \t]*\r?\n/.exec(content.slice(last.end));
+            if (!lineBreak) {
+                return content.slice(0, last.end) + `${nl}${indent}${moved}` + content.slice(last.end);
+            }
+            const insertAt = last.end + lineBreak[0].length;
+            return content.slice(0, insertAt) + `${indent}${moved}${nl}` + content.slice(insertAt);
+        }
+        const close = content.lastIndexOf('</Solution');
+        if (close === -1) {
+            throw new Error('Invalid .slnx file: missing <Solution> root element');
+        }
+        const unit = this.indentUnit(content);
+        const moved = this.reindent(element, fromIndent, unit);
+        const lineStart = this.lineStart(content, close);
+        if (/^[ \t]*$/.test(content.slice(lineStart, close))) {
+            return content.slice(0, lineStart) + `${unit}${moved}${nl}` + content.slice(lineStart);
+        }
+        // </Solution> on the line of another element
+        return content.slice(0, close) + `${nl}${unit}${moved}${nl}` + content.slice(close);
+    }
+
+    /** Moves the continuation lines of a multi-line element from one indentation to another */
+    private static reindent(element: string, fromIndent: string, toIndent: string): string {
+        return element.replace(/(\r?\n)([ \t]*)/g, (_, nl: string, indent: string) =>
+            nl + (indent.startsWith(fromIndent) ? toIndent + indent.slice(fromIndent.length) : indent));
     }
 
     private static getAttribute(attrs: string, name: string): string | undefined {

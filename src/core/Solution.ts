@@ -898,7 +898,8 @@ export class Solution {
                 throw new Error(`${targetName} already contains ${path.basename(node.filePath)}`);
             }
             if (this.isSlnx) {
-                throw new Error('Moving is not supported for .slnx files yet');
+                await this.editSlnx(content => SolutionXFileEditor.moveFile(
+                    content, this.getSolutionFolderSegments(from.guid), itemPath, this.getSolutionFolderSegments(target.guid)));
             } else {
                 await this.editSlnLines(lines => this.moveSolutionItemLines(lines, from.guid, target.guid, itemPath));
             }
@@ -928,7 +929,10 @@ export class Solution {
         }
 
         if (this.isSlnx) {
-            throw new Error('Moving is not supported for .slnx files yet');
+            const targetSegments = target ? this.getSolutionFolderSegments(target.guid) : [];
+            await this.editSlnx(content => node.kind === 'project'
+                ? SolutionXFileEditor.moveProject(content, relative(node.projectPath), targetSegments)
+                : SolutionXFileEditor.moveFolder(content, this.getSolutionFolderSegments(moving.guid), targetSegments));
         } else {
             await this.editSlnLines(lines => this.setNestedParent(lines, moving.guid, target?.guid));
         }

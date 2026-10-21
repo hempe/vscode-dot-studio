@@ -217,4 +217,143 @@ describe('SolutionXFileEditor', () => {
             expect(() => SolutionXFileEditor.removeFile(sample, 'nope.md')).toThrow('not found');
         });
     });
+
+    describe('moveProject', () => {
+        test('moves a root project to the end of a folder', () => {
+            expect(SolutionXFileEditor.moveProject(sample, 'App/App.csproj', ['src'])).toBe(`<Solution>
+  <Folder Name="/Deep/" />
+  <Folder Name="/Deep/Deeper/">
+    <Project Path="src/nested/Inner/Inner.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <File Path="src/README.md" />
+    <Project Path="src/Lib/Lib.csproj" />
+    <Project Path="App/App.csproj" />
+  </Folder>
+</Solution>
+`);
+        });
+
+        test('moves a project to the root, after the root projects', () => {
+            expect(SolutionXFileEditor.moveProject(sample, 'src/Lib/Lib.csproj', [])).toBe(`<Solution>
+  <Folder Name="/Deep/" />
+  <Folder Name="/Deep/Deeper/">
+    <Project Path="src/nested/Inner/Inner.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <File Path="src/README.md" />
+  </Folder>
+  <Project Path="App/App.csproj" />
+  <Project Path="src/Lib/Lib.csproj" />
+</Solution>
+`);
+        });
+
+        test('a folder left empty becomes self-closing; a self-closing target opens', async () => {
+            const result = SolutionXFileEditor.moveProject(sample, 'src/nested/Inner/Inner.csproj', ['Deep']);
+
+            expect(result).toContain('  <Folder Name="/Deep/">\n    <Project Path="src/nested/Inner/Inner.csproj" />\n  </Folder>\n  <Folder Name="/Deep/Deeper/" />\n');
+            expect(await structure(result)).toContain('project src/nested/Inner/Inner.csproj <- Deep');
+        });
+
+        test('to the root when there is no root project: before </Solution>', () => {
+            const noRoot = sample.replace('  <Project Path="App/App.csproj" />\n', '');
+            expect(SolutionXFileEditor.moveProject(noRoot, 'src/Lib/Lib.csproj', [])).toMatch(/  <Project Path="src\/Lib\/Lib.csproj" \/>\n<\/Solution>\n$/);
+        });
+
+        test('moves child elements along, re-indented, and matches paths regardless of separator', () => {
+            const withChild = sample.replace('  <Project Path="App/App.csproj" />',
+                '  <Project Path="App/App.csproj">\n    <BuildType Project="Release" />\n  </Project>');
+            expect(SolutionXFileEditor.moveProject(withChild, 'App\\App.csproj', ['src'])).toContain(
+                '    <Project Path="src/Lib/Lib.csproj" />\n    <Project Path="App/App.csproj">\n      <BuildType Project="Release" />\n    </Project>\n  </Folder>');
+        });
+
+        test('throws for a project that is not there', () => {
+            expect(() => SolutionXFileEditor.moveProject(sample, 'Nope/Nope.csproj', [])).toThrow('not found');
+        });
+
+        test('keeps CRLF line endings and tab indentation', () => {
+            const crlf = '<Solution>\r\n\t<Folder Name="/a/" />\r\n\t<Folder Name="/b/">\r\n\t\t<Project Path="B/B.csproj">\r\n\t\t\t<Build Project="false" />\r\n\t\t</Project>\r\n\t</Folder>\r\n</Solution>\r\n';
+
+            const intoA = SolutionXFileEditor.moveProject(crlf, 'B/B.csproj', ['a']);
+            expect(intoA).toBe('<Solution>\r\n\t<Folder Name="/a/">\r\n\t\t<Project Path="B/B.csproj">\r\n\t\t\t<Build Project="false" />\r\n\t\t</Project>\r\n\t</Folder>\r\n\t<Folder Name="/b/" />\r\n</Solution>\r\n');
+            expect(SolutionXFileEditor.moveProject(intoA, 'B/B.csproj', []))
+                .toBe('<Solution>\r\n\t<Folder Name="/a/" />\r\n\t<Folder Name="/b/" />\r\n\t<Project Path="B/B.csproj">\r\n\t\t<Build Project="false" />\r\n\t</Project>\r\n</Solution>\r\n');
+        });
+
+        test('into a folder that only exists implicitly, and into a folder written on one line', async () => {
+            const implicit = SolutionXFileEditor.moveProject(sample, 'App/App.csproj', ['Other', 'Sub']);
+            expect(await structure(implicit)).toEqual(expect.arrayContaining(['folder Other', 'folder Other/Sub', 'project App/App.csproj <- Other/Sub']));
+
+            const oneLine = '<Solution>\n  <Folder Name="/x/"><Project Path="X/X.csproj" /></Folder>\n  <Project Path="A/A.csproj" />\n</Solution>\n';
+            const result = SolutionXFileEditor.moveProject(oneLine, 'A/A.csproj', ['x']);
+            expect(await structure(result)).toEqual(['folder x', 'project A/A.csproj <- x', 'project X/X.csproj <- x']);
+        });
+    });
+
+    describe('moveFolder', () => {
+        test('renames the folder and its descendants under the target; elements stay in place', async () => {
+            const result = SolutionXFileEditor.moveFolder(sample, ['Deep'], ['src']);
+
+            expect(result).toBe(sample.replace('"/Deep/"', '"/src/Deep/"').replace('"/Deep/Deeper/"', '"/src/Deep/Deeper/"'));
+            expect(await structure(result)).toEqual(expect.arrayContaining([
+                'folder src/Deep',
+                'folder src/Deep/Deeper',
+                'project src/nested/Inner/Inner.csproj <- src/Deep/Deeper',
+            ]));
+        });
+
+        test('moves a nested folder to the root', () => {
+            expect(SolutionXFileEditor.moveFolder(sample, ['Deep', 'Deeper'], [])).toContain('<Folder Name="/Deeper/">');
+        });
+
+        test('refuses itself, its descendants and a name the target has', () => {
+            expect(() => SolutionXFileEditor.moveFolder(sample, ['Deep'], ['Deep', 'Deeper'])).toThrow('into itself');
+            expect(() => SolutionXFileEditor.moveFolder(sample, ['Deep'], ['Deep'])).toThrow('into itself');
+            const withDuplicate = sample.replace('  <Project Path="App/App.csproj" />', '  <Folder Name="/src/Deeper/" />\n  <Project Path="App/App.csproj" />');
+            expect(() => SolutionXFileEditor.moveFolder(withDuplicate, ['Deep', 'Deeper'], ['src'])).toThrow('already exists');
+        });
+
+        test('a folder may go into a folder of the same name, or of a name it starts with', async () => {
+            const content = '<Solution>\n  <Folder Name="/Deep/" />\n  <Folder Name="/Deeper/" />\n  <Folder Name="/Shared/" />\n  <Folder Name="/src/Shared/" />\n</Solution>\n';
+
+            expect(await structure(SolutionXFileEditor.moveFolder(content, ['Shared'], ['src', 'Shared']))).toContain('folder src/Shared/Shared');
+            expect(await structure(SolutionXFileEditor.moveFolder(content, ['Deep'], ['Deeper']))).toContain('folder Deeper/Deep');
+        });
+
+        test('a folder without an element of its own moves with its descendants; Ids are kept', async () => {
+            const content = '<Solution>\n  <Folder Name="/a/b/" Id="11111111-2222-3333-4444-555555555555">\n    <Project Path="B/B.csproj" />\n  </Folder>\n  <Folder Name="/c/" />\n</Solution>\n';
+            const result = SolutionXFileEditor.moveFolder(content, ['a'], ['c']);
+
+            expect(result).toBe(content.replace('"/a/b/"', '"/c/a/b/"'));
+            expect(await structure(result)).toEqual(['folder c', 'folder c/a', 'folder c/a/b', 'project B/B.csproj <- c/a/b']);
+        });
+
+        test('keeps CRLF line endings', () => {
+            const crlf = sample.replace(/\n/g, '\r\n');
+            expect(SolutionXFileEditor.moveFolder(crlf, ['Deep'], ['src']))
+                .toBe(crlf.replace('"/Deep/"', '"/src/Deep/"').replace('"/Deep/Deeper/"', '"/src/Deep/Deeper/"'));
+        });
+    });
+
+    describe('moveFile', () => {
+        test('moves a solution item from one folder to another', async () => {
+            const result = SolutionXFileEditor.moveFile(sample, ['src'], 'src/README.md', ['Deep']);
+
+            expect(result).toContain('  <Folder Name="/Deep/">\n    <File Path="src/README.md" />\n  </Folder>\n');
+            expect(result).toContain('  <Folder Name="/src/">\n    <Project Path="src/Lib/Lib.csproj" />\n  </Folder>\n');
+            expect(await structure(result)).toContain('file src/README.md <- Deep');
+        });
+
+        test('throws when the file is not in that folder', () => {
+            expect(() => SolutionXFileEditor.moveFile(sample, ['Deep'], 'src/README.md', ['src'])).toThrow('not found');
+        });
+
+        test('a folder left empty becomes self-closing; keeps CRLF and the path as written', () => {
+            const crlf = '<Solution>\r\n  <Folder Name="/a/" />\r\n  <Folder Name="/b/">\r\n    <File Path="docs\\x.md" />\r\n  </Folder>\r\n</Solution>\r\n';
+
+            expect(SolutionXFileEditor.moveFile(crlf, ['b'], 'docs/x.md', ['a']))
+                .toBe('<Solution>\r\n  <Folder Name="/a/">\r\n    <File Path="docs\\x.md" />\r\n  </Folder>\r\n  <Folder Name="/b/" />\r\n</Solution>\r\n');
+        });
+    });
 });

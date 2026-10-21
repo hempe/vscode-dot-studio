@@ -1,0 +1,20 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/Libraries/">
+    <Project Path="lib/CoreLibrary/CoreLibrary.csproj" />
+  </Folder>
+  <Folder Name="/Libraries/Shared/">
+    <Project Path="lib/Utils/Utils.csproj" />
+  </Folder>
+  <Folder Name="/Tools/" />
+  <Folder Name="/Web Projects/">
+    <File Path="README.md" />
+    <Project Path="src/WebApi/WebApi.csproj" />
+    <Project Path="src/WebApp/WebApp.csproj" />
+  </Folder>
+  <Folder Name="/Web Projects/Shared/" />
+  <Project Path="standalone/StandaloneProject.csproj" />
+</Solution>

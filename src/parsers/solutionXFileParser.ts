@@ -89,6 +89,16 @@ export class SolutionXFileParser {
             }
         };
 
+        // A folder may come after a folder inside it (a moved folder keeps its place): its Id counts all the same
+        const declaredIds = new Map<string, string>();
+        for (const folderXml of solutionXml.Folder ?? []) {
+            const id: string | undefined = folderXml.$?.Id;
+            const name: string | undefined = folderXml.$?.Name;
+            if (id && name) {
+                declaredIds.set(name.split('/').filter(s => s.length > 0).join('/').toLowerCase(), id);
+            }
+        }
+
         // Nested <Folder> elements are not part of the format; like dotnet, only top-level ones count
         for (const folderXml of solutionXml.Folder ?? []) {
             const name: string | undefined = folderXml.$?.Name;
@@ -107,7 +117,7 @@ export class SolutionXFileParser {
             }
             declaredFolders.add(key);
 
-            const folder = this.ensureFolder(segments, folders, solution, folderXml.$.Id);
+            const folder = this.ensureFolder(segments, folders, solution, declaredIds);
 
             const items: Record<string, string> = {};
             for (const fileXml of folderXml.File ?? []) {
@@ -154,7 +164,7 @@ export class SolutionXFileParser {
         segments: string[],
         folders: Map<string, SolutionProject>,
         solution: SolutionFile,
-        id?: string
+        declaredIds: Map<string, string>
     ): SolutionProject {
         const key = segments.join('/');
         const existing = folders.get(key.toLowerCase());
@@ -163,7 +173,7 @@ export class SolutionXFileParser {
         }
 
         const parent = segments.length > 1
-            ? this.ensureFolder(segments.slice(0, -1), folders, solution)
+            ? this.ensureFolder(segments.slice(0, -1), folders, solution, declaredIds)
             : undefined;
 
         const folderName = segments[segments.length - 1];
@@ -171,7 +181,7 @@ export class SolutionXFileParser {
             typeGuid: PROJECT_TYPE_GUIDS.SOLUTION_FOLDER,
             name: folderName,
             path: folderName,
-            guid: id || this.stableGuid(`folder:${key}`),
+            guid: declaredIds.get(key.toLowerCase()) || this.stableGuid(`folder:${key}`),
             projectSections: []
         };
 

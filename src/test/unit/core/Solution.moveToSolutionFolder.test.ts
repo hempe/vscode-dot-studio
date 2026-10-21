@@ -44,6 +44,8 @@ const openSolution = async (file: string) => {
 const variants: [string, string, (text: string) => string][] = [
     ['.sln', 'TestHierarchy.sln', text => text],
     ['.sln with CRLF line endings', 'TestHierarchy.sln', text => text.replace(/\n/g, '\r\n')],
+    ['.slnx', 'TestHierarchy.slnx', text => text],
+    ['.slnx with CRLF line endings', 'TestHierarchy.slnx', text => text.replace(/\n/g, '\r\n')],
 ];
 
 describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, transform) => {
@@ -83,6 +85,12 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
         .find(p => solution.isSolutionFolder(p) && solution.getSolutionFolderPath(p.guid) === names.join('/'))!.guid;
     const project = (...parts: string[]): SolutionNodeMove => ({ kind: 'project', projectPath: path.join(dir, ...parts) });
     const text = () => fs.readFileSync(file, 'utf8');
+    /** The .slnx with LF line endings, after checking the CRLF variant has no LF left */
+    const slnxText = () => {
+        const content = text();
+        if (content.includes('\r\n')) expect(content.replace(/\r\n/g, '')).not.toContain('\n');
+        return content.replace(/\r\n/g, '\n');
+    };
     /** Lines only in `before`, and lines only in `after` */
     const diff = (before: string, after: string) => {
         const a = before.split(/\r?\n/);
@@ -106,6 +114,8 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
                 removed: ['\t\t{33333333-3333-3333-3333-333333333333} = {11111111-1111-1111-1111-111111111111}'],
                 added: ['\t\t{33333333-3333-3333-3333-333333333333} = {99999999-9999-9999-9999-999999999999}'],
             });
+        } else {
+            expect(slnxText()).toContain('  <Folder Name="/Tools/">\n    <Project Path="src/WebApp/WebApp.csproj" />\n  </Folder>\n');
         }
     });
 
@@ -119,6 +129,9 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
                 removed: ['\t\t{55555555-5555-5555-5555-555555555555} = {22222222-2222-2222-2222-222222222222}'],
                 added: [],
             });
+        } else {
+            expect(slnxText()).toContain('  <Folder Name="/Libraries/" />\n');
+            expect(slnxText()).toContain('  <Project Path="standalone/StandaloneProject.csproj" />\n  <Project Path="lib/CoreLibrary/CoreLibrary.csproj" />\n</Solution>');
         }
     });
 
@@ -126,12 +139,14 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
         await solution.moveToSolutionFolder({ kind: 'solutionFolder', folderGuid: folder('Libraries', 'Shared') }, folder('Tools'));
 
         expect(outline()).toEqual(['Libraries', '  CoreLibrary', 'StandaloneProject', 'Tools', '  Shared', '    Utils', ...webProjects]);
+        if (!isSln) expect(slnxText()).toContain('<Folder Name="/Tools/Shared/">');
     });
 
     test('moves a solution folder to the root', async () => {
         await solution.moveToSolutionFolder({ kind: 'solutionFolder', folderGuid: folder('Libraries', 'Shared') }, undefined);
 
         expect(outline()).toEqual(['Libraries', '  CoreLibrary', 'Shared', '  Utils', 'StandaloneProject', 'Tools', ...webProjects]);
+        if (!isSln) expect(slnxText()).toContain('<Folder Name="/Shared/">');
     });
 
     test('moves a solution item to another solution folder', async () => {
@@ -148,6 +163,8 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
             };
             expect(block('Web Projects')).toEqual([]);
             expect(block('Tools')).toEqual(['\tProjectSection(SolutionItems) = preProject', '\t\tREADME.md = README.md', '\tEndProjectSection']);
+        } else {
+            expect(slnxText()).toContain('  <Folder Name="/Tools/">\n    <File Path="README.md" />\n  </Folder>\n');
         }
     });
 
@@ -189,6 +206,30 @@ describe.each(variants)('Solution.moveToSolutionFolder (%s)', (_, fileName, tran
             { kind: 'solutionItem', filePath: path.join(dir, 'README.md'), folderGuid: folder('Web Projects') }, folder('Web Projects'));
         expect(text()).toBe(before);
     });
+});
+
+test('.slnx: a moved solution folder without an Id gets the GUID of its new path; what is in it goes along', async () => {
+    const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-move-')));
+    fs.cpSync(fixture, dir, { recursive: true });
+    const solution = await openSolution(path.join(dir, 'TestHierarchy.slnx'));
+    try {
+        const model = () => solution.solutionFile!;
+        const guidOf = (folderPath: string) => model().projects
+            .find(p => solution.isSolutionFolder(p) && solution.getSolutionFolderPath(p.guid) === folderPath)?.guid;
+        const utils = () => model().projects.find(p => p.name === 'Utils')!.guid;
+        const before = { shared: guidOf('Libraries/Shared')!, utils: utils() };
+
+        await solution.moveToSolutionFolder({ kind: 'solutionFolder', folderGuid: before.shared }, guidOf('Tools'));
+
+        const shared = guidOf('Tools/Shared')!;
+        expect(shared).toBeDefined();
+        expect(shared).not.toBe(before.shared);
+        expect(utils()).toBe(before.utils);
+        expect(model().nestedProjects).toContainEqual({ childGuid: before.utils, parentGuid: shared });
+    } finally {
+        solution.dispose();
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 });
 
 test('.sln: a NestedProjects section left empty goes, as Visual Studio writes none', async () => {
