@@ -122,6 +122,17 @@ export declare type TreeSelectionChangedCmd = {
     }
 }
 
+/** Drag & drop in the tree: the dragged nodes that fit the target; the extension checks the drop again */
+export declare type MoveNodesCmd = {
+    readonly type: 'moveNodes',
+    readonly payload: {
+        readonly nodeIds: NodeIdString[],
+        readonly targetNodeId: NodeIdString,
+        /** Ctrl (Cmd on macOS) was held over files and folders */
+        readonly copy: boolean
+    }
+}
+
 export declare type BackendCmd =
     GetPackageReadmeCmd |
     GetPackageIconCmd |
@@ -138,4 +149,5 @@ export declare type BackendCmd =
     ExpandNodeCmd |
     CollapseNodeCmd |
     TreeFocusChangedCmd |
-    TreeSelectionChangedCmd;
+    TreeSelectionChangedCmd |
+    MoveNodesCmd;

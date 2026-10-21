@@ -305,6 +305,22 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 await vscode.commands.executeCommand('setContext', FOCUSED_NODE_TYPE_CONTEXT, message.payload.nodeType ?? '');
                 break;
 
+            case 'moveNodes': {
+                const { nodeIds, targetNodeId, copy } = message.payload;
+                if (!Array.isArray(nodeIds) || typeof targetNodeId !== 'string') {
+                    log.warn('moveNodes without nodes or target ignored');
+                    break;
+                }
+                await SolutionActionService.moveNodes(nodeIds, targetNodeId, copy === true);
+                // Solution nodes change the solution file, files and folders the disk: refresh both ways, like the other operations
+                const solution = SolutionService.getActiveSolution();
+                if (solution) {
+                    this.handleFileChange(solution.solutionPath, 'changed');
+                }
+                await this._triggerImmediateTreeRefresh(`drop of ${nodeIds.length} node(s)`);
+                break;
+            }
+
             case 'expandNode':
                 if (message.payload.nodeId) {
                     log.info('Handling expandNode request:', message.payload.nodeId);
