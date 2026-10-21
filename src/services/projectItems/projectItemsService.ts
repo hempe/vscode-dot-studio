@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../../core/logger';
@@ -32,8 +33,14 @@ export class ProjectItemsService {
     private readonly pending = new Map<string, Promise<ProjectItems | undefined>>();
     private readonly generation = new Map<string, number>();
     private readonly listeners = new Set<(projectPath: string) => void>();
+    // Opening a solution evaluates every project: start at most `maxConcurrent` processes at once
+    private running = 0;
+    private readonly waiting: (() => void)[] = [];
 
-    constructor(private readonly run: RunMsbuild = runMsbuild) { }
+    constructor(
+        private readonly run: RunMsbuild = runMsbuild,
+        private readonly maxConcurrent = Math.max(2, Math.floor(os.cpus().length / 2)),
+    ) { }
 
     /** The cached result (possibly outdated while a new evaluation runs), without starting an evaluation */
     get(projectPath: string): ProjectItems | undefined {
@@ -68,7 +75,7 @@ export class ProjectItemsService {
     private async evaluateNow(projectPath: string, generation: number): Promise<ProjectItems | undefined> {
         let items: ProjectItems | undefined;
         try {
-            items = parseMsbuildItems(await this.run(projectPath), path.dirname(projectPath));
+            items = parseMsbuildItems(await this.runLimited(projectPath), path.dirname(projectPath));
             if (!items) {
                 log.warn(`MSBuild gave no item list for ${projectPath}`);
             }
@@ -99,6 +106,25 @@ export class ProjectItemsService {
             }
         }
         return this.get(projectPath);
+    }
+
+    private async runLimited(projectPath: string): Promise<string> {
+        if (this.running >= this.maxConcurrent) {
+            // The finishing run hands its slot over, so `running` stays counted
+            await new Promise<void>(resolve => this.waiting.push(resolve));
+        } else {
+            this.running++;
+        }
+        try {
+            return await this.run(projectPath);
+        } finally {
+            const next = this.waiting.shift();
+            if (next) {
+                next();
+            } else {
+                this.running--;
+            }
+        }
     }
 
     /** The project changed: the next `evaluate` runs MSBuild again, and an evaluation still running is ignored */

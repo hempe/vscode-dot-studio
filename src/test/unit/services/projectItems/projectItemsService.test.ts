@@ -142,6 +142,37 @@ describe('ProjectItemsService', () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
+    test('never runs more MSBuild processes at once than the limit, and runs them all', async () => {
+        let running = 0;
+        let most = 0;
+        const finishers: (() => void)[] = [];
+        const run = jest.fn().mockImplementation(() => new Promise<string>(resolve => {
+            running++;
+            most = Math.max(most, running);
+            finishers.push(() => { running--; resolve(output('A.cs')); });
+        }));
+        const service = new ProjectItemsService(run, 2);
+        const projects = [1, 2, 3, 4, 5].map(i => path.join(dir, `P${i}.csproj`));
+        const all = Promise.all(projects.map(project => service.evaluate(project)));
+        const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+        await settle();
+        expect(run).toHaveBeenCalledTimes(2);
+        while (finishers.length > 0) {
+            finishers.shift()!();
+            await settle();
+        }
+        await all;
+        expect(run).toHaveBeenCalledTimes(5);
+        expect(most).toBe(2);
+    });
+
+    test('a failing run frees its slot', async () => {
+        const run = jest.fn().mockRejectedValueOnce(new Error('no sdk')).mockResolvedValue(output('A.cs'));
+        const service = new ProjectItemsService(run, 1);
+        await service.evaluate(path.join(dir, 'P1.csproj'));
+        expect(await service.evaluate(path.join(dir, 'P2.csproj'))).toBeDefined();
+    });
+
     const hasDotnet = spawnSync('dotnet', ['--version']).status === 0;
     (hasDotnet ? test : test.skip)('real MSBuild: Remove, DefaultItemExcludes and Link are followed', async () => {
         const items = await new ProjectItemsService().evaluate(fixture);
