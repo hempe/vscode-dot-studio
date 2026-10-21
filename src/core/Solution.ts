@@ -24,6 +24,12 @@ export interface SolutionFileTreeNode {
     files?: SolutionFileItem[];
 }
 
+/** A node of the solution file that drag & drop moves to another solution folder */
+export type SolutionNodeMove =
+    | { readonly kind: 'project'; readonly projectPath: string }
+    | { readonly kind: 'solutionFolder'; readonly folderGuid: string }
+    | { readonly kind: 'solutionItem'; readonly filePath: string; readonly folderGuid: string };
+
 export interface SolutionFileItem {
     name: string;
     path: string;
@@ -852,6 +858,139 @@ export class Solution {
             log.error(`Error removing solution item:`, error);
             throw error;
         }
+    }
+
+    /**
+     * Moves a project, solution folder or solution item into another solution folder (`undefined`: the solution root,
+     * not for solution items), like Visual Studio's drag & drop. Refuses a folder into itself or a folder inside it and
+     * a name the target already has; a node already there is left alone.
+     */
+    async moveToSolutionFolder(node: SolutionNodeMove, targetFolderGuid: string | undefined): Promise<void> {
+        const solutionFile = this._solutionFile;
+        if (!solutionFile) {
+            throw new Error('The solution is not loaded');
+        }
+        const same = (a: string | undefined, b: string | undefined) => !!a && !!b && a.toUpperCase() === b.toUpperCase();
+        const parentOf = (guid: string) => solutionFile.nestedProjects.find(n => same(n.childGuid, guid))?.parentGuid;
+        const folderOf = (guid: string) => solutionFile.projects.find(p => same(p.guid, guid) && SolutionFileParser.isSolutionFolder(p));
+        const target = targetFolderGuid === undefined ? undefined : folderOf(targetFolderGuid);
+        if (targetFolderGuid !== undefined && !target) {
+            throw new Error(`Solution folder "${targetFolderGuid}" not found`);
+        }
+        const targetName = target ? `"${target.name}"` : 'The solution';
+        const solutionDir = path.dirname(this._solutionPath);
+        const relative = (file: string) => path.relative(solutionDir, file).split(path.sep).join('/');
+
+        if (node.kind === 'solutionItem') {
+            const from = folderOf(node.folderGuid);
+            if (!target) {
+                throw new Error('Solution items belong in a solution folder');
+            }
+            if (!from) {
+                throw new Error(`Solution folder "${node.folderGuid}" not found`);
+            }
+            if (same(from.guid, target.guid)) {
+                return;
+            }
+            const itemPath = relative(node.filePath);
+            const key = (item: string) => item.replace(/\\/g, '/').toLowerCase();
+            if (this.getSolutionItems(target).some(item => key(item) === key(itemPath))) {
+                throw new Error(`${targetName} already contains ${path.basename(node.filePath)}`);
+            }
+            if (this.isSlnx) {
+                throw new Error('Moving is not supported for .slnx files yet');
+            } else {
+                await this.editSlnLines(lines => this.moveSolutionItemLines(lines, from.guid, target.guid, itemPath));
+            }
+            log.info(`Moved solution item ${itemPath} to ${targetName}`);
+            return;
+        }
+
+        const moving = node.kind === 'project'
+            ? solutionFile.projects.find(p => !SolutionFileParser.isSolutionFolder(p)
+                && path.resolve(solutionDir, p.path) === path.resolve(node.projectPath))
+            : folderOf(node.folderGuid);
+        if (!moving) {
+            throw new Error(`${node.kind === 'project' ? path.basename(node.projectPath) : 'The solution folder'} is not in the solution`);
+        }
+        const currentParent = parentOf(moving.guid);
+        if (target ? same(currentParent, target.guid) : !currentParent) {
+            return;
+        }
+        for (let guid = target?.guid, depth = 0; guid && depth < 64; guid = parentOf(guid), depth++) {
+            if (same(guid, moving.guid)) {
+                throw new Error(`"${moving.name}" cannot be moved into itself or a folder inside it`);
+            }
+        }
+        const siblings = solutionFile.projects.filter(p => target ? same(parentOf(p.guid), target.guid) : !parentOf(p.guid));
+        if (siblings.some(p => p.name.toLowerCase() === moving.name.toLowerCase())) {
+            throw new Error(`${targetName} already contains "${moving.name}"`);
+        }
+
+        if (this.isSlnx) {
+            throw new Error('Moving is not supported for .slnx files yet');
+        } else {
+            await this.editSlnLines(lines => this.setNestedParent(lines, moving.guid, target?.guid));
+        }
+        log.info(`Moved "${moving.name}" to ${targetName}`);
+    }
+
+    /** Reads the .sln, applies a line edit, writes it with the file's line endings and re-parses */
+    private async editSlnLines(edit: (lines: string[]) => string[]): Promise<void> {
+        const content = await this._handler.read();
+        await this._handler.write(edit(content.split(/\r?\n/)).join(eolOf(content)));
+        await this.parseSolutionFile();
+    }
+
+    /**
+     * Points the child's `NestedProjects` entry at `parentGuid`, or removes it (the solution root); a section left
+     * empty goes too, as Visual Studio writes none
+     */
+    private setNestedParent(lines: string[], childGuid: string, parentGuid: string | undefined): string[] {
+        const start = lines.findIndex(line => line.trim() === 'GlobalSection(NestedProjects) = preSolution');
+        const end = start === -1 ? -1 : lines.findIndex((line, i) => i > start && line.trim() === 'EndGlobalSection');
+        const entry = end === -1 ? -1 : lines.findIndex((line, i) => i > start && i < end
+            && line.split('=')[0].trim().toUpperCase() === childGuid.toUpperCase());
+        if (entry === -1) {
+            return parentGuid ? this.addNestedProjectEntry(lines, childGuid, parentGuid) : lines;
+        }
+        if (parentGuid) {
+            return lines.map((line, i) => i === entry ? line.replace(/=\s*\{[^}]*\}\s*$/, `= ${parentGuid}`) : line);
+        }
+        const without = lines.filter((_, i) => i !== entry);
+        // Only the section's first and last line are left
+        return end - start === 2 ? without.filter((_, i) => i !== start && i !== start + 1) : without;
+    }
+
+    /** The `Project(...)` line and the `EndProject` line of a solution folder */
+    private solutionFolderBlock(lines: string[], folderGuid: string): { start: number; end: number } {
+        const start = lines.findIndex(line => line.trim().startsWith(`Project("${PROJECT_TYPE_GUIDS.SOLUTION_FOLDER}")`)
+            && line.toUpperCase().includes(folderGuid.toUpperCase()));
+        const end = start === -1 ? -1 : lines.findIndex((line, i) => i > start && line.trim() === 'EndProject');
+        if (end === -1) {
+            throw new Error(`Could not find the block of solution folder "${folderGuid}"`);
+        }
+        return { start, end };
+    }
+
+    /**
+     * Moves a solution item's line from one solution folder's `ProjectSection(SolutionItems)` to another's, keeping its
+     * text (Visual Studio writes `\`); a section left empty goes
+     */
+    private moveSolutionItemLines(lines: string[], fromGuid: string, toGuid: string, itemPath: string): string[] {
+        const block = this.solutionFolderBlock(lines, fromGuid);
+        const key = (text: string) => text.replace(/\\/g, '/').toLowerCase();
+        const index = lines.findIndex((line, i) => i > block.start && i < block.end && line.includes('=')
+            && key(line.split('=')[0].trim()) === key(itemPath));
+        if (index === -1) {
+            throw new Error(`Solution item "${itemPath}" not found in its solution folder`);
+        }
+        const item = lines[index].split('=')[0].trim();
+        let without = lines.filter((_, i) => i !== index);
+        if (without[index - 1]?.trim() === 'ProjectSection(SolutionItems) = preProject' && without[index]?.trim() === 'EndProjectSection') {
+            without = without.filter((_, i) => i !== index - 1 && i !== index);
+        }
+        return this.addSolutionItemToFolder(without, toGuid, item);
     }
 
     /**
