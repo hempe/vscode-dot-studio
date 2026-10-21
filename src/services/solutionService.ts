@@ -10,6 +10,7 @@ import { DebugConfigService } from './debugConfigService';
 import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
 import { offerSlnxMigration } from './slnxMigration';
 import { setActiveSolutionPath } from './workspaceFolders';
+import { ShowAllFiles } from './showAllFiles';
 
 const log = logger('SolutionService');
 
@@ -153,6 +154,7 @@ export class SolutionService {
             this.lastLoadError = undefined;
             this.activeSolution = solution;
             setActiveSolutionPath(solutionPath);
+            ShowAllFiles.setSolution(solutionPath);
             await SolutionDiscovery.remember(solutionPath);
             checkOmniSharpForSlnx(solutionPath).catch(error => log.error('Error checking the C# language server:', error));
             offerSlnxMigration(solutionPath, {

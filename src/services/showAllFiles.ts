@@ -9,6 +9,7 @@ export class ShowAllFiles {
 
     static initialize(state: vscode.Memento): void {
         this.state = state;
+        this.solutionPath = '';
     }
 
     /** The solution whose setting applies; also updates the title bar button */
@@ -22,6 +23,10 @@ export class ShowAllFiles {
     }
 
     static async toggle(): Promise<boolean> {
+        // Without a solution there is nothing to remember the setting for
+        if (!this.solutionPath) {
+            return this.isOn();
+        }
         const on = !this.isOn();
         await this.state?.update(this.STORAGE_KEY, { ...this.all(), [this.solutionPath]: on });
         await vscode.commands.executeCommand('setContext', this.CONTEXT_KEY, on);

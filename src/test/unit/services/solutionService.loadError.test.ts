@@ -14,6 +14,7 @@ jest.mock('vscode', () => {
     class EventEmitter { event = () => disposable; fire() { } dispose() { } }
     return {
         EventEmitter,
+        commands: { executeCommand: async () => undefined },
         RelativePattern: class { constructor(public base: string, public pattern: string) { } },
         workspace: {
             createFileSystemWatcher: () => watcher,

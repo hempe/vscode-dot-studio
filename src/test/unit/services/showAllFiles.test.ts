@@ -31,4 +31,13 @@ describe('ShowAllFiles', () => {
         await ShowAllFiles.toggle();
         expect(vscode.commands.executeCommand).toHaveBeenLastCalledWith('setContext', 'shinobi.solutionExplorer.showAllFiles', true);
     });
+
+    test('toggle does nothing before a solution is set', async () => {
+        const state = memento();
+        const update = jest.spyOn(state, 'update');
+        ShowAllFiles.initialize(state as never);
+        expect(await ShowAllFiles.toggle()).toBe(false);
+        expect(update).not.toHaveBeenCalled();
+        expect(ShowAllFiles.isOn()).toBe(false);
+    });
 });
