@@ -68,6 +68,98 @@ export class ProjectFileEditor {
         return content.slice(0, insertAt) + separator + group + content.slice(insertAt);
     }
 
+    // Self-closing item element: `<Compile Remove="x" />`; attribute values may contain '>'
+    private static readonly ITEM_ELEMENT_RE = /<([A-Za-z]+)\b((?:[^>"']|"[^"]*"|'[^']*')*?)\/>/g;
+
+    /** Self-closing items carrying `attribute`, in document order */
+    private static findItemElements(content: string, attribute: 'Include' | 'Remove'): { itemType: string; value: string; start: number; end: number }[] {
+        const attributeRe = new RegExp(`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`);
+        const items: { itemType: string; value: string; start: number; end: number }[] = [];
+        for (const match of content.matchAll(this.ITEM_ELEMENT_RE)) {
+            const found = attributeRe.exec(match[2]);
+            if (found) {
+                items.push({
+                    itemType: match[1],
+                    value: this.unescape(found[1] ?? found[2]),
+                    start: match.index!,
+                    end: match.index! + match[0].length,
+                });
+            }
+        }
+        return items;
+    }
+
+    /** `<Compile Remove="path" />`: the file leaves the project (Visual Studio's Exclude From Project) */
+    static excludeItem(content: string, itemType: string, relativePath: string): string {
+        return this.addItemElement(content, itemType, 'Remove', relativePath);
+    }
+
+    /** `<Compile Include="path" />`: puts a file the project does not contain into it */
+    static includeItem(content: string, itemType: string, relativePath: string): string {
+        return this.addItemElement(content, itemType, 'Include', relativePath);
+    }
+
+    private static addItemElement(content: string, itemType: string, attribute: 'Include' | 'Remove', value: string): string {
+        const sameType = this.findItemElements(content, attribute).filter(item => item.itemType === itemType);
+        if (sameType.some(item => item.value === value)) {
+            return content;
+        }
+        const nl = content.includes('\r\n') ? '\r\n' : '\n';
+        const element = (indent: string) => [`${indent}<${itemType} ${attribute}="${this.escape(value)}" />`];
+        const last = sameType[sameType.length - 1];
+        if (last) {
+            const indent = this.lineIndent(content, last.start);
+            return content.slice(0, last.end) + nl + element(indent).join(nl) + content.slice(last.end);
+        }
+        return this.appendItemGroup(content, element);
+    }
+
+    /** Takes `value` out of the `Remove` items; `removed` tells whether there was one */
+    static removeRemoveItem(content: string, value: string): { content: string; removed: boolean } {
+        const entries = (itemValue: string) => itemValue.split(';').map(entry => entry.trim()).filter(Boolean);
+        const matching = this.findItemElements(content, 'Remove').filter(item => entries(item.value).includes(value));
+        let result = content;
+        // From the end, so the offsets of the earlier items stay valid
+        for (const item of matching.reverse()) {
+            const rest = entries(item.value).filter(entry => entry !== value);
+            if (rest.length > 0) {
+                const text = result.slice(item.start, item.end)
+                    .replace(/(\bRemove\s*=\s*)(?:"[^"]*"|'[^']*')/, (_all, prefix: string) => `${prefix}"${this.escape(rest.join(';'))}"`);
+                result = result.slice(0, item.start) + text + result.slice(item.end);
+            } else {
+                result = this.deleteElement(result, item.start, item.end);
+            }
+        }
+        return { content: result, removed: matching.length > 0 };
+    }
+
+    /** Deletes the element and, when it was alone on its line, the line; an ItemGroup left empty goes too */
+    private static deleteElement(content: string, start: number, end: number): string {
+        const lineStart = content.lastIndexOf('\n', start - 1) + 1;
+        const lineBreak = content.indexOf('\n', end);
+        const lineEnd = lineBreak < 0 ? content.length : lineBreak + 1;
+        if (content.slice(lineStart, start).trim() !== '' || content.slice(end, lineBreak < 0 ? content.length : lineBreak).trim() !== '') {
+            return content.slice(0, start) + content.slice(end);
+        }
+        let out = content.slice(0, lineStart) + content.slice(lineEnd);
+
+        const previousStart = out.lastIndexOf('\n', lineStart - 2) + 1;
+        const nextBreak = out.indexOf('\n', lineStart);
+        const previous = out.slice(previousStart, lineStart);
+        const next = out.slice(lineStart, nextBreak < 0 ? out.length : nextBreak);
+        if (previous.trim() === '<ItemGroup>' && next.trim() === '</ItemGroup>') {
+            out = out.slice(0, previousStart) + out.slice(nextBreak < 0 ? out.length : nextBreak + 1);
+            // Two empty lines are left where the group was: keep one
+            const blankAt = previousStart;
+            const blankBreak = out.indexOf('\n', blankAt);
+            const lineBefore = out.slice(out.lastIndexOf('\n', blankAt - 2) + 1, blankAt);
+            if (out.slice(blankAt, blankBreak < 0 ? out.length : blankBreak).trim() === '' && lineBefore.trim() === '') {
+                out = out.slice(0, blankAt) + out.slice(blankBreak < 0 ? out.length : blankBreak + 1);
+            }
+        }
+        return out;
+    }
+
     private static readonly WCF_METADATA_RE = /<WCFMetadata\s+Include\s*=\s*"Connected Services"\s*\/>/;
 
     /** Adds `<WCFMetadata Include="Connected Services" />`, Visual Studio's marker for service references */
