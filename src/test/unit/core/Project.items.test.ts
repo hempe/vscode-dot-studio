@@ -74,4 +74,28 @@ describe('Project file tree with the item overlay', () => {
         expect(children.find(child => child.name === 'Program.cs')?.contextValue).toBe('included');
         expect(children.find(child => child.name === 'Old.cs')?.contextValue).toBe('excluded');
     });
+
+    const fired = (project: Project) => (project as unknown as { _changeEmitter: { fire: jest.Mock } })._changeEmitter.fire;
+
+    test('redraws when the evaluation changed the item list', async () => {
+        const project = await newProject();
+        await project.getRootChildren();
+        jest.spyOn(ProjectItemsService.instance, 'version').mockReturnValueOnce(1).mockReturnValueOnce(2);
+        fired(project).mockClear();
+        await project.evaluateItems();
+        expect(fired(project)).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not redraw when the evaluation left the item list as it was (same list, or a failure keeping the last one)', async () => {
+        const items = withItems();
+        const project = await newProject();
+        await project.getRootChildren();
+        (ProjectItemsService.instance.evaluate as jest.Mock).mockResolvedValue(items.getMockImplementation()!(projectPath));
+        jest.spyOn(ProjectItemsService.instance, 'version').mockReturnValue(7);
+        const load = jest.spyOn(project, 'loadFolderChildren');
+        fired(project).mockClear();
+        await project.evaluateItems();
+        expect(fired(project)).not.toHaveBeenCalled();
+        expect(load).not.toHaveBeenCalled();
+    });
 });

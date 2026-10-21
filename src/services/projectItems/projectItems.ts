@@ -61,6 +61,16 @@ export class ProjectItems {
         }
     }
 
+    /** Whether both list the same entries in the same order */
+    equals(other: ProjectItems): boolean {
+        return this.projectDir === other.projectDir && this.entries.length === other.entries.length
+            && this.entries.every((entry, index) => {
+                const theirs = other.entries[index];
+                return entry.fullPath === theirs.fullPath && entry.virtualPath === theirs.virtualPath
+                    && entry.itemType === theirs.itemType && entry.linked === theirs.linked;
+            });
+    }
+
     isIncluded(fullPath: string): boolean {
         return this.byFullPath.has(key(fullPath));
     }

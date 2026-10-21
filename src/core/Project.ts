@@ -157,6 +157,7 @@ export class Project {
             await this.reevaluateItems();
         } else {
             // Other file created: a file the cached item list does not know shows as excluded until evaluated again
+            // (the last list stays shown meanwhile)
             ProjectItemsService.instance.invalidate(this._projectPath);
             await this.handleFileSystemChange(filePath, 'created');
             void this.evaluateItems();
@@ -764,11 +765,15 @@ export class Project {
 
     /** Asks MSBuild what the project contains, then shows the tree accordingly (it was drawn from the disk before) */
     async evaluateItems(): Promise<void> {
-        const items = await ProjectItemsService.instance.evaluate(this._projectPath);
-        if (items) {
-            await this.reloadLoadedFolders();
-            this._changeEmitter.fire();
+        const service = ProjectItemsService.instance;
+        const before = service.version(this._projectPath);
+        await service.evaluate(this._projectPath);
+        // Same list, or a failure that keeps the last one (or still none): the tree shows what it showed
+        if (service.version(this._projectPath) === before) {
+            return;
         }
+        await this.reloadLoadedFolders();
+        this._changeEmitter.fire();
     }
 
     /** The project file or a props file changed, or the items were edited: evaluate again */

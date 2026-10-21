@@ -17,14 +17,23 @@ describe('ProjectItemsService', () => {
         expect(run).toHaveBeenCalledTimes(1);
     });
 
-    test('invalidate makes the next evaluation run again', async () => {
-        const run = jest.fn().mockResolvedValueOnce(output('A.cs')).mockResolvedValueOnce(output('B.cs'));
+    test('invalidate keeps the last result visible until the new evaluation lands, then replaces it', async () => {
+        let finish!: (value: string) => void;
+        const run = jest.fn()
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockImplementationOnce(() => new Promise<string>(resolve => { finish = resolve; }));
         const service = new ProjectItemsService(run);
         await service.evaluate(fixture);
         service.invalidate(fixture);
-        expect(service.get(fixture)).toBeUndefined();
-        const again = await service.evaluate(fixture);
-        expect(again?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        const again = service.evaluate(fixture);
+        const shared = service.evaluate(fixture);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        finish(output('B.cs'));
+        expect(await again).toBe(await shared);
+        expect((await again)?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
+        expect(run).toHaveBeenCalledTimes(2);
     });
 
     test('an evaluation that was running when the project changed does not fill the cache', async () => {
@@ -42,6 +51,59 @@ describe('ProjectItemsService', () => {
         expect(service.get(fixture)?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
     });
 
+    test('a stale evaluation finishing late does not overwrite the last good result', async () => {
+        let finish!: (value: string) => void;
+        let finishFresh!: (value: string) => void;
+        const run = jest.fn()
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockImplementationOnce(() => new Promise<string>(resolve => { finish = resolve; }))
+            .mockImplementationOnce(() => new Promise<string>(resolve => { finishFresh = resolve; }));
+        const service = new ProjectItemsService(run);
+        await service.evaluate(fixture);
+        service.invalidate(fixture);
+        const stale = service.evaluate(fixture);
+        service.invalidate(fixture);
+        const fresh = service.evaluate(fixture);
+        finish(output('Stale.cs'));
+        await stale;
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'Stale.cs'))).toBe(false);
+        finishFresh(output('Fresh.cs'));
+        await fresh;
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
+    });
+
+    test('a failing re-evaluation keeps the last good result', async () => {
+        const run = jest.fn().mockResolvedValueOnce(output('A.cs')).mockRejectedValueOnce(new Error('broken csproj'));
+        const service = new ProjectItemsService(run);
+        await service.evaluate(fixture);
+        const version = service.version(fixture);
+        service.invalidate(fixture);
+        const result = await service.evaluate(fixture);
+        expect(result?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.version(fixture)).toBe(version);
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    test('the version changes only when the cached result changes', async () => {
+        const run = jest.fn()
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockResolvedValueOnce(output('A.cs', 'B.cs'));
+        const service = new ProjectItemsService(run);
+        const initial = service.version(fixture);
+        await service.evaluate(fixture);
+        const first = service.version(fixture);
+        expect(first).not.toBe(initial);
+        service.invalidate(fixture);
+        await service.evaluate(fixture);
+        expect(service.version(fixture)).toBe(first);
+        service.invalidate(fixture);
+        await service.evaluate(fixture);
+        expect(service.version(fixture)).not.toBe(first);
+    });
+
     test('a failing MSBuild gives undefined, is not retried until invalidated, and does not throw', async () => {
         const run = jest.fn().mockRejectedValue(new Error('no sdk'));
         const service = new ProjectItemsService(run);
@@ -49,7 +111,8 @@ describe('ProjectItemsService', () => {
         expect(await service.evaluate(fixture)).toBeUndefined();
         expect(run).toHaveBeenCalledTimes(1);
         service.invalidate(fixture);
-        await service.evaluate(fixture);
+        expect(await service.evaluate(fixture)).toBeUndefined();
+        expect(service.get(fixture)).toBeUndefined();
         expect(run).toHaveBeenCalledTimes(2);
     });
 
