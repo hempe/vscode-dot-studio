@@ -1168,37 +1168,37 @@
         {
           "command": "shinobi.solutionExplorer.rename",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "03_group@1"
+          "group": "04_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.deleteFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "03_group@2"
+          "group": "04_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.codeCleanup",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "05_group@1"
+          "group": "06_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.syncNamespaces",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "05_group@2"
+          "group": "06_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "06_group@1"
+          "group": "07_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.revealInExplorer",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "06_group@2"
+          "group": "07_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.openInTerminal",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
-          "group": "06_group@3"
+          "group": "07_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.openFile",
@@ -1223,27 +1223,27 @@
         {
           "command": "shinobi.solutionExplorer.rename",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
-          "group": "03_group@1"
+          "group": "04_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.deleteFile",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
-          "group": "03_group@2"
+          "group": "04_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.codeCleanup",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
-          "group": "05_group@1"
+          "group": "06_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
-          "group": "06_group@1"
+          "group": "07_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.revealInExplorer",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file'",
-          "group": "06_group@2"
+          "group": "07_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.manageNuGetPackages",
@@ -1338,22 +1338,22 @@
         {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && inTestProject",
-          "group": "04_group@1"
+          "group": "05_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.debugTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && inTestProject",
-          "group": "04_group@2"
+          "group": "05_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && inTestProject",
-          "group": "04_group@1"
+          "group": "05_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.debugTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && inTestProject",
-          "group": "04_group@2"
+          "group": "05_group@2"
         }
       ],
       "commandPalette": [

@@ -170,6 +170,20 @@ describe('Exclude From Project and Include In Project', () => {
         expect(contextMenus[`file.${EXCLUDED_ITEM}`]!.flat()).toEqual(['includeInProject']);
         expect(contextMenus.file.flat()).not.toContain('excludeFromProject');
     });
+
+    test('have a group of their own between Copy/Cut/Paste and Rename/Delete', () => {
+        const entries = buildMenuContributions().webviewContext;
+        const group = (nodeType: string, command: string) => entries
+            .filter(entry => entry.command === `shinobi.solutionExplorer.${command}` && entry.when.includes(`nodeType == '${nodeType}'`))
+            .map(entry => entry.group);
+        for (const nodeType of ['file', 'folder']) {
+            expect(group(nodeType, 'paste')).toEqual(['02_group@3']);
+            expect(group(nodeType, 'excludeFromProject')).toEqual(['03_group@1']);
+            expect(group(nodeType, 'includeInProject')).toEqual(['03_group@1']);
+            expect(group(nodeType, 'rename')).toEqual(['04_group@1']);
+            expect(group(nodeType, 'deleteFile')).toEqual(['04_group@2']);
+        }
+    });
 });
 
 describe('Code Cleanup in the editor', () => {

@@ -174,6 +174,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     'folder.serviceReference': [
         ['updateServiceReference', 'removeServiceReference'],
     ],
+    // In the empty slot of the file and folder menus: own group above Rename and Delete, as in Visual Studio
     [`file.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
     [`folder.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
     [`file.${EXCLUDED_ITEM}`]: [[], [], ['includeInProject']],
@@ -181,6 +182,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     folder: [
         ['addNewItem', 'addExistingItem', 'addFile', 'addFolder'],
         ['copy', 'cut', 'paste'],
+        [], // excludeFromProject or includeInProject (SDK-style projects)
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
         ['codeCleanup', 'syncNamespaces'],
@@ -190,6 +192,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     file: [
         ['openFile'],
         ['copy', 'cut', 'paste'],
+        [], // excludeFromProject or includeInProject (SDK-style projects)
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
         ['codeCleanup'],
@@ -234,8 +237,8 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
 /** Items added to the menus of rows in test projects (the project, its folders and files), in the empty slots above */
 export const testProjectMenus: Readonly<Partial<Record<NodeType, Menu>>> = {
     project: [[], [], [], [], [], [], [], [], ['runTests', 'debugTests']],
-    folder: [[], [], [], ['runTests', 'debugTests']],
-    file: [[], [], [], ['runTests', 'debugTests']],
+    folder: [[], [], [], [], ['runTests', 'debugTests']],
+    file: [[], [], [], [], ['runTests', 'debugTests']],
 };
 
 /** Names of the node types in the menu reference, in the order of the tree; `temporary` nodes have no menu */
