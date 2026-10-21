@@ -41,15 +41,14 @@ export function holdsProject(folder: string, projects: readonly string[]): boole
 
 const itemTypeForNewItem = (file: string) => path.extname(file).toLowerCase() === '.cs' ? 'Compile' : 'None';
 
-/** Visual Studio's Exclude From Project for an SDK-style project: `Remove` items for the file, or for everything under the folder */
+/** Visual Studio's Exclude From Project for an SDK-style project: `Remove` items for the file, or for everything under the folder, per item type */
 export function excludeEdit(content: string, projectDir: string, target: string, isFolder: boolean, items: ProjectItems): string {
     const relative = itemPath(projectDir, target);
-    if (!isFolder) {
-        return ProjectFileEditor.excludeItem(content, items.itemTypeOf(target) ?? 'None', relative);
-    }
-    const types = items.itemTypesUnder(target);
+    // every item type that lists the file: one left behind keeps it in the project
+    const types = isFolder ? items.itemTypesUnder(target) : items.itemTypesOf(target);
+    const value = isFolder ? `${relative}\\**` : relative;
     return (types.length > 0 ? types : ['None']).reduce(
-        (edited, type) => ProjectFileEditor.excludeItem(edited, type, `${relative}\\**`), content);
+        (edited, type) => ProjectFileEditor.excludeItem(edited, type, value), content);
 }
 
 /**
