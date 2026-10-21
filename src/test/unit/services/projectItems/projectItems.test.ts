@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
+import { crossTargetingFramework, parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);
@@ -128,6 +128,22 @@ describe('parseMsbuildItems robustness', () => {
 
     test('text after the JSON gives undefined', () => {
         expect(parseMsbuildItems(`${json}\ntrailing text`, dir)).toBeUndefined();
+    });
+});
+
+describe('crossTargetingFramework', () => {
+    const output = (properties: Record<string, string>) => JSON.stringify({ Properties: properties, Items: { Compile: [] } });
+
+    test('a multi-targeted project is evaluated for its first target framework', () => {
+        expect(crossTargetingFramework(output({ TargetFramework: '', TargetFrameworks: ' net48 ; net10.0' }))).toBe('net48');
+        expect(crossTargetingFramework(`banner\n${output({ TargetFramework: '', TargetFrameworks: ';net10.0;' })}`)).toBe('net10.0');
+    });
+
+    test('nothing to do for a single target framework, no frameworks or output that is not JSON', () => {
+        expect(crossTargetingFramework(output({ TargetFramework: 'net10.0', TargetFrameworks: '' }))).toBeUndefined();
+        expect(crossTargetingFramework(output({ TargetFramework: '', TargetFrameworks: '' }))).toBeUndefined();
+        expect(crossTargetingFramework(JSON.stringify({ Items: {} }))).toBeUndefined();
+        expect(crossTargetingFramework('MSBuild version 17')).toBeUndefined();
     });
 });
 

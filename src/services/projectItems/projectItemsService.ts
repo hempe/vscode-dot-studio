@@ -3,7 +3,7 @@ import * as os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../../core/logger';
-import { ITEM_TYPES, ProjectItems, parseMsbuildItems } from './projectItems';
+import { ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
 
 const execFileAsync = promisify(execFile);
 const log = logger('ProjectItems');
@@ -11,9 +11,13 @@ const log = logger('ProjectItems');
 export type RunMsbuild = (projectPath: string) => Promise<string>;
 
 const runMsbuild: RunMsbuild = async projectPath => {
-    const { stdout } = await execFileAsync('dotnet', ['msbuild', projectPath, '-nologo', `-getItem:${ITEM_TYPES.join(',')}`],
-        { cwd: path.dirname(projectPath), timeout: 120000, maxBuffer: 64 * 1024 * 1024 });
-    return stdout;
+    const run = async (...extra: string[]) => (await execFileAsync('dotnet',
+        ['msbuild', projectPath, '-nologo', `-getItem:${ITEM_TYPES.join(',')}`, '-getProperty:TargetFramework,TargetFrameworks', ...extra],
+        { cwd: path.dirname(projectPath), timeout: 120000, maxBuffer: 64 * 1024 * 1024 })).stdout;
+    const stdout = await run();
+    // A multi-targeted project has its items only per target framework
+    const framework = crossTargetingFramework(stdout);
+    return framework ? run(`-p:TargetFramework=${framework}`) : stdout;
 };
 
 /**

@@ -39,7 +39,7 @@ The title bar's Show All Files button works like Visual Studio's. It is off by d
 - On: the files the project does not contain, and the `bin` and `obj` folders, appear greyed out.
 - Linked files (`<Compile Include="..\x.cs" Link="x.cs" />`) appear under their link path, with a small link badge on the icon.
 
-The tree is drawn from the disk first and corrected as soon as MSBuild has evaluated the project, which takes a moment on big solutions. Evaluating needs the .NET SDK. Changing a `Directory.Build.props` or `Directory.Build.targets` re-evaluates the projects.
+The tree is drawn from the disk first and corrected as soon as MSBuild has evaluated the project, which takes a moment on big solutions. Evaluating needs the .NET SDK. A multi-targeted project (`<TargetFrameworks>net48;net10.0</TargetFrameworks>`) shows what its first target framework contains, like Visual Studio's active framework. Changing a `Directory.Build.props` or `Directory.Build.targets` re-evaluates the projects.
 
 ### Exclude From Project and Include In Project
 

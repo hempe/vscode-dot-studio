@@ -140,17 +140,38 @@ export class ProjectItems {
 
 interface MsbuildItem { FullPath?: string; Identity?: string; Link?: string }
 
-/** Reads the output of `dotnet msbuild -getItem:...`; undefined when it is not the JSON result */
-export function parseMsbuildItems(output: string, projectDir: string): ProjectItems | undefined {
+interface MsbuildResult { Items?: Record<string, MsbuildItem[]>; Properties?: Record<string, string> }
+
+/** The JSON MSBuild prints for `-getItem`/`-getProperty`, after any banner lines; undefined when there is none */
+function parseMsbuildJson(output: string): MsbuildResult | undefined {
     const match = /^[ \t]*\{/m.exec(output);
     if (!match) {
         return undefined;
     }
-    const start = match.index + match[0].length - 1;
-    let parsed: { Items?: Record<string, MsbuildItem[]> };
     try {
-        parsed = JSON.parse(output.slice(start));
+        return JSON.parse(output.slice(match.index + match[0].length - 1));
     } catch {
+        return undefined;
+    }
+}
+
+/**
+ * A multi-targeted project (`TargetFrameworks`, no `TargetFramework`) evaluated as a whole has no default items:
+ * the SDK only adds them per target framework. Given the output of `-getProperty:TargetFramework,TargetFrameworks`,
+ * returns the framework to evaluate instead (the first, Visual Studio's active one), or undefined when not needed.
+ */
+export function crossTargetingFramework(output: string): string | undefined {
+    const properties = parseMsbuildJson(output)?.Properties;
+    if (!properties || properties.TargetFramework?.trim()) {
+        return undefined;
+    }
+    return (properties.TargetFrameworks ?? '').split(';').map(framework => framework.trim()).find(framework => framework);
+}
+
+/** Reads the output of `dotnet msbuild -getItem:...`; undefined when it is not the JSON result */
+export function parseMsbuildItems(output: string, projectDir: string): ProjectItems | undefined {
+    const parsed = parseMsbuildJson(output);
+    if (!parsed) {
         return undefined;
     }
     const entries: Entry[] = [];
