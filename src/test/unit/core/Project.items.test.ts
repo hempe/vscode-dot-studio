@@ -61,6 +61,27 @@ describe('Project file tree with the item overlay', () => {
         expect(nodes.find(node => node.name === 'Program.cs')?.itemState).toBe('included');
     });
 
+    test('a folder loaded and then collapsed shows the new listing when expanded again after the items changed', async () => {
+        const sub = path.join(dir, 'Sub');
+        fs.mkdirSync(sub);
+        fs.writeFileSync(path.join(sub, 'A.cs'), '');
+        fs.writeFileSync(path.join(sub, 'B.cs'), '');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [{ Identity: 'Sub/A.cs', FullPath: path.join(sub, 'A.cs') }] },
+        }), dir));
+        const project = await newProject();
+        await project.expandFolder(dir);
+        expect((await project.expandFolder(sub)).map(node => node.name)).toEqual(['A.cs']);
+        project.collapseFolder(sub);
+        (ShowAllFiles.isOn as jest.Mock).mockReturnValue(true);
+        await project.refresh();
+        expect((await project.expandFolder(sub)).map(node => node.name)).toEqual(expect.arrayContaining(['A.cs', 'B.cs']));
+        project.collapseFolder(sub);
+        (ShowAllFiles.isOn as jest.Mock).mockReturnValue(false);
+        await project.refresh();
+        expect((await project.expandFolder(sub)).map(node => node.name)).toEqual(['A.cs']);
+    });
+
     test('shows everything while the item list is not known', async () => {
         const names = (await (await newProject()).loadFolderChildren(dir)).map(node => node.name);
         expect(names).toEqual(expect.arrayContaining(['Program.cs', 'Old.cs']));

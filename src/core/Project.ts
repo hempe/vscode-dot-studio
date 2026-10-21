@@ -812,12 +812,28 @@ export class Project {
     private async reloadLoadedFolders(): Promise<void> {
         const loaded = Array.from(this._collapsedState.entries()).filter(([, isCollapsed]) => !isCollapsed).map(([folderPath]) => folderPath);
         const projectDir = path.dirname(this._projectPath);
+        const reloaded = new Set<ProjectFileNode>();
         for (const folderPath of [projectDir, ...loaded.filter(folderPath => folderPath !== projectDir)]) {
             const node = this.findNodeById(folderPath);
             if (node) {
                 node.children = await this.loadFolderChildren(folderPath);
                 node.isLoaded = true;
+                reloaded.add(node);
             }
+        }
+        // Loaded but collapsed folders keep an old listing: read them again when they are expanded
+        const forget = (node: ProjectFileNode): void => {
+            for (const child of node.children ?? []) {
+                if (child.isLoaded && !reloaded.has(child)) {
+                    child.isLoaded = false;
+                    child.children = [];
+                } else {
+                    forget(child);
+                }
+            }
+        };
+        if (this._fileTree) {
+            forget(this._fileTree);
         }
     }
 
