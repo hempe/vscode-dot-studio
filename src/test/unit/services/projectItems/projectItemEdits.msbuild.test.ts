@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { excludeEdit } from '../../../../services/projectItems/projectItemEdits';
+import { excludeEdit, includeEdit } from '../../../../services/projectItems/projectItemEdits';
 import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
 
 /** The edits checked against real MSBuild: what the project contains after them, not just the text they write */
@@ -19,15 +19,18 @@ ${body}
 `;
 
 describe('Exclude/Include against real MSBuild', () => {
+    let root: string;
     let dir: string;
     let projectPath: string;
     const at = (...parts: string[]) => path.join(dir, ...parts);
 
     beforeEach(() => {
-        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'item-edits-')));
+        root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'item-edits-')));
+        dir = path.join(root, 'App');
+        fs.mkdirSync(dir);
         projectPath = path.join(dir, 'App.csproj');
     });
-    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
     const setUp = (project: string, files: string[]) => {
         fs.writeFileSync(projectPath, project);
@@ -48,6 +51,10 @@ describe('Exclude/Include against real MSBuild', () => {
         fs.writeFileSync(projectPath, excludeEdit(fs.readFileSync(projectPath, 'utf8'), dir, target, isFolder, items));
         return evaluate();
     };
+    const include = async (target: string, isFolder = false, filesUnder: string[] = []) => {
+        fs.writeFileSync(projectPath, includeEdit(fs.readFileSync(projectPath, 'utf8'), dir, target, isFolder, filesUnder));
+        return evaluate();
+    };
 
     withDotnet('a file listed under two item types leaves the project', async () => {
         setUp(sdkProject('\n  <ItemGroup>\n    <None Include="Scripts\\*.cs" />\n  </ItemGroup>\n'), ['Program.cs', 'Scripts/Sc.cs']);
@@ -55,5 +62,24 @@ describe('Exclude/Include against real MSBuild', () => {
         const after = await exclude(at('Scripts', 'Sc.cs'));
         expect(after.isIncluded(at('Scripts', 'Sc.cs'))).toBe(false);
         expect(after.isIncluded(at('Program.cs'))).toBe(true);
+    }, TIMEOUT);
+
+    withDotnet('Include of a file in an excluded folder takes effect after an earlier linked Include', async () => {
+        fs.mkdirSync(path.join(root, 'Shared'));
+        fs.writeFileSync(path.join(root, 'Shared', 'S.cs'), '');
+        setUp(sdkProject('\n  <ItemGroup>\n    <Compile Include="..\\Shared\\S.cs" Link="Linked\\S.cs" />\n  </ItemGroup>\n\n'
+            + '  <ItemGroup>\n    <Compile Remove="Old\\**" />\n  </ItemGroup>\n'), ['Program.cs', 'Old/O.cs']);
+        expect((await evaluate()).isIncluded(at('Old', 'O.cs'))).toBe(false);
+        const after = await include(at('Old', 'O.cs'));
+        expect(after.isIncluded(at('Old', 'O.cs'))).toBe(true);
+    }, TIMEOUT);
+
+    withDotnet('Exclude of an explicitly included file takes effect after an earlier Remove group', async () => {
+        setUp(sdkProject('\n  <PropertyGroup>\n    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n  </PropertyGroup>\n\n'
+            + '  <ItemGroup>\n    <Compile Remove="Old\\**" />\n  </ItemGroup>\n\n'
+            + '  <ItemGroup>\n    <Compile Include="K.cs" />\n  </ItemGroup>\n'), ['K.cs']);
+        expect((await evaluate()).isIncluded(at('K.cs'))).toBe(true);
+        const after = await exclude(at('K.cs'));
+        expect(after.isIncluded(at('K.cs'))).toBe(false);
     }, TIMEOUT);
 });

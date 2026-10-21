@@ -23,7 +23,7 @@ import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { ProjectItemsService } from './projectItems/projectItemsService';
-import { excludeEdit, includeEdit, listFilesUnder, membershipRefusal } from './projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -1286,6 +1286,11 @@ export class SolutionActionService {
                 await fs.promises.writeFile(projectPath, edited, 'utf8');
             }
             await project.reevaluateItems();
+            const after = await ProjectItemsService.instance.evaluate(projectPath);
+            if (after && !membershipApplied(after, target, isFolder, exclude)) {
+                vscode.window.showWarningMessage(`${path.basename(target)} is still ${exclude ? 'in' : 'not in'} the project: `
+                    + 'other items decide it (an explicit Include or Remove, Directory.Build.props or .targets, an imported file). Check the project file.');
+            }
         } catch (error) {
             log.error(`${exclude ? 'Exclude' : 'Include'} failed for ${target}:`, error);
             vscode.window.showErrorMessage(`Could not ${exclude ? 'exclude' : 'include'} ${path.basename(target)}: ${error instanceof Error ? error.message : error}`);

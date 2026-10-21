@@ -67,6 +67,67 @@ describe('ProjectFileEditor items', () => {
         });
     });
 
+    describe('placement (MSBuild applies items in document order)', () => {
+        const withGroups = (...groups: string[]) =>
+            `<Project Sdk="Microsoft.NET.Sdk">\n\n${groups.map(group => `  <ItemGroup${group}`).join('\n\n')}\n\n</Project>\n`;
+
+        test('an Include goes after a later Remove, not next to the earlier Include of its type', () => {
+            const content = withGroups(
+                '>\n    <Compile Include="..\\Shared\\S.cs" Link="Linked\\S.cs" />\n  </ItemGroup>',
+                '>\n    <Compile Remove="Old\\**" />\n  </ItemGroup>');
+            expect(ProjectFileEditor.includeItem(content, 'Compile', 'Old\\O.cs')).toBe(withGroups(
+                '>\n    <Compile Include="..\\Shared\\S.cs" Link="Linked\\S.cs" />\n  </ItemGroup>',
+                '>\n    <Compile Remove="Old\\**" />\n    <Compile Include="Old\\O.cs" />\n  </ItemGroup>'));
+        });
+
+        test('a Remove goes after a later explicit Include', () => {
+            const content = withGroups(
+                '>\n    <Compile Remove="Old\\**" />\n  </ItemGroup>',
+                '>\n    <Compile Include="K.cs" />\n  </ItemGroup>');
+            expect(ProjectFileEditor.excludeItem(content, 'Compile', 'K.cs')).toBe(withGroups(
+                '>\n    <Compile Remove="Old\\**" />\n  </ItemGroup>',
+                '>\n    <Compile Include="K.cs" />\n    <Compile Remove="K.cs" />\n  </ItemGroup>'));
+        });
+
+        test('a last ItemGroup with a Condition gets a new group after it', () => {
+            const content = withGroups(' Condition="\'$(X)\' == \'1\'">\n    <Compile Include="X.cs" />\n  </ItemGroup>');
+            expect(ProjectFileEditor.excludeItem(content, 'Compile', 'K.cs')).toBe(withGroups(
+                ' Condition="\'$(X)\' == \'1\'">\n    <Compile Include="X.cs" />\n  </ItemGroup>',
+                '>\n    <Compile Remove="K.cs" />\n  </ItemGroup>'));
+        });
+
+        test('ItemGroups inside targets do not count', () => {
+            const content = '<Project Sdk="Microsoft.NET.Sdk">\n\n  <ItemGroup>\n    <None Include="a.txt" />\n  </ItemGroup>\n\n'
+                + '  <Target Name="T">\n    <ItemGroup>\n      <Compile Include="Gen.cs" />\n    </ItemGroup>\n  </Target>\n\n</Project>\n';
+            const edited = ProjectFileEditor.excludeItem(content, 'Compile', 'K.cs');
+            expect(edited).toBe(content.replace('<None Include="a.txt" />', '<None Include="a.txt" />\n    <Compile Remove="K.cs" />'));
+        });
+
+        test('an element already there but followed by an item of its type is added again at the end', () => {
+            const content = withGroups('>\n    <Compile Remove="K.cs" />\n    <Compile Include="K.cs" />\n  </ItemGroup>');
+            expect(ProjectFileEditor.excludeItem(content, 'Compile', 'K.cs')).toBe(withGroups(
+                '>\n    <Compile Remove="K.cs" />\n    <Compile Include="K.cs" />\n    <Compile Remove="K.cs" />\n  </ItemGroup>'));
+        });
+
+        test('a group on one line gets the item on a line of its own', () => {
+            const content = '<Project Sdk="Microsoft.NET.Sdk">\n  <ItemGroup><None Include="a.txt" /></ItemGroup>\n</Project>\n';
+            expect(ProjectFileEditor.excludeItem(content, 'None', 'b.txt')).toBe(
+                '<Project Sdk="Microsoft.NET.Sdk">\n  <ItemGroup><None Include="a.txt" />\n    <None Remove="b.txt" />\n  </ItemGroup>\n</Project>\n');
+        });
+
+        test('a commented-out ItemGroup is not where the item goes', () => {
+            const content = '<Project Sdk="Microsoft.NET.Sdk">\n\n  <ItemGroup>\n    <None Include="a.txt" />\n  </ItemGroup>\n\n'
+                + '  <!-- <ItemGroup Condition="false"><None Remove="b.txt" /></ItemGroup> -->\n\n</Project>\n';
+            expect(ProjectFileEditor.excludeItem(content, 'None', 'b.txt')).toBe(
+                content.replace('<None Include="a.txt" />', '<None Include="a.txt" />\n    <None Remove="b.txt" />'));
+        });
+
+        test('the Removes of several item types share one ItemGroup', () => {
+            const edited = ProjectFileEditor.excludeItem(ProjectFileEditor.excludeItem(sdkProject, 'Compile', 'Sub\\**'), 'None', 'Sub\\**');
+            expect(edited).toContain('  <ItemGroup>\n    <Compile Remove="Sub\\**" />\n    <None Remove="Sub\\**" />\n  </ItemGroup>\n');
+        });
+    });
+
     describe('removeRemoveItem', () => {
         test('deletes the item and the ItemGroup it leaves empty', () => {
             const excluded = ProjectFileEditor.excludeItem(sdkProject, 'Compile', 'Legacy\\Old.cs');

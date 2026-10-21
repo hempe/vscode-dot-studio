@@ -39,6 +39,12 @@ export function holdsProject(folder: string, projects: readonly string[]): boole
     });
 }
 
+/** Whether the project, as evaluated after the edit, has the file or folder out (exclude) or in (include) */
+export function membershipApplied(items: ProjectItems, target: string, isFolder: boolean, exclude: boolean): boolean {
+    const included = isFolder ? items.itemTypesUnder(target).length > 0 : items.isIncluded(target);
+    return included !== exclude;
+}
+
 const itemTypeForNewItem = (file: string) => path.extname(file).toLowerCase() === '.cs' ? 'Compile' : 'None';
 
 /** Visual Studio's Exclude From Project for an SDK-style project: `Remove` items for the file, or for everything under the folder, per item type */

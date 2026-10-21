@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { excludeEdit, includeEdit, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
 import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
@@ -78,5 +78,18 @@ describe('membershipRefusal', () => {
         expect(membershipRefusal(at('Sub'), true, solutionProjects)).toBeUndefined();
         expect(membershipRefusal(at('Tools', 'T.cs'), false, solutionProjects)).toBeUndefined();
         expect(membershipRefusal(at('Tool'), true, solutionProjects)).toBeUndefined();
+    });
+});
+
+describe('membershipApplied', () => {
+    test('tells whether the evaluated items match what Exclude or Include wanted', () => {
+        expect(membershipApplied(items, at('Sub', 'A.cs'), false, true)).toBe(false);
+        expect(membershipApplied(items, at('Other.cs'), false, true)).toBe(true);
+        expect(membershipApplied(items, at('Sub'), true, true)).toBe(false);
+        expect(membershipApplied(items, at('Gen'), true, true)).toBe(true);
+        expect(membershipApplied(items, at('Sub', 'A.cs'), false, false)).toBe(true);
+        expect(membershipApplied(items, at('Other.cs'), false, false)).toBe(false);
+        expect(membershipApplied(items, at('Sub'), true, false)).toBe(true);
+        expect(membershipApplied(items, at('Gen'), true, false)).toBe(false);
     });
 });

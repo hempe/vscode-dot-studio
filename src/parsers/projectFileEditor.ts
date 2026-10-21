@@ -71,13 +71,24 @@ export class ProjectFileEditor {
     // Self-closing item element: `<Compile Remove="x" />`; attribute values may contain '>'
     private static readonly ITEM_ELEMENT_RE = /<([A-Za-z]+)\b((?:[^>"']|"[^"]*"|'[^']*')*?)\/>/g;
 
+    /** Comments and targets: their items are not part of the evaluation (targets add items when they run) */
+    private static ignoredRanges(content: string): [number, number][] {
+        return [...content.matchAll(/<!--[\s\S]*?-->|<Target\b[\s\S]*?<\/Target\s*>/g)]
+            .map(match => [match.index!, match.index! + match[0].length]);
+    }
+
+    private static inRanges(ranges: readonly [number, number][], index: number): boolean {
+        return ranges.some(([start, end]) => index >= start && index < end);
+    }
+
     /** Self-closing items carrying `attribute`, in document order */
     private static findItemElements(content: string, attribute: 'Include' | 'Remove'): { itemType: string; value: string; start: number; end: number }[] {
         const attributeRe = new RegExp(`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`);
+        const ignored = this.ignoredRanges(content);
         const items: { itemType: string; value: string; start: number; end: number }[] = [];
         for (const match of content.matchAll(this.ITEM_ELEMENT_RE)) {
             const found = attributeRe.exec(match[2]);
-            if (found) {
+            if (found && !this.inRanges(ignored, match.index!)) {
                 items.push({
                     itemType: match[1],
                     value: this.unescape(found[1] ?? found[2]),
@@ -87,6 +98,23 @@ export class ProjectFileEditor {
             }
         }
         return items;
+    }
+
+    /**
+     * The last ItemGroup of the project (outside targets and comments) when new items can go at its end:
+     * it has no Condition and is not in a Choose. Undefined otherwise: then a new ItemGroup goes at the end.
+     */
+    private static lastPlainItemGroup(content: string): { openStart: number; close: number } | undefined {
+        const ignored = this.ignoredRanges(content);
+        const chooses = [...content.matchAll(/<Choose\b[\s\S]*?<\/Choose\s*>/g)].map(match => [match.index!, match.index! + match[0].length] as [number, number]);
+        const opens = [...content.matchAll(/<ItemGroup\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g)]
+            .filter(match => !this.inRanges(ignored, match.index!));
+        const last = opens[opens.length - 1];
+        if (!last || last[2] === '/' || /\bCondition\s*=/.test(last[1]) || this.inRanges(chooses, last.index!)) {
+            return undefined;
+        }
+        const close = content.indexOf('</ItemGroup', last.index! + last[0].length);
+        return close < 0 ? undefined : { openStart: last.index!, close };
     }
 
     /** `<Compile Remove="path" />`: the file leaves the project (Visual Studio's Exclude From Project) */
@@ -99,19 +127,42 @@ export class ProjectFileEditor {
         return this.addItemElement(content, itemType, 'Include', relativePath);
     }
 
+    /**
+     * Adds the item after every other item of the project: MSBuild applies items in document order, so an
+     * `Include` before a later `Remove` of the same file (or the other way round) would change nothing.
+     * Goes at the end of the last ItemGroup, or in a new ItemGroup at the end when that one has a Condition.
+     */
     private static addItemElement(content: string, itemType: string, attribute: 'Include' | 'Remove', value: string): string {
-        const sameType = this.findItemElements(content, attribute).filter(item => item.itemType === itemType);
-        if (sameType.some(item => item.value === value)) {
+        const same = this.findItemElements(content, attribute).filter(item => item.itemType === itemType && item.value === value);
+        const lastSame = same[same.length - 1];
+        // Already there, and no later item of the type undoes it
+        if (lastSame && !new RegExp(`<${itemType}\\b`).test(this.blankIgnored(content).slice(lastSame.end))) {
             return content;
         }
         const nl = content.includes('\r\n') ? '\r\n' : '\n';
         const element = (indent: string) => [`${indent}<${itemType} ${attribute}="${this.escape(value)}" />`];
-        const last = sameType[sameType.length - 1];
-        if (last) {
-            const indent = this.lineIndent(content, last.start);
-            return content.slice(0, last.end) + nl + element(indent).join(nl) + content.slice(last.end);
+        const group = this.lastPlainItemGroup(content);
+        if (!group) {
+            return this.appendItemGroup(content, element);
         }
-        return this.appendItemGroup(content, element);
+        const childIndent = this.lineIndent(content, group.openStart) + this.indentUnit(content);
+        let insertAt = group.close;
+        while (insertAt > 0 && /\s/.test(content[insertAt - 1])) {
+            insertAt--;
+        }
+        // `<ItemGroup><X /></ItemGroup>` on one line: the closing tag gets a line of its own
+        const closingOwnLine = content.slice(insertAt, group.close).includes('\n');
+        const tail = closingOwnLine ? '' : nl + this.lineIndent(content, group.close);
+        return content.slice(0, insertAt) + nl + element(childIndent).join(nl) + tail + content.slice(insertAt);
+    }
+
+    /** The content with comments and targets replaced by spaces (same offsets) */
+    private static blankIgnored(content: string): string {
+        let result = content;
+        for (const [start, end] of this.ignoredRanges(content)) {
+            result = result.slice(0, start) + ' '.repeat(end - start) + result.slice(end);
+        }
+        return result;
     }
 
     /** Takes `value` out of the `Remove` items; `removed` tells whether there was one */

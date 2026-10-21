@@ -45,11 +45,13 @@ The tree is drawn from the disk first and corrected as soon as MSBuild has evalu
 
 Right-click a file or folder the project contains to take it out of the project, or a greyed-out one (Show All Files) to put it back. Both work on SDK-style projects only; an old-style project has neither entry.
 
-- **Exclude From Project** leaves the file on disk and writes a `Remove` item into the project file: `<Compile Remove="Sub\A.cs" />` for a file (the item type is the one MSBuild gave the file, `None` if it is unknown), and `Remove="Dir\**"` for a folder, once for each item type found under it. A file nested under another one (`Index.cshtml.cs` under `Index.cshtml`) is excluded on its own.
+- **Exclude From Project** leaves the file on disk and writes a `Remove` item into the project file: `<Compile Remove="Sub\A.cs" />` for a file (once for each item type MSBuild lists the file under, `None` if it is unknown), and `Remove="Dir\**"` for a folder, once for each item type found under it, all in one `ItemGroup`. A file nested under another one (`Index.cshtml.cs` under `Index.cshtml`) is excluded on its own.
 - **Include In Project** deletes the `Remove` item that excluded the file or folder. When there is none (the file is left out by the defaults or `DefaultItemExcludes`) it adds `Include` items instead: `Compile` for `.cs` files, `None` for the rest, one per file for a folder (`bin` and `obj` are skipped).
 - A linked file has no Exclude entry. Its Delete deletes the real file.
 
-The project is evaluated again afterwards, so the tree changes at once.
+New items go after every other item of the project file (at the end of the last `ItemGroup`, or in a new one when that one has a `Condition`), because MSBuild applies items in order: a `Remove` above an explicit `Include` of the same file would change nothing.
+
+The project is evaluated again afterwards, so the tree changes at once. When the file is still in the project after an Exclude (or still out after an Include), a warning says so: other items decide it, for example an explicit `Include` in a `Directory.Build.targets`, or a `DefaultItemExcludes` set in a `Directory.Build.props`.
 
 <!-- GIF: show-all-files.gif (Task 9) -->
 
