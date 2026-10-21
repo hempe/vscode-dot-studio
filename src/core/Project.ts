@@ -744,7 +744,7 @@ export class Project {
         const isFolder = node.type === 'folder';
         const itemValue = !this._isSdkStyle ? undefined
             : node.itemState === 'excluded' ? EXCLUDED_ITEM
-            : node.itemState === 'included' && !(isFolder && holdsProject(node.path, this._solutionProjects())) ? INCLUDED_ITEM
+            : node.itemState === 'included' && (!isFolder || this.canExcludeFolder(node.path)) ? INCLUDED_ITEM
             : undefined;
         return {
             type: node.type,
@@ -756,6 +756,15 @@ export class Project {
             // Folders load their children when expanded; nested files are known with their parent
             ...(!isFolder && node.children?.length ? { children: node.children.map(child => this.toProjectChild(child)) } : {}),
         };
+    }
+
+    /**
+     * Exclude needs files of this project under the folder (an empty folder, or one holding only linked
+     * files, would get a useless `Remove`), and the folder must not be another project of the solution
+     */
+    private canExcludeFolder(folderPath: string): boolean {
+        const items = ProjectItemsService.instance.get(this._projectPath);
+        return !!items && items.itemTypesUnder(folderPath).length > 0 && !holdsProject(folderPath, this._solutionProjects());
     }
 
     async getFolderChildren(folderPath: string): Promise<ProjectChild[]> {

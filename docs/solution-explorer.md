@@ -48,6 +48,7 @@ Right-click a file or folder the project contains to take it out of the project,
 - **Exclude From Project** leaves the file on disk and writes a `Remove` item into the project file: `<Compile Remove="Sub\A.cs" />` for a file (once for each item type MSBuild lists the file under, `None` if it is unknown), and `Remove="Dir\**"` for a folder, once for each item type found under it, all in one `ItemGroup`. A file nested under another one (`Index.cshtml.cs` under `Index.cshtml`) is excluded on its own.
 - **Include In Project** deletes the `Remove` item that excluded the file or folder. When there is none (the file is left out by the defaults or `DefaultItemExcludes`) it adds `Include` items instead: `Compile` for `.cs` files, `None` for the rest, one per file for a folder (`bin`, `obj`, `node_modules`, folders starting with a dot like `.git` and `.vs`, and `.user`/`.suo` files are skipped). When that would add more than 200 items it asks first.
 - A linked file has no Exclude entry. Its Delete deletes the real file.
+- An empty folder, a folder holding only linked files, and a folder that is a project of the solution itself (a nested project) have no Exclude entry either. For a nested project, use Remove or Delete on the project.
 
 New items go after every other item of the project file (at the end of the last `ItemGroup`, or in a new one when that one has a `Condition`), because MSBuild applies items in order: a `Remove` above an explicit `Include` of the same file would change nothing.
 

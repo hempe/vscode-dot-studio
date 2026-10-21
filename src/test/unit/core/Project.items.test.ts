@@ -125,6 +125,24 @@ describe('Project file tree with the item overlay', () => {
         expect(folder?.contextValue).toBeUndefined();
     });
 
+    test('does not offer Exclude on a folder without files of the project (empty, or only linked files)', async () => {
+        fs.mkdirSync(path.join(dir, 'Empty'));
+        fs.mkdirSync(path.join(dir, 'Shared'));
+        fs.mkdirSync(path.join(dir, 'Sub'));
+        fs.writeFileSync(path.join(dir, 'Sub', 'A.cs'), '');
+        const outside = path.join(os.tmpdir(), 'Elsewhere', 'Common.cs');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [
+                { Identity: 'Sub/A.cs', FullPath: path.join(dir, 'Sub', 'A.cs') },
+                { Identity: outside, FullPath: outside, Link: 'Shared/Common.cs' },
+            ] },
+        }), dir));
+        const children = await (await newProject()).getFolderChildren(dir);
+        expect(children.find(child => child.name === 'Empty')?.contextValue).toBeUndefined();
+        expect(children.find(child => child.name === 'Shared')?.contextValue).toBeUndefined();
+        expect(children.find(child => child.name === 'Sub')?.contextValue).toBe('included');
+    });
+
     const fired = (project: Project) => (project as unknown as { _changeEmitter: { fire: jest.Mock } })._changeEmitter.fire;
 
     test('redraws when the evaluation changed the item list', async () => {
