@@ -24,60 +24,101 @@ interface Entry {
     readonly linked: boolean;
 }
 
+/** The key paths are compared by: lowercased where the file system ignores case (Windows, macOS) */
+export function pathKey(p: string, platform: string = process.platform): string {
+    return platform === 'win32' || platform === 'darwin' ? p.toLowerCase() : p;
+}
+
+const key = (p: string) => pathKey(path.normalize(p));
+
+function typeRank(itemType: string): number {
+    const index = (ITEM_TYPES as readonly string[]).indexOf(itemType);
+    return index < 0 ? ITEM_TYPES.length : index;
+}
+
 /** What MSBuild evaluates a project to contain */
 export class ProjectItems {
-    private readonly byFullPath = new Map<string, Entry>();
+    /** Per file, its entries ordered by ITEM_TYPES */
+    private readonly byFullPath = new Map<string, Entry[]>();
     private readonly entries: readonly Entry[];
+    private readonly fullKeys: readonly string[];
+    private readonly virtualKeys: readonly string[];
 
     constructor(readonly projectDir: string, entries: readonly Entry[]) {
         this.entries = entries;
-        for (const entry of entries) {
-            this.byFullPath.set(path.normalize(entry.fullPath), entry);
+        this.fullKeys = entries.map(entry => key(entry.fullPath));
+        this.virtualKeys = entries.map(entry => key(entry.virtualPath));
+        entries.forEach((entry, index) => {
+            const list = this.byFullPath.get(this.fullKeys[index]);
+            if (list) {
+                list.push(entry);
+            } else {
+                this.byFullPath.set(this.fullKeys[index], [entry]);
+            }
+        });
+        for (const list of this.byFullPath.values()) {
+            list.sort((a, b) => typeRank(a.itemType) - typeRank(b.itemType));
         }
     }
 
     isIncluded(fullPath: string): boolean {
-        return this.byFullPath.has(path.normalize(fullPath));
+        return this.byFullPath.has(key(fullPath));
     }
 
+    /** The file's item type; the first in ITEM_TYPES order when it is listed under several */
     itemTypeOf(fullPath: string): string | undefined {
-        return this.byFullPath.get(path.normalize(fullPath))?.itemType;
+        return this.byFullPath.get(key(fullPath))?.[0].itemType;
+    }
+
+    /** All item types of the file, in ITEM_TYPES order */
+    itemTypesOf(fullPath: string): string[] {
+        return [...new Set((this.byFullPath.get(key(fullPath)) ?? []).map(entry => entry.itemType))];
     }
 
     /** Whether a file lies under the folder as the tree shows it (linked files at their link path) */
     hasIncludedUnder(folder: string): boolean {
-        const prefix = path.normalize(folder) + path.sep;
-        return this.entries.some(entry => entry.virtualPath.startsWith(prefix));
+        const prefix = key(folder) + path.sep;
+        return this.virtualKeys.some(virtualKey => virtualKey.startsWith(prefix));
     }
 
     /** The item types of the files under the folder, for excluding all of them */
     itemTypesUnder(folder: string): string[] {
-        const prefix = path.normalize(folder) + path.sep;
-        return [...new Set(this.entries.filter(entry => entry.fullPath.startsWith(prefix)).map(entry => entry.itemType))];
+        const prefix = key(folder) + path.sep;
+        const types = new Set(this.entries.filter((_, index) => this.fullKeys[index].startsWith(prefix)).map(entry => entry.itemType));
+        return [...types].sort((a, b) => typeRank(a) - typeRank(b));
     }
 
     /** Linked files shown directly in the folder */
     linkedFilesIn(folder: string): LinkedItem[] {
-        const normalized = path.normalize(folder);
-        return this.entries
-            .filter(entry => entry.linked && path.dirname(entry.virtualPath) === normalized)
-            .map(({ fullPath, virtualPath, itemType }) => ({ fullPath, virtualPath, itemType }));
+        const normalized = key(folder);
+        const seen = new Set<string>();
+        const result: LinkedItem[] = [];
+        this.entries.forEach((entry, index) => {
+            if (entry.linked && key(path.dirname(entry.virtualPath)) === normalized && !seen.has(this.virtualKeys[index])) {
+                seen.add(this.virtualKeys[index]);
+                result.push({ fullPath: entry.fullPath, virtualPath: entry.virtualPath, itemType: entry.itemType });
+            }
+        });
+        return result;
     }
 
     /** Names of the folders below `folder` that only exist because of links */
     linkedFoldersIn(folder: string): string[] {
-        const prefix = path.normalize(folder) + path.sep;
-        const names = new Set<string>();
-        for (const entry of this.entries) {
-            if (entry.linked && entry.virtualPath.startsWith(prefix)) {
-                const rest = entry.virtualPath.slice(prefix.length);
+        const prefix = key(folder) + path.sep;
+        const names = new Map<string, string>();
+        this.entries.forEach((entry, index) => {
+            if (entry.linked && this.virtualKeys[index].startsWith(prefix)) {
+                const rest = path.normalize(entry.virtualPath).slice(prefix.length);
                 const separator = rest.indexOf(path.sep);
                 if (separator > 0) {
-                    names.add(rest.slice(0, separator));
+                    const name = rest.slice(0, separator);
+                    if (!names.has(pathKey(name))) {
+                        names.set(pathKey(name), name);
+                    }
                 }
             }
-        }
-        return [...names];
+        });
+        return [...names.values()];
     }
 }
 
@@ -85,10 +126,11 @@ interface MsbuildItem { FullPath?: string; Identity?: string; Link?: string }
 
 /** Reads the output of `dotnet msbuild -getItem:...`; undefined when it is not the JSON result */
 export function parseMsbuildItems(output: string, projectDir: string): ProjectItems | undefined {
-    const start = output.indexOf('{');
-    if (start < 0) {
+    const match = /^[ \t]*\{/m.exec(output);
+    if (!match) {
         return undefined;
     }
+    const start = match.index + match[0].length - 1;
     let parsed: { Items?: Record<string, MsbuildItem[]> };
     try {
         parsed = JSON.parse(output.slice(start));
