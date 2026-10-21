@@ -1,0 +1,62 @@
+import * as path from 'path';
+import { layoutFolder, DiskEntry } from '../../../../services/projectItems/folderLayout';
+import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+
+const dir = path.resolve('/work/App');
+const at = (...parts: string[]) => path.join(dir, ...parts);
+const file = (name: string): DiskEntry => ({ name, isDirectory: false });
+const folder = (name: string): DiskEntry => ({ name, isDirectory: true });
+
+const items = parseMsbuildItems(JSON.stringify({
+    Items: {
+        Compile: [
+            { Identity: 'Program.cs', FullPath: at('Program.cs') },
+            { Identity: 'Sub\\Util.cs', FullPath: at('Sub', 'Util.cs') },
+            { Identity: '..\\Shared\\Shared.cs', FullPath: path.resolve('/work/Shared/Shared.cs'), Link: 'Linked\\Shared.cs' },
+        ],
+    },
+}), dir);
+
+const summary = (entries: ReturnType<typeof layoutFolder>) => entries.map(entry => `${entry.name}:${entry.state ?? '-'}`);
+
+describe('layoutFolder', () => {
+    const disk = [file('Program.cs'), file('Old.cs'), folder('Sub'), folder('Legacy'), folder('Empty'), folder('bin')];
+    const nonEmpty = new Set([at('Sub'), at('Legacy')]);
+
+    test('without an item list the disk listing is shown as is', () => {
+        expect(summary(layoutFolder(dir, disk, undefined, false, nonEmpty))).toEqual(
+            ['Program.cs:-', 'Old.cs:-', 'Sub:-', 'Legacy:-', 'Empty:-']);
+    });
+
+    test('hides excluded files and folders without included files, keeps empty folders, adds linked ones', () => {
+        expect(summary(layoutFolder(dir, disk, items, false, nonEmpty))).toEqual(
+            ['Program.cs:included', 'Sub:included', 'Empty:included', 'Linked:linked']);
+    });
+
+    test('Show All Files lists excluded ones, and bin/obj', () => {
+        expect(summary(layoutFolder(dir, disk, items, true, nonEmpty))).toEqual(
+            ['Program.cs:included', 'Old.cs:excluded', 'Sub:included', 'Legacy:excluded', 'Empty:included', 'bin:excluded', 'Linked:linked']);
+    });
+
+    test('a linked file shows under its link name with the real path', () => {
+        const [linked] = layoutFolder(at('Linked'), [], items, false, new Set());
+        expect(linked).toEqual({ name: 'Shared.cs', path: path.resolve('/work/Shared/Shared.cs'), isDirectory: false, state: 'linked' });
+    });
+
+    test('a folder that exists on disk is not listed twice for its linked files', () => {
+        const names = layoutFolder(dir, [folder('Linked')], items, false, new Set([at('Linked')])).map(entry => entry.name);
+        expect(names).toEqual(['Linked']);
+    });
+
+    test('a linked file with the name of a listed disk file in the same folder is dropped, the disk entry wins', () => {
+        expect(summary(layoutFolder(at('Linked'), [file('Shared.cs')], items, true, new Set()))).toEqual(['Shared.cs:excluded']);
+    });
+
+    test('a disk file that is not listed does not hide the linked file of the same name', () => {
+        expect(summary(layoutFolder(at('Linked'), [file('Shared.cs')], items, false, new Set()))).toEqual(['Shared.cs:linked']);
+    });
+
+    test('bin and obj stay hidden without Show All Files even with an item list', () => {
+        expect(summary(layoutFolder(dir, [folder('obj')], items, false, new Set([at('obj')])))).toEqual(['Linked:linked']);
+    });
+});
