@@ -48,8 +48,8 @@ describe('layoutFolder', () => {
         expect(names).toEqual(['Linked']);
     });
 
-    test('a linked file with the name of a listed disk file in the same folder is dropped, the disk entry wins', () => {
-        expect(summary(layoutFolder(at('Linked'), [file('Shared.cs')], items, true, new Set()))).toEqual(['Shared.cs:excluded']);
+    test('a linked file with the name of an excluded disk file in the same folder wins over it', () => {
+        expect(summary(layoutFolder(at('Linked'), [file('Shared.cs')], items, true, new Set()))).toEqual(['Shared.cs:linked']);
     });
 
     test('a disk file that is not listed does not hide the linked file of the same name', () => {
@@ -58,5 +58,44 @@ describe('layoutFolder', () => {
 
     test('bin and obj stay hidden without Show All Files even with an item list', () => {
         expect(summary(layoutFolder(dir, [folder('obj')], items, false, new Set([at('obj')])))).toEqual(['Linked:linked']);
+    });
+
+    // pathKey compares case-sensitively on Linux, so Bin/OBJ are ordinary folders there
+    const ignoresCase = process.platform === 'win32' || process.platform === 'darwin';
+    test('bin and obj are hidden by any casing without Show All Files, shown with it (where paths ignore case)', () => {
+        const mixed = [folder('Bin'), folder('OBJ')];
+        const all = new Set<string>(); // empty folders count as included unless they are build output
+        expect(summary(layoutFolder(dir, mixed, items, false, all))).toEqual(
+            ignoresCase ? ['Linked:linked'] : ['Bin:included', 'OBJ:included', 'Linked:linked']);
+        expect(summary(layoutFolder(dir, mixed, items, true, all))).toEqual(
+            ignoresCase ? ['Bin:excluded', 'OBJ:excluded', 'Linked:linked'] : ['Bin:included', 'OBJ:included', 'Linked:linked']);
+    });
+
+    describe('an excluded disk file with the name of a linked file', () => {
+        const withLink = parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [{ Identity: '..\\Shared\\Foo.cs', FullPath: path.resolve('/work/Shared/Foo.cs'), Link: 'Foo.cs' }] },
+        }), dir);
+
+        test('is replaced by the linked file with Show All Files on', () => {
+            const entries = layoutFolder(dir, [file('Foo.cs')], withLink, true, new Set());
+            expect(summary(entries)).toEqual(['Foo.cs:linked']);
+            expect(entries[0].path).toBe(path.resolve('/work/Shared/Foo.cs'));
+        });
+
+        test('is not shown with Show All Files off, the linked file is', () => {
+            expect(summary(layoutFolder(dir, [file('Foo.cs')], withLink, false, new Set()))).toEqual(['Foo.cs:linked']);
+        });
+
+        test('an included disk file still wins over the linked file', () => {
+            const both = parseMsbuildItems(JSON.stringify({
+                Items: { Compile: [
+                    { Identity: 'Foo.cs', FullPath: at('Foo.cs') },
+                    { Identity: '..\\Shared\\Foo.cs', FullPath: path.resolve('/work/Shared/Foo.cs'), Link: 'Foo.cs' },
+                ] },
+            }), dir);
+            const entries = layoutFolder(dir, [file('Foo.cs')], both, true, new Set());
+            expect(summary(entries)).toEqual(['Foo.cs:included']);
+            expect(entries[0].path).toBe(at('Foo.cs'));
+        });
     });
 });

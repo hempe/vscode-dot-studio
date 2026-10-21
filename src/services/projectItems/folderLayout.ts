@@ -20,9 +20,12 @@ export interface LaidOutEntry {
 /** The folders Show All Files reveals on top of the excluded files; other skipped folders (.git, node_modules...) stay hidden */
 export const BUILD_OUTPUT_FOLDERS = ['bin', 'obj'];
 
+const isBuildOutput = (name: string) => BUILD_OUTPUT_FOLDERS.some(folder => pathKey(folder) === pathKey(name));
+
 /**
  * The entries of a folder: what is on disk, judged by what the project contains, plus linked files.
- * A linked entry whose name is already shown from disk is dropped: the disk entry wins.
+ * A linked entry whose name is already shown from disk as included is dropped: the disk entry wins.
+ * An excluded disk entry with the name of a linked entry is dropped instead: the linked entry is the one in the project.
  * @param nonEmptyFolders disk folders that hold something; an empty folder is shown as included (it carries no exclusion)
  */
 export function layoutFolder(
@@ -35,7 +38,7 @@ export function layoutFolder(
     const entries: LaidOutEntry[] = [];
     for (const entry of disk) {
         const entryPath = path.join(folderPath, entry.name);
-        const hidden = entry.isDirectory && BUILD_OUTPUT_FOLDERS.includes(entry.name) && !showAll;
+        const hidden = entry.isDirectory && isBuildOutput(entry.name) && !showAll;
         if (hidden) {
             continue;
         }
@@ -45,7 +48,7 @@ export function layoutFolder(
         }
         // build output is never part of the project, empty or not
         const included = entry.isDirectory
-            ? items.hasIncludedUnder(entryPath) || (!nonEmptyFolders.has(entryPath) && !BUILD_OUTPUT_FOLDERS.includes(entry.name))
+            ? items.hasIncludedUnder(entryPath) || (!nonEmptyFolders.has(entryPath) && !isBuildOutput(entry.name))
             : items.isIncluded(entryPath);
         if (included || showAll) {
             entries.push({ name: entry.name, path: entryPath, isDirectory: entry.isDirectory, state: included ? 'included' : 'excluded' });
@@ -53,6 +56,15 @@ export function layoutFolder(
     }
 
     if (items) {
+        const linkedNames = new Set([
+            ...items.linkedFoldersIn(folderPath),
+            ...items.linkedFilesIn(folderPath).map(linked => path.basename(linked.virtualPath)),
+        ].map(name => pathKey(name)));
+        for (let i = entries.length - 1; i >= 0; i--) {
+            if (entries[i].state === 'excluded' && linkedNames.has(pathKey(entries[i].name))) {
+                entries.splice(i, 1);
+            }
+        }
         const shown = new Set(entries.map(entry => pathKey(entry.name)));
         for (const name of items.linkedFoldersIn(folderPath)) {
             if (!shown.has(pathKey(name))) {

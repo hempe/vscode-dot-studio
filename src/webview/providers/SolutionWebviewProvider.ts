@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { ShowAllFiles } from '../../services/showAllFiles';
 import * as path from 'path';
+import { ShowAllFiles } from '../../services/showAllFiles';
 import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
