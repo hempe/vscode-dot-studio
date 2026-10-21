@@ -7,7 +7,14 @@ What still needs a check in VS Code itself is listed in [manual-testing.md](manu
 ## Known bugs
 
 Found along the way, to be fixed:
-- none open
+- [ ] A one-time MSBuild failure (timeout, a half-saved project file) is cached as "no item list" until the project changes again (project file, a props file, new files), so the project shows the plain disk listing meanwhile; retry with a backoff, or when the project is expanded next
+- [ ] Exclude From Project / Include In Project on a file in the folder of a nested project, from the outer project's tree, edits the nested (deepest) project's file; only folders that hold a project are refused
+- [ ] Item matching in the project file skips XML comments and items inside `<Target>`, but only knows self-closing items: a block-form item (`<Compile Remove="Old.cs"></Compile>`, or one with metadata children) is not found, so Include In Project leaves its `Remove` in place and adds an `Include` item after it instead (the file is included, the project file gets both), and Exclude does not see an existing block-form `Remove` and adds a self-closing one
+- [ ] After a new item list, `Project.reloadLoadedFolders` reloads the expanded folders in the order they were expanded, not parents before children (by depth)
+- [ ] Show All Files is read from a global that is set to the new solution only after it has loaded (`ShowAllFiles.setSolution` after `solution.ready`): folders read while the solution loads, e.g. after an evaluation answered from the cache right after switching solutions, use the previous solution's setting
+- [ ] The tests of path casing for Windows and macOS (bin/obj in any casing, `folderLayout.test.ts`) only run their case-insensitive branch on those systems; on Linux they check the case-sensitive one
+- [ ] The Visual Studio build-action item types added to the item list (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) come from memory and are not checked against Visual Studio; the platform files of iOS/MAUI projects are not checked either (workloads not installed)
+- [ ] The position of the link badge of linked files in the tree was never seen on screen
 
 ## Known limitations
 
