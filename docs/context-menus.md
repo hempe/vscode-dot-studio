@@ -160,6 +160,18 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Update Service Reference |  | Regenerates the service reference from its WSDL, for the project's current target framework. |
 | Remove Service Reference |  | Removes the service reference: deletes its folder after asking; the WCF packages stay. |
 
+**On folders the project contains (SDK-style projects)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Exclude From Project |  | Takes the file or folder out of the project (a `Remove` item in the project file) and leaves it on disk. It stays visible with Show All Files, greyed out. |
+
+**On folders the project does not contain (Show All Files)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Include In Project |  | Puts a file or folder the project does not contain back into it: deletes the `Remove` item that excluded it, or adds `Include` items. Shown with Show All Files. |
+
 **In test projects**
 
 | Command | Key | What it does |
@@ -180,6 +192,18 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
+
+**On files the project contains (SDK-style projects)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Exclude From Project |  | Takes the file or folder out of the project (a `Remove` item in the project file) and leaves it on disk. It stays visible with Show All Files, greyed out. |
+
+**On files the project does not contain (Show All Files)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Include In Project |  | Puts a file or folder the project does not contain back into it: deletes the `Remove` item that excluded it, or adds `Include` items. Shown with Show All Files. |
 
 **In test projects**
 

@@ -635,6 +635,16 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.excludeFromProject",
+        "title": "Exclude From Project",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.includeInProject",
+        "title": "Include In Project",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.deleteProject",
         "title": "Delete",
         "category": ".NET"
@@ -1101,6 +1111,26 @@
           "group": "01_group@2"
         },
         {
+          "command": "shinobi.solutionExplorer.excludeFromProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && contextValue == 'included'",
+          "group": "03_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.excludeFromProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && contextValue == 'included'",
+          "group": "03_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.includeInProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && contextValue == 'excluded'",
+          "group": "03_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.includeInProject",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder' && contextValue == 'excluded'",
+          "group": "03_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.addNewItem",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "01_group@1"
@@ -1521,6 +1551,14 @@
         },
         {
           "command": "shinobi.solutionExplorer.deleteFile",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.excludeFromProject",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.includeInProject",
           "when": "false"
         },
         {

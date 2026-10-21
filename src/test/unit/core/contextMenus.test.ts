@@ -1,4 +1,4 @@
-import { applyMenuContributions, buildMenuContributions, buildMenuReference, contextMenus, menuCommands, MenuCommandAction, submenus, testProjectMenus } from '../../../core/contextMenus';
+import { applyMenuContributions, buildMenuContributions, buildMenuReference, contextMenus, menuCommands, MenuCommandAction, submenus, testProjectMenus, INCLUDED_ITEM, EXCLUDED_ITEM } from '../../../core/contextMenus';
 import { NodeType } from '../../../types';
 
 const packageJson = require('../../../../package.json');
@@ -161,6 +161,14 @@ describe('contextMenus', () => {
         expect(project).toContain('**In test projects**');
         expect(reference).toContain('| Delete | Delete (macOS: Cmd+Backspace) |');
         expect(reference).not.toContain('## temporary');
+    });
+});
+
+describe('Exclude From Project and Include In Project', () => {
+    test('are offered on included items and excluded ones respectively, never both', () => {
+        expect(contextMenus[`file.${INCLUDED_ITEM}`]!.flat()).toEqual(['excludeFromProject']);
+        expect(contextMenus[`file.${EXCLUDED_ITEM}`]!.flat()).toEqual(['includeInProject']);
+        expect(contextMenus.file.flat()).not.toContain('excludeFromProject');
     });
 });
 

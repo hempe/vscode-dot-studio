@@ -41,6 +41,16 @@ The title bar's Show All Files button works like Visual Studio's. It is off by d
 
 The tree is drawn from the disk first and corrected as soon as MSBuild has evaluated the project, which takes a moment on big solutions. Evaluating needs the .NET SDK. Changing a `Directory.Build.props` or `Directory.Build.targets` re-evaluates the projects.
 
+### Exclude From Project and Include In Project
+
+Right-click a file or folder the project contains to take it out of the project, or a greyed-out one (Show All Files) to put it back. Both work on SDK-style projects only; an old-style project has neither entry.
+
+- **Exclude From Project** leaves the file on disk and writes a `Remove` item into the project file: `<Compile Remove="Sub\A.cs" />` for a file (the item type is the one MSBuild gave the file, `None` if it is unknown), and `Remove="Dir\**"` for a folder, once for each item type found under it. A file nested under another one (`Index.cshtml.cs` under `Index.cshtml`) is excluded on its own.
+- **Include In Project** deletes the `Remove` item that excluded the file or folder. When there is none (the file is left out by the defaults or `DefaultItemExcludes`) it adds `Include` items instead: `Compile` for `.cs` files, `None` for the rest, one per file for a folder (`bin` and `obj` are skipped).
+- A linked file has no Exclude entry. Its Delete deletes the real file.
+
+The project is evaluated again afterwards, so the tree changes at once.
+
 <!-- GIF: show-all-files.gif (Task 9) -->
 
 ## Keyboard

@@ -184,6 +184,16 @@ export declare type AddFolderActionCmd = {
     };
 }
 
+export declare type ExcludeFromProjectActionCmd = {
+    readonly action: 'excludeFromProject';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type IncludeInProjectActionCmd = {
+    readonly action: 'includeInProject';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type CopyActionCmd = {
     readonly action: 'copy';
     readonly nodeId: NodeIdString;
@@ -328,6 +338,8 @@ export type ProjectActionCmd =
     | AddFileActionCmd
     | AddFolderActionCmd
     | CopyActionCmd
+    | ExcludeFromProjectActionCmd
+    | IncludeInProjectActionCmd
     | CutActionCmd
     | EditProjectFileActionCmd
     | AddExistingItemActionCmd

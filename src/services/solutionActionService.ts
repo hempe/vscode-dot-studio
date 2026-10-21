@@ -22,6 +22,8 @@ import { PublishPanel } from '../webview/providers/PublishPanel';
 import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
+import { ProjectItemsService } from './projectItems/projectItemsService';
+import { excludeEdit, includeEdit, listFilesUnder } from './projectItems/projectItemEdits';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -237,6 +239,11 @@ export class SolutionActionService {
 
             case 'removeServiceReference':
                 await removeServiceReferenceWithConfirmation(nodeId.path);
+                break;
+
+            case 'excludeFromProject':
+            case 'includeInProject':
+                await this._handleItemMembership(nodeId, cmd.action === 'excludeFromProject');
                 break;
 
             case 'copy':
@@ -1247,6 +1254,37 @@ export class SolutionActionService {
         paths: string[];
         operation: 'copy' | 'cut';
     } | null = null;
+
+    /** Exclude From Project / Include In Project: edits the project file, then evaluates the project again */
+    private static async _handleItemMembership(nodeId: NodeId, exclude: boolean): Promise<void> {
+        const target = nodeId.path;
+        const isFolder = nodeId.type === 'folder';
+        const projectPath = projectForPath(target);
+        const project = projectPath ? SolutionService.getActiveSolution()?.projects.get(projectPath) : undefined;
+        if (!projectPath || !project) {
+            vscode.window.showWarningMessage('The item is not in a project.');
+            return;
+        }
+        try {
+            const items = await ProjectItemsService.instance.evaluate(projectPath);
+            if (exclude && !items) {
+                vscode.window.showErrorMessage('Could not read the project items (is the .NET SDK installed?).');
+                return;
+            }
+            const projectDir = path.dirname(projectPath);
+            const content = await fs.promises.readFile(projectPath, 'utf8');
+            const edited = exclude
+                ? excludeEdit(content, projectDir, target, isFolder, items!)
+                : includeEdit(content, projectDir, target, isFolder, isFolder ? await listFilesUnder(target) : []);
+            if (edited !== content) {
+                await fs.promises.writeFile(projectPath, edited, 'utf8');
+            }
+            await project.reevaluateItems();
+        } catch (error) {
+            log.error(`${exclude ? 'Exclude' : 'Include'} failed for ${target}:`, error);
+            vscode.window.showErrorMessage(`Could not ${exclude ? 'exclude' : 'include'} ${path.basename(target)}: ${error instanceof Error ? error.message : error}`);
+        }
+    }
 
     /**
      * Handles copying a file or folder to the clipboard
