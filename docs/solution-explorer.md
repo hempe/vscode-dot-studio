@@ -28,7 +28,20 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 | ▷ Start Debugging | F5: starts the selected launch configuration, normally the startup project |
 | ▷ Start Without Debugging | Ctrl+F5: runs the startup project without the debugger |
 | ⇄ Sync with Active Document | Opens the tree down to the file in the active editor and selects it (Ctrl+[, S). To do this on every switch of files, turn on `shinobi.solutionExplorer.trackActiveItem` (Visual Studio's "Track Active Item") |
+| Show All Files | Shows the files the project does not contain, greyed out, like Visual Studio's button; see [Show All Files and linked files](#show-all-files-and-linked-files) |
 | Collapse All | Collapses everything; the solution keeps showing its top level |
+
+## Show All Files and linked files
+
+The title bar's Show All Files button works like Visual Studio's. It is off by default and remembered for each solution.
+
+- Off: the tree shows only what the project contains. Files hidden by `<Compile Remove>`, `DefaultItemExcludes` and the like are not listed.
+- On: the files the project does not contain, and the `bin` and `obj` folders, appear greyed out.
+- Linked files (`<Compile Include="..\x.cs" Link="x.cs" />`) appear under their link path, with a small link badge on the icon.
+
+The tree is drawn from the disk first and corrected as soon as MSBuild has evaluated the project, which takes a moment on big solutions. Evaluating needs the .NET SDK. Changing a `Directory.Build.props` or `Directory.Build.targets` re-evaluates the projects.
+
+<!-- GIF: show-all-files.gif (Task 9) -->
 
 ## Keyboard
 

@@ -208,6 +208,20 @@ describe('TreeNode Focus and Selection States', () => {
     });
   });
 
+  describe('Project item state', () => {
+    test('greys out a file the project does not contain', () => {
+      render(<TreeNode {...defaultProps} node={{ ...fileNode, name: 'Old.cs', itemState: 'excluded' }} />);
+      expect(screen.getByText('Old.cs').closest('.tree-node')).toHaveClass('excluded');
+    });
+
+    test('marks a linked file', () => {
+      render(<TreeNode {...defaultProps} node={{ ...fileNode, name: 'Shared.cs', itemState: 'linked' }} />);
+      const row = screen.getByText('Shared.cs').closest('.tree-node')!;
+      expect(row).toHaveClass('linked');
+      expect(row.querySelector('.link-overlay')).not.toBeNull();
+    });
+  });
+
   describe('Click Debouncing', () => {
   });
 });

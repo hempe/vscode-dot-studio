@@ -378,6 +378,17 @@
         "icon": "$(collapse-all)"
       },
       {
+        "command": "shinobi.solution.showAllFiles",
+        "title": "Show All Files",
+        "category": ".NET",
+        "icon": "$(files)",
+        "toggled": {
+          "condition": "shinobi.solutionExplorer.showAllFiles",
+          "icon": "$(files)",
+          "tooltip": "Hide the files the project does not contain"
+        }
+      },
+      {
         "command": "shinobi.solution.open",
         "title": "Open Solution...",
         "category": ".NET",
@@ -703,9 +714,14 @@
           "group": "navigation@4"
         },
         {
-          "command": "shinobi.solution.collapseAll",
+          "command": "shinobi.solution.showAllFiles",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@5"
+        },
+        {
+          "command": "shinobi.solution.collapseAll",
+          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
+          "group": "navigation@6"
         },
         {
           "command": "shinobi.debug.attachToProcess",

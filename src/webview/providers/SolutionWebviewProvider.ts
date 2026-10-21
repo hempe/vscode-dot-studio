@@ -200,6 +200,14 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         await this._sendCachedData();
     }
 
+    /** Visual Studio's "Show All Files" in the title bar */
+    public async toggleShowAllFiles(): Promise<void> {
+        await ShowAllFiles.toggle();
+        const solution = SolutionService.getActiveSolution();
+        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.refresh()));
+        this.refresh();
+    }
+
     /**
      * Visual Studio's "Sync with Active Document": selects the file of the active editor in the tree.
      * Tracking the active item (`shinobi.solutionExplorer.trackActiveItem`) does the same quietly,

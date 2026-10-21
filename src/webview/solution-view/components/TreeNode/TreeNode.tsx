@@ -316,7 +316,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
@@ -394,6 +394,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                                 })
                             }}
                         />
+                    )}
+                    {node.itemState === 'linked' && (
+                        <span className="link-overlay"><Icon icon="codicon:link" width="10" height="10" style={{ display: 'block' }} /></span>
                     )}
                 </div>
                 {isRenaming ? (

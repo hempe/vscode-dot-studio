@@ -230,6 +230,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('shinobi.solution.startWithoutDebugging', () => DebugConfigService.startStartupProject(true)),
         vscode.commands.registerCommand('shinobi.solution.syncWithActiveDocument', () => solutionWebviewProvider.syncWithActiveDocument()),
         vscode.commands.registerCommand('shinobi.solution.collapseAll', () => solutionWebviewProvider.collapseAll()),
+        vscode.commands.registerCommand('shinobi.solution.showAllFiles', () => solutionWebviewProvider.toggleShowAllFiles()),
         // Visual Studio's View > Solution Explorer (Ctrl+Alt+L) and View > Error List
         vscode.commands.registerCommand('shinobi.solution.focusSolutionExplorer', () => vscode.commands.executeCommand(
             vscode.workspace.getConfiguration('shinobi.solutionExplorer').get('location') === 'secondary-sidebar'
@@ -332,10 +333,24 @@ export function activate(context: vscode.ExtensionContext) {
     launchSettingsWatcher.onDidChange(handleLaunchSettingsChange);
     launchSettingsWatcher.onDidDelete(handleLaunchSettingsChange);
 
+    // Directory.Build.props/targets change what every project below contains
+    const buildPropsWatcher = vscode.workspace.createFileSystemWatcher('**/Directory.Build.{props,targets}');
+    const handleBuildPropsChange = async (uri: vscode.Uri) => {
+        if (isExcluded(uri.fsPath, rootOf(uri.fsPath))) {
+            return;
+        }
+        const solution = SolutionService.getActiveSolution();
+        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.reevaluateItems()));
+    };
+    buildPropsWatcher.onDidCreate(handleBuildPropsChange);
+    buildPropsWatcher.onDidChange(handleBuildPropsChange);
+    buildPropsWatcher.onDidDelete(handleBuildPropsChange);
+
     // Add watchers to subscriptions
     context.subscriptions.push(solutionWatcher);
     context.subscriptions.push(projectWatcher);
     context.subscriptions.push(launchSettingsWatcher);
+    context.subscriptions.push(buildPropsWatcher);
 
     logger.info('.NET Extension activation complete!');
 }

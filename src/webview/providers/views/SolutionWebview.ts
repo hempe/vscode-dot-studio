@@ -127,6 +127,20 @@ export class SolutionWebView {
                             opacity: 0.55;
                         }
 
+                        /* Files the project does not contain (Show All Files), as Visual Studio greys them out */
+                        .tree-node.excluded {
+                            opacity: 0.55;
+                        }
+
+                        /* Files the project links from elsewhere: a small link badge at the icon */
+                        .tree-node.linked .link-overlay {
+                            display: block;
+                            position: relative;
+                            left: -6px;
+                            top: 4px;
+                            margin-right: -10px;
+                        }
+
                         .tree-node.active .node-name {
                             font-weight: bold;
                         }
