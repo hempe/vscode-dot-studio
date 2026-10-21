@@ -4,8 +4,40 @@ import { ProjectFileEditor } from '../../parsers/projectFileEditor';
 import { BUILD_OUTPUT_FOLDERS } from './folderLayout';
 import { ProjectItems } from './projectItems';
 
-/** MSBuild item paths, relative to the project folder, with backslashes like the project templates */
-const itemPath = (projectDir: string, target: string) => path.relative(projectDir, target).replace(/\//g, '\\');
+/** Whether `relative` (from path.relative) points below the folder it is relative to */
+const isBelow = (relative: string) =>
+    relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+
+/**
+ * MSBuild item paths, relative to the project folder, with backslashes like the project templates.
+ * Throws for the project folder itself and anything outside it: `Remove="\**"` would match the whole drive.
+ */
+function itemPath(projectDir: string, target: string): string {
+    const relative = path.relative(projectDir, target);
+    if (!isBelow(relative)) {
+        throw new Error(`${target} is not inside the project folder ${projectDir}`);
+    }
+    return relative.replace(/\//g, '\\');
+}
+
+/**
+ * Why Exclude/Include must not touch the node, or undefined when it may: a folder that is (or holds) a
+ * project of the solution belongs to that project, editing the outer project file would not remove it.
+ */
+export function membershipRefusal(target: string, isFolder: boolean, solutionProjects: readonly string[]): string | undefined {
+    if (isFolder && holdsProject(target, solutionProjects)) {
+        return 'This folder is a project of its own; use Remove or Delete on the project.';
+    }
+    return undefined;
+}
+
+/** Whether the folder is the folder of one of the projects, or one of them lies below it */
+export function holdsProject(folder: string, projects: readonly string[]): boolean {
+    return projects.some(project => {
+        const relative = path.relative(folder, path.dirname(project));
+        return relative === '' || isBelow(relative);
+    });
+}
 
 const itemTypeForNewItem = (file: string) => path.extname(file).toLowerCase() === '.cs' ? 'Compile' : 'None';
 

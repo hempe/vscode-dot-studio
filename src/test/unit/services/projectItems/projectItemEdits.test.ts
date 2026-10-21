@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { excludeEdit, includeEdit } from '../../../../services/projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
 import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
@@ -50,5 +50,33 @@ describe('includeEdit', () => {
         const edited = includeEdit(project, dir, at('Gen'), true, [at('Gen', 'a.cs'), at('Gen', 'deep', 'b.txt')]);
         expect(edited).toContain('<Compile Include="Gen\\a.cs" />');
         expect(edited).toContain('<None Include="Gen\\deep\\b.txt" />');
+    });
+});
+
+describe('paths outside the project folder', () => {
+    test('are refused instead of writing a Remove item for the whole drive', () => {
+        expect(() => excludeEdit(project, dir, dir, true, items)).toThrow(/not inside the project folder/);
+        expect(() => excludeEdit(project, dir, path.resolve(dir, '..', 'Other', 'x.cs'), false, items)).toThrow(/not inside the project folder/);
+        expect(() => includeEdit(project, dir, dir, true, [at('a.cs')])).toThrow(/not inside the project folder/);
+        expect(() => includeEdit(project, dir, at('Gen'), true, [path.resolve(dir, '..', 'b.cs')])).toThrow(/not inside the project folder/);
+    });
+
+    test('a folder whose name starts with two dots is inside', () => {
+        expect(excludeEdit(project, dir, at('..data'), true, items)).toContain('<None Remove="..data\\**" />');
+    });
+});
+
+describe('membershipRefusal', () => {
+    const solutionProjects = [path.join(dir, 'App.csproj'), at('Tools', 'Tools.csproj'), at('Deep', 'Inner', 'Inner.csproj')];
+
+    test('refuses a folder that is a project of its own, or holds one', () => {
+        expect(membershipRefusal(at('Tools'), true, solutionProjects)).toMatch(/project of its own/);
+        expect(membershipRefusal(at('Deep'), true, solutionProjects)).toMatch(/project of its own/);
+    });
+
+    test('lets other folders and files through', () => {
+        expect(membershipRefusal(at('Sub'), true, solutionProjects)).toBeUndefined();
+        expect(membershipRefusal(at('Tools', 'T.cs'), false, solutionProjects)).toBeUndefined();
+        expect(membershipRefusal(at('Tool'), true, solutionProjects)).toBeUndefined();
     });
 });

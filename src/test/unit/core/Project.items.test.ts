@@ -108,6 +108,23 @@ describe('Project file tree with the item overlay', () => {
         expect(children.find(child => child.name === 'Old.cs')?.contextValue).toBe('excluded');
     });
 
+    test('does not offer Exclude on a folder that is a project of the solution', async () => {
+        const tools = path.join(dir, 'Tools');
+        fs.mkdirSync(tools);
+        fs.writeFileSync(path.join(tools, 'T.cs'), '');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [{ Identity: 'Tools/T.cs', FullPath: path.join(tools, 'T.cs') }] },
+        }), dir));
+        const project = new Project(projectPath, { name: 'App', path: 'App.csproj', guid: 'g', typeGuid: 't' } as never, () => false,
+            () => [projectPath, path.join(tools, 'Tools.csproj')]);
+        while (!project.isInitialized) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        const folder = (await project.getFolderChildren(dir)).find(child => child.name === 'Tools');
+        expect(folder).toBeDefined();
+        expect(folder?.contextValue).toBeUndefined();
+    });
+
     const fired = (project: Project) => (project as unknown as { _changeEmitter: { fire: jest.Mock } })._changeEmitter.fire;
 
     test('redraws when the evaluation changed the item list', async () => {

@@ -17,6 +17,7 @@ import { workspaceFolderOf } from '../services/workspaceFolders';
 import { ProjectItemsService } from '../services/projectItems/projectItemsService';
 import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
 import { ShowAllFiles } from '../services/showAllFiles';
+import { holdsProject } from '../services/projectItems/projectItemEdits';
 import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
 
 export interface ProjectFileNode {
@@ -56,11 +57,15 @@ export class Project {
 
     public readonly onDidChange = this._changeEmitter.event;
 
-    /** @param _isUnloaded whether the user unloaded the project: then MSBuild does not evaluate it */
+    /**
+     * @param _isUnloaded whether the user unloaded the project: then MSBuild does not evaluate it
+     * @param _solutionProjects the project files of the solution: a folder holding one of them is not offered Exclude
+     */
     constructor(
         private _projectPath: string,
         private _solutionProject: SolutionProject,
-        private readonly _isUnloaded: () => boolean = () => false
+        private readonly _isUnloaded: () => boolean = () => false,
+        private readonly _solutionProjects: () => readonly string[] = () => []
     ) {
         this.initialize();
     }
@@ -739,7 +744,8 @@ export class Project {
         const isFolder = node.type === 'folder';
         const itemValue = !this._isSdkStyle ? undefined
             : node.itemState === 'excluded' ? EXCLUDED_ITEM
-            : node.itemState === 'included' ? INCLUDED_ITEM : undefined;
+            : node.itemState === 'included' && !(isFolder && holdsProject(node.path, this._solutionProjects())) ? INCLUDED_ITEM
+            : undefined;
         return {
             type: node.type,
             name: node.name,

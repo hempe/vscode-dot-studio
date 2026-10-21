@@ -23,7 +23,7 @@ import { runCodeCleanup } from './codeCleanup/codeCleanup';
 import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { ProjectItemsService } from './projectItems/projectItemsService';
-import { excludeEdit, includeEdit, listFilesUnder } from './projectItems/projectItemEdits';
+import { excludeEdit, includeEdit, listFilesUnder, membershipRefusal } from './projectItems/projectItemEdits';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -1259,8 +1259,14 @@ export class SolutionActionService {
     private static async _handleItemMembership(nodeId: NodeId, exclude: boolean): Promise<void> {
         const target = nodeId.path;
         const isFolder = nodeId.type === 'folder';
+        const solution = SolutionService.getActiveSolution();
+        const refusal = membershipRefusal(target, isFolder, [...(solution?.projects.keys() ?? [])]);
+        if (refusal) {
+            vscode.window.showWarningMessage(refusal);
+            return;
+        }
         const projectPath = projectForPath(target);
-        const project = projectPath ? SolutionService.getActiveSolution()?.projects.get(projectPath) : undefined;
+        const project = projectPath ? solution?.projects.get(projectPath) : undefined;
         if (!projectPath || !project) {
             vscode.window.showWarningMessage('The item is not in a project.');
             return;

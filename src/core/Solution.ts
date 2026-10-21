@@ -287,7 +287,8 @@ export class Solution {
                 const absolutePath = path.resolve(path.dirname(this._solutionPath), solutionProject.path);
 
                 try {
-                    const project = new Project(absolutePath, solutionProject, () => UnloadedProjects.isUnloaded(this._solutionPath, absolutePath));
+                    const project = new Project(absolutePath, solutionProject, () => UnloadedProjects.isUnloaded(this._solutionPath, absolutePath),
+                        () => [...this._projects.keys()]);
 
                     // Subscribe to project changes
                     project.onDidChange(() => {
