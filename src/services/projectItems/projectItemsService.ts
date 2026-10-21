@@ -3,6 +3,7 @@ import * as os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../../core/logger';
+import { ConcurrencyLimit, SingleFlight } from '../singleFlight';
 import { ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
 
 const execFileAsync = promisify(execFile);
@@ -10,7 +11,8 @@ const log = logger('ProjectItems');
 
 export type RunMsbuild = (projectPath: string) => Promise<string>;
 
-const runMsbuild: RunMsbuild = async projectPath => {
+/** Starts `dotnet msbuild` (twice for a multi-targeted project: the items exist per target framework) */
+export const runMsbuild: RunMsbuild = async projectPath => {
     const run = async (...extra: string[]) => (await execFileAsync('dotnet',
         ['msbuild', projectPath, '-nologo', `-getItem:${ITEM_TYPES.join(',')}`, '-getProperty:TargetFramework,TargetFrameworks', ...extra],
         { cwd: path.dirname(projectPath), timeout: 120000, maxBuffer: 64 * 1024 * 1024 })).stdout;
@@ -25,6 +27,9 @@ const runMsbuild: RunMsbuild = async projectPath => {
  * Evaluating starts a process, so results are cached until the project file or a props file changes. After a
  * change the last result stays available (stale-while-revalidate) until the new evaluation lands, so the tree
  * does not fall back to the plain disk listing meanwhile.
+ *
+ * At most one MSBuild runs per project: changes while it runs make it run once more when it ends (however many
+ * changes came), and only that run's result is published. Across projects at most `maxConcurrent` run at once.
  */
 export class ProjectItemsService {
     static readonly instance = new ProjectItemsService();
@@ -34,17 +39,16 @@ export class ProjectItemsService {
     // Projects whose cached result is outdated: still returned by `get`, but `evaluate` runs MSBuild again
     private readonly stale = new Set<string>();
     private readonly versions = new Map<string, number>();
-    private readonly pending = new Map<string, Promise<ProjectItems | undefined>>();
-    private readonly generation = new Map<string, number>();
     private readonly listeners = new Set<(projectPath: string) => void>();
     // Opening a solution evaluates every project: start at most `maxConcurrent` processes at once
-    private running = 0;
-    private readonly waiting: (() => void)[] = [];
+    private readonly flights: SingleFlight<ProjectItems | undefined>;
 
     constructor(
         private readonly run: RunMsbuild = runMsbuild,
-        private readonly maxConcurrent = Math.max(2, Math.floor(os.cpus().length / 2)),
-    ) { }
+        maxConcurrent = Math.max(2, Math.floor(os.cpus().length / 2)),
+    ) {
+        this.flights = new SingleFlight(new ConcurrencyLimit(maxConcurrent));
+    }
 
     /** The cached result (possibly outdated while a new evaluation runs), without starting an evaluation */
     get(projectPath: string): ProjectItems | undefined {
@@ -56,40 +60,28 @@ export class ProjectItemsService {
         return this.versions.get(projectPath) ?? 0;
     }
 
-    async evaluate(projectPath: string): Promise<ProjectItems | undefined> {
+    /** The cached result, or the result of the evaluation running (or started now) for the project */
+    evaluate(projectPath: string): Promise<ProjectItems | undefined> {
         if (this.cache.has(projectPath) && !this.stale.has(projectPath)) {
-            return this.get(projectPath);
+            return Promise.resolve(this.get(projectPath));
         }
-        const running = this.pending.get(projectPath);
-        if (running) {
-            return running;
-        }
-        const generation = this.generation.get(projectPath) ?? 0;
-        const promise = this.evaluateNow(projectPath, generation);
-        this.pending.set(projectPath, promise);
-        try {
-            return await promise;
-        } finally {
-            if (this.pending.get(projectPath) === promise) {
-                this.pending.delete(projectPath);
-            }
-        }
+        return this.flights.run(projectPath, () => this.evaluateNow(projectPath), items => this.publish(projectPath, items));
     }
 
-    private async evaluateNow(projectPath: string, generation: number): Promise<ProjectItems | undefined> {
-        let items: ProjectItems | undefined;
+    private async evaluateNow(projectPath: string): Promise<ProjectItems | undefined> {
         try {
-            items = parseMsbuildItems(await this.runLimited(projectPath), path.dirname(projectPath));
+            const items = parseMsbuildItems(await this.run(projectPath), path.dirname(projectPath));
             if (!items) {
                 log.warn(`MSBuild gave no item list for ${projectPath}`);
             }
+            return items;
         } catch (error) {
             log.warn(`Could not evaluate the items of ${projectPath}:`, error);
+            return undefined;
         }
-        if ((this.generation.get(projectPath) ?? 0) !== generation) {
-            // The project changed while this ran: a newer evaluation decides
-            return items;
-        }
+    }
+
+    private publish(projectPath: string, items: ProjectItems | undefined): ProjectItems | undefined {
         this.stale.delete(projectPath);
         const previous = this.get(projectPath);
         if (items) {
@@ -112,30 +104,10 @@ export class ProjectItemsService {
         return this.get(projectPath);
     }
 
-    private async runLimited(projectPath: string): Promise<string> {
-        if (this.running >= this.maxConcurrent) {
-            // The finishing run hands its slot over, so `running` stays counted
-            await new Promise<void>(resolve => this.waiting.push(resolve));
-        } else {
-            this.running++;
-        }
-        try {
-            return await this.run(projectPath);
-        } finally {
-            const next = this.waiting.shift();
-            if (next) {
-                next();
-            } else {
-                this.running--;
-            }
-        }
-    }
-
-    /** The project changed: the next `evaluate` runs MSBuild again, and an evaluation still running is ignored */
+    /** The project changed: the next `evaluate` runs MSBuild again; an evaluation still running runs once more */
     invalidate(projectPath: string): void {
-        this.generation.set(projectPath, (this.generation.get(projectPath) ?? 0) + 1);
         this.stale.add(projectPath);
-        this.pending.delete(projectPath);
+        this.flights.markDirty(projectPath);
     }
 
     onDidEvaluate(listener: (projectPath: string) => void): { dispose(): void } {

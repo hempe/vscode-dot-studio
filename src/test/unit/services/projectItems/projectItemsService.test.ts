@@ -6,6 +6,30 @@ const fixture = path.resolve(__dirname, '../../../../__fixtures__/project-items/
 const dir = path.dirname(fixture);
 const output = (...files: string[]) => JSON.stringify({ Items: { Compile: files.map(file => ({ Identity: file, FullPath: path.join(dir, file) })) } });
 
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+/** An MSBuild runner whose runs end when the test says so; counts the runs of each project running at once */
+const deferredRuns = () => {
+    const pending: { resolve(value: string): void; reject(error: Error): void }[] = [];
+    const running = new Map<string, number>();
+    let calls = 0;
+    let mostPerProject = 0;
+    const run = (projectPath: string) => new Promise<string>((resolve, reject) => {
+        calls++;
+        running.set(projectPath, (running.get(projectPath) ?? 0) + 1);
+        mostPerProject = Math.max(mostPerProject, running.get(projectPath)!);
+        const done = () => running.set(projectPath, running.get(projectPath)! - 1);
+        pending.push({ resolve: value => { done(); resolve(value); }, reject: error => { done(); reject(error); } });
+    });
+    return {
+        run,
+        finish: (value: string) => pending.shift()!.resolve(value),
+        fail: (error: Error) => pending.shift()!.reject(error),
+        get calls() { return calls; },
+        get mostPerProject() { return mostPerProject; },
+    };
+};
+
 describe('ProjectItemsService', () => {
     test('caches the result and runs MSBuild once for concurrent requests', async () => {
         const run = jest.fn().mockResolvedValue(output('A.cs'));
@@ -29,6 +53,7 @@ describe('ProjectItemsService', () => {
         const again = service.evaluate(fixture);
         const shared = service.evaluate(fixture);
         expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        await settle();
         finish(output('B.cs'));
         expect(await again).toBe(await shared);
         expect((await again)?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
@@ -36,41 +61,120 @@ describe('ProjectItemsService', () => {
         expect(run).toHaveBeenCalledTimes(2);
     });
 
-    test('an evaluation that was running when the project changed does not fill the cache', async () => {
-        let finish!: (value: string) => void;
-        const run = jest.fn()
-            .mockImplementationOnce(() => new Promise<string>(resolve => { finish = resolve; }))
-            .mockResolvedValueOnce(output('Fresh.cs'));
-        const service = new ProjectItemsService(run);
-        const stale = service.evaluate(fixture);
+    test('an evaluation that was running when the project changed is not published: its one re-run is, for every caller', async () => {
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run);
+        const listener = jest.fn();
+        service.onDidEvaluate(listener);
+        const before = service.evaluate(fixture);
+        await settle();
         service.invalidate(fixture);
-        const fresh = await service.evaluate(fixture);
-        finish(output('Stale.cs'));
-        await stale;
-        expect(fresh?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
-        expect(service.get(fixture)?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
+        const after = service.evaluate(fixture);
+        runs.finish(output('Stale.cs'));
+        await settle();
+        expect(service.get(fixture)).toBeUndefined();
+        expect(listener).not.toHaveBeenCalled();
+        runs.finish(output('Fresh.cs'));
+        expect(await before).toBe(await after);
+        expect((await after)?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'Stale.cs'))).toBe(false);
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(service.version(fixture)).toBe(1);
+        expect(runs.calls).toBe(2);
     });
 
     test('a stale evaluation finishing late does not overwrite the last good result', async () => {
-        let finish!: (value: string) => void;
-        let finishFresh!: (value: string) => void;
-        const run = jest.fn()
-            .mockResolvedValueOnce(output('A.cs'))
-            .mockImplementationOnce(() => new Promise<string>(resolve => { finish = resolve; }))
-            .mockImplementationOnce(() => new Promise<string>(resolve => { finishFresh = resolve; }));
-        const service = new ProjectItemsService(run);
-        await service.evaluate(fixture);
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run);
+        const first = service.evaluate(fixture);
+        await settle();
+        runs.finish(output('A.cs'));
+        await first;
         service.invalidate(fixture);
         const stale = service.evaluate(fixture);
+        await settle();
         service.invalidate(fixture);
         const fresh = service.evaluate(fixture);
-        finish(output('Stale.cs'));
-        await stale;
+        runs.finish(output('Stale.cs'));
+        await settle();
         expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
         expect(service.get(fixture)?.isIncluded(path.join(dir, 'Stale.cs'))).toBe(false);
-        finishFresh(output('Fresh.cs'));
-        await fresh;
+        runs.finish(output('Fresh.cs'));
+        await Promise.all([stale, fresh]);
         expect(service.get(fixture)?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
+        expect(runs.calls).toBe(3);
+    });
+
+    test('100 changes during a run start exactly one more MSBuild, never two at once, and all callers get its result', async () => {
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run);
+        const first = service.evaluate(fixture);
+        await settle();
+        const callers = Array.from({ length: 100 }, () => {
+            service.invalidate(fixture);
+            return service.evaluate(fixture);
+        });
+        expect(runs.calls).toBe(1);
+        runs.finish(output('Stale.cs'));
+        await settle();
+        expect(runs.calls).toBe(2);
+        runs.finish(output('Fresh.cs'));
+        const results = await Promise.all([first, ...callers]);
+        expect(new Set(results).size).toBe(1);
+        expect(results[0]?.isIncluded(path.join(dir, 'Fresh.cs'))).toBe(true);
+        expect(runs.calls).toBe(2);
+        expect(runs.mostPerProject).toBe(1);
+    });
+
+    test('changes while a project waits for a free slot do not add a run', async () => {
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run, 1);
+        const other = path.join(dir, 'Other.csproj');
+        const busy = service.evaluate(other);
+        const waiting = service.evaluate(fixture);
+        await settle();
+        for (let i = 0; i < 10; i++) {
+            service.invalidate(fixture);
+            void service.evaluate(fixture);
+        }
+        runs.finish(output('A.cs'));
+        await busy;
+        await settle();
+        runs.finish(output('B.cs'));
+        expect((await waiting)?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
+        expect(runs.calls).toBe(2);
+    });
+
+    test('a change during a failing run still gives its one re-run', async () => {
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run);
+        const result = service.evaluate(fixture);
+        await settle();
+        service.invalidate(fixture);
+        runs.fail(new Error('half-saved csproj'));
+        await settle();
+        expect(runs.calls).toBe(2);
+        runs.finish(output('A.cs'));
+        expect((await result)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+    });
+
+    test('a failure after a change keeps the last good result', async () => {
+        const runs = deferredRuns();
+        const service = new ProjectItemsService(runs.run);
+        const first = service.evaluate(fixture);
+        await settle();
+        runs.finish(output('A.cs'));
+        await first;
+        service.invalidate(fixture);
+        const again = service.evaluate(fixture);
+        await settle();
+        service.invalidate(fixture);
+        runs.finish(output('Stale.cs'));
+        await settle();
+        runs.fail(new Error('timeout'));
+        expect((await again)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.get(fixture)?.isIncluded(path.join(dir, 'Stale.cs'))).toBe(false);
+        expect(runs.calls).toBe(3);
     });
 
     test('a failing re-evaluation keeps the last good result', async () => {

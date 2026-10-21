@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService, runMsbuild } from '../../../../services/projectItems/projectItemsService';
 
 /** What real MSBuild says a project contains: a file it does not list is hidden in the tree, so every real file must be listed */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
@@ -97,5 +97,50 @@ ${types.map(itemType => `    <None Remove="${itemType}.dat" />\n    <${itemType}
 `, files);
         expect(notIncluded(items, files)).toEqual(['Sub/Util.cs']);
         expect(items.itemTypeOf(at('Greeter.cs'))).toBe('Compile');
+    }, TIMEOUT);
+    withDotnet('100 changes while MSBuild runs start one more MSBuild, never two at once, and the result follows the last change', async () => {
+        const projectPath = at('App.csproj');
+        const project = (remove: string) => `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="${remove}" />
+  </ItemGroup>
+</Project>
+`;
+        fs.writeFileSync(projectPath, project('A.cs'));
+        fs.writeFileSync(at('A.cs'), '');
+        fs.writeFileSync(at('B.cs'), '');
+        let started = 0;
+        let running = 0;
+        let most = 0;
+        // Single-targeted: each run is one `dotnet msbuild` process
+        const counting = async (projectFile: string) => {
+            started++;
+            most = Math.max(most, ++running);
+            try {
+                return await runMsbuild(projectFile);
+            } finally {
+                running--;
+            }
+        };
+        const service = new ProjectItemsService(counting);
+        const first = service.evaluate(projectPath);
+        while (started === 0) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        // The project changes while the first MSBuild runs, then 100 requests for a fresh evaluation come
+        fs.writeFileSync(projectPath, project('B.cs'));
+        const callers = Array.from({ length: 100 }, () => {
+            service.invalidate(projectPath);
+            return service.evaluate(projectPath);
+        });
+        const results = await Promise.all([first, ...callers]);
+        expect(new Set(results).size).toBe(1);
+        expect(results[0]?.isIncluded(at('A.cs'))).toBe(true);
+        expect(results[0]?.isIncluded(at('B.cs'))).toBe(false);
+        expect(service.get(projectPath)).toBe(results[0]);
+        expect({ started, most }).toEqual({ started: 2, most: 1 });
     }, TIMEOUT);
 });
