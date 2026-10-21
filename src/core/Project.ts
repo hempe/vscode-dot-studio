@@ -776,6 +776,11 @@ export class Project {
         if (service.version(this._projectPath) === before) {
             return;
         }
+        // Nothing of the tree is shown yet (collapsed project): it reads the list when it is first expanded
+        const anyExpanded = Array.from(this._collapsedState.values()).some(isCollapsed => !isCollapsed);
+        if (!this._fileTree?.isLoaded && !anyExpanded) {
+            return;
+        }
         await this.reloadLoadedFolders();
         this._changeEmitter.fire();
     }

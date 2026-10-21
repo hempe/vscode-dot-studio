@@ -155,4 +155,14 @@ describe('Project file tree with the item overlay', () => {
             jest.useRealTimers();
         }
     });
+
+    test('does not redraw a project whose tree was never loaded (collapsed)', async () => {
+        const project = await newProject();
+        jest.spyOn(ProjectItemsService.instance, 'version').mockReturnValueOnce(1).mockReturnValueOnce(2);
+        const load = jest.spyOn(project, 'loadFolderChildren');
+        fired(project).mockClear();
+        await project.evaluateItems();
+        expect(fired(project)).not.toHaveBeenCalled();
+        expect(load).not.toHaveBeenCalled();
+    });
 });
