@@ -18,6 +18,8 @@ import { ProjectItemsService } from '../services/projectItems/projectItemsServic
 import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
 import { ShowAllFiles } from '../services/showAllFiles';
 import { holdsProject } from '../services/projectItems/projectItemEdits';
+import { ProjectItems } from '../services/projectItems/projectItems';
+import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
 import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
 
 export interface ProjectFileNode {
@@ -55,6 +57,7 @@ export class Project {
     private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
     private _reevaluateTimer?: ReturnType<typeof setTimeout>; // New files: evaluate once a burst is over
     private _evaluatedProjectFile?: string; // Stamp of the project file the last evaluation was asked for
+    private _reevaluatedFor = new Set<string>(); // Unlisted entries (path and change time) that already asked for an evaluation
 
     public readonly onDidChange = this._changeEmitter.event;
 
@@ -328,6 +331,9 @@ export class Project {
             }
             const items = ProjectItemsService.instance.get(this._projectPath);
             const laidOut = layoutFolder(folderPath, disk, items, showAll, nonEmptyFolders);
+            if (items) {
+                await this.reevaluateIfNewerThanItems(folderPath, disk, items, nonEmptyFolders);
+            }
 
             const children: ProjectFileNode[] = [];
             const folders = laidOut.filter(entry => entry.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
@@ -845,6 +851,32 @@ export class Project {
             this._reevaluateTimer = undefined;
             void this.reevaluateItems();
         }, REEVALUATE_AFTER_CREATE_MS);
+    }
+
+    /**
+     * Folders not shown are not watched, so files created there meanwhile (a pull, a generator, while the extension
+     * was not running) are missing from an item list evaluated before. When a folder is read from disk, entries the
+     * list does not include but that changed after its evaluation may be such files: evaluate again (once per entry
+     * and change), showing the cached list meanwhile. Genuinely excluded files are older and cost nothing.
+     */
+    private async reevaluateIfNewerThanItems(folderPath: string, disk: readonly { name: string; isDirectory: boolean }[],
+        items: ProjectItems, nonEmptyFolders: ReadonlySet<string>): Promise<void> {
+        const evaluatedAt = ProjectItemsService.instance.evaluatedAt(this._projectPath);
+        if (evaluatedAt === undefined || this._isUnloaded()) {
+            return;
+        }
+        const unlisted = unlistedEntries(folderPath, disk, items, nonEmptyFolders);
+        if (unlisted.length === 0) {
+            return;
+        }
+        const unseen = (await changedSince(unlisted, evaluatedAt))
+            .map(entry => `${entry.path}|${entry.changedAt}`)
+            .filter(key => !this._reevaluatedFor.has(key));
+        if (unseen.length > 0) {
+            log.debug(`Possibly new in ${folderPath}, evaluating again: ${unseen.join(', ')}`);
+            unseen.forEach(key => this._reevaluatedFor.add(key));
+            this.scheduleReevaluation();
+        }
     }
 
     private async reloadLoadedFolders(): Promise<void> {

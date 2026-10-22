@@ -285,6 +285,95 @@ describe('Project file tree with the item overlay', () => {
         expect(load).not.toHaveBeenCalled();
     });
 
+    const evaluatedAt = (at: number) => jest.spyOn(ProjectItemsService.instance, 'evaluatedAt').mockReturnValue(at);
+    const scheduled = (project: Project) => jest.spyOn(project as unknown as { scheduleReevaluation(): void }, 'scheduleReevaluation');
+    const afterDebounce = () => new Promise(resolve => setTimeout(resolve, 500));
+
+    test('a folder read from disk with a file the item list lacks, newer than the evaluation, evaluates again (collapsed project opened)', async () => {
+        withItems();
+        evaluatedAt(Date.now() - 60000);
+        const project = await newProject();
+        const invalidate = jest.spyOn(ProjectItemsService.instance, 'invalidate');
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        fs.writeFileSync(path.join(dir, 'Coupon.cs'), '');
+        const names = (await project.getRootChildren()).map(child => child.name);
+        // the cached list meanwhile: no flicker
+        expect(names).not.toContain('Coupon.cs');
+        await afterDebounce();
+        expect(invalidate).toHaveBeenCalledWith(projectPath);
+        expect(evaluate).toHaveBeenCalledTimes(1);
+    });
+
+    test('a subfolder read from disk with a new folder of new files evaluates again', async () => {
+        const sub = path.join(dir, 'Sub');
+        fs.mkdirSync(path.join(sub, 'Coupons'), { recursive: true });
+        fs.writeFileSync(path.join(sub, 'A.cs'), '');
+        fs.writeFileSync(path.join(sub, 'Coupons', 'Coupon.cs'), '');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [{ Identity: 'Program.cs', FullPath: path.join(dir, 'Program.cs') }, { Identity: 'Sub/A.cs', FullPath: path.join(sub, 'A.cs') }] },
+        }), dir));
+        const project = await newProject();
+        // Old.cs at the root is old: only the new folder counts
+        evaluatedAt(Date.now() + 60000);
+        await project.getRootChildren();
+        fs.utimesSync(path.join(sub, 'Coupons'), (Date.now() + 120000) / 1000, (Date.now() + 120000) / 1000);
+        const schedule = scheduled(project).mockImplementation(() => undefined);
+        await project.getFolderChildren(sub);
+        expect(schedule).toHaveBeenCalledTimes(1);
+    });
+
+    test('a genuinely excluded file older than the evaluation evaluates nothing and redraws nothing', async () => {
+        withItems();
+        // evaluated a minute after Old.cs was written
+        evaluatedAt(Date.now() + 60000);
+        const project = await newProject();
+        const invalidate = jest.spyOn(ProjectItemsService.instance, 'invalidate');
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        fired(project).mockClear();
+        await project.getRootChildren();
+        await afterDebounce();
+        expect(invalidate).not.toHaveBeenCalled();
+        expect(evaluate).not.toHaveBeenCalled();
+        expect(fired(project)).not.toHaveBeenCalled();
+    });
+
+    test('the same unlisted new file evaluates once: reading its folder again does not evaluate again', async () => {
+        withItems();
+        evaluatedAt(Date.now() - 60000);
+        const project = await newProject();
+        const schedule = scheduled(project).mockImplementation(() => undefined);
+        await project.loadFolderChildren(dir);
+        await project.loadFolderChildren(dir);
+        expect(schedule).toHaveBeenCalledTimes(1);
+        fs.writeFileSync(path.join(dir, 'Another.cs'), '');
+        await project.loadFolderChildren(dir);
+        expect(schedule).toHaveBeenCalledTimes(2);
+    });
+
+    test('a file created while the project was collapsed shows once the evaluation it caused lands', async () => {
+        const project = await newProject();
+        (ProjectItemsService.instance.evaluate as jest.Mock).mockRestore();
+        const listing = (...files: string[]) => JSON.stringify({ Items: { Compile: files.map(file => ({ Identity: file, FullPath: path.join(dir, file) })) } });
+        const run = jest.spyOn(ProjectItemsService.instance as unknown as { run(projectPath: string): Promise<string> }, 'run')
+            .mockResolvedValueOnce(listing('Program.cs'))
+            .mockResolvedValueOnce(listing('Program.cs', 'Coupon.cs'));
+        await project.evaluateItems();
+        expect(run).toHaveBeenCalledTimes(1);
+        // written after the evaluation started, with the project collapsed (no folder watcher)
+        fs.writeFileSync(path.join(dir, 'Coupon.cs'), '');
+        expect((await project.getRootChildren()).map(child => child.name)).not.toContain('Coupon.cs');
+        fired(project).mockClear();
+        await afterDebounce();
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(fired(project)).toHaveBeenCalled();
+        expect((await project.getRootChildren()).map(child => child.name)).toContain('Coupon.cs');
+        // Reading the root again after the new list (Old.cs is still unlisted and within the margin) evaluates no more
+        await afterDebounce();
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
     test('an empty disk folder that holds linked files can be expanded', async () => {
         fs.mkdirSync(path.join(dir, 'Shared'));
         const outside = path.join(os.tmpdir(), 'Elsewhere', 'Common.cs');
