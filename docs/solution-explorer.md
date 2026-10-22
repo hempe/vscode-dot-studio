@@ -105,11 +105,11 @@ Under each project:
 | Node | Shows |
 |---|---|
 | **Analyzers** | The project's analyzers and source generators: from .NET, from NuGet packages and from projects referenced as analyzers. Generators expand to the files they generated in the last build; those open read-only |
-| **Packages** | The NuGet packages the project references, with their versions. Each package expands to the packages it depends on, as many levels deep as they go, with the versions the last restore resolved |
+| **Packages** | The NuGet packages the project references, with their versions. With [Central Package Management](nuget.md#central-package-management) the version is the one MSBuild uses: from `Directory.Packages.props`, marked `override` when the project sets its own (`VersionOverride`), and packages every project gets (`GlobalPackageReference`) are listed too, marked `global`. Each package expands to the packages it depends on, as many levels deep as they go, with the versions the last restore resolved |
 | **Projects** | Project references |
 | **Assemblies** | References to `.dll` files |
 
-**Generated code is from the last build.** Builds started by this extension (Build, Rebuild, F5, tests) write what the source generators produce to `obj/<configuration>/<framework>/generated/`, and the tree shows that. A project that was up to date before needs one Rebuild. Packages expand once the project has been restored (a build restores too).
+**Generated code is from the last build.** Builds started by this extension (Build, Rebuild, F5, tests) write what the source generators produce to `obj/<configuration>/<framework>/generated/`, and the tree shows that. A project that was up to date before needs one Rebuild. Packages expand once the project has been restored (a build restores too). Versions under Central Package Management show once MSBuild has evaluated the project (a moment after the solution opens; needs the .NET SDK).
 
 ## Errors in the tree
 

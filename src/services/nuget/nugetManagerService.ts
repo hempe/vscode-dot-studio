@@ -51,8 +51,8 @@ export class NuGetManagerService {
 
             // Find packages with multiple versions across projects
             for (const [packageId, packages] of packageGroups.entries()) {
-                // Check if there are different versions
-                const versions = new Set(packages.map(p => p.currentVersion));
+                // Check if there are different versions (an unknown version, '', differs from nothing)
+                const versions = new Set(packages.map(p => p.currentVersion).filter(Boolean));
 
                 log.debug(`Package ${packageId}: ${packages.length} instances with versions [${Array.from(versions).join(', ')}]`);
 
@@ -63,7 +63,7 @@ export class NuGetManagerService {
                     const versionGroups = new Map<string, ProjectInfo[]>();
 
                     // Group by version to get projects per version
-                    for (const pkg of packages) {
+                    for (const pkg of packages.filter(p => p.currentVersion)) {
                         const version = pkg.currentVersion;
                         const existingProjects = versionGroups.get(version) || [];
                         if (!existingProjects.find(p => p.path === pkg.projectInfo.path)) {
@@ -258,29 +258,9 @@ export class NuGetManagerService {
 
                 log.debug(`Package ${pkg.id}: current=${currentVersion}, latest=${latestVersion}, hasLatest=${!!latestVersion}`);
 
-                if (latestVersion && currentVersion !== latestVersion) {
-                    try {
-                        // Use version utilities to compare versions
-                        if (VersionUtils.compare(latestVersion, currentVersion) > 0) {
-                            // Convert InstalledPackage to UpdateablePackage format
-                            const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = pkg as any;
-                            outdatedPackages.push(updateablePackage);
-                        } else {
-                            // Fallback to simple string comparison if versions are the same
-                            if (currentVersion !== latestVersion) {
-                                const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = pkg as any;
-                                outdatedPackages.push(updateablePackage);
-                            }
-                        }
-                    } catch (error) {
-                        // If semver comparison fails, fallback to string comparison
-                        if (currentVersion !== latestVersion) {
-                            const updateablePackage: UpdateablePackage & { projects: ProjectInfo[] } = {
-                                ...pkg,
-                            } as any;
-                            outdatedPackages.push(updateablePackage);
-                        }
-                    }
+                // Only a known version older than the latest: an unknown one ('') is not outdated, nor a newer one
+                if (VersionUtils.isOutdated(currentVersion, latestVersion)) {
+                    outdatedPackages.push(pkg as UpdateablePackage & { projects: ProjectInfo[] });
                 }
             }
 

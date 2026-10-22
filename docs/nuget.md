@@ -18,6 +18,18 @@ Visual Studio's NuGet Package Manager, in an editor tab.
 
 **Transitive packages:** Install makes one a direct reference, e.g. to pin a newer version with a security fix; they have no Uninstall, since only the package that brings them in can be removed. Solution Explorer: [Dependencies > Packages](solution-explorer.md#dependencies) shows the same tree under each package.
 
+## Central Package Management
+
+Solutions that keep their package versions in `Directory.Packages.props` (`ManagePackageVersionsCentrally`) work like the others: Installed, Updates and the Dependencies tree show the version MSBuild uses for each project, and where it comes from:
+
+| Shown | Where the version is |
+|---|---|
+| `v3.1.1` | the `PackageVersion` in `Directory.Packages.props` (or a props file it imports) |
+| `v13.0.2 (override)` | the project's own `VersionOverride` |
+| `global` | a `GlobalPackageReference`: every project gets the package |
+
+A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>`) keeps the versions in its project file, as before. When the .NET SDK cannot evaluate a project, its versions show as not known and are never offered as updates.
+
 ## Private feeds
 
 Feeds and credentials come from `NuGet.Config`, found like NuGet finds them: every `NuGet.Config` from the solution folder up, then your user configuration. Credentials go in `<packageSourceCredentials>` with `Username` and `ClearTextPassword`; this works for Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet and others.

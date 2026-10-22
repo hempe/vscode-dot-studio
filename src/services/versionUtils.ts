@@ -54,6 +54,19 @@ export class VersionUtils {
         return parts[0] || 0;
     }
 
+    /**
+     * Whether `latest` is newer than the installed `current` version. A version that is not known ('' when MSBuild
+     * could not tell, or anything not starting with a number) is never outdated; a range like `[2.0.3, )` counts as
+     * its lower bound.
+     */
+    static isOutdated(current: string, latest: string | undefined): boolean {
+        const installed = (current ?? '').trim().replace(/^\[\s*/, '').split(/[\s,\]]/)[0];
+        if (!latest || !/^\d/.test(installed)) {
+            return false;
+        }
+        return comp(latest, installed) > 0;
+    }
+
     static includePrerelease(includePrerelease: boolean): (versions: string) => boolean {
         if (includePrerelease)
             return (version) => !!version;

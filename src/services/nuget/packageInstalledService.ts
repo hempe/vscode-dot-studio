@@ -6,9 +6,23 @@ import { logger } from '../../core/logger';
 import { BasicInstalledPackage, InstalledPackage, ProjectInfo, NuGetPackage } from './types';
 import { PackageSharedService } from './packageSharedService';
 import { SolutionService } from '../solutionService';
+import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { ProjectPackages } from './centralPackages';
 
 const execAsync = promisify(exec);
 const log = logger('PackageInstalledService');
+
+/** Marks the packages `dotnet list` reports with where their versions come from (central, override, global) */
+export function withVersionSources(packages: BasicInstalledPackage[], evaluated: ProjectPackages | undefined): BasicInstalledPackage[] {
+    if (!evaluated) {
+        return packages;
+    }
+    const byId = new Map(evaluated.references.map(reference => [reference.id.toLowerCase(), reference]));
+    return packages.map(pkg => {
+        const reference = byId.get(pkg.id.toLowerCase());
+        return reference ? { ...pkg, versionSource: reference.source, ...(reference.versionFile ? { versionFile: reference.versionFile } : {}) } : pkg;
+    });
+}
 
 /**
  * Service for managing installed NuGet packages using dotnet CLI
@@ -138,6 +152,9 @@ export class PackageInstalledService {
 
             const projectInfos: ProjectInfo[] = [];
             const projects = Array.from(activeSolution.projects.values());
+            // Versions come from MSBuild (Directory.Packages.props, VersionOverride, global packages): one evaluation
+            // per project, usually done already for the tree (unloaded projects are skipped)
+            await Promise.all(projects.map(project => project.evaluateItems()));
 
             log.info(`Processing ${projects.length} projects from active solution...`);
 
@@ -149,9 +166,12 @@ export class PackageInstalledService {
                         .filter(dep => dep.type === 'PackageReference') // Only include NuGet packages, not project references
                         .map(dep => ({
                             id: dep.name,
-                            currentVersion: dep.version || 'Unknown',
+                            // '' when no version is known (no evaluation and none in the project file): never outdated
+                            currentVersion: dep.version ?? '',
                             projectPath: project.projectPath,
-                            projectName: project.name
+                            projectName: project.name,
+                            ...(dep.versionSource ? { versionSource: dep.versionSource } : {}),
+                            ...(dep.versionFile ? { versionFile: dep.versionFile } : {}),
                         }));
 
                     const projectInfo: ProjectInfo = {
@@ -186,7 +206,11 @@ export class PackageInstalledService {
     static async getProjectInfo(projectPath: string): Promise<ProjectInfo | null> {
         try {
             const projectName = path.basename(projectPath, path.extname(projectPath));
-            const packages = await this.getProjectPackages(projectPath);
+            const [listed, evaluated] = await Promise.all([
+                this.getProjectPackages(projectPath),
+                ProjectItemsService.instance.evaluatePackages(projectPath),
+            ]);
+            const packages = withVersionSources(listed, evaluated);
 
             // Get target framework info
             const framework = await this.getProjectFramework(projectPath);

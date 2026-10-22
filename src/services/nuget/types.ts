@@ -30,6 +30,10 @@ export interface BasicInstalledPackage {
     readonly autoReferenced?: boolean;
     /** Whether this is a transitive dependency (not directly referenced) */
     readonly transitivePackage?: boolean;
+    /** Where the version comes from (Central Package Management); undefined while MSBuild has not evaluated the project */
+    readonly versionSource?: PackageVersionSource;
+    /** The file the version is written in: the project file, or the props file of a central or global version */
+    readonly versionFile?: string;
 }
 
 /**

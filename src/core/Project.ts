@@ -21,6 +21,8 @@ import { holdsProject } from '../services/projectItems/projectItemEdits';
 import { ProjectItems } from '../services/projectItems/projectItems';
 import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
 import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
+import { ProjectPackages } from '../services/nuget/centralPackages';
+import { PackageVersionSource } from '../services/nuget/types';
 
 export interface ProjectFileNode {
     name: string;
@@ -36,6 +38,37 @@ export interface ProjectDependency {
     name: string;
     version?: string;
     type?: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkReference' | undefined;
+    /** Packages: where the version comes from; undefined until MSBuild has evaluated the project */
+    versionSource?: PackageVersionSource;
+    /** Packages: the file the version is written in */
+    versionFile?: string;
+}
+
+/**
+ * The project file's references with the packages as MSBuild evaluated them: versions from Directory.Packages.props
+ * and VersionOverride, global packages, references from props files. Without an evaluation, the parser's list.
+ */
+function withEvaluatedPackages(parsed: readonly ProjectDependency[], packages: ProjectPackages | undefined): ProjectDependency[] {
+    if (!packages) {
+        return [...parsed];
+    }
+    return [
+        ...packages.references.map(reference => ({
+            name: reference.id,
+            ...(reference.version ? { version: reference.version } : {}),
+            type: 'PackageReference' as const,
+            versionSource: reference.source,
+            ...(reference.versionFile ? { versionFile: reference.versionFile } : {}),
+        })),
+        ...parsed.filter(dependency => dependency.type !== 'PackageReference'),
+    ];
+}
+
+/** The tree's name of a reference: `Serilog (3.1.1)`, `Newtonsoft.Json (13.0.2, override)`, `X (8.0.0, global)` */
+export function dependencyLabel(dependency: ProjectDependency): string {
+    const source = dependency.versionSource === 'override' || dependency.versionSource === 'global' ? dependency.versionSource : undefined;
+    const details = [dependency.version, source].filter(Boolean).join(', ');
+    return details ? `${dependency.name} (${details})` : dependency.name;
 }
 
 const log = logger('Project');
@@ -86,8 +119,9 @@ export class Project {
         return this._solutionProject.name || path.basename(this._projectPath, path.extname(this._projectPath));
     }
 
+    /** The references; packages as MSBuild evaluated them once it has (Central Package Management versions, global packages) */
     get dependencies(): ProjectDependency[] {
-        return this._dependencies;
+        return withEvaluatedPackages(this._dependencies, ProjectItemsService.instance.packages(this._projectPath));
     }
 
     /** Whether the project can be started, i.e. can be the startup project */
@@ -497,7 +531,7 @@ export class Project {
     async hasAnyChildren(): Promise<boolean> {
         try {
             // Quick check for dependencies
-            if (this._dependencies && this._dependencies.length > 0) {
+            if (this.dependencies.length > 0) {
                 return true;
             }
 
@@ -563,7 +597,7 @@ export class Project {
 
         try {
             // Add Dependencies container if there are dependencies
-            if (this._dependencies && this._dependencies.length > 0) {
+            if (this.dependencies.length > 0) {
                 items.push({
                     type: 'dependencies',
                     name: 'Dependencies',
@@ -632,12 +666,13 @@ export class Project {
      * Gets dependency categories for this project (used when Dependencies node is expanded)
      */
     getDependencies(): ProjectChild[] {
-        log.info(`getDependencies called for ${this.name}, found ${this._dependencies?.length || 0} dependencies`);
+        const all = this.dependencies;
+        log.info(`getDependencies called for ${this.name}, found ${all.length} dependencies`);
 
         // Count dependencies by type
-        const packageCount = this._dependencies?.filter(dep => dep.type === 'PackageReference').length || 0;
-        const projectCount = this._dependencies?.filter(dep => dep.type === 'ProjectReference').length || 0;
-        const assemblyCount = this._dependencies?.filter(dep => dep.type === 'Reference').length || 0;
+        const packageCount = all.filter(dep => dep.type === 'PackageReference').length;
+        const projectCount = all.filter(dep => dep.type === 'ProjectReference').length;
+        const assemblyCount = all.filter(dep => dep.type === 'Reference').length;
 
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
         const items: ProjectChild[] = [
@@ -681,10 +716,7 @@ export class Project {
      */
     getDependenciesByCategory(nodeId: NodeId): ProjectChild[] {
         const items: ProjectChild[] = [];
-
-        if (!this._dependencies) {
-            return items;
-        }
+        const all = this.dependencies;
 
         let dependencies: ProjectDependency[] = [];
         let categoryName: string = '';
@@ -693,18 +725,18 @@ export class Project {
         if (nodeId.type == 'dependencyCategory') {
             if (nodeId.name == 'packages') {
                 // Packages: NuGet package references
-                dependencies = this._dependencies.filter(dep => dep.type === 'PackageReference');
+                dependencies = all.filter(dep => dep.type === 'PackageReference');
                 categoryName = 'packages';
             } else if (nodeId.name == 'projects') {
                 // Projects: project-to-project references
-                dependencies = this._dependencies.filter(dep => dep.type === 'ProjectReference');
+                dependencies = all.filter(dep => dep.type === 'ProjectReference');
                 categoryName = 'projects';
             } else if (nodeId.name == 'assemblies') {
                 // Assemblies: binary/assembly references
-                dependencies = this._dependencies.filter(dep => dep.type === 'Reference');
+                dependencies = all.filter(dep => dep.type === 'Reference');
                 categoryName = 'assemblies';
             } else if (nodeId.name == 'frameworks') {            // Frameworks: framework references
-                dependencies = this._dependencies.filter(dep => dep.type === 'FrameworkReference');
+                dependencies = all.filter(dep => dep.type === 'FrameworkReference');
                 categoryName = 'frameworks';
             }
         }
@@ -726,7 +758,7 @@ export class Project {
 
             items.push({
                 type: 'dependency',
-                name: dep.version ? `${dep.name} (${dep.version})` : dep.name,
+                name: dependencyLabel(dep),
                 nodeId: nodeId,
                 hasChildren: false
             });
@@ -800,14 +832,23 @@ export class Project {
         }
         const service = ProjectItemsService.instance;
         const before = service.version(this._projectPath);
+        const packagesBefore = service.packagesVersion(this._projectPath);
         await service.evaluate(this._projectPath);
+        // New package versions (Directory.Packages.props changed): Dependencies > Packages shows them
+        const packagesChanged = service.packagesVersion(this._projectPath) !== packagesBefore;
         // Same list, or a failure that keeps the last one (or still none): the tree shows what it showed
         if (service.version(this._projectPath) === before) {
+            if (packagesChanged) {
+                this._changeEmitter.fire();
+            }
             return;
         }
         // Nothing of the tree is shown yet (collapsed project): it reads the list when it is first expanded
         const anyExpanded = Array.from(this._collapsedState.values()).some(isCollapsed => !isCollapsed);
         if (!this._fileTree?.isLoaded && !anyExpanded) {
+            if (packagesChanged) {
+                this._changeEmitter.fire();
+            }
             return;
         }
         await this.reloadLoadedFolders();
