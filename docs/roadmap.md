@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–18 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second round for run & debug. Phases 19–21 are the second round for the Solution Explorer, NuGet and connected services, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–19 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug and for the Solution Explorer. Phases 20–21 are the second round for NuGet and connected services, phase 22 quality and documentation, phase 30 what may come later, phase 31 the other publish targets.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -15,6 +15,7 @@ Found along the way, to be fixed:
 - [ ] The tests of path casing for Windows and macOS (bin/obj in any casing, `folderLayout.test.ts`) only run their case-insensitive branch on those systems; on Linux they check the case-sensitive one
 - [ ] The Visual Studio build-action item types added to the item list (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) come from memory and are not checked against Visual Studio; the platform files of iOS/MAUI projects are not checked either (workloads not installed)
 - [ ] The position of the link badge of linked files in the tree was never seen on screen
+- [ ] The drag & drop GIF is not recorded: `docs/images/drag-and-drop.gif` and the scene `gif-drag-and-drop` in `scripts/screenshots/capture.sh` are missing (the page has a placeholder); first find out whether xdotool's mouse events start an HTML5 drag in Chromium under Xvfb
 
 ## Known limitations
 
@@ -25,15 +26,9 @@ Found along the way, to be fixed:
 - [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
 - [ ] Exclude From Project and Include In Project work on SDK-style projects only; a linked file has no Exclude, and Delete on it deletes the real file
 - [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
-
-## Phase 19: Solution Explorer, Part 2
-- [ ] Search in the Solution Explorer (Visual Studio's Ctrl+;)
-- [x] The tree follows the project's items like Visual Studio: `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files (`Include="..\x.cs" Link="x.cs"`) appear; "Show All Files" shows the excluded ones greyed out
-- [x] Exclude From Project / Include In Project on files and folders (writes or removes the `Remove`/`Include` items)
-- [ ] Drag & drop of files, folders and projects
-- [ ] The diagnostic rules of each analyzer under Dependencies > Analyzers, like Visual Studio
-- [ ] Project Properties: target framework, nullable, implicit usings, version and the like as a form instead of editing the project file
-- [ ] Launch Profiles editor: Visual Studio's "Launch Profiles" dialog (Project Properties > Debug), a form for the profiles of `launchSettings.json` (command line arguments, environment variables, URLs, browser) instead of editing the JSON
+- [ ] Drag & drop works within the Solution Explorer only: files dropped from VS Code's Explorer or the file manager are not taken (a webview gets no file paths from such drops)
+- [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
+- [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
 
 ## Phase 20: NuGet, Part 2
 - [ ] Central Package Management (`Directory.Packages.props`): install, update and consolidate put versions where they belong
@@ -77,3 +72,6 @@ Found along the way, to be fixed:
 - A `.resx` resource editor
 - Task List (`// TODO` comments)
 - Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
+- Search in the Solution Explorer (Visual Studio's Ctrl+;): Ctrl+P and Sync with Active Document cover it; to be built if someone opens an issue for it
+- The diagnostic rules of each analyzer under Dependencies > Analyzers: `.editorconfig` sets their severities
+- Project Properties as a form and Visual Studio's Launch Profiles editor: Edit Project File covers the properties, and Open Launch Settings creates `launchSettings.json`, whose JSON schema helps with editing the profiles
