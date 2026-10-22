@@ -48,6 +48,14 @@ Found along the way, to be fixed:
 - [ ] Automate manual checks: spike driving VS Code with Playwright (`_electron.launch` on `code-oss`, webviews as frames) in the throwaway profile of `scripts/screenshots/capture.sh`; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
 - [ ] Compare with Visual Studio feature by feature and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
 
+## Phase 25: Per-framework packages
+**Goal**: Projects that reference different packages per target framework (`net10.0` and `net8.0` in one `.csproj`, or conditions in `Directory.Build.props` and `Directory.Packages.props`), which the team writes by hand because Visual Studio's UI cannot express them, are shown and edited correctly instead of only for the first framework. To start with real examples of what the team writes.
+
+- [ ] Evaluate multi-targeted projects per target framework (today only the first one, see the Known bugs) and show each framework's packages in the tree, the NuGet manager and the update confirmation
+- [ ] Edits respect conditions: update the `PackageVersion` or `PackageReference` that applies to the framework (or all of them, after a confirmation naming them) instead of the first match; a new conditional entry can be written for a chosen framework
+- [ ] Never offer an orphan removal of a version that another framework still uses (today any multi-targeted project suppresses the prompt)
+- [ ] Docs, GIF and manual-testing entries for the conditional cases
+
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
 - [ ] EF Core migrations from the context menu (Add Migration, Update Database, Remove Migration...) running the `dotnet ef` commands, since Visual Studio's Package Manager Console route is clumsy and teams use the CLI anyway
