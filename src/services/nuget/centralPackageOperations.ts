@@ -8,7 +8,8 @@ import { PackageOperationResult } from './types';
 import { centralFiles } from './centralPackages';
 import { applyPackageEdits } from './centralPackageFiles';
 import {
-    ProjectState, VersionChangePlan, VersionScope, confirmationText, globalUninstallEdits, planUninstall, planVersionChange,
+    ProjectState, VersionChangePlan, VersionScope, confirmationText, consolidationText, globalUninstallEdits, planConsolidate, planUninstall,
+    planVersionChange,
 } from './centralPackagePlan';
 
 const log = logger('CentralPackages');
@@ -200,5 +201,37 @@ export async function uninstallPackages(id: string, projects: readonly string[],
 
     results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
     await host.reevaluate(removed.filter(projectPath => !changed.includes(projectPath)));
+    return { cancelled: false, results };
+}
+
+/**
+ * Consolidate packages to one version each across the solution. Under CPM that sets the central (or global) version
+ * and removes the VersionOverrides, after one confirmation listing what changes; projects without CPM are updated
+ * with `dotnet add package --version`.
+ */
+export async function consolidatePackages(changes: readonly { id: string; version: string }[], host: OperationsHost = vscodeHost): Promise<OperationOutcome> {
+    const states = await host.states([]);
+    const plans = changes.map(change => planConsolidate(change.id, change.version, states));
+    const question = consolidationText(plans);
+    if (question && await host.ask(question.message, question.detail, 'Consolidate') !== 'Consolidate') {
+        return { cancelled: true, results: [] };
+    }
+    const { changed, result } = await apply(plans.flatMap(plan => plan.edits));
+    if (result) {
+        return { cancelled: false, results: [result] };
+    }
+    const results: PackageOperationResult[] = [];
+    for (const plan of plans) {
+        if (plan.edits.length > 0) {
+            results.push({ success: true, message: `${plan.id} ${plan.version}`, packageId: plan.id, version: plan.version });
+        }
+        for (const projectPath of plan.cliProjects) {
+            results.push(await host.install(projectPath, plan.id, plan.version));
+        }
+        if (plan.edits.length === 0 && plan.cliProjects.length === 0) {
+            results.push({ success: true, message: `${plan.id} is already at ${plan.version} in all projects`, packageId: plan.id });
+        }
+    }
+    results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
     return { cancelled: false, results };
 }

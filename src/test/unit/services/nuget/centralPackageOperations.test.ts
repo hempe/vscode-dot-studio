@@ -5,7 +5,7 @@ import * as path from 'path';
 jest.mock('vscode', () => ({ window: { showWarningMessage: jest.fn() } }), { virtual: true });
 jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 
-import { OperationsHost, changePackageVersions, uninstallPackages } from '../../../../services/nuget/centralPackageOperations';
+import { OperationsHost, changePackageVersions, consolidatePackages, uninstallPackages } from '../../../../services/nuget/centralPackageOperations';
 import { ProjectState } from '../../../../services/nuget/centralPackagePlan';
 import { ProjectPackages, parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
 
@@ -150,5 +150,23 @@ describe('central package operations (confirmations, edits, CLI, restore)', () =
         await uninstallPackages('Microsoft.SourceLink.GitHub', [csproj('App')], host);
         expect(read(props())).not.toContain('GlobalPackageReference');
         expect(read(csproj('OptOut'))).not.toContain('GlobalPackageReference');
+    });
+
+    test('consolidate under CPM: one confirmation, the central version set, the override removed', async () => {
+        host.ask.mockResolvedValue('Consolidate');
+        const outcome = await consolidatePackages([{ id: 'Newtonsoft.Json', version: '13.0.3' }], host);
+        expect(host.ask).toHaveBeenCalledWith('Consolidate Newtonsoft.Json to 13.0.3?', expect.stringContaining('Override: VersionOverride 13.0.2 removed'), 'Consolidate');
+        expect(outcome.results).toEqual([expect.objectContaining({ success: true, packageId: 'Newtonsoft.Json' })]);
+        expect(read(props())).toContain('<PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />');
+        expect(read(csproj('Override'))).not.toContain('VersionOverride');
+        expect(host.restore).toHaveBeenCalledWith(path.join(root, 'Central.slnx'));
+    });
+
+    test('consolidate: Cancel changes nothing; projects without CPM use the CLI', async () => {
+        host.ask.mockResolvedValue(undefined);
+        expect((await consolidatePackages([{ id: 'Newtonsoft.Json', version: '13.0.3' }], host)).cancelled).toBe(true);
+        expect(read(csproj('Override'))).toContain('VersionOverride="13.0.2"');
+        await consolidatePackages([{ id: 'Polly', version: '8.1.0' }], host);
+        expect(host.install).toHaveBeenCalledWith(csproj('Legacy'), 'Polly', '8.1.0');
     });
 });

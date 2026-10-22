@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { ProjectPackages, parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
-import { ProjectState, confirmationText, globalUninstallEdits, planUninstall, planVersionChange } from '../../../../services/nuget/centralPackagePlan';
+import { ProjectState, confirmationText, consolidationText, globalUninstallEdits, planConsolidate, planUninstall, planVersionChange } from '../../../../services/nuget/centralPackagePlan';
 
 const root = path.resolve('/repo');
 const props = path.join(root, 'Directory.Packages.props');
@@ -154,5 +154,36 @@ describe('planUninstall', () => {
             { kind: 'removeGlobalPackageReference', file: props, id: 'Microsoft.SourceLink.GitHub' },
             ...[app, override, globalOnly, optOut].map(project => ({ kind: 'removeGlobalOptOut', file: project.path, id: 'Microsoft.SourceLink.GitHub' })),
         ]);
+    });
+});
+
+describe('planConsolidate', () => {
+    test('under CPM: the central version set once, the overrides removed', () => {
+        const plan = planConsolidate('Newtonsoft.Json', '13.0.3', states);
+        expect(plan.edits).toEqual([
+            { kind: 'setPackageVersion', file: props, id: 'Newtonsoft.Json', version: '13.0.3' },
+            { kind: 'removeVersionOverride', file: override.path, id: 'Newtonsoft.Json' },
+        ]);
+        expect(plan.changes).toEqual(['Directory.Packages.props: 13.0.1 → 13.0.3', 'Override: VersionOverride 13.0.2 removed']);
+        expect(plan.cliProjects).toEqual([]);
+    });
+
+    test('to the central version: only the overrides go', () => {
+        expect(planConsolidate('Newtonsoft.Json', '13.0.1', states).edits).toEqual([{ kind: 'removeVersionOverride', file: override.path, id: 'Newtonsoft.Json' }]);
+    });
+
+    test('a mixed solution: projects without CPM through the CLI, the central version in its imported file', () => {
+        const plan = planConsolidate('Polly', '8.1.0', states);
+        expect(plan.cliProjects).toEqual([legacy.path]);
+        expect(plan.edits).toEqual([]);
+        expect(planConsolidate('Polly', '8.2.0', states).edits).toEqual([{ kind: 'setPackageVersion', file: extra, id: 'Polly', version: '8.2.0' }]);
+    });
+
+    test('consolidationText lists what changes; nothing to confirm without CPM edits', () => {
+        expect(consolidationText([planConsolidate('Newtonsoft.Json', '13.0.3', states)])).toEqual({
+            message: 'Consolidate Newtonsoft.Json to 13.0.3?',
+            detail: 'Newtonsoft.Json 13.0.3:\n  Directory.Packages.props: 13.0.1 → 13.0.3\n  Override: VersionOverride 13.0.2 removed',
+        });
+        expect(consolidationText([planConsolidate('Polly', '8.1.0', states)])).toBeUndefined();
     });
 });

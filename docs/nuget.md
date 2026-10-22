@@ -48,6 +48,10 @@ The extension edits `Directory.Packages.props` itself (the `dotnet` CLI refuses 
 
 Projects that do not use CPM in the same solution are changed with `dotnet add package` / `dotnet remove package`, as before.
 
+### Consolidate
+
+Under CPM the versions of a package differ only through `VersionOverride`s (or through two props files with different versions). Consolidate sets the central version (or the global one) to the chosen version and removes the overrides; a confirmation lists each change first. Projects in the same solution that do not use CPM are updated in their project files, as before.
+
 ## Private feeds
 
 Feeds and credentials come from `NuGet.Config`, found like NuGet finds them: every `NuGet.Config` from the solution folder up, then your user configuration. Credentials go in `<packageSourceCredentials>` with `Username` and `ClearTextPassword`; this works for Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet and others.

@@ -7,7 +7,7 @@ const log = logger('PackageSharedService');
 
 /**
  * Shared service for common NuGet package operations across all package services
- * Provides utilities used by packageBrowseService, packageInstalledService, packageUpdateService, etc.
+ * Provides utilities used by packageBrowseService, packageInstalledService, etc.
  */
 export class PackageSharedService {
 

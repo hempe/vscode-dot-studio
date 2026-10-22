@@ -6,8 +6,7 @@ import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 import { LocalNuGetPackage, sendToUi } from '../nuget-view/shared';
-import { changePackageVersions, uninstallPackages } from '../../services/nuget/centralPackageOperations';
-import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
+import { changePackageVersions, consolidatePackages, uninstallPackages } from '../../services/nuget/centralPackageOperations';
 import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/commands/backend';
 import { NuGetViewData } from '../../types/commands/ui';
 import { VersionUtils } from '../../services/versionUtils';
@@ -608,51 +607,28 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             log.info(`Bulk consolidating ${packages.length} packages`);
 
+            if (context.type !== 'solution') {
+                vscode.window.showWarningMessage('Consolidation needs the solution, not a single project');
+                sendToUi(webview, { type: 'bulkConsolidateComplete', payload: { success: false } });
+                return;
+            }
+            // The target of each package: its newest version (prerelease as chosen), else the one it has
+            const changes = packages.map(pkg => ({
+                id: pkg.id,
+                version: pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease)).sort(VersionUtils.compare)[0]
+                    || pkg.currentVersion,
+            }));
+
             // Show progress notification
-            await vscode.window.withProgress({
+            const cancelled = await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: `Consolidating`,
                 cancellable: false
-            }, async (progress) => {
-                const results = [];
-
-                for (const pkg of packages) {
-                    progress.report({
-                        increment: (100 / packages.length),
-                        message: `: ${pkg.id}`
-                    });
-
-                    try {
-                        // For consolidation, we need to find the target version and affected projects
-                        const targetVersion = pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
-                            .sort(VersionUtils.compare)[0]
-                            || pkg.currentVersion;
-
-                        if (context.type === 'solution') {
-                            // Use the consolidation service to consolidate this specific package
-                            const result = await PackageConsolidationService.consolidatePackageToVersion(
-                                context.target,
-                                pkg.id,
-                                targetVersion
-                            );
-                            results.push(...result);
-                        } else {
-                            // For project context, we can't really consolidate (need multiple projects)
-                            results.push({
-                                success: false,
-                                message: `Consolidation requires a solution context, not a single project`,
-                                packageId: pkg.id
-                            });
-                        }
-
-                    } catch (error) {
-                        log.error(`Error consolidating ${pkg.id}:`, error);
-                        results.push({
-                            success: false,
-                            message: `Failed to consolidate ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            packageId: pkg.id
-                        });
-                    }
+            }, async () => {
+                // Under CPM: one confirmation, the central version set, the overrides removed
+                const { cancelled, results } = await consolidatePackages(changes);
+                if (cancelled) {
+                    return true;
                 }
 
                 const successful = results.filter(r => r.success).length;
@@ -665,6 +641,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 } else {
                     vscode.window.showWarningMessage(`Consolidated ${successful} packages, ${failed} failed`);
                 }
+                return false;
             });
 
             // Refresh the consolidate tab data
@@ -674,7 +651,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             sendToUi(webview, {
                 type: 'bulkConsolidateComplete',
                 payload: {
-                    success: true
+                    success: !cancelled
                 }
             });
 

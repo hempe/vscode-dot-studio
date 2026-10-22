@@ -214,3 +214,63 @@ export function confirmationText(plans: readonly VersionChangePlan[]): { message
         detail: `They are set centrally, so other projects change too:\n${reaching.map(line).join('\n')}`,
     };
 }
+
+/** Consolidate one package to one version in every project of the solution that uses it */
+export interface ConsolidatePlan {
+    readonly id: string;
+    readonly version: string;
+    /** Projects without CPM whose version differs: `dotnet add package --version`, as before */
+    readonly cliProjects: readonly string[];
+    readonly edits: readonly PackageEdit[];
+    /** What the edits do, one line each, for the confirmation */
+    readonly changes: readonly string[];
+}
+
+/**
+ * Under CPM the versions differ through VersionOverrides (or central versions of different props files): the central
+ * and global versions are set to the chosen one and the overrides removed. Projects without CPM keep today's way.
+ */
+export function planConsolidate(id: string, version: string, states: readonly ProjectState[]): ConsolidatePlan {
+    const cliProjects: string[] = [];
+    const edits: PackageEdit[] = [];
+    const changes: string[] = [];
+    const seen = new Set<string>();
+    for (const state of states) {
+        const reference = referenceOf(state.packages, id);
+        if (!reference) {
+            continue;
+        }
+        if (!state.packages?.centrallyManaged || reference.source === 'project') {
+            if (reference.version !== version) {
+                cliProjects.push(state.path);
+            }
+        } else if (reference.source === 'override') {
+            edits.push({ kind: 'removeVersionOverride', file: state.path, id });
+            changes.push(`${state.name}: VersionOverride ${reference.version} removed`);
+        }
+        const central = reference.source === 'global' ? { version: reference.version, file: reference.versionFile }
+            : state.packages?.centrallyManaged ? state.packages.centralVersions.get(lower(id)) : undefined;
+        if (central?.file && central.version !== version && !seen.has(path.normalize(central.file))) {
+            seen.add(path.normalize(central.file));
+            edits.push(reference.source === 'global'
+                ? { kind: 'setGlobalPackageVersion', file: central.file, id, version }
+                : { kind: 'setPackageVersion', file: central.file, id, version });
+            changes.push(`${path.basename(central.file)}: ${central.version} → ${version}`);
+        }
+    }
+    return { id, version, cliProjects, edits, changes };
+}
+
+/** The confirmation of a consolidation under CPM; undefined when it edits no CPM file */
+export function consolidationText(plans: readonly ConsolidatePlan[]): { message: string; detail: string } | undefined {
+    const central = plans.filter(plan => plan.changes.length > 0);
+    if (central.length === 0) {
+        return undefined;
+    }
+    return {
+        message: central.length === 1
+            ? `Consolidate ${central[0].id} to ${central[0].version}?`
+            : `Consolidate ${central.length} packages?`,
+        detail: central.map(plan => [`${plan.id} ${plan.version}:`, ...plan.changes.map(change => `  ${change}`)].join('\n')).join('\n'),
+    };
+}
