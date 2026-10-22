@@ -39,6 +39,8 @@ export class ProjectItemsService {
     // Projects whose cached result is outdated: still returned by `get`, but `evaluate` runs MSBuild again
     private readonly stale = new Set<string>();
     private readonly versions = new Map<string, number>();
+    // When the MSBuild run behind the cached list started (a later run giving the same list moves it on)
+    private readonly evaluated = new Map<string, number>();
     private readonly listeners = new Set<(projectPath: string) => void>();
     // Opening a solution evaluates every project: start at most `maxConcurrent` processes at once
     private readonly flights: SingleFlight<ProjectItems | undefined>;
@@ -46,6 +48,7 @@ export class ProjectItemsService {
     constructor(
         private readonly run: RunMsbuild = runMsbuild,
         maxConcurrent = Math.max(2, Math.floor(os.cpus().length / 2)),
+        private readonly now: () => number = Date.now,
     ) {
         this.flights = new SingleFlight(new ConcurrencyLimit(maxConcurrent));
     }
@@ -60,6 +63,14 @@ export class ProjectItemsService {
         return this.versions.get(projectPath) ?? 0;
     }
 
+    /**
+     * When the MSBuild run behind the cached list started (ms since the epoch): a file created later may be missing
+     * from the list. Undefined while there is no list.
+     */
+    evaluatedAt(projectPath: string): number | undefined {
+        return this.evaluated.get(projectPath);
+    }
+
     /** The cached result, or the result of the evaluation running (or started now) for the project */
     evaluate(projectPath: string): Promise<ProjectItems | undefined> {
         if (this.cache.has(projectPath) && !this.stale.has(projectPath)) {
@@ -68,23 +79,25 @@ export class ProjectItemsService {
         return this.flights.run(projectPath, () => this.evaluateNow(projectPath), items => this.publish(projectPath, items));
     }
 
-    private async evaluateNow(projectPath: string): Promise<ProjectItems | undefined> {
+    private async evaluateNow(projectPath: string): Promise<{ items: ProjectItems | undefined; startedAt: number }> {
+        const startedAt = this.now();
         try {
             const items = parseMsbuildItems(await this.run(projectPath), path.dirname(projectPath));
             if (!items) {
                 log.warn(`MSBuild gave no item list for ${projectPath}`);
             }
-            return items;
+            return { items, startedAt };
         } catch (error) {
             log.warn(`Could not evaluate the items of ${projectPath}:`, error);
-            return undefined;
+            return { items: undefined, startedAt };
         }
     }
 
-    private publish(projectPath: string, items: ProjectItems | undefined): ProjectItems | undefined {
+    private publish(projectPath: string, { items, startedAt }: { items: ProjectItems | undefined; startedAt: number }): ProjectItems | undefined {
         this.stale.delete(projectPath);
         const previous = this.get(projectPath);
         if (items) {
+            this.evaluated.set(projectPath, startedAt);
             if (!previous || !previous.equals(items)) {
                 this.cache.set(projectPath, items);
                 this.versions.set(projectPath, this.version(projectPath) + 1);

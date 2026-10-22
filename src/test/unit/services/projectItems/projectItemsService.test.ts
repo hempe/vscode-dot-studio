@@ -220,6 +220,43 @@ describe('ProjectItemsService', () => {
         expect(run).toHaveBeenCalledTimes(2);
     });
 
+    test('evaluatedAt is when the MSBuild run of the published list started: the re-run after a change, not the outdated run', async () => {
+        const runs = deferredRuns();
+        let clock = 1000;
+        const service = new ProjectItemsService(runs.run, 2, () => clock);
+        expect(service.evaluatedAt(fixture)).toBeUndefined();
+        const result = service.evaluate(fixture);
+        await settle();
+        clock = 2000;
+        service.invalidate(fixture);
+        runs.finish(output('Stale.cs'));
+        await settle();
+        clock = 3000;
+        runs.finish(output('Fresh.cs'));
+        await result;
+        expect(service.evaluatedAt(fixture)).toBe(2000);
+    });
+
+    test('evaluatedAt moves on when an evaluation confirms the same list, and stays when one fails', async () => {
+        let clock = 1000;
+        const run = jest.fn()
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockRejectedValueOnce(new Error('broken csproj'));
+        const service = new ProjectItemsService(run, 2, () => clock);
+        await service.evaluate(fixture);
+        const version = service.version(fixture);
+        clock = 5000;
+        service.invalidate(fixture);
+        await service.evaluate(fixture);
+        expect(service.evaluatedAt(fixture)).toBe(5000);
+        expect(service.version(fixture)).toBe(version);
+        clock = 9000;
+        service.invalidate(fixture);
+        await service.evaluate(fixture);
+        expect(service.evaluatedAt(fixture)).toBe(5000);
+    });
+
     test('tells listeners when a project was evaluated', async () => {
         const service = new ProjectItemsService(jest.fn().mockResolvedValue(output('A.cs')));
         const listener = jest.fn();
