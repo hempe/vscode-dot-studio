@@ -49,17 +49,10 @@ Found along the way, to be fixed:
 - [ ] Compare with Visual Studio feature by feature and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
 
 ## Phase 30: Later
-- [ ] Refactorings the C# extension's Roslyn server does not offer: Change Signature, Move to namespace, Pull members up, and Visual Studio's dialog for Extract Interface (name, file, members); only if they are missed
+- [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
+- [ ] EF Core migrations from the context menu (Add Migration, Update Database, Remove Migration...) running the `dotnet ef` commands, since Visual Studio's Package Manager Console route is clumsy and teams use the CLI anyway
+- [ ] NuGet package sources like Visual Studio, as an opt-in feature (a setting): a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] Hot Reload with the debugger attached: not possible with netcoredbg (`dotnet watch` refuses assembly updates while a debugger is attached); revisit if a debugger that does Edit and Continue is available (Microsoft's, in Microsoft's C# extension)
-- [ ] Solution filters (`.slnf`): load part of a big solution
-- [ ] EF Core migrations from the context menu (Add Migration, Update Database), Visual Studio's Package Manager Console commands
-- [ ] Scaffolding ("New Scaffolded Item": controllers with EF, Identity), a wizard like Add New Item
-- [ ] Docker / docker-compose launch profiles
-- [ ] Encrypted NuGet credentials (`Password` is Windows DPAPI; on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens)
-- [ ] Remote debugging on devices over SSH: build, deploy and F5 on the device (`pipeTransport` launch configurations); not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
-- [ ] Code coverage in the Test Explorer (Microsoft.Testing.Platform's coverage extension, lines marked in the editor), only if it stays fast: Visual Studio's coverage slows the IDE down so much that teams run coverage from a script (`dotnet test --collect`, ReportGenerator) instead, which remains the better way otherwise
-- [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them, like Visual Studio; restore already warns about vulnerable packages (NuGet Audit) in the Error List
-- [ ] NuGet package sources like Visual Studio: a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
 
 ## Phase 31: Publish, Part 2
@@ -81,4 +74,11 @@ Found along the way, to be fixed:
 - Search in the Solution Explorer (Visual Studio's Ctrl+;): Ctrl+P and Sync with Active Document cover it; to be built if someone opens an issue for it
 - The diagnostic rules of each analyzer under Dependencies > Analyzers: `.editorconfig` sets their severities
 - OpenAPI clients (Visual Studio's "Add Connected Service > OpenAPI"): Microsoft deprecated `<OpenApiReference>` and `dotnet openapi` in .NET 10 and recommends the generators' own tools (NSwag, Kiota with its VS Code extension); to be built if someone opens an issue
+- Refactorings the C# extension's Roslyn server does not offer (Change Signature, Move to namespace, Pull members up, Visual Studio's Extract Interface dialog): only if they are missed; to be built if someone opens an issue
+- Solution filters (`.slnf`, load part of a big solution): to be built if someone opens an issue
+- Scaffolding ("New Scaffolded Item": controllers with EF, Identity): to be built if someone opens an issue
+- Docker / docker-compose launch profiles: not used by the team, and those who use them write them by hand; to be built if someone opens an issue
+- Encrypted NuGet credentials (`Password` is Windows DPAPI): on Linux the Azure Artifacts Credential Provider covers restore and build, and the NuGet manager explains rejected tokens; to be built if someone opens an issue
+- Remote debugging on devices over SSH (`pipeTransport` launch configurations): not a Visual Studio feature for .NET (Visual Studio only attaches to running processes over SSH)
+- Code coverage in the Test Explorer: an IDE's coverage is slow or slows the IDE down, so teams run coverage from a script (`dotnet test --collect`, ReportGenerator; ours is `run-coverage.ps1`), which remains the better way
 - Project Properties as a form and Visual Studio's Launch Profiles editor: Edit Project File covers the properties, and Open Launch Settings creates `launchSettings.json`, whose JSON schema helps with editing the profiles
