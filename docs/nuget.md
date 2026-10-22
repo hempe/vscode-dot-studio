@@ -30,6 +30,24 @@ Solutions that keep their package versions in `Directory.Packages.props` (`Manag
 
 A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>`) keeps the versions in its project file, as before. When the .NET SDK cannot evaluate a project, its versions show as not known and are never offered as updates.
 
+### What Install, Update and Uninstall change
+
+The extension edits `Directory.Packages.props` itself (the `dotnet` CLI refuses imported props files and global packages), as text edits that keep your formatting and comments, in the file that defines the entry.
+
+| Action | What is written |
+|---|---|
+| **Install** a package the props file has no version for | `<PackageReference Include="X" />` in the project, `<PackageVersion Include="X" Version="..." />` in `Directory.Packages.props` |
+| **Install** or **Update** to another version than the central one | the central `PackageVersion` (once, for every project that uses it) |
+| **Set for this project only** | `VersionOverride="..."` on the project's `PackageReference`; the other projects keep the central version |
+| **Update** a package the project overrides | its `VersionOverride`; set to the central version it is removed again |
+| **Update** a global package | the `Version` of its `GlobalPackageReference` |
+| **Uninstall** | the project's `PackageReference`; when no project of the solution uses the package any more you are asked whether to remove its `PackageVersion` too |
+| **Uninstall** a global package | the `GlobalPackageReference` (for every project), or, for the selected projects only, `<GlobalPackageReference Remove="X" />` in each project file |
+
+**Before a change reaches other projects** (a central or global version used by projects you did not select), a confirmation lists them: **Update All Projects** changes the central version, **Set for This Project Only** writes a `VersionOverride` instead (not offered for global packages, or when `CentralPackageVersionOverrideEnabled` is `false`). Update Selected on the Updates tab asks once for all packages. Afterwards the solution is restored.
+
+Projects that do not use CPM in the same solution are changed with `dotnet add package` / `dotnet remove package`, as before.
+
 ## Private feeds
 
 Feeds and credentials come from `NuGet.Config`, found like NuGet finds them: every `NuGet.Config` from the solution folder up, then your user configuration. Credentials go in `<packageSourceCredentials>` with `Username` and `ClearTextPassword`; this works for Azure DevOps, GitHub Packages, GitLab, Artifactory, MyGet and others.

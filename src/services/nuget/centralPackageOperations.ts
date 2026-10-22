@@ -1,0 +1,204 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
+import { logger } from '../../core/logger';
+import { SolutionService } from '../solutionService';
+import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { PackageOperationsService } from './packageOperationsService';
+import { PackageOperationResult } from './types';
+import { centralFiles } from './centralPackages';
+import { applyPackageEdits } from './centralPackageFiles';
+import {
+    ProjectState, VersionChangePlan, VersionScope, confirmationText, globalUninstallEdits, planUninstall, planVersionChange,
+} from './centralPackagePlan';
+
+const log = logger('CentralPackages');
+
+/** What the operations need from VS Code, the CLI and the solution; replaced in tests */
+export interface OperationsHost {
+    /** A modal question; the chosen button, or undefined for Cancel */
+    ask(message: string, detail: string, ...buttons: string[]): Promise<string | undefined>;
+    /** The projects of the solution (and the given ones) with their evaluated packages */
+    states(include: readonly string[]): Promise<ProjectState[]>;
+    install(projectPath: string, id: string, version: string): Promise<PackageOperationResult>;
+    uninstall(projectPath: string, id: string): Promise<PackageOperationResult>;
+    restore(target: string): Promise<PackageOperationResult>;
+    solutionPath(): string | undefined;
+    /** Evaluates the projects again after their files or props files changed (the tree and the NuGet editor follow) */
+    reevaluate(projectPaths: readonly string[]): Promise<void>;
+}
+
+export interface OperationOutcome {
+    /** The user cancelled the confirmation: nothing was changed */
+    readonly cancelled: boolean;
+    readonly results: PackageOperationResult[];
+}
+
+/** The open solution's projects, each evaluated once (from the cache when the tree did it already) */
+export async function solutionProjectStates(include: readonly string[] = []): Promise<ProjectState[]> {
+    const projects = [...(SolutionService.getActiveSolution()?.projects.values() ?? [])];
+    await Promise.all(projects.map(project => project.evaluateItems()));
+    const states: ProjectState[] = projects.map(project => ({
+        name: project.name, path: project.projectPath, packages: ProjectItemsService.instance.packages(project.projectPath),
+    }));
+    // A project the NuGet editor was opened for that is not in the solution
+    for (const projectPath of include.filter(candidate => !states.some(state => state.path === candidate))) {
+        states.push({
+            name: path.basename(projectPath, path.extname(projectPath)), path: projectPath,
+            packages: await ProjectItemsService.instance.evaluatePackages(projectPath),
+        });
+    }
+    return states;
+}
+
+export const vscodeHost: OperationsHost = {
+    ask: (message, detail, ...buttons) => Promise.resolve(vscode.window.showWarningMessage(message, { modal: true, detail }, ...buttons)),
+    states: solutionProjectStates,
+    install: (projectPath, id, version) => PackageOperationsService.installPackage({ packageId: id, version, projectPath }),
+    uninstall: (projectPath, id) => PackageOperationsService.uninstallPackage(projectPath, id),
+    restore: target => PackageOperationsService.restorePackages(target),
+    solutionPath: () => SolutionService.getActiveSolution()?.solutionPath,
+    reevaluate: async projectPaths => {
+        const solution = SolutionService.getActiveSolution();
+        await Promise.all(projectPaths.map(async projectPath => {
+            const project = solution?.getProject(projectPath);
+            if (project) {
+                await project.reevaluateItems();
+            } else {
+                ProjectItemsService.instance.invalidate(projectPath);
+                await ProjectItemsService.instance.evaluate(projectPath);
+            }
+        }));
+    },
+};
+
+const isProjectFile = (file: string) => /\.(cs|vb|fs)proj$/i.test(file);
+const same = (a: string, b: string) => path.normalize(a) === path.normalize(b);
+
+/**
+ * After edits: restore (the whole solution when a props file changed, it reaches every project below it) and
+ * evaluate the projects whose files or props files changed
+ */
+async function afterEdits(changed: readonly string[], states: readonly ProjectState[], host: OperationsHost): Promise<PackageOperationResult[]> {
+    if (changed.length === 0) {
+        return [];
+    }
+    const propsChanged = changed.filter(file => !isProjectFile(file));
+    const affected = states.filter(state => changed.some(file => same(file, state.path))
+        || (!!state.packages && centralFiles(state.packages).some(file => propsChanged.some(changedFile => same(file, changedFile)))));
+    const solutionPath = host.solutionPath();
+    const targets = propsChanged.length > 0 && solutionPath ? [solutionPath] : affected.map(state => state.path);
+    const results: PackageOperationResult[] = [];
+    for (const target of targets) {
+        results.push(await host.restore(target));
+    }
+    await host.reevaluate(affected.map(state => state.path));
+    return results;
+}
+
+async function apply(edits: Parameters<typeof applyPackageEdits>[0]): Promise<{ changed: string[]; result?: PackageOperationResult }> {
+    try {
+        return { changed: await applyPackageEdits(edits) };
+    } catch (error) {
+        log.error('Could not edit the package versions:', error);
+        return { changed: [], result: { success: false, message: `Could not edit the package versions: ${error instanceof Error ? error.message : error}` } };
+    }
+}
+
+/**
+ * Install or update packages (one entry per package, with the projects it is for). Central versions are edited once
+ * per package; when that reaches projects that were not selected, one confirmation lists them, with "Set for this
+ * project only" as the alternative. Projects without CPM go through `dotnet add package` as before.
+ */
+export async function changePackageVersions(
+    changes: readonly { id: string; version: string; projects: readonly string[] }[], scope: VersionScope = 'shared', host: OperationsHost = vscodeHost,
+): Promise<OperationOutcome> {
+    const states = await host.states([...new Set(changes.flatMap(change => change.projects))]);
+    const plan = (chosen: VersionScope) => changes.map(change => planVersionChange(change.id, change.version, change.projects, states, chosen));
+    let plans: VersionChangePlan[] = plan(scope);
+
+    const question = confirmationText(plans);
+    if (question) {
+        const selectedCount = new Set(changes.flatMap(change => change.projects)).size;
+        const onlyThese = selectedCount === 1 ? 'Set for This Project Only' : 'Set for the Selected Projects Only';
+        const canOverride = scope === 'shared' && plans.every(candidate => candidate.alsoChanges.length === 0 || candidate.canOverride);
+        const choice = await host.ask(question.message, question.detail, 'Update All Projects', ...(canOverride ? [onlyThese] : []));
+        if (!choice) {
+            return { cancelled: true, results: [] };
+        }
+        if (choice === onlyThese) {
+            plans = plan('project');
+        }
+    }
+
+    const results: PackageOperationResult[] = [];
+    const { changed, result } = await apply(plans.flatMap(candidate => candidate.edits));
+    if (result) {
+        return { cancelled: false, results: [result] };
+    }
+    for (const candidate of plans) {
+        if (candidate.edits.length > 0) {
+            results.push({ success: true, message: `${candidate.id} ${candidate.version}`, packageId: candidate.id, version: candidate.version });
+        }
+        for (const projectPath of candidate.cliProjects) {
+            results.push(await host.install(projectPath, candidate.id, candidate.version));
+        }
+    }
+    results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
+    return { cancelled: false, results };
+}
+
+/**
+ * Uninstall a package from the selected projects. A global package is removed for all projects or opted out for the
+ * selected ones (the question names every project it applies to); a central version no project uses afterwards is
+ * removed only when the user says so.
+ */
+export async function uninstallPackages(id: string, projects: readonly string[], host: OperationsHost = vscodeHost): Promise<OperationOutcome> {
+    const states = await host.states(projects);
+    const plan = planUninstall(id, projects, states);
+    const results: PackageOperationResult[] = [];
+    const changed: string[] = [];
+
+    if (plan.global) {
+        const onlyThese = plan.global.selected.length === 1 ? 'Remove from This Project Only' : 'Remove from the Selected Projects Only';
+        const choice = await host.ask(
+            `${id} is a global package: every project gets it from ${path.basename(plan.global.file)}.`,
+            `It applies to ${plan.global.appliesTo.join(', ')}. Remove it for all of them, or only for the selected project${plan.global.selected.length === 1 ? '' : 's'} (a GlobalPackageReference Remove in the project file)?`,
+            'Remove for All Projects', onlyThese);
+        if (!choice && plan.cliProjects.length === 0) {
+            return { cancelled: true, results: [] };
+        }
+        if (choice) {
+            const applied = await apply(globalUninstallEdits(plan, choice === onlyThese ? 'selected' : 'all', states));
+            changed.push(...applied.changed);
+            results.push(applied.result ?? { success: true, message: `Removed ${id}`, packageId: id });
+        }
+    }
+
+    const removed: string[] = [];
+    for (const projectPath of plan.cliProjects) {
+        const result = await host.uninstall(projectPath, id);
+        results.push(result);
+        if (result.success) {
+            removed.push(projectPath);
+        }
+    }
+
+    // Only when every removal worked: otherwise a project still uses the version
+    if (removed.length === plan.cliProjects.length) {
+        for (const orphan of plan.orphanedVersions) {
+            const choice = await host.ask(`No project uses ${orphan.id} any more. Remove its version from ${path.basename(orphan.file)}?`,
+                `The PackageVersion entry is unused now; keep it if a project outside this solution uses it.`, 'Remove');
+            if (choice === 'Remove') {
+                const applied = await apply([{ kind: 'removePackageVersion', file: orphan.file, id: orphan.id }]);
+                changed.push(...applied.changed);
+                if (applied.result) {
+                    results.push(applied.result);
+                }
+            }
+        }
+    }
+
+    results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
+    await host.reevaluate(removed.filter(projectPath => !changed.includes(projectPath)));
+    return { cancelled: false, results };
+}

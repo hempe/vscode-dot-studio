@@ -40,6 +40,11 @@ export declare type InstallPackageCmd = {
         readonly projects: string[],
         readonly version: string
         readonly includePrerelease: boolean
+        /**
+         * Central Package Management: `shared` (default) changes the central version (asking first when that reaches
+         * other projects), `project` writes a VersionOverride ("Set for this project only"); see centralPackagePlan
+         */
+        readonly versionScope?: 'shared' | 'project'
     }
 }
 

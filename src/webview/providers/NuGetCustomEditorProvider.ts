@@ -6,8 +6,7 @@ import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 import { LocalNuGetPackage, sendToUi } from '../nuget-view/shared';
-import { PackageUpdateService } from '../../services/nuget/packageUpdateService';
-import { PackageOperationsService } from '../../services/nuget/packageOperationsService';
+import { changePackageVersions, uninstallPackages } from '../../services/nuget/centralPackageOperations';
 import { PackageConsolidationService } from '../../services/nuget/packageConsolidationService';
 import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../types/commands/backend';
 import { NuGetViewData } from '../../types/commands/ui';
@@ -415,20 +414,25 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             log.info(`Installing package ${installPackage.id} version ${installVersion} to projects:`, installProjects);
 
-            // Use NuGetManagerService to install the package in multiple projects
-            const results = await NuGetManagerService.installPackageInMultipleProjects(
-                installPackage.id,
-                installVersion,
-                installProjects
+            // Central Package Management edits Directory.Packages.props (asking when that reaches other projects);
+            // projects without it go through dotnet add package
+            const { cancelled, results } = await changePackageVersions(
+                [{ id: installPackage.id, version: installVersion, projects: installProjects }],
+                installData.versionScope ?? 'shared'
             );
+            if (cancelled) {
+                sendToUi(webview, { type: 'installComplete', payload: { success: false, packageId: installPackage.id } });
+                return;
+            }
 
-            // Process results and show appropriate messages
+            // Process results and show appropriate messages (a central edit is one result for all its projects)
             const successful = results.filter(r => r.success);
             const failed = results.filter(r => !r.success);
 
             if (successful.length > 0) {
-                vscode.window.showInformationMessage(
-                    `Successfully installed ${installPackage.id}@${installVersion} in ${successful.length} project(s)`
+                vscode.window.showInformationMessage(failed.length === 0
+                    ? `Successfully installed ${installPackage.id}@${installVersion} in ${installProjects.length} project(s)`
+                    : `Installed ${installPackage.id}@${installVersion}, with errors`
                 );
             }
 
@@ -477,11 +481,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             log.info(`Uninstalling package ${uninstallPackage.id} from projects:`, uninstallProjects);
 
-            // Use NuGetManagerService to uninstall the package from multiple projects
-            const results = [];
-            for (const projectPath of uninstallProjects) {
-                const result = await PackageOperationsService.uninstallPackage(projectPath, uninstallPackage.id);
-                results.push(result);
+            // dotnet remove package per project; a global package is removed or opted out in the props/project files
+            const { cancelled, results } = await uninstallPackages(uninstallPackage.id, uninstallProjects);
+            if (cancelled) {
+                sendToUi(webview, { type: 'uninstallComplete', payload: { success: false, packageId: uninstallPackage.id } });
+                return;
             }
 
             // Process results and show appropriate messages
@@ -538,60 +542,22 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
             log.info(`Bulk updating ${packages.length} packages`);
 
+            // One change per package (central versions are edited once, not once per project), one confirmation for all
+            const changes = packages.flatMap(pkg => {
+                const version = pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease)).sort(VersionUtils.compare)[0];
+                const projects = context.type === 'project' ? [context.target] : (pkg.projects ?? []).map(project => project.path);
+                return version && projects.length > 0 ? [{ id: pkg.id, version, projects }] : [];
+            });
+
             // Show progress notification
-            await vscode.window.withProgress({
+            const cancelled = await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Updating`,
+                title: `Updating ${changes.length} package(s)`,
                 cancellable: false
-            }, async (progress) => {
-                const results = [];
-
-                for (const pkg of packages) {
-                    progress.report({
-                        increment: (100 / packages.length),
-                        message: `: ${pkg.id}`
-                    });
-
-                    try {
-                        if (context.type === 'project') {
-                            const result = await PackageUpdateService.updatePackage(
-                                context.target,
-                                pkg.id,
-                                pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
-                                    .sort(VersionUtils.compare)[0]
-                            );
-                            results.push(result);
-
-                        } else {
-                            for (const project of pkg.projects || []) {
-                                try {
-                                    // For solution context, update in the specific project
-                                    const result = await PackageUpdateService.updatePackage(
-                                        project.path,
-                                        pkg.id,
-                                        pkg.versions?.filter(VersionUtils.includePrerelease(message.payload.includePrerelease))
-                                            .sort(VersionUtils.compare)[0]
-                                    );
-                                    results.push(result);
-                                } catch (error) {
-                                    log.error(`Error updating ${pkg.id}:`, error);
-                                    results.push({
-                                        success: false,
-                                        message: `Failed to update ${pkg.id} in ${project.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                                        packageId: pkg.id
-                                    });
-                                }
-
-                            }
-                        }
-                    } catch (error) {
-                        log.error(`Error updating ${pkg.id}:`, error);
-                        results.push({
-                            success: false,
-                            message: `Failed to update ${pkg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            packageId: pkg.id
-                        });
-                    }
+            }, async () => {
+                const { cancelled, results } = await changePackageVersions(changes);
+                if (cancelled) {
+                    return true;
                 }
 
                 const successful = results.filter(r => r.success).length;
@@ -604,13 +570,14 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 } else {
                     vscode.window.showWarningMessage(`Updated ${successful} packages, ${failed} failed`);
                 }
+                return false;
             });
 
             // Send completion message to frontend
             sendToUi(webview, {
                 type: 'bulkUpdateComplete',
                 payload: {
-                    success: true
+                    success: !cancelled
                 }
             });
 

@@ -1,12 +1,10 @@
 import { logger } from '../../core/logger';
 import { PackageBrowseService } from './packageBrowseService';
 import { PackageInstalledService } from './packageInstalledService';
-import { PackageOperationsService } from './packageOperationsService';
 import { PackageSharedService } from './packageSharedService';
 import { VersionUtils } from '../versionUtils';
 import {
     PackageSearchOptions,
-    PackageOperationResult,
     ProjectInfo,
     BasicInstalledPackage,
     InstalledPackage,
@@ -284,30 +282,6 @@ export class NuGetManagerService {
             skip: options?.skip || 0,
             source: options?.source
         });
-    }
-
-    /**
-     * Install a package across multiple projects in a solution
-     */
-    static async installPackageInMultipleProjects(
-        packageId: string,
-        version: string,
-        projectPaths: string[]
-    ): Promise<PackageOperationResult[]> {
-        log.info(`Installing ${packageId} v${version} in ${projectPaths.length} projects`);
-
-        const results: PackageOperationResult[] = [];
-
-        for (const projectPath of projectPaths) {
-            const result = await PackageOperationsService.installPackage({
-                packageId,
-                version,
-                projectPath
-            });
-            results.push(result);
-        }
-
-        return results;
     }
 
     // ============ PROJECT-LEVEL OPERATIONS ============
