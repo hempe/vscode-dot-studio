@@ -15,7 +15,7 @@ Found along the way, to be fixed:
 - [ ] The tests of path casing for Windows and macOS (bin/obj in any casing, `folderLayout.test.ts`) only run their case-insensitive branch on those systems; on Linux they check the case-sensitive one
 - [ ] The Visual Studio build-action item types added to the item list (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) come from memory and are not checked against Visual Studio; the platform files of iOS/MAUI projects are not checked either (workloads not installed)
 - [ ] The position of the link badge of linked files in the tree was never seen on screen
-- [ ] The drag & drop GIF is not recorded: `docs/images/drag-and-drop.gif` and the scene `gif-drag-and-drop` in `scripts/screenshots/capture.sh` are missing (the page has a placeholder); first find out whether xdotool's mouse events start an HTML5 drag in Chromium under Xvfb
+- [ ] A file created on disk (outside VS Code) in a project whose node is collapsed does not show when the project is opened: only the project file is watched until its folders are shown, so MSBuild does not evaluate the project again and the new file counts as not included (hidden). It shows once another file is created while the project is open. Seen with `src/Shop.Core/Coupon.cs` of the sample (the drag & drop GIF scene creates its file after opening Shop.Core for this)
 
 ## Known limitations
 

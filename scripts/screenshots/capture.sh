@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -81,6 +81,18 @@ wants() { [[ " $SCENES " == *" $1 "* ]]; }
 tree_focus() { key ctrl+alt+l; pause 1; click 140 81; }
 tree_open() { for name in "$@"; do type_text "$name"; pause 1.2; key Right; pause 1.5; done; }
 tree_select() { pause 1.2; type_text "$1"; pause 1.2; }
+# The y of the tree row with the given index (0 = the solution): about 20.3 px apart from y=81 (project rows are a
+# pixel taller than file rows, so far down the list this is a few pixels off, still inside the row)
+row_y() { echo $(( 81 + $1 * 203 / 10 )); }
+# HTML5 drag & drop with the mouse: press, move in small steps (Chromium only starts a drag after moves between press
+# and release; xdotool's events do start it), rest on the target (the highlight; a collapsed folder expands after
+# 0.7 s), release. drag x1 y1 x2 y2 [rest]. Chromium draws the dragged row under the pointer and, with no compositor,
+# opaque: grabbed at the row's left edge (x 70) and dropped further right, it does not cover the target's name
+drag() {
+    xdotool mousemove "$1" "$2" mousedown 1; sleep 0.3
+    local i; for i in 1 2 3 4 5 6 7 8; do xdotool mousemove $(( $1 + ($3 - $1) * i / 8 )) $(( $2 + ($4 - $2) * i / 8 )); sleep 0.1; done
+    sleep "${5:-1}"; xdotool mouseup 1; sleep 1
+}
 # Opens Shop.Web's context menu and clicks an entry by its offset below the click (from context-menu.png).
 # After Collapse All and opening the solution and src, rows are 20.6 px apart from y=81: the solution, Solution Items,
 # src, then src's projects in order.
@@ -503,6 +515,40 @@ if wants gif-show-all-files; then
     cp "$WORK/Shop.Core.csproj.orig" "$SOLUTION/src/Shop.Core/Shop.Core.csproj"
     sleep 3
     command "View: Close All Editors" 1
+fi
+
+if wants gif-drag-and-drop; then
+    echo "Scene: gif-drag-and-drop"
+    reset
+    # In the work copy only (put back afterwards): a solution folder "tools" to drag Shop.Generators into, and a C# file
+    # at the top of Shop.Core to drag into Pricing
+    cp "$SOLUTION/Contoso.slnx" "$WORK/Contoso.slnx.orig"
+    sed -i 's|^</Solution>|  <Folder Name="/tools/" />\n</Solution>|' "$SOLUTION/Contoso.slnx"
+    sleep 3
+    tree_focus; tree_open Contoso src Shop.Core
+    # Created while Shop.Core is open: the tree only sees new files of a project it shows (and then lists them once
+    # MSBuild evaluated the project again)
+    printf 'namespace Shop.Core;\n\npublic record Coupon(string Code, decimal Percent);\n' > "$SOLUTION/src/Shop.Core/Coupon.cs"
+    sleep 5
+    # Rows now: 0 Contoso, 1 Solution Items, 2 src, 3 Shop.Core, 4 Dependencies, 5 Catalog, 6 Orders, 7 Pricing,
+    # 8 Coupon.cs, 9 Shop.Generators, 10 Shop.Web, 11 Shop.Worker, 12 tests, 13 tools
+    record_start
+    pause 1
+    # Coupon.cs onto Pricing (it opens while the pointer rests on it); the namespace question's default button is
+    # Update Namespace, which opens the file
+    drag 70 "$(row_y 8)" 330 "$(row_y 7)" 1.5; pause 1.5
+    key Return; pause 2.5
+    # Pricing is open now: 8 Discounts, 9 Coupon.cs, 10 PriceCalculator.cs, 11 Shop.Generators, ..., 15 tools.
+    # Shop.Generators onto the tools solution folder, which is opened afterwards to show it
+    drag 70 "$(row_y 11)" 330 "$(row_y 15)"; pause 2
+    click 200 "$(row_y 14)"; key Right; pause 2
+    xdotool mousemove 1000 400; pause 1
+    record_stop drag-and-drop
+    command "File: Save All" 1
+    command "View: Close All Editors" 1
+    cp "$WORK/Contoso.slnx.orig" "$SOLUTION/Contoso.slnx"
+    rm -f "$SOLUTION/src/Shop.Core/Coupon.cs" "$SOLUTION/src/Shop.Core/Pricing/Coupon.cs"
+    sleep 3
 fi
 
 echo "Done: $OUT"

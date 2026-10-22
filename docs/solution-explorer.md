@@ -96,7 +96,7 @@ The copy key is Ctrl on Windows and Linux; on macOS Ctrl, Cmd or Option. Hold it
 - In a `.sln` file a move changes the `NestedProjects` lines (and the `SolutionItems` sections); in a `.slnx` file the `Name` of the moved solution folders and where the `<Project>` and `<File>` elements are. The rest of the file stays as it is.
 - Files dropped from outside the tree (VS Code's Explorer, the file manager) are not taken, and dropping a project onto Dependencies adds no reference: use Add Project Reference...
 
-<!-- GIF: drag-and-drop.gif (record with scripts/screenshots/capture.sh, scene gif-drag-and-drop, not yet written) -->
+![Drag and drop in the Solution Explorer](images/drag-and-drop.gif)
 
 ## Dependencies
 
