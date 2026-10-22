@@ -83,7 +83,8 @@ describe('Exclude/Include against real MSBuild', () => {
         expect(after.isIncluded(at('K.cs'))).toBe(false);
     }, TIMEOUT);
 
-    const specialNames = ['a;b.txt', '$(X).txt', 'a%b.txt', 'a b.txt', 'a@b.txt', "it's (1).txt", 'star*.txt', 'q?.txt'];
+    // `*` and `?` cannot be in a file name on Windows
+    const specialNames = ['a;b.txt', '$(X).txt', 'a%b.txt', 'a b.txt', 'a@b.txt', "it's (1).txt", ...(process.platform === 'win32' ? [] : ['star*.txt', 'q?.txt'])];
 
     withDotnet('names with MSBuild special characters are excluded and included literally', async () => {
         setUp(sdkProject(), ['Program.cs', 'starry.txt', 'qq.txt', ...specialNames]);
