@@ -555,6 +555,16 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.updateGrpcReference",
+        "title": "Update gRPC Reference",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.removeGrpcReference",
+        "title": "Remove gRPC Reference",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.startNewInstance",
         "title": "Start New Instance",
         "category": ".NET"
@@ -1136,6 +1146,16 @@
           "group": "01_group@1"
         },
         {
+          "command": "shinobi.solutionExplorer.removeGrpcReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'grpcReference'",
+          "group": "03_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateGrpcReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'grpcReference' && contextValue == 'url'",
+          "group": "02_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.excludeFromProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && contextValue == 'included'",
           "group": "03_group@1"
@@ -1500,6 +1520,14 @@
         },
         {
           "command": "shinobi.solutionExplorer.removeServiceReference",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateGrpcReference",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeGrpcReference",
           "when": "false"
         },
         {

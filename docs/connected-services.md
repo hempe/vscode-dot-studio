@@ -48,3 +48,11 @@ Client: `Google.Protobuf`, `Grpc.Net.ClientFactory` (in web projects `Grpc.AspNe
 ### In the tree
 
 Every `<Protobuf>` item of a project is a gRPC reference: Connected Services lists one node per `.proto` file with what it generates, e.g. `greet.proto (Client)` (`Both` when the item does not say: that is Grpc.Tools' default). A project without a `Connected Services` folder gets the node anyway, at the top as in Visual Studio. References made by Visual Studio or `dotnet-grpc`, and those written by hand, show the same way. Double-click (or Enter) opens the `.proto` file.
+
+### Update and remove
+
+Right-click the reference in Connected Services:
+- **Update gRPC Reference** (references added from a URL) downloads the file again from its `SourceUrl` and replaces the local copy only when the content changed; the code follows with the next build.
+- **Remove gRPC Reference** takes the `<Protobuf>` item out of the project file after asking. The `.proto` file and the packages stay, as with `dotnet-grpc remove`. A file that a wildcard (`Protos\*.proto`) or a props file includes cannot be removed this way: the message says where it comes from.
+
+![Adding a gRPC reference from a URL, then updating and removing it](images/grpc.gif)

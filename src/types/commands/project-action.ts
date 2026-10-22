@@ -116,6 +116,16 @@ export declare type RemoveServiceReferenceActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type UpdateGrpcReferenceActionCmd = {
+    readonly action: 'updateGrpcReference';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type RemoveGrpcReferenceActionCmd = {
+    readonly action: 'removeGrpcReference';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type ChooseLaunchProfileActionCmd = {
     readonly action: 'chooseLaunchProfile';
     readonly nodeId: NodeIdString;
@@ -327,6 +337,8 @@ export type ProjectActionCmd =
     | AddNewItemActionCmd
     | UpdateServiceReferenceActionCmd
     | RemoveServiceReferenceActionCmd
+    | UpdateGrpcReferenceActionCmd
+    | RemoveGrpcReferenceActionCmd
     | PasteActionCmd
     | StartRenameActionCmd
     | CollapseParentActionCmd

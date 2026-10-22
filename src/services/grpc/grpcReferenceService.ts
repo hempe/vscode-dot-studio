@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { isWebProject } from '../../parsers/projectKind';
 import { SolutionService } from '../solutionService';
-import { ProjectItems } from '../projectItems/projectItems';
+import { pathKey, ProjectItems } from '../projectItems/projectItems';
 import { ProjectItemsService } from '../projectItems/projectItemsService';
 import { changePackageVersions, OperationsHost, vscodeHost as packageOperationsHost } from '../nuget/centralPackageOperations';
 import { PackageBrowseService } from '../nuget/packageBrowseService';
@@ -13,7 +13,7 @@ import { serviceReferencesOutput, showServiceReferenceFailure } from '../service
 import { download } from './download';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, duplicateRefusal, ensureDevelopmentDependency, GrpcServices, grpcPackages,
-    protobufReferenceFor, protoFileName, PROTOS_FOLDER,
+    notListedMessage, protobufReferenceFor, protoFileName, PROTOS_FOLDER, removeProtobufReference,
 } from './protobufReferences';
 
 export type GrpcSource = { readonly kind: 'file'; readonly path: string } | { readonly kind: 'url'; readonly url: string };
@@ -144,6 +144,66 @@ export async function installGrpcPackages(
 ): Promise<PackageOperationResult[]> {
     const outcome = await changePackageVersions(packages.map(entry => ({ id: entry.id, version: entry.version, projects: [projectPath] })), 'shared', operations);
     return outcome.cancelled ? [{ success: false, message: 'Cancelled: the packages were not added.' }] : outcome.results;
+}
+
+const sameFile = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
+
+/**
+ * Update of a reference added from a URL (`dotnet-grpc refresh`): downloads it again from its `SourceUrl` and replaces
+ * the local file only when the content differs. Returns whether the file changed.
+ */
+export async function updateGrpcReference(projectPath: string, protoPath: string, host: GrpcHost = vscodeGrpcHost): Promise<boolean> {
+    const name = path.basename(protoPath);
+    const item = (await host.items(projectPath))?.protobuf.find(candidate => sameFile(candidate.fullPath, protoPath));
+    if (!item?.sourceUrl) {
+        host.info(`${name} was not added from a URL: there is nothing to update it from.`);
+        return false;
+    }
+    const sourceUrl = item.sourceUrl;
+    let downloaded: Buffer;
+    try {
+        downloaded = await host.progress(`Updating ${name}...`, () => host.download(sourceUrl));
+    } catch (error) {
+        host.log(`Downloading ${sourceUrl} failed: ${error instanceof Error ? error.message : error}`);
+        host.fail(`Updating ${name} failed: ${sourceUrl} could not be downloaded.`);
+        return false;
+    }
+    if (fs.existsSync(protoPath) && contentHash(fs.readFileSync(protoPath)) === contentHash(downloaded)) {
+        host.info(`${name} is up to date.`);
+        return false;
+    }
+    fs.mkdirSync(path.dirname(protoPath), { recursive: true });
+    fs.writeFileSync(protoPath, downloaded);
+    host.log(`Updated ${relative(projectPath, protoPath)} from ${sourceUrl}`);
+    host.info(`${name} updated from ${sourceUrl}. The code is generated again when the project builds.`);
+    return true;
+}
+
+/**
+ * Remove (`dotnet-grpc remove`): takes the `<Protobuf>` item out of the project file after asking. The `.proto` file and
+ * the packages stay. Refused with a message when the project file does not list the file by itself.
+ */
+export async function removeGrpcReference(projectPath: string, protoPath: string, host: GrpcHost = vscodeGrpcHost): Promise<boolean> {
+    const name = path.basename(protoPath);
+    const projectDir = path.dirname(projectPath);
+    const listed = (content: string) => removeProtobufReference(content, projectDir, protoPath) !== content;
+    if (!listed(fs.readFileSync(projectPath, 'utf8'))) {
+        const item = (await host.items(projectPath))?.protobuf.find(candidate => sameFile(candidate.fullPath, protoPath));
+        host.info(notListedMessage(item, projectPath, protoPath));
+        return false;
+    }
+    if (!await host.ask(`Remove the gRPC reference '${name}'?`, `The <Protobuf> item leaves ${path.basename(projectPath)}; ${name} and the gRPC packages stay.`, 'Remove')) {
+        return false;
+    }
+    // Read again: the project file may have changed while the question was open
+    const content = fs.readFileSync(projectPath, 'utf8');
+    if (!listed(content)) {
+        return false;
+    }
+    fs.writeFileSync(projectPath, removeProtobufReference(content, projectDir, protoPath));
+    host.log(`Removed the gRPC reference ${relative(projectPath, protoPath)} from ${path.basename(projectPath)}`);
+    await host.reevaluate(projectPath);
+    return true;
 }
 
 const PICK_FILE = 'Browse for .proto File...';

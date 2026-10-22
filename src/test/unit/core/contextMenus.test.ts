@@ -97,6 +97,15 @@ describe('contextMenus', () => {
         expect(when('removeServiceReference')).toEqual([expect.stringContaining("contextValue == 'serviceReference'")]);
     });
 
+    it('offers Open and Remove on gRPC references, Update only on those added from a URL, Add on the Connected Services node', () => {
+        const { webviewContext } = buildMenuContributions();
+        const when = (command: string) => webviewContext.filter(e => e.command === `shinobi.solutionExplorer.${command}`).map(e => e.when.replace(/^.*webviewSection == 'node' && /, ''));
+        expect(when('updateGrpcReference')).toEqual(["nodeType == 'grpcReference' && contextValue == 'url'"]);
+        expect(when('removeGrpcReference')).toEqual(["nodeType == 'grpcReference'"]);
+        expect(when('openFile')).toContain("nodeType == 'grpcReference'");
+        expect(when('addServiceReference')).toContain("nodeType == 'connectedServices'");
+    });
+
     it('offers the Debug submenu on projects that can be started, the startup project included', () => {
         const { webviewContext, submenus: generated, submenuItems } = buildMenuContributions();
         // VS Code ignores a submenu contributed twice to the same menu, so it comes once, for all three

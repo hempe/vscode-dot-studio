@@ -31,6 +31,7 @@ import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
+import { removeGrpcReference, updateGrpcReference } from './grpc/grpcReferenceService';
 
 const log = logger('SolutionActionService');
 
@@ -241,6 +242,18 @@ export class SolutionActionService {
 
             case 'removeServiceReference':
                 await removeServiceReferenceWithConfirmation(nodeId.path);
+                break;
+
+            case 'updateGrpcReference':
+                if (nodeId.type === 'grpcReference') {
+                    await updateGrpcReference(nodeId.project, nodeId.path);
+                }
+                break;
+
+            case 'removeGrpcReference':
+                if (nodeId.type === 'grpcReference') {
+                    await removeGrpcReference(nodeId.project, nodeId.path);
+                }
                 break;
 
             case 'excludeFromProject':

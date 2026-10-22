@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop gif-central-packages}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop gif-central-packages gif-grpc}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -59,16 +59,25 @@ shot() {
     echo "  $OUT/$1.png"
 }
 # Screen recording for the GIFs: record_start before the steps, record_stop <name> after; the title bar is cropped
-# away, the result is docs/images/<name>.gif (palette per file, so the colours stay close to the screen)
+# away, the result is docs/images/<name>.gif (palette per file, so the colours stay close to the screen).
+# record_pause leaves a long wait out (a restore, a download): record_start goes on with the next part, record_stop
+# joins the parts
 FFMPEG_PID=""
+REC_PARTS=0
 record_start() {
+    REC_PARTS=$(( REC_PARTS + 1 ))
     ffmpeg -loglevel error -y -f x11grab -framerate 15 -video_size "${WIDTH}x${HEIGHT}" -i "$DISPLAY" \
-        -vf "crop=${WIDTH}:$((HEIGHT - 36)):0:36" -c:v libx264 -preset ultrafast -crf 18 -pix_fmt yuv420p "$WORK/rec.mp4" &
+        -vf "crop=${WIDTH}:$((HEIGHT - 36)):0:36" -c:v libx264 -preset ultrafast -crf 18 -pix_fmt yuv420p "$WORK/rec-$REC_PARTS.mp4" &
     FFMPEG_PID=$!
     sleep 1
 }
+record_pause() { kill -INT "$FFMPEG_PID"; wait "$FFMPEG_PID" 2>/dev/null || true; FFMPEG_PID=""; }
 record_stop() {
-    kill -INT "$FFMPEG_PID"; wait "$FFMPEG_PID" 2>/dev/null || true; FFMPEG_PID=""
+    record_pause
+    local i; : > "$WORK/rec.txt"
+    for (( i = 1; i <= REC_PARTS; i++ )); do echo "file '$WORK/rec-$i.mp4'" >> "$WORK/rec.txt"; done
+    ffmpeg -loglevel error -y -f concat -safe 0 -i "$WORK/rec.txt" -c copy "$WORK/rec.mp4"
+    rm -f "$WORK"/rec-*.mp4 "$WORK/rec.txt"; REC_PARTS=0
     ffmpeg -loglevel error -y -i "$WORK/rec.mp4" \
         -vf "fps=$GIF_FPS,scale=$GIF_WIDTH:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" \
         "$OUT/$1.gif"
@@ -127,6 +136,16 @@ click_dialog_button() {
     read -r x y dw dh <<< "$(window_box "$w")"
     click $(( x + dw * ($1 * 2 - 1) / 4 )) $(( y + dh - 18 ))
 }
+# The quick input (command palette, pickers, input boxes) sits in the title bar, which the GIFs crop away: scenes that
+# show what is typed into it drag it down (VS Code keeps the place) and put it back at the top afterwards
+quick_input_move() {
+    key ctrl+shift+p; pause 1
+    xdotool mousemove 800 "$1" mousedown 1; sleep 0.3
+    local i; for i in 1 2 3 4 5 6; do xdotool mousemove 800 $(( $1 + ($2 - $1) * i / 6 )); sleep 0.1; done
+    xdotool mouseup 1; pause 1; key Escape
+}
+quick_input_down() { quick_input_move 9 150; }
+quick_input_up() { quick_input_move 151 5; }
 # Every scene starts from the collapsed tree, with no editors and no panel
 reset() { command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
 
@@ -636,6 +655,56 @@ XML
     command "Notifications: Clear All Notifications" 1
     rm -f "$SOLUTION/Directory.Packages.props"
     (cd "$SOLUTION" && tar xf "$WORK/csproj.tar")
+    (cd "$SOLUTION" && dotnet restore Contoso.slnx -v q -nologo >/dev/null)
+    sleep 5
+    command "View: Close All Editors" 1
+fi
+
+if wants gif-grpc; then
+    echo "Scene: gif-grpc"
+    # Shop.Web gets a gRPC reference from a URL in the work copy; the project file is put back, Protos deleted and the
+    # packages restored afterwards
+    cp "$SOLUTION/src/Shop.Web/Shop.Web.csproj" "$WORK/Shop.Web.csproj.orig"
+    reset
+    command "Notifications: Clear All Notifications" 1
+    quick_input_down
+    tree_focus; tree_open Contoso src
+    y="$(shop_web_y)"
+    record_start
+    pause 0.5
+    # Add Service Reference...: the last item of the second group
+    click 165 "$y" 3; pause 1.5; click 280 $(( y + 177 ))
+    pause 1.5
+    # The kind of service, the source, the URL, what to generate (Both comes first in a web project)
+    type_text "gRPC"; pause 0.8; key Return; pause 1.5
+    type_text "Enter URL"; pause 0.8; key Return; pause 1.5
+    type_text "https://raw.githubusercontent.com/grpc/grpc-dotnet/master/examples/Greeter/Proto/greet.proto"; pause 1; key Return; pause 1.5
+    key Return; pause 4
+    # The download, Grpc.AspNetCore with its restore and the evaluation are left out of the GIF
+    record_pause
+    for _ in $(seq 120); do grep -q 'Grpc.AspNetCore' "$SOLUTION/src/Shop.Web/Shop.Web.csproj" && break; sleep 1; done
+    sleep 12
+    # The local copy made older, so Update has something to replace
+    printf '// An older copy\n' >> "$SOLUTION/src/Shop.Web/Protos/greet.proto"
+    record_start
+    # Shop.Web open: Connected Services is its first row, greet.proto (Both) the first row in it
+    click 200 "$y"; key Right; pause 1.5
+    click 200 $(( y + 20 )); key Right; pause 1.5
+    click 200 $(( y + 40 )); pause 1
+    # Update gRPC Reference: second item, below Open and a separator
+    click 200 $(( y + 40 )) 3; pause 1.5
+    click 280 $(( y + 40 + 56 )); pause 4
+    # Remove gRPC Reference: third item, the confirmation's Remove button
+    click 200 $(( y + 40 )) 3; pause 1.5
+    click 280 $(( y + 40 + 88 )); pause 0.3
+    center_dialog; pause 2.5
+    click_dialog_button 2; pause 3
+    xdotool mousemove 1000 400; pause 1
+    record_stop grpc
+    command "Notifications: Clear All Notifications" 1
+    quick_input_up
+    cp "$WORK/Shop.Web.csproj.orig" "$SOLUTION/src/Shop.Web/Shop.Web.csproj"
+    rm -rf "$SOLUTION/src/Shop.Web/Protos"
     (cd "$SOLUTION" && dotnet restore Contoso.slnx -v q -nologo >/dev/null)
     sleep 5
     command "View: Close All Editors" 1

@@ -68,6 +68,8 @@ export const menuCommands = {
     addServiceReference: { title: 'Add Service Reference...', description: 'Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds.' },
     updateServiceReference: { title: 'Update Service Reference', description: "Regenerates the service reference from its WSDL, for the project's current target framework." },
     removeServiceReference: { title: 'Remove Service Reference', description: 'Removes the service reference: deletes its folder after asking; the WCF packages stay.' },
+    updateGrpcReference: { title: 'Update gRPC Reference', description: 'Downloads the `.proto` file again from the URL it was added from (`SourceUrl`) and replaces the local file only when it changed.' },
+    removeGrpcReference: { title: 'Remove gRPC Reference', description: 'Removes the `<Protobuf>` item from the project file after asking; the `.proto` file and the gRPC packages stay.' },
     startNewInstance: { title: 'Start New Instance', description: 'Builds the project and starts it in the debugger next to whatever already runs, without making it the startup project.' },
     startWithoutDebugging: { title: 'Start Without Debugging', description: 'Builds the project and runs it without the debugger, without making it the startup project.' },
     startWithHotReload: { title: 'Start with Hot Reload', description: 'Runs the project with `dotnet watch` in a terminal named `<project> (watch)`, without the debugger: saved code changes are applied to the running app, changes it cannot apply restart it. Starting it again restarts it; closing the terminal stops it.' },
@@ -182,6 +184,11 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     ],
     grpcReference: [
         ['openFile'],
+        [], // updateGrpcReference on references added from a URL
+        ['removeGrpcReference'],
+    ],
+    [`grpcReference.${GRPC_URL_REFERENCE}`]: [
+        [], ['updateGrpcReference'],
     ],
     // In the empty slot of the file and folder menus: own group above Rename and Delete, as in Visual Studio
     [`file.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
@@ -282,6 +289,7 @@ const conditionNames: Readonly<Record<string, string>> = {
     [`folder.${EXCLUDED_ITEM}`]: 'On folders the project does not contain (Show All Files)',
     'folder.connectedServices': 'On the Connected Services folder',
     'folder.serviceReference': 'On a service reference (a folder in Connected Services)',
+    [`grpcReference.${GRPC_URL_REFERENCE}`]: 'On a gRPC reference added from a URL',
     'dependencyCategory.packages': 'On Packages',
     'dependencyCategory.projects': 'On Projects',
     'dependencyCategory.assemblies': 'On Assemblies',

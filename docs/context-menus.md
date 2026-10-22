@@ -223,6 +223,13 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Command | Key | What it does |
 |---|---|---|
 | Open |  | Opens the file in the editor. Generated files open read-only. |
+| Remove gRPC Reference |  | Removes the `<Protobuf>` item from the project file after asking; the `.proto` file and the gRPC packages stay. |
+
+**On a gRPC reference added from a URL**
+
+| Command | Key | What it does |
+|---|---|---|
+| Update gRPC Reference |  | Downloads the `.proto` file again from the URL it was added from (`SourceUrl`) and replaces the local file only when it changed. |
 
 ## Dependencies
 
