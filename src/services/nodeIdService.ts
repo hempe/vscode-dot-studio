@@ -105,6 +105,21 @@ export declare type GeneratedFileNodeId = {
     readonly path: string;
 }
 
+/** Connected Services of a project that has gRPC references but no `Connected Services` folder on disk */
+export declare type ConnectedServicesNodeId = {
+    readonly type: 'connectedServices';
+    /** The project */
+    readonly path: string;
+}
+
+/** A gRPC reference (a `Protobuf` item) in Connected Services */
+export declare type GrpcReferenceNodeId = {
+    readonly type: 'grpcReference';
+    /** The `.proto` file (Open opens it) */
+    readonly path: string;
+    readonly project: string;
+}
+
 export declare type NodeId =
     SolutionNodeId |
     SolutionItemNodeId |
@@ -119,7 +134,9 @@ export declare type NodeId =
     AnalyzerNodeId |
     SourceGeneratorNodeId |
     GeneratedFileNodeId |
-    TransitivePackageNodeId;
+    TransitivePackageNodeId |
+    ConnectedServicesNodeId |
+    GrpcReferenceNodeId;
 
 /**
  * Service for generating and reading structured node IDs
@@ -266,6 +283,14 @@ export class NodeIdService {
 
     static generateGeneratedFileId(filePath: string): NodeIdString {
         return this.encode({ type: 'generatedFile', path: filePath });
+    }
+
+    static generateConnectedServicesId(projectPath: string): NodeIdString {
+        return this.encode({ type: 'connectedServices', path: projectPath });
+    }
+
+    static generateGrpcReferenceId(projectPath: string, protoPath: string): NodeIdString {
+        return this.encode({ type: 'grpcReference', path: protoPath, project: projectPath });
     }
 
     /**

@@ -212,6 +212,18 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Run Tests |  | Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer. |
 | Debug Tests |  | Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit. |
 
+## Connected Services (of a project with gRPC references and no such folder on disk)
+
+| Command | Key | What it does |
+|---|---|---|
+| Add Service Reference... |  | Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. |
+
+## gRPC reference (in Connected Services)
+
+| Command | Key | What it does |
+|---|---|---|
+| Open |  | Opens the file in the editor. Generated files open read-only. |
+
 ## Dependencies
 
 | Command | Key | What it does |

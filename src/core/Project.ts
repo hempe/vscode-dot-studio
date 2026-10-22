@@ -5,7 +5,8 @@ import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileP
 import { isExecutableProject } from '../parsers/projectKind';
 import { parseTargetFrameworks } from '../parsers/targetFrameworks';
 import { isTestProjectCandidate } from '../services/testing/testProjects';
-import { serviceFolderKind } from '../services/serviceReferences/connectedService';
+import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceReferences/connectedService';
+import { grpcReferenceNodes } from '../services/grpc/grpcNodes';
 import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
@@ -656,6 +657,17 @@ export class Project {
                 }
             }
 
+            // gRPC references and no Connected Services folder shown from disk: Visual Studio's node, at the top
+            const connectedServices = NodeIdService.generateFolderId(path.join(projectDir, CONNECTED_SERVICES));
+            if (!items.some(item => item.nodeId === connectedServices) && grpcReferenceNodes(this._projectPath).length > 0) {
+                items.unshift({
+                    type: 'connectedServices',
+                    name: CONNECTED_SERVICES,
+                    nodeId: NodeIdService.generateConnectedServicesId(this._projectPath),
+                    hasChildren: true
+                });
+            }
+
             log.info(`getRootChildren for ${this.name}: ${items.length} items`);
             return items;
 
@@ -788,12 +800,14 @@ export class Project {
             : node.itemState === 'excluded' ? EXCLUDED_ITEM
             : node.itemState === 'included' && (!isFolder || this.canExcludeFolder(node.path)) ? INCLUDED_ITEM
             : undefined;
+        const folderValue = isFolder ? this.folderContextValue(node.path) : undefined;
         return {
             type: node.type,
             name: node.name,
-            hasChildren: node.hasChildren,
+            // Connected Services also lists the gRPC references
+            hasChildren: node.hasChildren || (folderValue === 'connectedServices' && grpcReferenceNodes(this._projectPath).length > 0),
             nodeId: isFolder ? NodeIdService.generateFolderId(node.path) : NodeIdService.generateFileId(node.path),
-            contextValue: isFolder ? this.folderContextValue(node.path) ?? itemValue : itemValue,
+            contextValue: folderValue ?? itemValue,
             ...(node.itemState === 'excluded' || node.itemState === 'linked' ? { itemState: node.itemState } : {}),
             // Folders load their children when expanded; nested files are known with their parent
             ...(!isFolder && node.children?.length ? { children: node.children.map(child => this.toProjectChild(child)) } : {}),
@@ -817,6 +831,10 @@ export class Project {
 
             for (const child of children) {
                 items.push(this.toProjectChild(child));
+            }
+            // The gRPC references, after the service reference folders
+            if (this.folderContextValue(folderPath) === 'connectedServices') {
+                items.push(...grpcReferenceNodes(this._projectPath));
             }
 
             log.info(`getFolderChildren for ${folderPath}: ${items.length} items`);

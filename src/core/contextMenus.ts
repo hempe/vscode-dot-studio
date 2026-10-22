@@ -35,6 +35,8 @@ export const UNLOADED_PROJECT = 'unloaded';
 export const INCLUDED_ITEM = 'included';
 /** `contextValue` of files and folders on disk the project does not contain (shown with Show All Files): they can be included */
 export const EXCLUDED_ITEM = 'excluded';
+/** `contextValue` of gRPC references added from a URL: they can be updated */
+export const GRPC_URL_REFERENCE = 'url';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
 export const IN_TEST_PROJECT = 'inTestProject';
 
@@ -174,6 +176,13 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     'folder.serviceReference': [
         ['updateServiceReference', 'removeServiceReference'],
     ],
+    // Connected Services of a project with gRPC references and no such folder on disk
+    connectedServices: [
+        ['addServiceReference'],
+    ],
+    grpcReference: [
+        ['openFile'],
+    ],
     // In the empty slot of the file and folder menus: own group above Rename and Delete, as in Visual Studio
     [`file.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
     [`folder.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
@@ -249,6 +258,8 @@ const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
     project: 'Project',
     folder: 'Folder',
     file: 'File',
+    connectedServices: 'Connected Services (of a project with gRPC references and no such folder on disk)',
+    grpcReference: 'gRPC reference (in Connected Services)',
     dependencies: 'Dependencies',
     dependencyCategory: 'Analyzers, Packages, Projects, Assemblies (under Dependencies)',
     dependency: 'Package, project or assembly reference',

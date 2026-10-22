@@ -105,7 +105,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         }
 
         // Double click opens file for file types, project files, and solution files
-        if (node.type === 'file' || node.type === 'generatedFile' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution') {
+        if (node.type === 'file' || node.type === 'generatedFile' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution' || node.type === 'grpcReference') {
             log.info(`Opening file: ${node.name}`);
             onProjectAction({
                 action: 'openFile',
@@ -212,6 +212,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 // Special folder names with specific icons
                 if (node.name === 'Dependencies') return { icon: 'carbon:column-dependency', color: '#dcdcdc' };
                 if (node.name === 'Properties') return { icon: 'streamline:wrench-solid', color: '#dcdcdc' };
+                if (node.name === 'Connected Services') return { icon: 'mdi:connection', color: '#dcdcdc' };
                 return {
                     icon: node.expanded ? 'mdi:folder-open' : 'mdi:folder',
                     color: '#d8ac6a' // Folder color
@@ -285,6 +286,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             case 'transitivePackage': return { icon: 'simple-icons:nuget', color: '#dcdcdc' };
             case 'analyzer': return { icon: 'mdi:magnify-scan', color: '#dcdcdc' };
             case 'sourceGenerator': return { icon: 'mdi:cog-outline', color: '#dcdcdc' };
+            case 'connectedServices': return { icon: 'mdi:connection', color: '#dcdcdc' };
+            case 'grpcReference': return { icon: 'mdi:api', color: '#dcdcdc' };
             default: return { icon: 'mdi:file', color: '#dcdcdc' };
         }
     };

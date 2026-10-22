@@ -1126,6 +1126,16 @@
           "group": "01_group@2"
         },
         {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'connectedServices'",
+          "group": "01_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.openFile",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'grpcReference'",
+          "group": "01_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.excludeFromProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && contextValue == 'included'",
           "group": "03_group@1"

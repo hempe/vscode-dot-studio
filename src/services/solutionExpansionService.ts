@@ -10,6 +10,7 @@ import { Project } from '../core/Project';
 import { NodeIdString } from '../types/nodeId';
 import { analyzerChildren } from './analyzerNodes';
 import { packageChildren } from './nuget/packageNodes';
+import { grpcChildren } from './grpc/grpcNodes';
 
 const log = logger('SolutionExpansionService');
 
@@ -46,8 +47,8 @@ export class SolutionExpansionService {
             await updateWebviewCallback();
 
             let children: ProjectNode[] = [];
-            // Analyzers and packages expand to what MSBuild and the last restore report
-            const dependencyNodes = await analyzerChildren(node) ?? packageChildren(node);
+            // Analyzers, packages and gRPC references expand to what MSBuild and the last restore report
+            const dependencyNodes = await analyzerChildren(node) ?? packageChildren(node) ?? grpcChildren(node);
 
             if (dependencyNodes) {
                 children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencyNodes);
@@ -497,6 +498,11 @@ export class SolutionExpansionService {
      */
     private static async _refreshExpandedFolders(children: ProjectNode[], project: Project): Promise<void> {
         for (const child of children) {
+            const grpcNodes = child.expanded ? grpcChildren(NodeIdService.parse(child.nodeId)) : undefined;
+            if (grpcNodes) {
+                child.children = SolutionTreeService.convertProjectChildrenToProjectNodes(grpcNodes);
+                continue;
+            }
             if (child.type === 'folder' && child.expanded && child.children) {
                 const path = NodeIdService.parse(child.nodeId).path;
                 if (!path) {
@@ -558,7 +564,7 @@ export class SolutionExpansionService {
 
             let children: ProjectNode[] = [];
             const parsedNode = NodeIdService.parse(nodeId);
-            const dependencyNodes = await analyzerChildren(parsedNode) ?? packageChildren(parsedNode);
+            const dependencyNodes = await analyzerChildren(parsedNode) ?? packageChildren(parsedNode) ?? grpcChildren(parsedNode);
 
             if (dependencyNodes) {
                 children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencyNodes);
