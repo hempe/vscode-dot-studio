@@ -1,6 +1,7 @@
 /**
  * Text-based edits of MSBuild project files (.csproj/.vbproj/.fsproj) that preserve the
  * existing formatting and comments.
+ * Its text helpers are shared with the package edits (services/nuget/centralPackageEdits.ts).
  */
 export class ProjectFileEditor {
     // <Reference ...> element, self-closing or with children; attribute values may contain '>'
@@ -40,7 +41,7 @@ export class ProjectFileEditor {
     }
 
     /** Appends a new ItemGroup with `items` before `</Project>`, SDK template style */
-    private static appendItemGroup(content: string, items: (indent: string) => string[]): string {
+    static appendItemGroup(content: string, items: (indent: string) => string[]): string {
         const nl = content.includes('\r\n') ? '\r\n' : '\n';
         const unit = this.indentUnit(content);
         const projectEnd = content.lastIndexOf('</Project>');
@@ -72,12 +73,12 @@ export class ProjectFileEditor {
     private static readonly ITEM_ELEMENT_RE = /<([A-Za-z]+)\b((?:[^>"']|"[^"]*"|'[^']*')*?)\/>/g;
 
     /** Comments and targets: their items are not part of the evaluation (targets add items when they run) */
-    private static ignoredRanges(content: string): [number, number][] {
+    static ignoredRanges(content: string): [number, number][] {
         return [...content.matchAll(/<!--[\s\S]*?-->|<Target\b[\s\S]*?<\/Target\s*>/g)]
             .map(match => [match.index!, match.index! + match[0].length]);
     }
 
-    private static inRanges(ranges: readonly [number, number][], index: number): boolean {
+    static inRanges(ranges: readonly [number, number][], index: number): boolean {
         return ranges.some(([start, end]) => index >= start && index < end);
     }
 
@@ -190,7 +191,7 @@ export class ProjectFileEditor {
     }
 
     /** Deletes the element and, when it was alone on its line, the line; an ItemGroup left empty goes too */
-    private static deleteElement(content: string, start: number, end: number): string {
+    static deleteElement(content: string, start: number, end: number): string {
         const lineStart = content.lastIndexOf('\n', start - 1) + 1;
         const lineBreak = content.indexOf('\n', end);
         const lineEnd = lineBreak < 0 ? content.length : lineBreak + 1;
@@ -291,7 +292,7 @@ export class ProjectFileEditor {
         return content.slice(0, lineStart) + group + content.slice(lineStart);
     }
 
-    private static lineIndent(content: string, index: number): string {
+    static lineIndent(content: string, index: number): string {
         const lineStart = content.lastIndexOf('\n', index - 1) + 1;
         return content.slice(lineStart).match(/^[ \t]*/)![0];
     }
@@ -301,7 +302,7 @@ export class ProjectFileEditor {
         return content.match(/\n([ \t]+)</)?.[1] ?? '  ';
     }
 
-    private static escape(value: string): string {
+    static escape(value: string): string {
         return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
@@ -310,7 +311,7 @@ export class ProjectFileEditor {
         return value.replace(/%([0-9A-Fa-f]{2})/g, (_all, hex: string) => String.fromCharCode(parseInt(hex, 16)));
     }
 
-    private static unescape(value: string): string {
+    static unescape(value: string): string {
         return value.replace(/&quot;/g, '"').replace(/&apos;/g, '\'').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     }
 }
