@@ -70,11 +70,33 @@ Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses 
 | Ctrl+Shift+B | Build the solution |
 | F5 / Ctrl+F5 | Start with / without debugging |
 
-**Selecting several nodes** works like in Visual Studio: Ctrl+click (macOS: Cmd+click) adds or removes a node, Shift+click selects the range from the last clicked node. Right-clicking a selected node opens the menu for the selection; these commands then act on all selected nodes that offer them, asking once: Delete, Remove from Solution, Remove (references, solution items), Copy, Cut (Paste puts them all into the target), Build, Rebuild and Clean (one after the other). The other commands act on the clicked node. Right-clicking a node outside the selection selects only that node.
+**Selecting several nodes** works like in Visual Studio: Ctrl+click (macOS: Cmd+click) adds or removes a node, Shift+click selects the range from the last clicked node. Right-clicking a selected node opens the menu for the selection; these commands then act on all selected nodes that offer them, asking once: Delete, Remove from Solution, Remove (references, solution items), Copy, Cut (Paste puts them all into the target), dragging moves them together, Build, Rebuild and Clean (one after the other). The other commands act on the clicked node. Right-clicking a node outside the selection selects only that node.
 
 On the solution node, **Configure Startup Projects...** opens the tab for one startup project or a [profile of several](run-and-debug.md#startup-profiles-several-startup-projects), and **Configuration Manager...** the [Configuration Manager](configuration-manager.md).
 
 Sync Namespaces, on projects and folders, is described in [Sync Namespaces](sync-namespaces.md). Every right-click menu, command by command: [Context menus](context-menus.md). All keys, including Visual Studio's in VS Code: [Keyboard shortcuts](keyboard-shortcuts.md).
+
+## Drag and drop
+
+Drag nodes to move them, as in Visual Studio. The row a drop would go into is highlighted; where a drop is not possible the pointer says so. Hovering a collapsed folder or solution folder for a moment opens it.
+
+| Drag | Onto | Does | With the copy key |
+|---|---|---|---|
+| Files, folders | A folder or a project; a file means the folder it is in | Moves them on disk, also to another project | Copies them |
+| Projects | A solution folder, or the solution | Moves them in the solution file; the project stays where it is on disk | Moves |
+| Solution folders | Another solution folder, or the solution; not into themselves | Moves them with everything in them | Moves |
+| Solution items | Another solution folder | Moves the entry; the file stays where it is | Moves |
+
+The copy key is Ctrl on Windows and Linux; on macOS Ctrl, Cmd or Option. Hold it while dropping.
+
+- With several nodes selected, all of them are dragged; those that cannot go onto the target stay where they are.
+- Dependencies, packages, analyzers, generated files, linked files, unloaded projects and the solution itself cannot be dragged, and nothing can be dragged while a name is being edited.
+- A file or folder whose name is taken in the target asks before replacing it, as Paste does. A project or solution folder whose name is taken in the target solution folder is not moved; a message says why.
+- After moving C# files, one question offers to update their namespaces to the new folder: Update All, Review Each or Skip (a single file gets a question of its own). Files whose namespace already fits are not counted, and copies keep their namespaces. Cut and Paste and renaming a folder ask the same way.
+- In a `.sln` file a move changes the `NestedProjects` lines (and the `SolutionItems` sections); in a `.slnx` file the `Name` of the moved solution folders and where the `<Project>` and `<File>` elements are. The rest of the file stays as it is.
+- Files dropped from outside the tree (VS Code's Explorer, the file manager) are not taken, and dropping a project onto Dependencies adds no reference: use Add Project Reference...
+
+<!-- GIF: drag-and-drop.gif (record with scripts/screenshots/capture.sh, scene gif-drag-and-drop, not yet written) -->
 
 ## Dependencies
 

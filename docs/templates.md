@@ -35,4 +35,4 @@ The new file opens in the editor. **Add File...** creates an empty file instead;
 
 New C# files get the namespace Visual Studio would give them: the project's `RootNamespace` (the project name by default) plus the folder path, with folder names made valid identifiers (`Connected Services` becomes `Connected_Services`).
 
-Moving C# files to another folder (cut and paste) and renaming a folder offer to update their namespaces the same way. Renaming a C# file offers to rename the type of the same name and its references.
+Moving C# files or folders to another folder (cut and paste, or drag and drop) and renaming a folder offer to update their namespaces the same way, with one question for all the files that no longer match: Update All, Review Each (a question per file) or Skip. A single file gets a question of its own. Files whose namespace already matches, and files without a namespace, are not counted; copies keep their namespaces. Renaming a C# file offers to rename the type of the same name and its references.
