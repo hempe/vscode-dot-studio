@@ -143,4 +143,27 @@ ${types.map(itemType => `    <None Remove="${itemType}.dat" />\n    <${itemType}
         expect(service.get(projectPath)).toBe(results[0]);
         expect({ started, most }).toEqual({ started: 2, most: 1 });
     }, TIMEOUT);
+
+    withDotnet('Protobuf items come with GrpcServices, Link and SourceUrl as written (before any restore)', async () => {
+        fs.mkdirSync(path.join(root, 'shared'));
+        fs.writeFileSync(path.join(root, 'shared', 'greet.proto'), '');
+        const items = await evaluate(`<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Protobuf Include="..\\shared\\greet.proto" GrpcServices="Client" Link="Protos\\greet.proto" />
+    <Protobuf Include="Protos\\remote.proto">
+      <SourceUrl>https://example.com/remote.proto</SourceUrl>
+    </Protobuf>
+  </ItemGroup>
+</Project>
+`, ['Protos/remote.proto']);
+        expect(items.protobuf.map(item => ({ ...item, link: item.link?.replace(/[\\/]/g, '/') }))).toEqual([
+            { include: expect.stringMatching(/^\.\.[\\/]shared[\\/]greet\.proto$/), fullPath: path.join(root, 'shared', 'greet.proto'), link: 'Protos/greet.proto', grpcServices: 'Client', definedIn: at('App.csproj') },
+            // No Grpc.Tools restored: nothing defaults GrpcServices yet
+            { include: expect.stringMatching(/^Protos[\\/]remote\.proto$/), fullPath: at('Protos', 'remote.proto'), sourceUrl: 'https://example.com/remote.proto', definedIn: at('App.csproj'), link: undefined },
+        ]);
+        expect(items.linkedFilesIn(at('Protos')).map(item => item.fullPath)).toEqual([path.join(root, 'shared', 'greet.proto')]);
+    }, TIMEOUT);
 });

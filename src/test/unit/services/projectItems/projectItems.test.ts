@@ -192,3 +192,40 @@ describe('linkedFilesIn', () => {
         expect(items.linkedFilesIn(at('L'))).toHaveLength(1);
     });
 });
+
+describe('Protobuf items (gRPC references)', () => {
+    const proto = (item: object) => JSON.stringify({ Items: { Protobuf: [item] } });
+
+    test('keep the metadata dotnet-grpc writes: GrpcServices, Link, SourceUrl, and where they are written', () => {
+        const items = parseMsbuildItems(JSON.stringify({
+            Items: {
+                Protobuf: [
+                    { Identity: '..\\shared\\greet.proto', FullPath: path.resolve('/work/shared/greet.proto'), GrpcServices: 'Client', Link: 'Protos\\greet.proto', DefiningProjectFullPath: at('App.csproj') },
+                    { Identity: 'Protos/remote.proto', FullPath: at('Protos', 'remote.proto'), SourceUrl: 'https://example.com/remote.proto', GrpcServices: 'Both' },
+                    { Identity: 'Protos/plain.proto', FullPath: at('Protos', 'plain.proto') },
+                ],
+            },
+        }), dir)!;
+        expect(items.protobuf).toEqual([
+            { include: '..\\shared\\greet.proto', fullPath: path.resolve('/work/shared/greet.proto'), link: 'Protos\\greet.proto', grpcServices: 'Client', definedIn: at('App.csproj') },
+            { include: 'Protos/remote.proto', fullPath: at('Protos', 'remote.proto'), grpcServices: 'Both', sourceUrl: 'https://example.com/remote.proto' },
+            { include: 'Protos/plain.proto', fullPath: at('Protos', 'plain.proto') },
+        ]);
+        // Still files of the project: the linked one shows at its link path
+        expect(items.linkedFilesIn(at('Protos')).map(item => item.fullPath)).toEqual([path.resolve('/work/shared/greet.proto')]);
+    });
+
+    test('other item types have no Protobuf entries; a project without any has an empty list', () => {
+        expect(parseMsbuildItems(json, dir)!.protobuf).toEqual([]);
+    });
+
+    test('a change of the metadata alone makes a different list (the tree shows the new kind)', () => {
+        const client = parseMsbuildItems(proto({ Identity: 'a.proto', FullPath: at('a.proto'), GrpcServices: 'Client' }), dir)!;
+        const both = parseMsbuildItems(proto({ Identity: 'a.proto', FullPath: at('a.proto'), GrpcServices: 'Both' }), dir)!;
+        const again = parseMsbuildItems(proto({ Identity: 'a.proto', FullPath: at('a.proto'), GrpcServices: 'Client' }), dir)!;
+        expect(client.equals(both)).toBe(false);
+        expect(client.equals(again)).toBe(true);
+        const withUrl = parseMsbuildItems(proto({ Identity: 'a.proto', FullPath: at('a.proto'), GrpcServices: 'Client', SourceUrl: 'https://x/a.proto' }), dir)!;
+        expect(client.equals(withUrl)).toBe(false);
+    });
+});

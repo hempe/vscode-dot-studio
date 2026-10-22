@@ -27,6 +27,22 @@ export interface LinkedItem {
     readonly itemType: string;
 }
 
+/**
+ * A `Protobuf` item (a gRPC reference, Connected Services) with the metadata `dotnet-grpc` writes. `grpcServices` is
+ * what MSBuild evaluates: Grpc.Tools defaults it to `Both`, so it is undefined only before the package is restored
+ * and when the item does not set it.
+ */
+export interface ProtobufItem {
+    /** The `Include` as MSBuild reports it (slashes as written) */
+    readonly include: string;
+    readonly fullPath: string;
+    readonly link?: string;
+    readonly grpcServices?: string;
+    readonly sourceUrl?: string;
+    /** The file the item is written in (the project file, or a props file) */
+    readonly definedIn?: string;
+}
+
 interface Entry {
     readonly fullPath: string;
     readonly virtualPath: string;
@@ -54,8 +70,12 @@ export class ProjectItems {
     private readonly fullKeys: readonly string[];
     private readonly virtualKeys: readonly string[];
 
-    constructor(readonly projectDir: string, entries: readonly Entry[]) {
+    /** The project's `Protobuf` items in document order (the evaluation lists them once each) */
+    readonly protobuf: readonly ProtobufItem[];
+
+    constructor(readonly projectDir: string, entries: readonly Entry[], protobuf: readonly ProtobufItem[] = []) {
         this.entries = entries;
+        this.protobuf = protobuf;
         this.fullKeys = entries.map(entry => key(entry.fullPath));
         this.virtualKeys = entries.map(entry => key(entry.virtualPath));
         entries.forEach((entry, index) => {
@@ -71,13 +91,19 @@ export class ProjectItems {
         }
     }
 
-    /** Whether both list the same entries in the same order */
+    /** Whether both list the same entries in the same order, and the same `Protobuf` items with the same metadata */
     equals(other: ProjectItems): boolean {
         return this.projectDir === other.projectDir && this.entries.length === other.entries.length
             && this.entries.every((entry, index) => {
                 const theirs = other.entries[index];
                 return entry.fullPath === theirs.fullPath && entry.virtualPath === theirs.virtualPath
                     && entry.itemType === theirs.itemType && entry.linked === theirs.linked;
+            })
+            && this.protobuf.length === other.protobuf.length
+            && this.protobuf.every((item, index) => {
+                const theirs = other.protobuf[index];
+                return item.include === theirs.include && item.fullPath === theirs.fullPath && item.link === theirs.link
+                    && item.grpcServices === theirs.grpcServices && item.sourceUrl === theirs.sourceUrl && item.definedIn === theirs.definedIn;
             });
     }
 
@@ -148,7 +174,14 @@ export class ProjectItems {
     }
 }
 
-interface MsbuildItem { FullPath?: string; Identity?: string; Link?: string }
+interface MsbuildItem {
+    FullPath?: string;
+    Identity?: string;
+    Link?: string;
+    GrpcServices?: string;
+    SourceUrl?: string;
+    DefiningProjectFullPath?: string;
+}
 
 export interface MsbuildResult { Items?: Record<string, MsbuildItem[]>; Properties?: Record<string, string> }
 
@@ -185,6 +218,7 @@ export function parseMsbuildItems(output: string, projectDir: string): ProjectIt
         return undefined;
     }
     const entries: Entry[] = [];
+    const protobuf: ProtobufItem[] = [];
     for (const [itemType, items] of Object.entries(parsed.Items ?? {})) {
         // The same evaluation lists packages (PackageReference has a FullPath too): only files count
         if (!(ITEM_TYPES as readonly string[]).includes(itemType)) {
@@ -202,7 +236,17 @@ export function parseMsbuildItems(output: string, projectDir: string): ProjectIt
                 itemType,
                 linked: !!link,
             });
+            if (itemType === 'Protobuf') {
+                protobuf.push({
+                    include: item.Identity ?? '',
+                    fullPath: path.normalize(fullPath),
+                    ...(item.Link?.trim() ? { link: item.Link.trim() } : {}),
+                    ...(item.GrpcServices?.trim() ? { grpcServices: item.GrpcServices.trim() } : {}),
+                    ...(item.SourceUrl?.trim() ? { sourceUrl: item.SourceUrl.trim() } : {}),
+                    ...(item.DefiningProjectFullPath ? { definedIn: path.normalize(item.DefiningProjectFullPath) } : {}),
+                });
+            }
         }
     }
-    return new ProjectItems(projectDir, entries);
+    return new ProjectItems(projectDir, entries, protobuf);
 }

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option csharp_namespace = "Contracts";
+
+package contracts;
+
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}
