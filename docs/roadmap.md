@@ -16,6 +16,8 @@ Found along the way, to be fixed:
 - [ ] The Visual Studio build-action item types added to the item list (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) come from memory and are not checked against Visual Studio; the platform files of iOS/MAUI projects are not checked either (workloads not installed)
 - [ ] The position of the link badge of linked files in the tree was never seen on screen
 - [ ] A file created on disk (outside VS Code) in a project whose node is collapsed does not show when the project is opened: only the project file is watched until its folders are shown, so MSBuild does not evaluate the project again and the new file counts as not included (hidden). It shows once another file is created while the project is open. Seen with `src/Shop.Core/Coupon.cs` of the sample (the drag & drop GIF scene creates its file after opening Shop.Core for this)
+- [ ] After a project, folder or solution folder is dropped onto a collapsed solution folder, the target stays collapsed and the moved node is out of sight; expand the target and select the moved node (Visual Studio does, as far as known)
+- [ ] After a drag & drop a grey hover highlight sometimes stays on a row the drag started on or passed over (Chromium sends no mouse-leave during a drag); cosmetic, clear it on drag end
 
 ## Known limitations
 
