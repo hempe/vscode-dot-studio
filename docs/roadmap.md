@@ -39,6 +39,7 @@ Found along the way, to be fixed:
 - [ ] Central Package Management: props files outside the opened folder are only re-checked when the NuGet manager gets focus; the tree shows their changes after that, or after a project file changes
 - [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
 - [ ] Central Package Management: a `PackageReference` that comes from a props file (not from the project file) cannot be uninstalled from the NuGet manager (`dotnet remove package` reports that the project has no such reference); edit the props file
+- [ ] The Test Explorer does not use a `.runsettings` file or `RunSettingsFilePath`: VSTest projects are run with a fixed minimal setting (`vstestClient.ts`), so `MaxCpuCount` (parallel test assemblies) and `BatchSize` of a team's file have no effect (a speed difference, not a different result; data collectors only matter for coverage, which stays a script); Microsoft.Testing.Platform projects were not checked for what they do with such settings
 
 ## Phase 21: Connected Services, Part 2
 - [ ] gRPC references from `.proto` files (Visual Studio's "Add Connected Service > gRPC", `dotnet-grpc`): add, update, remove, in Connected Services; plan in [the gRPC spec](superpowers/specs/2026-10-23-grpc-references-design.md)
