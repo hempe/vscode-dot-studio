@@ -32,7 +32,7 @@ Solutions that keep their package versions in `Directory.Packages.props` (`Manag
 
 Packages from a `GlobalPackageReference` carry a **global** badge in the lists. The details pane says where the selected package's version is set: the props file, and in the solution's manager which projects use that central version and which override it. **Set for This Project Only** (under Install, when the selected projects take the version from `Directory.Packages.props` and have the `PackageReference` in their own project file) writes a `VersionOverride` with the chosen version instead of changing the central one, without asking. A `PackageReference` that comes from a props file such as `Directory.Build.props` has nothing in the project file to put a `VersionOverride` on, so the button is not offered for it.
 
-A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>`) keeps the versions in its project file, as before. When the .NET SDK cannot evaluate a project, its versions show as not known and are never offered as updates.
+A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>`) keeps the versions in its project file, as before. When the .NET SDK cannot evaluate a project, its versions show as not known and are never offered as updates. A project that targets several frameworks is evaluated for its first target framework only: packages that only another framework uses are not shown, updated or counted. Updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`) are not offered; change them in `Directory.Packages.props`.
 
 ### What Install, Update and Uninstall change
 
@@ -51,6 +51,8 @@ The extension edits `Directory.Packages.props` itself (the `dotnet` CLI refuses 
 
 **Before a change reaches other projects** (a central or global version used by projects you did not select), a confirmation lists them: **Update All Projects** changes the central version, **Set for This Project Only** writes a `VersionOverride` instead (not offered for global packages, for a `PackageReference` from a props file such as `Directory.Build.props`, or when `CentralPackageVersionOverrideEnabled` is `false`). Update Selected on the Updates tab asks once for all packages. Afterwards the solution is restored.
 
+A `PackageReference` that comes from a props file (not the project file) cannot be uninstalled in the NuGet manager, since `dotnet remove package` does not find it; edit the props file.
+
 Projects that do not use CPM in the same solution are changed with `dotnet add package` / `dotnet remove package`, as before.
 
 ### Consolidate
@@ -61,7 +63,7 @@ After Consolidate or Update Selected, the Installed and Updates tabs show the ne
 
 ### Edits made outside the extension
 
-Edits to `Directory.Packages.props`, to any file it imports (directly or through other imports, also one that only defines properties used as versions), or to another props file that defines package versions, made by hand or by `git checkout`, show in the tree and in open NuGet managers after a moment (the projects are evaluated again). Imports whose path depends on properties other than `$(MSBuildThisFileDirectory)` are not followed. A props file outside the opened folder is checked when you switch to the NuGet manager.
+Edits to `Directory.Packages.props`, to any file it imports (directly or through other imports, also one that only defines properties used as versions), or to another props file that defines package versions, made by hand or by `git checkout`, show in the tree and in open NuGet managers after a moment (the projects are evaluated again). Imports whose path depends on properties other than `$(MSBuildThisFileDirectory)` are not followed. A props file outside the opened folder is checked when you switch to the NuGet manager (the tree shows its changes after that, or after a project file changes). A props file that imports no package versions yet is not watched until it has one.
 
 ## Private feeds
 

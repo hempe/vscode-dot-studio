@@ -58,7 +58,7 @@ xUnit, NUnit, MSTest and TUnit, on Microsoft.Testing.Platform or VSTest, in VS C
 
 ### NuGet Package Manager
 
-Browse, Installed (with transitive packages), Updates and Consolidate, per project or for the whole solution. Private feeds work; when a token expires, it says which feed and where its credentials are, and takes a new one.
+Browse, Installed (with transitive packages), Updates and Consolidate, per project or for the whole solution, also with Central Package Management (`Directory.Packages.props`, overrides and global packages). Private feeds work; when a token expires, it says which feed and where its credentials are, and takes a new one.
 
 ![The NuGet Package Manager](docs/images/nuget.gif)
 

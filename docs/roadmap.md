@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–19 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug and for the Solution Explorer. Phases 20–21 are the second round for NuGet and connected services, phase 22 quality and documentation, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 30 what may come later, phase 31 the other publish targets.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -35,9 +35,10 @@ Found along the way, to be fixed:
 - [ ] Drag & drop works within the Solution Explorer only: files dropped from VS Code's Explorer or the file manager are not taken (a webview gets no file paths from such drops)
 - [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
 - [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
-
-## Phase 20: NuGet, Part 2
-- [ ] Central Package Management (`Directory.Packages.props`): install, update and consolidate put versions where they belong
+- [ ] Central Package Management: an imported props file that defines no `PackageVersion` or `GlobalPackageReference` yet is not watched until it has one (the watched files come from what MSBuild reports as defining the entries)
+- [ ] Central Package Management: props files outside the opened folder are only re-checked when the NuGet manager gets focus; the tree shows their changes after that, or after a project file changes
+- [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
+- [ ] Central Package Management: a `PackageReference` that comes from a props file (not from the project file) cannot be uninstalled from the NuGet manager (`dotnet remove package` reports that the project has no such reference); edit the props file
 
 ## Phase 21: Connected Services, Part 2
 - [ ] OpenAPI (REST) clients: Visual Studio's "Add Connected Service > OpenAPI" (NSwag / `dotnet-openapi`)
