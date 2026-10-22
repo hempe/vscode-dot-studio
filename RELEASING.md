@@ -14,7 +14,7 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 6. **Visual Studio Marketplace, by hand** (once the Release run is green and the release has its `.vsix`):
    1. Get the file: GitHub > Releases > the release > Assets > `shinobi-dotnet.vsix`, or `gh release download v0.2.0 --pattern '*.vsix' --dir /tmp` (use the tag you released).
    2. Open marketplace.visualstudio.com/manage/publishers/shinobi and sign in.
-   3. First release: **New extension** > **Visual Studio Code**, choose the `.vsix`. Later releases: the extension's **...** menu > **Update**, choose the `.vsix`.
+   3. Drag the `.vsix` onto the upload area ("Drag and Drop a file here or click to upload", seen on 2026-10-22), or click it and choose the file. Later releases: the extension's **...** menu > **Update**, if the page does not already offer the upload.
    4. Wait: the Marketplace validates the file and shows a verifying state for a few minutes. If it says the version already exists, the same version was uploaded before: release the next patch number.
    5. The listing's pre-release flag comes from the `.vsix` itself (the workflow built it with `--pre-release` for a pre-release), nothing to tick on the page.
 7. Check the listings a few minutes later: marketplace.visualstudio.com/items?itemName=shinobi.dotnet and open-vsx.org/extension/shinobi/dotnet. Install the new version in VS Code once.
