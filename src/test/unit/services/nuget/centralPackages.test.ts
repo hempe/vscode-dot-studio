@@ -54,6 +54,26 @@ describe('parseMsbuildPackages', () => {
         expect(packages.globals).toEqual([{ id: 'Microsoft.SourceLink.GitHub', version: '8.0.0', file: props }]);
     });
 
+    test('a reference written in a props file (Directory.Build.props) is marked inherited; one of the project file is not', () => {
+        const inherited = parseMsbuildPackages(output(cpm, {
+            PackageReference: [
+                { Identity: 'Serilog', DefiningProjectFullPath: at('Directory.Build.props') },
+                { Identity: 'Polly', DefiningProjectFullPath: project },
+                { Identity: 'Newtonsoft.Json', VersionOverride: '13.0.2', DefiningProjectFullPath: at('Directory.Build.props') },
+            ],
+            PackageVersion: versions,
+        }), project)!;
+        expect(inherited.references.map(reference => `${reference.id} ${reference.inherited ?? false}`))
+            .toEqual(['Newtonsoft.Json true', 'Polly false', 'Serilog true']);
+    });
+
+    test('a multi-targeted project is marked: only the first target framework was evaluated', () => {
+        expect(packages.multiTargeted).toBe(false);
+        const multi = (TargetFrameworks: string) => parseMsbuildPackages(output({ ...cpm, TargetFramework: 'net8.0', TargetFrameworks }, {}), project)!.multiTargeted;
+        expect(multi('net8.0;net48')).toBe(true);
+        expect(multi(' net8.0 ; ')).toBe(false);
+    });
+
     test('a CPM reference without a PackageVersion has no version (never "Unknown")', () => {
         const missing = parseMsbuildPackages(output(cpm, { PackageReference: [{ Identity: 'Nope', DefiningProjectFullPath: project }] }), project)!;
         expect(missing.references).toEqual([{ id: 'Nope', version: '', source: 'central', versionFile: undefined }]);

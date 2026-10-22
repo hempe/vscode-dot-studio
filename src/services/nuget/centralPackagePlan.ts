@@ -1,6 +1,7 @@
 import * as path from 'path';
 import { PackageEdit } from './centralPackageEdits';
-import { ProjectPackages, centralFiles, packageVersionFileFor } from './centralPackages';
+import { CentralEntry, ProjectPackages, centralFiles, packageVersionFileFor } from './centralPackages';
+import { pathKey } from '../projectItems/projectItems';
 
 /**
  * Plans what a package change writes under Central Package Management, without touching anything: which files get
@@ -35,7 +36,8 @@ export interface VersionChangePlan {
 export type VersionScope = 'shared' | 'project';
 
 const lower = (id: string) => id.toLowerCase();
-const same = (a: string | undefined, b: string | undefined) => !!a && !!b && path.normalize(a) === path.normalize(b);
+const fileKey = (file: string) => pathKey(path.normalize(file));
+const same = (a: string | undefined, b: string | undefined) => !!a && !!b && fileKey(a) === fileKey(b);
 const referenceOf = (packages: ProjectPackages | undefined, id: string) => packages?.references.find(reference => lower(reference.id) === lower(id));
 
 /** Projects (not in `except`) whose version of `id` is written in `file` as a central or global entry */
@@ -49,8 +51,13 @@ function usersOf(states: readonly ProjectState[], id: string, file: string, exce
         .map(state => state.name);
 }
 
+/**
+ * @param declaredGlobals the GlobalPackageReference entries written in the props files of the project (from the text):
+ * when every project opted out of a global package, no evaluation shows it
+ */
 export function planVersionChange(
     id: string, version: string, selected: readonly string[], states: readonly ProjectState[], scope: VersionScope = 'shared',
+    declaredGlobals: (packages: ProjectPackages) => readonly CentralEntry[] = () => [],
 ): VersionChangePlan {
     const selectedSet = new Set(selected);
     const cliProjects: string[] = [];
@@ -58,7 +65,7 @@ export function planVersionChange(
     const shared = new Map<string, PackageEdit>();
     let overridable = true;
     const share = (edit: PackageEdit) => {
-        const key = `${edit.kind}|${path.normalize(edit.file)}|${lower(edit.id)}`;
+        const key = `${edit.kind}|${fileKey(edit.file)}|${lower(edit.id)}`;
         if (!shared.has(key)) {
             shared.set(key, edit);
             edits.push(edit);
@@ -88,7 +95,8 @@ export function planVersionChange(
         }
         // A global package the project opted out of: installing it takes the opt-out back
         const global = states.map(state => state.packages?.globals.find(entry => lower(entry.id) === lower(id)))
-            .find(entry => entry && centralFiles(packages).some(file => same(file, entry.file)));
+            .find(entry => entry && centralFiles(packages).some(file => same(file, entry.file)))
+            ?? declaredGlobals(packages).find(entry => lower(entry.id) === lower(id));
         if (global) {
             edits.push({ kind: 'removeGlobalOptOut', file: projectPath, id });
             if (global.version !== version) {
@@ -106,7 +114,8 @@ export function planVersionChange(
             if (scope === 'project' && packages.overridesEnabled) {
                 edits.push({ kind: 'setVersionOverride', file: projectPath, id, version });
             } else {
-                overridable &&= packages.overridesEnabled;
+                // A VersionOverride needs the PackageReference in the project file itself
+                overridable &&= packages.overridesEnabled && !reference?.inherited;
                 share({ kind: 'setPackageVersion', file: central.file, id, version });
             }
         }
@@ -154,7 +163,10 @@ export function planUninstall(id: string, selected: readonly string[], states: r
 
     const removed = new Set(cliProjects);
     const orphanedVersions: { file: string; id: string }[] = [];
-    for (const projectPath of cliProjects) {
+    // A multi-targeted project was evaluated for its first framework only, and one that could not be evaluated not at
+    // all: either may still use the version (removing it breaks the restore with NU1010), so no orphan is reported
+    const unsure = states.some(state => !state.packages || state.packages.multiTargeted);
+    for (const projectPath of unsure ? [] : cliProjects) {
         const packages = states.find(state => state.path === projectPath)?.packages;
         const central = packages?.centrallyManaged ? packages.centralVersions.get(lower(id)) : undefined;
         if (!central || orphanedVersions.some(orphan => same(orphan.file, central.file))) {
@@ -250,8 +262,8 @@ export function planConsolidate(id: string, version: string, states: readonly Pr
         }
         const central = reference.source === 'global' ? { version: reference.version, file: reference.versionFile }
             : state.packages?.centrallyManaged ? state.packages.centralVersions.get(lower(id)) : undefined;
-        if (central?.file && central.version !== version && !seen.has(path.normalize(central.file))) {
-            seen.add(path.normalize(central.file));
+        if (central?.file && central.version !== version && !seen.has(fileKey(central.file))) {
+            seen.add(fileKey(central.file));
             edits.push(reference.source === 'global'
                 ? { kind: 'setGlobalPackageVersion', file: central.file, id, version }
                 : { kind: 'setPackageVersion', file: central.file, id, version });

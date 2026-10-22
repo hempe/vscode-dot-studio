@@ -70,6 +70,20 @@ describe('Project dependencies with Central Package Management', () => {
             { name: 'Serilog', version: '3.1.1', type: 'PackageReference', versionSource: 'central', versionFile: props });
     });
 
+    test('a PackageReference from a props file keeps that mark (no "Set for this project only")', async () => {
+        const fromProps = parseMsbuildPackages(JSON.stringify({
+            Properties: { ManagePackageVersionsCentrally: 'true', DirectoryPackagesPropsPath: props },
+            Items: {
+                PackageReference: [{ Identity: 'Serilog', DefiningProjectFullPath: path.join(dir, 'Directory.Build.props') }],
+                PackageVersion: [{ Identity: 'Serilog', Version: '3.1.1', DefiningProjectFullPath: props }],
+            },
+        }), projectPath);
+        jest.spyOn(ProjectItemsService.instance, 'packages').mockReturnValue(fromProps);
+        const project = await newProject();
+        expect(project.dependencies.find(dependency => dependency.name === 'Serilog')).toEqual(
+            { name: 'Serilog', version: '3.1.1', type: 'PackageReference', versionSource: 'central', versionFile: props, inherited: true });
+    });
+
     test('the dependency node ids keep the plain version', async () => {
         jest.spyOn(ProjectItemsService.instance, 'packages').mockReturnValue(evaluated());
         const project = await newProject();

@@ -20,6 +20,7 @@ const log = logger('SolutionService');
  */
 export class SolutionService {
     private static activeSolution?: Solution;
+    private static readonly activeSolutionListeners = new Set<() => void>();
     /** Last load error shown, so repeated refreshes don't show the same error again */
     private static lastLoadError?: string;
 
@@ -116,7 +117,7 @@ export class SolutionService {
             // First dispose any existing active solution
             if (this.activeSolution) {
                 this.activeSolution.dispose();
-                this.activeSolution = undefined;
+                this.setActiveSolution(undefined);
             }
 
             // Use the new discovery logic
@@ -137,7 +138,7 @@ export class SolutionService {
         try {
             if (this.activeSolution) {
                 this.activeSolution.dispose();
-                this.activeSolution = undefined;
+                this.setActiveSolution(undefined);
             }
 
             // Create and initialize the Solution instance
@@ -152,7 +153,7 @@ export class SolutionService {
             }
 
             this.lastLoadError = undefined;
-            this.activeSolution = solution;
+            this.setActiveSolution(solution);
             setActiveSolutionPath(solutionPath);
             ShowAllFiles.setSolution(solutionPath);
             await SolutionDiscovery.remember(solutionPath);
@@ -186,6 +187,23 @@ export class SolutionService {
         }
     }
 
+    private static setActiveSolution(solution: Solution | undefined): void {
+        this.activeSolution = solution;
+        for (const listener of [...this.activeSolutionListeners]) {
+            try {
+                listener();
+            } catch (error) {
+                log.error('A listener failed after the active solution changed:', error);
+            }
+        }
+    }
+
+    /** Called whenever a solution is opened or closed */
+    static onDidChangeActiveSolution(listener: () => void): { dispose(): void } {
+        this.activeSolutionListeners.add(listener);
+        return { dispose: () => { this.activeSolutionListeners.delete(listener); } };
+    }
+
     /**
      * Gets the currently active solution instance
      */
@@ -199,7 +217,7 @@ export class SolutionService {
     static dispose(): void {
         if (this.activeSolution) {
             this.activeSolution.dispose();
-            this.activeSolution = undefined;
+            this.setActiveSolution(undefined);
         }
     }
 

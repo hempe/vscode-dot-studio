@@ -47,6 +47,16 @@ describe('central package edits: the props file', () => {
         expect(setPackageVersion(child, 'Serilog', '4.0.0')).toBe(child.replace('<Version>3.1.1</Version>', '<Version>4.0.0</Version>'));
     });
 
+    test('setPackageVersion also sets the PackageVersion Update items of the package (MSBuild applies them over the Include)', () => {
+        const updated = props.replace('  <ItemGroup>\n    <GlobalPackageReference',
+            '  <ItemGroup>\n    <PackageVersion Update="Serilog" Version="3.0.1" />\n    <PackageVersion Update="Serilog" PrivateAssets="all" />\n    <GlobalPackageReference');
+        const set = setPackageVersion(updated, 'Serilog', '4.0.0');
+        expect(set).toContain('<PackageVersion Include="Serilog" Version="4.0.0" />');
+        expect(set).toContain('<PackageVersion Update="Serilog" Version="4.0.0" />');
+        expect(set).toContain('<PackageVersion Update="Serilog" PrivateAssets="all" />');
+        expect(set).toContain('<PackageVersion Include="Newtonsoft.Json" Version="13.0.1" />');
+    });
+
     test('setPackageVersion refuses a package the file has no PackageVersion for', () => {
         expect(() => setPackageVersion(props, 'Polly', '8.1.0')).toThrow('No <PackageVersion Include="Polly">');
     });
@@ -108,6 +118,25 @@ describe('central package edits: the project file', () => {
         expect(optedOut).toContain('    </PackageReference>\n    <GlobalPackageReference Remove="Microsoft.SourceLink.GitHub" />\n  </ItemGroup>');
         expect(addGlobalOptOut(optedOut, 'microsoft.sourcelink.github')).toBe(optedOut);
         expect(removeGlobalOptOut(optedOut, 'Microsoft.SourceLink.GitHub')).toBe(project);
+    });
+
+    test('a conditional ItemGroup never gets the new element: the last plain one does, else a new ItemGroup', () => {
+        const conditional = project.replace('  <ItemGroup>\n    <PackageReference Include="Newtonsoft.Json" />',
+            '  <ItemGroup Condition="\'$(Configuration)\' == \'Debug\'">\n    <PackageReference Include="Newtonsoft.Json" />')
+            .replace('  </ItemGroup>\n', '  </ItemGroup>\n\n  <ItemGroup>\n    <Compile Remove="Old.cs" />\n  </ItemGroup>\n');
+        const added = addPackageReference(conditional, 'Polly');
+        expect(added).toContain('    <Compile Remove="Old.cs" />\n    <PackageReference Include="Polly" />\n  </ItemGroup>');
+        const optedOut = addGlobalOptOut(conditional, 'Microsoft.SourceLink.GitHub');
+        expect(optedOut).toContain('    <Compile Remove="Old.cs" />\n    <GlobalPackageReference Remove="Microsoft.SourceLink.GitHub" />\n  </ItemGroup>');
+
+        const onlyConditional = project.replace('  <ItemGroup>', '  <ItemGroup Condition="\'$(TargetFramework)\' == \'net8.0\'">');
+        const appended = addPackageReference(onlyConditional, 'Polly');
+        expect(appended).toContain('  <ItemGroup>\n    <PackageReference Include="Polly" />\n  </ItemGroup>\n');
+        expect(appended.slice(appended.indexOf('Condition'), appended.indexOf('</ItemGroup>'))).not.toContain('Polly');
+
+        const conditionalProps = props.replace('  <ItemGroup>\n    <PackageVersion', '  <ItemGroup Condition="\'$(TargetFramework)\' == \'net48\'">\n    <PackageVersion');
+        const version = addPackageVersion(conditionalProps, 'Polly', '8.1.0');
+        expect(version).toContain('    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />\n    <PackageVersion Include="Polly" Version="8.1.0" />\n  </ItemGroup>');
     });
 
     test('applyEdit dispatches by kind', () => {

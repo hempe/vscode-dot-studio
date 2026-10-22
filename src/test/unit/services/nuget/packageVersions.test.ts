@@ -104,4 +104,12 @@ describe('withVersionSources (project context: dotnet list, marked from the eval
         expect(withVersionSources(listed, evaluated).map(pkg => pkg.versionSource)).toEqual(['override', 'global', undefined]);
         expect(withVersionSources(listed, undefined)).toBe(listed);
     });
+
+    test('a reference written in a props file is marked inherited, from the evaluation and from the dependencies', async () => {
+        const evaluated = { references: [{ id: 'Serilog', version: '3.1.1', source: 'central', versionFile: props, inherited: true }] } as unknown as ProjectPackages;
+        expect(withVersionSources([{ id: 'Serilog', currentVersion: '3.1.1', projectPath: appPath, projectName: 'App' }], evaluated)[0].inherited).toBe(true);
+        env.projects = [project('App', [{ name: 'Serilog', version: '3.1.1', type: 'PackageReference', versionSource: 'central', versionFile: props, inherited: true }])];
+        const [app] = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
+        expect(app.packages[0].inherited).toBe(true);
+    });
 });

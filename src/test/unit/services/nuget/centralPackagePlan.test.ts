@@ -14,11 +14,11 @@ const versions = [
 const global = { Identity: 'Microsoft.SourceLink.GitHub', Version: '8.0.0', DefiningProjectFullPath: props };
 
 /** A project as MSBuild evaluates it in the fixture layout (`src/__fixtures__/central-packages/cpm`) */
-const state = (name: string, references: object[], options: { cpm?: boolean; globals?: boolean; overrides?: boolean } = {}): ProjectState => {
-    const { cpm = true, globals = true, overrides = true } = options;
+const state = (name: string, references: object[], options: { cpm?: boolean; globals?: boolean; overrides?: boolean; multi?: boolean } = {}): ProjectState => {
+    const { cpm = true, globals = true, overrides = true, multi = false } = options;
     const globalReference = cpm && globals ? [{ Identity: global.Identity, Version: '', DefiningProjectFullPath: path.join(root, 'NuGet.targets') }] : [];
     const packages = parseMsbuildPackages(JSON.stringify({
-        Properties: { ManagePackageVersionsCentrally: String(cpm), DirectoryPackagesPropsPath: props, CentralPackageVersionOverrideEnabled: overrides ? '' : 'false' },
+        Properties: { ManagePackageVersionsCentrally: String(cpm), DirectoryPackagesPropsPath: props, CentralPackageVersionOverrideEnabled: overrides ? '' : 'false', TargetFrameworks: multi ? 'net8.0;net48' : '' },
         Items: {
             PackageReference: [...references.map(reference => ({ DefiningProjectFullPath: csproj(name), ...reference })), ...globalReference],
             PackageVersion: versions,
@@ -97,6 +97,37 @@ describe('planVersionChange', () => {
             .toEqual([{ kind: 'removeGlobalOptOut', file: optOut.path, id: 'Microsoft.SourceLink.GitHub' }]);
     });
 
+    test('every project opted out of the global package: installing it takes the opt-out back, no PackageReference or PackageVersion', () => {
+        const allOut = [app, override, globalOnly, optOut].map(project => state(project.name, [], { globals: false }));
+        const written = [{ id: 'Microsoft.SourceLink.GitHub', version: '8.0.0', file: props }];
+        expect(planVersionChange('Microsoft.SourceLink.GitHub', '8.0.0', [allOut[2].path], allOut, 'shared', () => written).edits)
+            .toEqual([{ kind: 'removeGlobalOptOut', file: allOut[2].path, id: 'Microsoft.SourceLink.GitHub' }]);
+        expect(planVersionChange('Microsoft.SourceLink.GitHub', '8.0.1', [allOut[2].path], allOut, 'shared', () => written).edits).toEqual([
+            { kind: 'removeGlobalOptOut', file: allOut[2].path, id: 'Microsoft.SourceLink.GitHub' },
+            { kind: 'setGlobalPackageVersion', file: props, id: 'Microsoft.SourceLink.GitHub', version: '8.0.1' },
+        ]);
+    });
+
+    test('a PackageReference written in Directory.Build.props: no "Set for this project only" (no element of the project for a VersionOverride)', () => {
+        const inherited = state('Inherited', [{ Identity: 'Serilog', DefiningProjectFullPath: path.join(root, 'Directory.Build.props') }]);
+        const plan = planVersionChange('Serilog', '4.0.0', [inherited.path], [...states, inherited]);
+        expect(plan.alsoChanges).toEqual(['App', 'OptOut']);
+        expect(plan.canOverride).toBe(false);
+        expect(planVersionChange('Serilog', '4.0.0', [app.path], [...states, inherited]).canOverride).toBe(true);
+    });
+
+    test('props file paths compare ignoring case on Windows and macOS', () => {
+        const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        try {
+            const upper = state('Upper', [{ Identity: 'Serilog' }]);
+            const changed = { ...upper, packages: { ...upper.packages!, references: upper.packages!.references.map(reference => ({ ...reference, versionFile: reference.versionFile!.toUpperCase() })) } };
+            expect(planVersionChange('Serilog', '4.0.0', [app.path], [app, changed]).alsoChanges).toEqual(['Upper']);
+        } finally {
+            Object.defineProperty(process, 'platform', platform);
+        }
+    });
+
     test('projects without CPM, or not evaluated, go through the CLI', () => {
         const unknown: ProjectState = { name: 'Unknown', path: csproj('Unknown') };
         expect(planVersionChange('Polly', '8.2.0', [legacy.path, unknown.path], [...states, unknown]).cliProjects).toEqual([legacy.path, unknown.path]);
@@ -139,6 +170,14 @@ describe('planUninstall', () => {
         });
         expect(planUninstall('Serilog', [app.path], states).orphanedVersions).toEqual([]);
         expect(planUninstall('Serilog', [app.path, optOut.path], states).orphanedVersions).toEqual([{ file: props, id: 'Serilog' }]);
+    });
+
+    test('no orphan reported while a project is multi-targeted (other frameworks unseen) or could not be evaluated', () => {
+        const multi = state('Multi', [{ Identity: 'Newtonsoft.Json' }], { multi: true });
+        expect(planUninstall('Polly', [app.path], [...states, multi]).orphanedVersions).toEqual([]);
+        const unknown: ProjectState = { name: 'Unknown', path: csproj('Unknown') };
+        expect(planUninstall('Polly', [app.path], [...states, unknown]).orphanedVersions).toEqual([]);
+        expect(planUninstall('Polly', [app.path], [...states, unknown]).cliProjects).toEqual([app.path]);
     });
 
     test('an override still uses the central version', () => {

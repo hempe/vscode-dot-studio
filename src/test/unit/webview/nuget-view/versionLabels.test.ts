@@ -47,4 +47,10 @@ describe('canSetForProjectOnly', () => {
         expect(canSetForProjectOnly({ id: 'Polly', currentVersion: '8.0.0' }, all, new Set([legacy.path]))).toBe(false);
         expect(canSetForProjectOnly({ id: 'Serilog', currentVersion: '3.1.1' }, all, new Set())).toBe(false);
     });
+
+    test('not when the PackageReference comes from a props file (Directory.Build.props): the project file has nothing to override', () => {
+        const inherited = project('Inherited', { ...entry('Inherited', 'Serilog', '3.1.1', 'central'), inherited: true });
+        expect(canSetForProjectOnly({ id: 'Serilog', currentVersion: '3.1.1' }, [...all, inherited] as any[], new Set([inherited.path]))).toBe(false);
+        expect(canSetForProjectOnly({ id: 'Serilog', currentVersion: '3.1.1' }, [...all, inherited] as any[], new Set([app.path, inherited.path]))).toBe(false);
+    });
 });

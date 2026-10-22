@@ -20,7 +20,11 @@ export function withVersionSources(packages: BasicInstalledPackage[], evaluated:
     const byId = new Map(evaluated.references.map(reference => [reference.id.toLowerCase(), reference]));
     return packages.map(pkg => {
         const reference = byId.get(pkg.id.toLowerCase());
-        return reference ? { ...pkg, versionSource: reference.source, ...(reference.versionFile ? { versionFile: reference.versionFile } : {}) } : pkg;
+        return reference ? {
+            ...pkg, versionSource: reference.source,
+            ...(reference.versionFile ? { versionFile: reference.versionFile } : {}),
+            ...(reference.inherited ? { inherited: true as const } : {}),
+        } : pkg;
     });
 }
 
@@ -172,6 +176,7 @@ export class PackageInstalledService {
                             projectName: project.name,
                             ...(dep.versionSource ? { versionSource: dep.versionSource } : {}),
                             ...(dep.versionFile ? { versionFile: dep.versionFile } : {}),
+                            ...(dep.inherited ? { inherited: true as const } : {}),
                         }));
 
                     const projectInfo: ProjectInfo = {

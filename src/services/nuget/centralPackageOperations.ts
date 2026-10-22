@@ -6,7 +6,8 @@ import { ProjectItemsService } from '../projectItems/projectItemsService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageOperationResult } from './types';
 import { centralFiles } from './centralPackages';
-import { applyPackageEdits } from './centralPackageFiles';
+import { applyPackageEdits, declaredGlobals, importChain } from './centralPackageFiles';
+import { pathKey } from '../projectItems/projectItems';
 import {
     ProjectState, VersionChangePlan, VersionScope, confirmationText, consolidationText, globalUninstallEdits, planConsolidate, planUninstall,
     planVersionChange,
@@ -73,7 +74,7 @@ export const vscodeHost: OperationsHost = {
 };
 
 const isProjectFile = (file: string) => /\.(cs|vb|fs)proj$/i.test(file);
-const same = (a: string, b: string) => path.normalize(a) === path.normalize(b);
+const same = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
 
 /**
  * After edits: restore (the whole solution when a props file changed, it reaches every project below it) and
@@ -120,7 +121,9 @@ export async function changePackageVersions(
     changes: readonly { id: string; version: string; projects: readonly string[] }[], scope: VersionScope = 'shared', host: OperationsHost = vscodeHost,
 ): Promise<OperationOutcome> {
     const states = await host.states([...new Set(changes.flatMap(change => change.projects))]);
-    const plan = (chosen: VersionScope) => changes.map(change => planVersionChange(change.id, change.version, change.projects, states, chosen));
+    // Global packages written in the props files: a package every project opted out of shows in no evaluation
+    const written = (packages: { propsPath?: string }) => packages.propsPath ? declaredGlobals(importChain(packages.propsPath)) : [];
+    const plan = (chosen: VersionScope) => changes.map(change => planVersionChange(change.id, change.version, change.projects, states, chosen, written));
     let plans: VersionChangePlan[] = plan(scope);
 
     const question = confirmationText(plans);

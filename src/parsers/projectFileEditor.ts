@@ -101,21 +101,43 @@ export class ProjectFileEditor {
         return items;
     }
 
+    /** ItemGroups and Choose blocks outside targets and comments */
+    private static itemGroups(content: string): { opens: RegExpMatchArray[]; chooses: [number, number][] } {
+        const ignored = this.ignoredRanges(content);
+        const chooses = [...content.matchAll(/<Choose\b[\s\S]*?<\/Choose\s*>/g)].map(match => [match.index!, match.index! + match[0].length] as [number, number]);
+        const opens = [...content.matchAll(/<ItemGroup\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g)]
+            .filter(match => !this.inRanges(ignored, match.index!));
+        return { opens, chooses };
+    }
+
+    /** An ItemGroup new items can go into: it has no Condition and is not in a Choose */
+    private static isPlain(open: RegExpMatchArray, chooses: readonly [number, number][]): boolean {
+        return open[2] !== '/' && !/\bCondition\s*=/.test(open[1]) && !this.inRanges(chooses, open.index!);
+    }
+
     /**
      * The last ItemGroup of the project (outside targets and comments) when new items can go at its end:
      * it has no Condition and is not in a Choose. Undefined otherwise: then a new ItemGroup goes at the end.
      */
     private static lastPlainItemGroup(content: string): { openStart: number; close: number } | undefined {
-        const ignored = this.ignoredRanges(content);
-        const chooses = [...content.matchAll(/<Choose\b[\s\S]*?<\/Choose\s*>/g)].map(match => [match.index!, match.index! + match[0].length] as [number, number]);
-        const opens = [...content.matchAll(/<ItemGroup\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g)]
-            .filter(match => !this.inRanges(ignored, match.index!));
+        const { opens, chooses } = this.itemGroups(content);
         const last = opens[opens.length - 1];
-        if (!last || last[2] === '/' || /\bCondition\s*=/.test(last[1]) || this.inRanges(chooses, last.index!)) {
+        if (!last || !this.isPlain(last, chooses)) {
             return undefined;
         }
         const close = content.indexOf('</ItemGroup', last.index! + last[0].length);
         return close < 0 ? undefined : { openStart: last.index!, close };
+    }
+
+    /** Whether the element at `index` is in an ItemGroup new items can go into (no Condition, not in a Choose) */
+    static inPlainItemGroup(content: string, index: number): boolean {
+        const { opens, chooses } = this.itemGroups(content);
+        const open = opens.filter(candidate => candidate.index! < index).pop();
+        if (!open || open[2] === '/') {
+            return false;
+        }
+        const close = content.indexOf('</ItemGroup', open.index! + open[0].length);
+        return close > index && this.isPlain(open, chooses);
     }
 
     /** `<Compile Remove="path" />`: the file leaves the project (Visual Studio's Exclude From Project) */
@@ -140,8 +162,12 @@ export class ProjectFileEditor {
         if (lastSame && !new RegExp(`<${itemType}\\b`).test(this.blankIgnored(content).slice(lastSame.end))) {
             return content;
         }
+        return this.appendToLastItemGroup(content, indent => [`${indent}<${itemType} ${attribute}="${this.escape(value)}" />`]);
+    }
+
+    /** Adds the elements at the end of the last ItemGroup, or in a new ItemGroup at the end when that one has a Condition */
+    static appendToLastItemGroup(content: string, element: (indent: string) => string[]): string {
         const nl = content.includes('\r\n') ? '\r\n' : '\n';
-        const element = (indent: string) => [`${indent}<${itemType} ${attribute}="${this.escape(value)}" />`];
         const group = this.lastPlainItemGroup(content);
         if (!group) {
             return this.appendItemGroup(content, element);

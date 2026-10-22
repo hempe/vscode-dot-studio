@@ -42,6 +42,8 @@ export interface ProjectDependency {
     versionSource?: PackageVersionSource;
     /** Packages: the file the version is written in */
     versionFile?: string;
+    /** Packages: the PackageReference is written in a props file (Directory.Build.props), not in the project file */
+    inherited?: true;
 }
 
 /**
@@ -59,6 +61,7 @@ function withEvaluatedPackages(parsed: readonly ProjectDependency[], packages: P
             type: 'PackageReference' as const,
             versionSource: reference.source,
             ...(reference.versionFile ? { versionFile: reference.versionFile } : {}),
+            ...(reference.inherited ? { inherited: true as const } : {}),
         })),
         ...parsed.filter(dependency => dependency.type !== 'PackageReference'),
     ];

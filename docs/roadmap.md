@@ -18,6 +18,10 @@ Found along the way, to be fixed:
 - [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
 - [ ] After a project, folder or solution folder is dropped onto a collapsed solution folder, the target stays collapsed and the moved node is out of sight; expand the target and select the moved node (Visual Studio does, as far as known)
 - [ ] After a drag & drop a grey hover highlight sometimes stays on a row the drag started on or passed over (Chromium sends no mouse-leave during a drag); cosmetic, clear it on drag end
+- [ ] Central packages: a package with several conditional `PackageVersion` entries (e.g. one per target framework) gets only the first matching one edited
+- [ ] Central packages: a `Version="$(Prop)"` shared by several packages is replaced by a literal version on the edited package only, so it no longer follows the property
+- [ ] Central packages: multi-targeted projects are evaluated for their first target framework only, so packages (and versions) of the other target frameworks are not seen: not shown, not updated, and not counted when uninstalling (which is why the "no project uses it any more" question is never asked then)
+- [ ] Central packages: after an edit in the NuGet manager the projects are possibly evaluated twice (the explicit re-evaluation plus the props and project file watchers); unverified, the CentralPackageWatchers have no debounce
 
 ## Known limitations
 

@@ -34,6 +34,8 @@ export interface BasicInstalledPackage {
     readonly versionSource?: PackageVersionSource;
     /** The file the version is written in: the project file, or the props file of a central or global version */
     readonly versionFile?: string;
+    /** The PackageReference is written in a props file (Directory.Build.props): no "Set for this project only" */
+    readonly inherited?: true;
 }
 
 /**

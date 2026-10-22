@@ -62,9 +62,13 @@ export function centralNote(pkg: LocalNuGetPackage, projects: readonly ProjectIn
     return parts.join(' ');
 }
 
-/** "Set for this project only" fits when every selected project takes the package's version from a central entry */
+/**
+ * "Set for this project only" fits when every selected project takes the package's version from a central entry (or
+ * overrides it) with the PackageReference in its own project file (one from Directory.Build.props has no element there
+ * for a VersionOverride)
+ */
 export function canSetForProjectOnly(pkg: LocalNuGetPackage, projects: readonly ProjectInfo[] | null | undefined, selected: ReadonlySet<string>): boolean {
     const found = entries(pkg, projects).filter(({ project }) => selected.has(project.path));
     return selected.size > 0 && found.length === selected.size
-        && found.every(({ entry }) => entry.versionSource === 'central' || entry.versionSource === 'override');
+        && found.every(({ entry }) => (entry.versionSource === 'central' || entry.versionSource === 'override') && !entry.inherited);
 }

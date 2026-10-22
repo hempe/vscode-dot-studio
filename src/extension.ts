@@ -149,6 +149,7 @@ export function activate(context: vscode.ExtensionContext) {
         context,
         () => centralPackageWatchers.recheck()
     );
+    context.subscriptions.push(nugetCustomEditorProvider);
 
     // Register webview providers for both sidebar and secondary-sidebar locations
     context.subscriptions.push(

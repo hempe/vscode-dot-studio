@@ -18,7 +18,7 @@ interface Element {
 }
 
 /** `<Tag Attribute="id" .../>` or `<Tag Attribute="id">...</Tag>`, outside comments and targets, in document order */
-function findElements(content: string, tag: string, attribute: 'Include' | 'Remove' = 'Include'): Element[] {
+function findElements(content: string, tag: string, attribute: 'Include' | 'Remove' | 'Update' = 'Include'): Element[] {
     const elementRe = new RegExp(`<${tag}\\b((?:[^>"']|"[^"]*"|'[^']*')*?)(?:\\/>|>[\\s\\S]*?<\\/${tag}\\s*>)`, 'g');
     const attributeRe = new RegExp(`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`);
     const ignored = Xml.ignoredRanges(content);
@@ -70,22 +70,39 @@ function removeMetadata(content: string, element: Element, name: string): string
     return content.slice(0, element.start) + edited + content.slice(element.end);
 }
 
-/** A new element after the last `after` element (same indentation), else in a new ItemGroup at the end */
+/**
+ * A new element after the last `after` element (same indentation) that is in an ItemGroup without a Condition (an
+ * element in a conditional ItemGroup would count only under that condition); else at the end of the last such
+ * ItemGroup, else in a new ItemGroup at the end
+ */
 function insert(content: string, after: readonly Element[], element: string): string {
-    const last = after[after.length - 1];
+    const last = after.filter(candidate => Xml.inPlainItemGroup(content, candidate.start)).pop();
     if (last) {
         const indent = Xml.lineIndent(content, last.start);
         return content.slice(0, last.end) + newline(content) + indent + element + content.slice(last.end);
     }
-    return Xml.appendItemGroup(content, indent => [indent + element]);
+    return Xml.appendToLastItemGroup(content, indent => [indent + element]);
 }
 
 const versionElement = (tag: string, id: string, version: string) =>
     `<${tag} Include="${Xml.escape(id)}" Version="${Xml.escape(version)}" />`;
 
-/** The central version of a package (`<PackageVersion Include="id" Version="..." />`) */
+const setsVersion = (content: string, element: Element) =>
+    /\sVersion\s*=|<Version\s*>/.test(content.slice(element.start, element.end));
+
+/**
+ * The central version of a package (`<PackageVersion Include="id" Version="..." />`). A `<PackageVersion Update="id"
+ * Version="..." />` of the file that sets the version too gets the same version: MSBuild applies it over the Include.
+ */
 export function setPackageVersion(content: string, id: string, version: string): string {
-    return setMetadata(content, existing(content, 'PackageVersion', id), 'Version', version);
+    let edited = setMetadata(content, existing(content, 'PackageVersion', id), 'Version', version);
+    // From the end, so the offsets of the elements before stay valid
+    for (const update of findElements(edited, 'PackageVersion', 'Update').filter(element => same(element.id, id)).reverse()) {
+        if (setsVersion(edited, update)) {
+            edited = setMetadata(edited, update, 'Version', version);
+        }
+    }
+    return edited;
 }
 
 /** Adds a `PackageVersion` after the last one of the file; nothing when the package has one already */
@@ -141,6 +158,15 @@ export function addGlobalOptOut(content: string, id: string): string {
 export function removeGlobalOptOut(content: string, id: string): string {
     const element = find(content, 'GlobalPackageReference', id, 'Remove');
     return element ? Xml.deleteElement(content, element.start, element.end) : content;
+}
+
+/** The `<GlobalPackageReference Include="id" Version="..." />` entries written in the file (the version as written) */
+export function globalPackageReferences(content: string): { id: string; version: string }[] {
+    return findElements(content, 'GlobalPackageReference').map(element => {
+        const text = content.slice(element.start, element.end);
+        const found = /\sVersion\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(text) ?? /<Version\s*>([^<]*)<\/Version\s*>/.exec(text);
+        return { id: element.id, version: found ? Xml.unescape(found[1] ?? found[2]).trim() : '' };
+    });
 }
 
 /** Applies one planned edit to the text of its file */

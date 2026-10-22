@@ -62,11 +62,13 @@ describe('NuGetCustomEditorProvider refreshes', () => {
         .filter(message => message.type === 'nugetData')
         .map(message => message.payload.installedPackages[0].version);
 
+    let subscription: { dispose: jest.Mock };
     beforeEach(() => {
         jest.useRealTimers();
         packagesVersion = 1;
         installedVersion = '1.0.0';
-        jest.spyOn(ProjectItemsService.instance, 'onDidEvaluate').mockImplementation(listener => { evaluated = listener; return { dispose: jest.fn() }; });
+        subscription = { dispose: jest.fn() };
+        jest.spyOn(ProjectItemsService.instance, 'onDidEvaluate').mockImplementation(listener => { evaluated = listener; return subscription; });
         jest.spyOn(ProjectItemsService.instance, 'packagesVersion').mockImplementation(() => packagesVersion);
         (NuGetManagerService.getSolutionNuGetData as jest.Mock).mockImplementation(async () => ({
             installedPackages: [{ id: 'Serilog', currentVersion: installedVersion }],
@@ -130,5 +132,19 @@ describe('NuGetCustomEditorProvider refreshes', () => {
         expect(onFocus).not.toHaveBeenCalled();
         viewState({ webviewPanel: { active: true } });
         expect(onFocus).toHaveBeenCalledTimes(1);
+    });
+
+    test('dispose ends the evaluation subscription and a pending refresh', async () => {
+        jest.useFakeTimers();
+        const provider = new NuGetCustomEditorProvider({} as any, {} as any);
+        await openEditor(provider);
+        (NuGetManagerService.getSolutionNuGetData as jest.Mock).mockClear();
+        packagesVersion = 2;
+        evaluated('/repo/App/App.csproj');
+        provider.dispose();
+        expect(subscription.dispose).toHaveBeenCalled();
+        jest.advanceTimersByTime(1000);
+        await flush();
+        expect(NuGetManagerService.getSolutionNuGetData).not.toHaveBeenCalled();
     });
 });

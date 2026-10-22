@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { parseMsbuildJson } from '../projectItems/projectItems';
+import { parseMsbuildJson, pathKey } from '../projectItems/projectItems';
 import { PackageVersionSource } from './types';
 
 /** Asked of MSBuild together with the project items: one evaluation per project answers both */
@@ -14,6 +14,11 @@ export interface PackageReferenceInfo {
     readonly source: PackageVersionSource;
     /** The file the version is written in: the project file (project, override) or a props file (central, global) */
     readonly versionFile?: string;
+    /**
+     * The PackageReference is written in a props file (Directory.Build.props), not in the project file: "Set for this
+     * project only" has no element of the project to put a VersionOverride on
+     */
+    readonly inherited?: true;
 }
 
 /** A `PackageVersion` or `GlobalPackageReference` entry and the props file it is in */
@@ -32,6 +37,11 @@ export interface ProjectPackages {
     readonly propsPath?: string;
     /** `CentralPackageVersionOverrideEnabled` is not false: "Set for this project only" may write a VersionOverride */
     readonly overridesEnabled: boolean;
+    /**
+     * `TargetFrameworks` names more than one framework: only the first was evaluated, so the packages of the others
+     * (conditional references and versions) are not seen
+     */
+    readonly multiTargeted: boolean;
     /** Sorted by id; SDK references (`IsImplicitlyDefined`) left out */
     readonly references: readonly PackageReferenceInfo[];
     /** The `PackageVersion` entries the project sees, by lower-case id (CPM only; global ones not included) */
@@ -86,14 +96,15 @@ export function parseMsbuildPackages(output: string, projectPath: string): Proje
         const key = item.Identity.toLowerCase();
         const global = globalById.get(key);
         const central = centralVersions.get(key);
+        const inherited = definedIn(item) && pathKey(definedIn(item)) !== pathKey(path.normalize(projectPath)) ? { inherited: true as const } : {};
         if (global) {
             references.push({ id: global.id, version: global.version, source: 'global', versionFile: global.file });
         } else if (centrallyManaged && item.VersionOverride) {
-            references.push({ id: item.Identity, version: item.VersionOverride, source: 'override', versionFile: definedIn(item) });
+            references.push({ id: item.Identity, version: item.VersionOverride, source: 'override', versionFile: definedIn(item), ...inherited });
         } else if (centrallyManaged && !item.Version) {
-            references.push({ id: item.Identity, version: central?.version ?? '', source: 'central', versionFile: central?.file });
+            references.push({ id: item.Identity, version: central?.version ?? '', source: 'central', versionFile: central?.file, ...inherited });
         } else {
-            references.push({ id: item.Identity, version: item.Version ?? '', source: 'project', versionFile: definedIn(item) });
+            references.push({ id: item.Identity, version: item.Version ?? '', source: 'project', versionFile: definedIn(item), ...inherited });
         }
     }
     references.sort((a, b) => a.id.localeCompare(b.id, undefined, { sensitivity: 'base' }));
@@ -103,6 +114,7 @@ export function parseMsbuildPackages(output: string, projectPath: string): Proje
         centrallyManaged,
         propsPath: properties.DirectoryPackagesPropsPath ? path.normalize(properties.DirectoryPackagesPropsPath) : undefined,
         overridesEnabled: !isFalse(properties.CentralPackageVersionOverrideEnabled),
+        multiTargeted: (properties.TargetFrameworks ?? '').split(';').filter(framework => framework.trim()).length > 1,
         references,
         centralVersions,
         globals,

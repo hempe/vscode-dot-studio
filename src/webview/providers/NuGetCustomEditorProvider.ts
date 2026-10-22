@@ -18,12 +18,13 @@ const log = logger('NuGetCustomEditorProvider');
 /**
  * Custom editor provider for NuGet Package Manager that opens in the main editor area
  */
-export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvider {
+export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvider, vscode.Disposable {
     public static readonly viewType = 'shinobi.nugetPackageManager';
     private readonly _webviewPanels = new Map<string, { panel: vscode.WebviewPanel; context: { type: 'project' | 'solution', target: string }; includePrerelease: boolean }>();
     // The packages version of each project last seen: a new one (Directory.Packages.props changed) refreshes the open editors
     private readonly _packageVersions = new Map<string, number>();
     private _refreshTimer?: ReturnType<typeof setTimeout>;
+    private readonly _evaluations: { dispose(): void };
 
     /** @param _onFocus re-checks props files no watcher sees (outside the workspace) when an editor gets focus */
     constructor(
@@ -31,7 +32,15 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         private readonly _extensionContext: vscode.ExtensionContext,
         private readonly _onFocus: () => Promise<void> = async () => { }
     ) {
-        ProjectItemsService.instance.onDidEvaluate(projectPath => this._packagesEvaluated(projectPath));
+        this._evaluations = ProjectItemsService.instance.onDidEvaluate(projectPath => this._packagesEvaluated(projectPath));
+    }
+
+    dispose(): void {
+        this._evaluations.dispose();
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = undefined;
+        }
     }
 
     /** New package versions of a project: the open editors show them (once per burst of evaluations) */
