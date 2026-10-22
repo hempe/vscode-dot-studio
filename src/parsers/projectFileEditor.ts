@@ -1,7 +1,8 @@
 /**
  * Text-based edits of MSBuild project files (.csproj/.vbproj/.fsproj) that preserve the
  * existing formatting and comments.
- * Its text helpers are shared with the package edits (services/nuget/centralPackageEdits.ts).
+ * Its text helpers are shared with the package edits (services/nuget/centralPackageEdits.ts) and the gRPC references
+ * (services/grpc/protobufReferences.ts).
  */
 export class ProjectFileEditor {
     // <Reference ...> element, self-closing or with children; attribute values may contain '>'
@@ -324,7 +325,7 @@ export class ProjectFileEditor {
     }
 
     /** Indentation of the first indented line, two spaces by default (SDK template style) */
-    private static indentUnit(content: string): string {
+    static indentUnit(content: string): string {
         return content.match(/\n([ \t]+)</)?.[1] ?? '  ';
     }
 
