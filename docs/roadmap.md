@@ -54,6 +54,8 @@ Found along the way, to be fixed:
 
 - [ ] Evaluate multi-targeted projects per target framework (today only the first one, see the Known bugs) and show each framework's packages in the tree, the NuGet manager and the update confirmation
 - [ ] Edits respect conditions: update the `PackageVersion` or `PackageReference` that applies to the framework (or all of them, after a confirmation naming them) instead of the first match; a new conditional entry can be written for a chosen framework
+- [ ] Packages declared in an imported props file without Central Package Management (`Directory.Build.props` with a `PackageReference`, e.g. one analyzer for every project): update and remove edit that file after a confirmation naming the projects it reaches (the `dotnet` CLI refuses: "Cannot edit items in imported files"), also offering "Set for This Project Only"; the machinery for `Directory.Packages.props` exists
+- [ ] Consolidate and Updates ignore version differences that are on purpose between target frameworks or projects (e.g. `NeinLinq` 2.2.1 for `net471` and 7.4.0 for `net10.0`)
 - [ ] Never offer an orphan removal of a version that another framework still uses (today any multi-targeted project suppresses the prompt)
 - [ ] Docs, GIF and manual-testing entries for the conditional cases
 
