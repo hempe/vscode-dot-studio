@@ -2,6 +2,12 @@
  * Types for NuGet Package Manager services using dotnet CLI
  */
 
+/**
+ * Where the version of a package reference comes from: the project file (`Version`), the central
+ * `PackageVersion` of Central Package Management, the project's `VersionOverride`, or a `GlobalPackageReference`
+ */
+export type PackageVersionSource = 'project' | 'central' | 'override' | 'global';
+
 // ============ BASIC TYPES (Internal Use Only) ============
 // These are intermediate types from dotnet CLI commands, before NuGet API enrichment
 

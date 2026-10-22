@@ -18,6 +18,11 @@ const json = JSON.stringify({
 describe('parseMsbuildItems', () => {
     const items = parseMsbuildItems(json, dir)!;
 
+    test('packages of the same evaluation are not files (PackageReference has a FullPath too)', () => {
+        const withPackages = JSON.stringify({ Items: { ...JSON.parse(json).Items, PackageReference: [{ Identity: 'Serilog', FullPath: at('Serilog') }] } });
+        expect(parseMsbuildItems(withPackages, dir)!.isIncluded(at('Serilog'))).toBe(false);
+    });
+
     test('knows what is included and with which item type', () => {
         expect(items.isIncluded(at('Program.cs'))).toBe(true);
         expect(items.itemTypeOf(at('notes.txt'))).toBe('None');

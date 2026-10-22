@@ -150,10 +150,10 @@ export class ProjectItems {
 
 interface MsbuildItem { FullPath?: string; Identity?: string; Link?: string }
 
-interface MsbuildResult { Items?: Record<string, MsbuildItem[]>; Properties?: Record<string, string> }
+export interface MsbuildResult { Items?: Record<string, MsbuildItem[]>; Properties?: Record<string, string> }
 
 /** The JSON MSBuild prints for `-getItem`/`-getProperty`, after any banner lines; undefined when there is none */
-function parseMsbuildJson(output: string): MsbuildResult | undefined {
+export function parseMsbuildJson(output: string): MsbuildResult | undefined {
     const match = /^[ \t]*\{/m.exec(output);
     if (!match) {
         return undefined;
@@ -186,6 +186,10 @@ export function parseMsbuildItems(output: string, projectDir: string): ProjectIt
     }
     const entries: Entry[] = [];
     for (const [itemType, items] of Object.entries(parsed.Items ?? {})) {
+        // The same evaluation lists packages (PackageReference has a FullPath too): only files count
+        if (!(ITEM_TYPES as readonly string[]).includes(itemType)) {
+            continue;
+        }
         for (const item of items) {
             const fullPath = item.FullPath ?? (item.Identity ? path.resolve(projectDir, item.Identity) : undefined);
             if (!fullPath) {

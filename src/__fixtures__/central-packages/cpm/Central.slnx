@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="App/App.csproj" />
+  <Project Path="GlobalOnly/GlobalOnly.csproj" />
+  <Project Path="Legacy/Legacy.csproj" />
+  <Project Path="OptOut/OptOut.csproj" />
+  <Project Path="Override/Override.csproj" />
+</Solution>

@@ -5,22 +5,35 @@ import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { ConcurrencyLimit, SingleFlight } from '../singleFlight';
 import { ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
+import { PACKAGE_ITEM_TYPES, PACKAGE_PROPERTIES, ProjectPackages, packagesEqual, parseMsbuildPackages } from '../nuget/centralPackages';
 
 const execFileAsync = promisify(execFile);
 const log = logger('ProjectItems');
 
 export type RunMsbuild = (projectPath: string) => Promise<string>;
 
-/** Starts `dotnet msbuild` (twice for a multi-targeted project: the items exist per target framework) */
+/**
+ * Starts `dotnet msbuild` (twice for a multi-targeted project: the items exist per target framework). The same run
+ * answers what the project contains and its packages (Central Package Management), so a project is evaluated once.
+ */
 export const runMsbuild: RunMsbuild = async projectPath => {
     const run = async (...extra: string[]) => (await execFileAsync('dotnet',
-        ['msbuild', projectPath, '-nologo', `-getItem:${ITEM_TYPES.join(',')}`, '-getProperty:TargetFramework,TargetFrameworks', ...extra],
+        ['msbuild', projectPath, '-nologo', `-getItem:${[...ITEM_TYPES, ...PACKAGE_ITEM_TYPES].join(',')}`,
+            `-getProperty:${['TargetFramework', 'TargetFrameworks', ...PACKAGE_PROPERTIES].join(',')}`, ...extra],
         { cwd: path.dirname(projectPath), timeout: 120000, maxBuffer: 64 * 1024 * 1024 })).stdout;
     const stdout = await run();
     // A multi-targeted project has its items only per target framework
     const framework = crossTargetingFramework(stdout);
     return framework ? run(`-p:TargetFramework=${framework}`) : stdout;
 };
+
+/** What one MSBuild run gave: undefined parts were not in the output (or MSBuild failed) */
+interface Evaluation {
+    readonly items?: ProjectItems;
+    readonly packages?: ProjectPackages;
+    /** When the run started (ms since the epoch) */
+    readonly startedAt: number;
+}
 
 /**
  * What each project contains according to MSBuild (globs, `Remove`, `DefaultItemExcludes`, `Link`, props files).
@@ -42,6 +55,9 @@ export class ProjectItemsService {
     // When the MSBuild run behind the cached list started (a later run giving the same list moves it on)
     private readonly evaluated = new Map<string, number>();
     private readonly listeners = new Set<(projectPath: string) => void>();
+    // The packages of the same evaluation; an evaluation without them keeps the last ones
+    private readonly packageCache = new Map<string, ProjectPackages>();
+    private readonly packageVersions = new Map<string, number>();
     // Opening a solution evaluates every project: start at most `maxConcurrent` processes at once
     private readonly flights: SingleFlight<ProjectItems | undefined>;
 
@@ -71,30 +87,52 @@ export class ProjectItemsService {
         return this.evaluated.get(projectPath);
     }
 
+    /** The packages of the last evaluation (possibly outdated while a new one runs), without starting one */
+    packages(projectPath: string): ProjectPackages | undefined {
+        return this.packageCache.get(projectPath);
+    }
+
+    /** Changes whenever the result `packages` returns changes */
+    packagesVersion(projectPath: string): number {
+        return this.packageVersions.get(projectPath) ?? 0;
+    }
+
+    /** The packages, after the evaluation running (or started now) for the project */
+    async evaluatePackages(projectPath: string): Promise<ProjectPackages | undefined> {
+        await this.evaluate(projectPath);
+        return this.packages(projectPath);
+    }
+
     /** The cached result, or the result of the evaluation running (or started now) for the project */
     evaluate(projectPath: string): Promise<ProjectItems | undefined> {
         if (this.cache.has(projectPath) && !this.stale.has(projectPath)) {
             return Promise.resolve(this.get(projectPath));
         }
-        return this.flights.run(projectPath, () => this.evaluateNow(projectPath), items => this.publish(projectPath, items));
+        return this.flights.run(projectPath, () => this.evaluateNow(projectPath), evaluation => this.publish(projectPath, evaluation));
     }
 
-    private async evaluateNow(projectPath: string): Promise<{ items: ProjectItems | undefined; startedAt: number }> {
+    private async evaluateNow(projectPath: string): Promise<Evaluation> {
         const startedAt = this.now();
         try {
-            const items = parseMsbuildItems(await this.run(projectPath), path.dirname(projectPath));
+            const output = await this.run(projectPath);
+            const items = parseMsbuildItems(output, path.dirname(projectPath));
             if (!items) {
                 log.warn(`MSBuild gave no item list for ${projectPath}`);
             }
-            return { items, startedAt };
+            return { items, packages: parseMsbuildPackages(output, projectPath), startedAt };
         } catch (error) {
             log.warn(`Could not evaluate the items of ${projectPath}:`, error);
-            return { items: undefined, startedAt };
+            return { startedAt };
         }
     }
 
-    private publish(projectPath: string, { items, startedAt }: { items: ProjectItems | undefined; startedAt: number }): ProjectItems | undefined {
+    private publish(projectPath: string, { items, packages, startedAt }: Evaluation): ProjectItems | undefined {
         this.stale.delete(projectPath);
+        const previousPackages = this.packageCache.get(projectPath);
+        if (packages && (!previousPackages || !packagesEqual(previousPackages, packages))) {
+            this.packageCache.set(projectPath, packages);
+            this.packageVersions.set(projectPath, this.packagesVersion(projectPath) + 1);
+        }
         const previous = this.get(projectPath);
         if (items) {
             this.evaluated.set(projectPath, startedAt);

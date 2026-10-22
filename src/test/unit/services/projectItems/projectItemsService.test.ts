@@ -324,4 +324,67 @@ describe('ProjectItemsService', () => {
         expect(items!.isIncluded(path.join(dir, 'Excluded', 'Skip.cs'))).toBe(false);
         expect(items!.linkedFilesIn(path.join(dir, 'Linked')).map(item => path.basename(item.fullPath))).toEqual(['Shared.cs']);
     }, 150000);
+
+    describe('packages from the same evaluation', () => {
+        const withPackages = (version: string) => JSON.stringify({
+            Properties: { ManagePackageVersionsCentrally: 'true', DirectoryPackagesPropsPath: path.join(dir, 'Directory.Packages.props') },
+            Items: {
+                Compile: [{ Identity: 'A.cs', FullPath: path.join(dir, 'A.cs') }],
+                PackageReference: [{ Identity: 'Serilog', FullPath: path.join(dir, 'Serilog'), DefiningProjectFullPath: fixture }],
+                PackageVersion: [{ Identity: 'Serilog', Version: version, DefiningProjectFullPath: path.join(dir, 'Directory.Packages.props') }],
+            },
+        });
+
+        test('one MSBuild run gives the items and the packages', async () => {
+            const run = jest.fn().mockResolvedValue(withPackages('3.1.1'));
+            const service = new ProjectItemsService(run);
+            expect((await service.evaluatePackages(fixture))?.references).toEqual([
+                { id: 'Serilog', version: '3.1.1', source: 'central', versionFile: path.join(dir, 'Directory.Packages.props') },
+            ]);
+            expect(service.get(fixture)?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+            expect(service.get(fixture)?.isIncluded(path.join(dir, 'Serilog'))).toBe(false);
+            expect(run).toHaveBeenCalledTimes(1);
+        });
+
+        test('packagesVersion changes when only the packages changed (a Directory.Packages.props edit), not otherwise', async () => {
+            const run = jest.fn().mockResolvedValueOnce(withPackages('3.1.1')).mockResolvedValueOnce(withPackages('3.1.1')).mockResolvedValueOnce(withPackages('4.0.0'));
+            const service = new ProjectItemsService(run);
+            await service.evaluate(fixture);
+            const first = service.packagesVersion(fixture);
+            const items = service.version(fixture);
+            service.invalidate(fixture);
+            await service.evaluate(fixture);
+            expect(service.packagesVersion(fixture)).toBe(first);
+            service.invalidate(fixture);
+            await service.evaluate(fixture);
+            expect(service.packagesVersion(fixture)).toBe(first + 1);
+            expect(service.version(fixture)).toBe(items);
+            expect(service.packages(fixture)?.references[0].version).toBe('4.0.0');
+        });
+
+        test('a failing run keeps the last packages', async () => {
+            const run = jest.fn().mockResolvedValueOnce(withPackages('3.1.1')).mockRejectedValueOnce(new Error('timeout'));
+            const service = new ProjectItemsService(run);
+            await service.evaluate(fixture);
+            service.invalidate(fixture);
+            await service.evaluate(fixture);
+            expect(service.packages(fixture)?.references[0].version).toBe('3.1.1');
+        });
+
+        test('an outdated run publishes no packages: only the re-run after a change does', async () => {
+            const runs = deferredRuns();
+            const service = new ProjectItemsService(runs.run);
+            const result = service.evaluate(fixture);
+            await settle();
+            service.invalidate(fixture);
+            runs.finish(withPackages('3.1.1'));
+            await settle();
+            expect(service.packages(fixture)).toBeUndefined();
+            runs.finish(withPackages('4.0.0'));
+            await result;
+            expect(service.packages(fixture)?.references[0].version).toBe('4.0.0');
+            expect(service.packagesVersion(fixture)).toBe(1);
+            expect(runs.mostPerProject).toBe(1);
+        });
+    });
 });
