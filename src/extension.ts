@@ -49,8 +49,8 @@ async function startDebugWithStartupProject(): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    // All logs go to Output > "Shinobi .NET"; "Developer: Set Log Level" picks how much
-    const logChannel = vscode.window.createOutputChannel('Shinobi .NET', { log: true });
+    // All logs go to Output > "Shinobi .NET Studio"; "Developer: Set Log Level" picks how much
+    const logChannel = vscode.window.createOutputChannel('Shinobi .NET Studio', { log: true });
     setLogSink(logChannel);
     context.subscriptions.push(
         logChannel,

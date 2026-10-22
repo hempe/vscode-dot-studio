@@ -1,6 +1,6 @@
-# Shinobi .NET Documentation
+# Shinobi .NET Studio Documentation
 
-Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET in VS Code and VSCodium.
+The Visual Studio workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET.
 
 | Page | What it covers |
 |---|---|

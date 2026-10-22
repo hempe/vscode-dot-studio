@@ -5,7 +5,7 @@ import { inspect } from 'util';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/** Where logs go once the extension runs: VS Code's "Shinobi .NET" log channel (a `vscode.LogOutputChannel`) */
+/** Where logs go once the extension runs: VS Code's "Shinobi .NET Studio" log channel (a `vscode.LogOutputChannel`) */
 export interface LogSink {
     trace(message: string): void;
     debug(message: string): void;

@@ -26,7 +26,7 @@ export function initializeTemplates(state: vscode.Memento): void {
 }
 
 function outputChannel(): vscode.OutputChannel {
-    return output ??= vscode.window.createOutputChannel('Shinobi .NET: Templates');
+    return output ??= vscode.window.createOutputChannel('Shinobi .NET Studio: Templates');
 }
 
 function dotnet(args: string[], cwd: string): Promise<{ code: number; output: string }> {

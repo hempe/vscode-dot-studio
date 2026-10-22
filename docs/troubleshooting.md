@@ -2,7 +2,7 @@
 
 ## The log
 
-Everything this extension does is logged to **Output > Shinobi .NET** (or run **.NET: Show Log**). For more detail, run **Developer: Set Log Level...**, pick **Shinobi .NET** and choose **Debug** or **Trace**; the level is kept until you change it.
+Everything this extension does is logged to **Output > Shinobi .NET Studio** (or run **.NET: Show Log**). For more detail, run **Developer: Set Log Level...**, pick **Shinobi .NET Studio** and choose **Debug** or **Trace**; the level is kept until you change it.
 
 The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and builds, tests and publishing write to the terminal.
 
@@ -56,7 +56,7 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 
 Open an issue at [github.com/hempe/vscode-dot-studio/issues](https://github.com/hempe/vscode-dot-studio/issues) with:
 - what you did and what happened,
-- the **Shinobi .NET** log at **Debug** level,
+- the **Shinobi .NET Studio** log at **Debug** level,
 - `dotnet --info`, your editor (VS Code or VSCodium) and its version, and the C# extension you use.
 
 ## Known limitations

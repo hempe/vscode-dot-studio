@@ -1,8 +1,24 @@
 <img src="icon.png" width="96" align="right" alt="Shinobi">
 
-# Shinobi .NET
+# Shinobi .NET Studio
 
-**Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish, in VS Code and VSCodium.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, the same keys.
+**The Visual Studio workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, the same keys.
+
+**Why:** free and MIT licensed, no C# Dev Kit needed, and it runs in VS Code and VSCodium (any Open VSX editor that has a C# extension).
+
+## Install
+
+<!-- Fill in when published:
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/shinobi.dotnet?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/shinobi.dotnet)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet)
+[![Open VSX](https://img.shields.io/open-vsx/v/shinobi/dotnet?label=Open%20VSX)](https://open-vsx.org/extension/shinobi/dotnet)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet)](https://open-vsx.org/extension/shinobi/dotnet)
+
+VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet`.
+VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet`.
+-->
+
+A C# extension is needed for editing and debugging, see [Requirements](#requirements).
 
 ![The Solution Explorer next to a C# file](docs/images/solution-explorer.gif)
 
@@ -26,7 +42,7 @@ Packages expand into the packages they bring in, levels deep. Analyzers list the
 
 ### Error List
 
-Visual Studio's Error List: a sortable, filterable table of errors, warnings and messages from builds and the language server, with column filters and links to each code's documentation. Ctrl+Shift+B builds the solution.
+An Error List like Visual Studio's: a sortable, filterable table of errors, warnings and messages from builds and the language server, with column filters and links to each code's documentation. Ctrl+Shift+B builds the solution.
 
 ![The Error List with two warnings](docs/images/error-list.png)
 
@@ -50,7 +66,7 @@ Browse, Installed (with transitive packages), Updates and Consolidate, per proje
 
 ### New projects and items
 
-Visual Studio's Add New Project and Add New Item wizards, with every `dotnet new` template and its settings. In an empty folder, Create New Project starts a solution.
+Add New Project and Add New Item wizards like Visual Studio's, with every `dotnet new` template and its settings. In an empty folder, Create New Project starts a solution.
 
 ![Choosing a template](docs/images/new-project.gif)
 
@@ -80,7 +96,7 @@ Debug > Start with Hot Reload runs a project with `dotnet watch`: saved code cha
 
 ### Configuration Manager
 
-Visual Studio's Build > Configuration Manager: add, rename and remove the solution's configurations and platforms (Debug/Release, Any CPU/x64), pick the active pair, and set per project which configuration and platform it builds in and whether it builds at all. Right-click the solution > Configuration Manager.... The changes go straight into the `.sln` or `.slnx`.
+A Configuration Manager like Visual Studio's (Build > Configuration Manager): add, rename and remove the solution's configurations and platforms (Debug/Release, Any CPU/x64), pick the active pair, and set per project which configuration and platform it builds in and whether it builds at all. Right-click the solution > Configuration Manager.... The changes go straight into the `.sln` or `.slnx`.
 
 ![The Configuration Manager](docs/images/configuration-manager.gif)
 
@@ -88,7 +104,7 @@ Visual Studio's Build > Configuration Manager: add, rename and remove the soluti
 
 ### Code Cleanup
 
-Visual Studio's Analyze > Code Cleanup: formatting, unused usings and the code style fixes your `.editorconfig` asks for, on a file, folder, project or the whole solution, with progress and Cancel. Right-click a node > Code Cleanup, or press Ctrl+K, Ctrl+E in a C# file. It runs `dotnet format`, so the result matches your pipeline.
+Code Cleanup like Visual Studio's (Analyze > Code Cleanup): formatting, unused usings and the code style fixes your `.editorconfig` asks for, on a file, folder, project or the whole solution, with progress and Cancel. Right-click a node > Code Cleanup, or press Ctrl+K, Ctrl+E in a C# file. It runs `dotnet format`, so the result matches your pipeline.
 
 ![Code Cleanup of a project](docs/images/code-cleanup.gif)
 
@@ -96,7 +112,7 @@ Visual Studio's Analyze > Code Cleanup: formatting, unused usings and the code s
 
 ### Sync Namespaces
 
-Visual Studio's Sync Namespaces: right-click a project or folder > Sync Namespaces changes the namespaces of its C# files to match the root namespace and the folders, and the C# language server updates the references in other files. It asks first, shows progress with Cancel and ends with a summary. Needs a C# extension and IDE0130 reporting in your `.editorconfig`.
+Sync Namespaces like Visual Studio's: right-click a project or folder > Sync Namespaces changes the namespaces of its C# files to match the root namespace and the folders, and the C# language server updates the references in other files. It asks first, shows progress with Cancel and ends with a summary. Needs a C# extension and IDE0130 reporting in your `.editorconfig`.
 
 ![Sync Namespaces of a project](docs/images/sync-namespaces.gif)
 
@@ -104,7 +120,7 @@ Visual Studio's Sync Namespaces: right-click a project or folder > Sync Namespac
 
 ### Publish
 
-Visual Studio's Publish tab for folder publishing, with the same `.pubxml` profiles, so teammates on Visual Studio see the same ones.
+A Publish tab like Visual Studio's for folder publishing, with the same `.pubxml` profiles, so teammates on Visual Studio see the same ones.
 
 ![The Publish tab](docs/images/publish.png)
 
@@ -156,4 +172,4 @@ Found a bug or miss something from Visual Studio? [Open an issue](https://github
 
 [MIT](LICENCE.md)
 
-Shinobi .NET is an independent project. It is not affiliated with, endorsed by or sponsored by Microsoft. Visual Studio, Visual Studio Code and .NET are trademarks of Microsoft Corporation, mentioned here only to say what this extension is modelled on.
+Shinobi .NET Studio is an independent project. It is not affiliated with, endorsed by or sponsored by Microsoft. Visual Studio, Visual Studio Code and .NET are trademarks of Microsoft Corporation, mentioned here only to say what this extension is modelled on.

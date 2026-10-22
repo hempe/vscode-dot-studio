@@ -2,7 +2,7 @@
 
 ## This extension
 
-Settings > Extensions > Shinobi .NET, grouped as below.
+Settings > Extensions > Shinobi .NET Studio, grouped as below.
 
 ### Solution Explorer
 

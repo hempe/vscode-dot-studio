@@ -116,7 +116,7 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
 
 ## Phase 11: Diagnosability
-- [x] A "Shinobi .NET" Output channel with all logs and VS Code's log levels (Developer: Set Log Level), so problems can be reported
+- [x] A "Shinobi .NET Studio" Output channel with all logs and VS Code's log levels (Developer: Set Log Level), so problems can be reported
 - [x] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
 
 ## Phase 12: Finding Solutions

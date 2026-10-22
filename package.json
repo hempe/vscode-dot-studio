@@ -1,11 +1,17 @@
 {
   "name": "dotnet",
-  "displayName": "Shinobi .NET",
-  "description": "Visual Studio's Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET in VS Code and VSCodium",
+  "displayName": "Shinobi .NET Studio",
+  "description": "The Visual Studio workflow in VS Code and VSCodium: Solution Explorer, NuGet, Test Explorer, Error List, Run & Debug, Configuration Manager, Publish.",
   "version": "0.0.1",
   "publisher": "shinobi",
   "license": "MIT",
   "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0b0607",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "qna": "https://github.com/hempe/vscode-dot-studio/issues",
   "repository": {
     "type": "git",
     "url": "https://github.com/hempe/vscode-dot-studio"
@@ -20,6 +26,7 @@
   "categories": [
     "Programming Languages",
     "Testing",
+    "Debuggers",
     "Other"
   ],
   "keywords": [
@@ -36,7 +43,15 @@
     "error list",
     "publish",
     "asp.net",
-    "msbuild"
+    "msbuild",
+    "csproj",
+    "nuget package manager",
+    "vscodium",
+    "open vsx",
+    "configuration manager",
+    "launch settings",
+    "startup project",
+    "code cleanup"
   ],
   "activationEvents": [
     "workspaceContains:**/*.sln",

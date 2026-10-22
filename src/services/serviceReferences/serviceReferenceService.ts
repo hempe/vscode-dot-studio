@@ -16,7 +16,7 @@ const log = logger('ServiceReferences');
 
 let output: vscode.OutputChannel | undefined;
 function outputChannel(): vscode.OutputChannel {
-    return output ??= vscode.window.createOutputChannel('Shinobi .NET: Service References');
+    return output ??= vscode.window.createOutputChannel('Shinobi .NET Studio: Service References');
 }
 
 /** The project a node path belongs to: the project itself, its Connected Services folder or a reference folder */
