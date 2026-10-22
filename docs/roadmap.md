@@ -41,8 +41,7 @@ Found along the way, to be fixed:
 - [ ] Central Package Management: a `PackageReference` that comes from a props file (not from the project file) cannot be uninstalled from the NuGet manager (`dotnet remove package` reports that the project has no such reference); edit the props file
 
 ## Phase 21: Connected Services, Part 2
-- [ ] OpenAPI (REST) clients: Visual Studio's "Add Connected Service > OpenAPI" (NSwag / `dotnet-openapi`)
-- [ ] gRPC clients from `.proto` files (Visual Studio's "Add Connected Service > gRPC")
+- [ ] gRPC references from `.proto` files (Visual Studio's "Add Connected Service > gRPC", `dotnet-grpc`): add, update, remove, in Connected Services; plan in [the gRPC spec](superpowers/specs/2026-10-23-grpc-references-design.md)
 
 ## Phase 22: Quality and documentation
 - [ ] Code review of the whole code base, once the nice-to-haves are in: plan in [the code review plan](superpowers/plans/2026-10-21-code-review.md)
@@ -81,4 +80,5 @@ Found along the way, to be fixed:
 - Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
 - Search in the Solution Explorer (Visual Studio's Ctrl+;): Ctrl+P and Sync with Active Document cover it; to be built if someone opens an issue for it
 - The diagnostic rules of each analyzer under Dependencies > Analyzers: `.editorconfig` sets their severities
+- OpenAPI clients (Visual Studio's "Add Connected Service > OpenAPI"): Microsoft deprecated `<OpenApiReference>` and `dotnet openapi` in .NET 10 and recommends the generators' own tools (NSwag, Kiota with its VS Code extension); to be built if someone opens an issue
 - Project Properties as a form and Visual Studio's Launch Profiles editor: Edit Project File covers the properties, and Open Launch Settings creates `launchSettings.json`, whose JSON schema helps with editing the profiles
