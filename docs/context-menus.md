@@ -57,7 +57,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Add Existing Item... |  | Copies files from anywhere into the project or folder; asks before replacing a file with the same name. |
 | Add File... |  | Creates an empty file; type its name in the tree. |
 | Add Folder... |  | Creates a folder; type its name in the tree. |
-| Add Service Reference... |  | Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. |
+| Add Service Reference... |  | Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds. |
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Manage NuGet Packages... |  | Opens the NuGet Package Manager for the project. |
 | Manage User Secrets |  | Opens the project's `secrets.json` in your user profile (outside the repository); adds a `UserSecretsId` to the project first if it has none. |
@@ -151,7 +151,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 
 | Command | Key | What it does |
 |---|---|---|
-| Add Service Reference... |  | Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. |
+| Add Service Reference... |  | Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds. |
 
 **On a service reference (a folder in Connected Services)**
 
@@ -216,7 +216,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 
 | Command | Key | What it does |
 |---|---|---|
-| Add Service Reference... |  | Adds a WCF/SOAP service reference from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. |
+| Add Service Reference... |  | Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds. |
 
 ## gRPC reference (in Connected Services)
 

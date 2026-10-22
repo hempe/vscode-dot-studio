@@ -4,7 +4,7 @@ WCF/SOAP service references, like Visual Studio's "Add Service Reference" (WCF W
 
 ## WCF: add
 
-Right-click a project or its **Connected Services** folder > **Add Service Reference...**:
+Right-click a project or its **Connected Services** folder > **Add Service Reference...** > **WCF Web Service**:
 1. The WSDL: a URL, or **Browse for WSDL File...**
 2. The reference's name (its folder) and the namespace of the generated client.
 
@@ -26,6 +26,24 @@ If `dotnet-svcutil` is missing, you are offered to install it **for the reposito
 - svcutil can't read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them from projects ported from .NET Framework before updating a reference.
 
 ## gRPC
+
+### Add
+
+Right-click a project or its **Connected Services** node > **Add Service Reference...** > **gRPC**:
+1. The service description: **Browse for .proto File...**, or **Enter URL...** (the file is downloaded into the project's `Protos` folder; a file there with other content is replaced only after you confirm).
+2. What to generate: **Client**, **Server** or **Both**. Both comes first in web projects (`Microsoft.NET.Sdk.Web`), Client in the others, as with `dotnet-grpc`.
+
+The project file gets the item `dotnet-grpc` writes, formatting kept:
+- a file in the project: `<Protobuf Include="Protos\greet.proto" GrpcServices="Client" />`
+- a file outside it: `<Protobuf Include="..\shared\greet.proto" GrpcServices="Client" Link="Protos\greet.proto" />` (the tree shows it in Protos)
+- from a URL: the item with a `<SourceUrl>` child, which Update uses
+- Both leaves `GrpcServices` out (Grpc.Tools' default)
+
+A file the project references already is refused, and so is a second file with the same name from outside the project (both would be shown as `Protos\greet.proto`).
+
+### Packages
+
+Client: `Google.Protobuf`, `Grpc.Net.ClientFactory` (in web projects `Grpc.AspNetCore.Server.ClientFactory`) and `Grpc.Tools` as a private development dependency; Server and Both: `Grpc.AspNetCore`, which brings the rest. Each in its newest stable version on your package sources. Packages the project already references, or gets from one it references, are left alone. With Central Package Management the versions go into `Directory.Packages.props` (see [NuGet](nuget.md#central-package-management)). The C# code is not written by the extension: Grpc.Tools generates it into `obj/` when the project builds.
 
 ### In the tree
 
