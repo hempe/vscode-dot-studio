@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 25 packages per target framework, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -49,16 +49,6 @@ Found along the way, to be fixed:
 - [ ] Automate manual checks: spike driving VS Code with Playwright (`_electron.launch` on `code-oss`, webviews as frames) in the throwaway profile of `scripts/screenshots/capture.sh`; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
 - [ ] Compare with Visual Studio feature by feature and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
 
-## Phase 25: Per-framework packages
-**Goal**: Projects that reference different packages per target framework (`net10.0` and `net8.0` in one `.csproj`, or conditions in `Directory.Build.props` and `Directory.Packages.props`), which the team writes by hand because Visual Studio's UI cannot express them, are shown and edited correctly instead of only for the first framework. To start with real examples of what the team writes.
-
-- [ ] Evaluate multi-targeted projects per target framework (today only the first one, see the Known bugs) and show each framework's packages in the tree, the NuGet manager and the update confirmation
-- [ ] Edits respect conditions: update the `PackageVersion` or `PackageReference` that applies to the framework (or all of them, after a confirmation naming them) instead of the first match; a new conditional entry can be written for a chosen framework
-- [ ] Packages declared in an imported props file without Central Package Management (`Directory.Build.props` with a `PackageReference`, e.g. one analyzer for every project): update and remove edit that file after a confirmation naming the projects it reaches (the `dotnet` CLI refuses: "Cannot edit items in imported files"), also offering "Set for This Project Only"; the machinery for `Directory.Packages.props` exists
-- [ ] Consolidate and Updates ignore version differences that are on purpose between target frameworks or projects (e.g. `NeinLinq` 2.2.1 for `net471` and 7.4.0 for `net10.0`)
-- [ ] Never offer an orphan removal of a version that another framework still uses (today any multi-targeted project suppresses the prompt)
-- [ ] Docs, GIF and manual-testing entries for the conditional cases
-
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
 - [ ] EF Core migrations from the context menu (Add Migration, Update Database, Remove Migration...) running the `dotnet ef` commands, since Visual Studio's Package Manager Console route is clumsy and teams use the CLI anyway
@@ -66,13 +56,15 @@ Found along the way, to be fixed:
 - [ ] Hot Reload with the debugger attached: not possible with netcoredbg (`dotnet watch` refuses assembly updates while a debugger is attached); revisit if a debugger that does Edit and Continue is available (Microsoft's, in Microsoft's C# extension)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension
 
-## Phase 31: Publish, Part 2
-**Goal**: The other publish targets of Visual Studio, with the `.pubxml` format Visual Studio writes for each (to be gathered from Visual Studio-made profiles first).
+## Phase 35: Per-framework packages
+**Goal** (hard and error prone: the team hand-writes these project files for a reason, so this comes last and only if it proves necessary; the read-only display of each framework's packages is the safe part, editing around conditions the risky one): Projects that reference different packages per target framework (`net10.0` and `net8.0` in one `.csproj`, or conditions in `Directory.Build.props` and `Directory.Packages.props`), which the team writes by hand because Visual Studio's UI cannot express them, are shown and edited correctly instead of only for the first framework. To start with real examples of what the team writes.
 
-- [ ] Azure App Service target (ZIP deploy through the Azure CLI, no stored password)
-- [ ] Container registry target (the SDK's container publish, credentials from `docker login` / `az acr login`)
-- [ ] FTP/FTPS target (upload after a folder publish, password in VS Code's secret storage)
-- [ ] IIS Web Deploy, only on Windows where `msdeploy` exists
+- [ ] Evaluate multi-targeted projects per target framework (today only the first one, see the Known bugs) and show each framework's packages in the tree, the NuGet manager and the update confirmation
+- [ ] Edits respect conditions: update the `PackageVersion` or `PackageReference` that applies to the framework (or all of them, after a confirmation naming them) instead of the first match; a new conditional entry can be written for a chosen framework
+- [ ] Packages declared in an imported props file without Central Package Management (`Directory.Build.props` with a `PackageReference`, e.g. one analyzer for every project): update and remove edit that file after a confirmation naming the projects it reaches (the `dotnet` CLI refuses: "Cannot edit items in imported files"), also offering "Set for This Project Only"; the machinery for `Directory.Packages.props` exists
+- [ ] Consolidate and Updates ignore version differences that are on purpose between target frameworks or projects (e.g. `NeinLinq` 2.2.1 for `net471` and 7.4.0 for `net10.0`)
+- [ ] Never offer an orphan removal of a version that another framework still uses (today any multi-targeted project suppresses the prompt)
+- [ ] Docs, GIF and manual-testing entries for the conditional cases
 
 ## Not Planned
 - ASP.NET (IIS Express), tests and old-style project files on .NET Framework 4.x: SDK-style `net4x` projects load, build, use the NuGet manager and run and debug with Mono on Linux and macOS, see [Troubleshooting](troubleshooting.md#known-limitations)
@@ -82,6 +74,7 @@ Found along the way, to be fixed:
 - A `.resx` resource editor
 - Task List (`// TODO` comments)
 - Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
+- The other publish targets of Visual Studio, with the `.pubxml` format it writes for each: Azure App Service (ZIP deploy through the Azure CLI), container registry (the SDK's container publish), FTP/FTPS, IIS Web Deploy (Windows only); folder publishing exists and profiles for the other targets are listed but publish from Visual Studio; to be built if someone opens an issue
 - Search in the Solution Explorer (Visual Studio's Ctrl+;): Ctrl+P and Sync with Active Document cover it; to be built if someone opens an issue for it
 - The diagnostic rules of each analyzer under Dependencies > Analyzers: `.editorconfig` sets their severities
 - OpenAPI clients (Visual Studio's "Add Connected Service > OpenAPI"): Microsoft deprecated `<OpenApiReference>` and `dotnet openapi` in .NET 10 and recommends the generators' own tools (NSwag, Kiota with its VS Code extension); to be built if someone opens an issue

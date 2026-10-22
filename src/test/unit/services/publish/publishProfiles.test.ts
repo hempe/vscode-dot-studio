@@ -43,7 +43,7 @@ describe('publishProfiles', () => {
         });
     });
 
-    it('recognizes profiles of other targets (Visual Studio teammates), which publish later (Phase 31)', () => {
+    it('recognizes profiles of other targets (Visual Studio teammates), which this extension lists but does not publish', () => {
         expect(parseProfile('<Project><PropertyGroup><WebPublishMethod>ZipDeploy</WebPublishMethod></PropertyGroup></Project>', '/p/Azure.pubxml').target).toBe('ZipDeploy');
         expect(parseProfile('<Project><PropertyGroup><PublishProtocol>FileSystem</PublishProtocol></PropertyGroup></Project>', '/p/Old.pubxml').target).toBe('Folder');
         expect(parseProfile('<Project><PropertyGroup><WebPublishMethod>FileSystem</WebPublishMethod></PropertyGroup></Project>', '/p/Old.pubxml').target).toBe('Folder');
