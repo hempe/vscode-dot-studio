@@ -19,6 +19,8 @@ interface PackageActionsProps {
     totalProjects?: number; // To determine if we should show "from selected projects" text
     /** False for transitive packages: only the package that brings them in can be removed */
     canUninstall?: boolean;
+    /** Central Package Management: a VersionOverride in the selected projects instead of a new central version */
+    onSetForProjectOnly?: (packageData: LocalNuGetPackage, projects: string[], version: string) => void;
 }
 
 export const PackageActions: React.FC<PackageActionsProps> = ({
@@ -33,7 +35,8 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
     getVersionOptions,
     installButtonText = "Install",
     totalProjects = 1,
-    canUninstall = true
+    canUninstall = true,
+    onSetForProjectOnly
 }) => {
     return (
         <div style={{
@@ -87,6 +90,27 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     {loading ? 'Installing...' : installButtonText}
                 </Button>
             </div>
+
+            {/* Central Package Management: the version for the selected projects only (VersionOverride) */}
+            {onSetForProjectOnly && <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '8px',
+            }}>
+                <Button
+                    style={{ justifyContent: 'center' }}
+                    appearance="secondary"
+                    disabled={selectedProjects.size === 0 || initializing || loading}
+                    onClick={() => {
+                        if (!initializing && !loading) {
+                            onSetForProjectOnly(selectedPackage, Array.from(selectedProjects), selectedVersion || selectedPackage.currentVersion);
+                        }
+                    }}
+                >
+                    {selectedProjects.size > 1 ? 'Set for Selected Projects Only' : 'Set for This Project Only'}
+                </Button>
+            </div>}
 
             {/* Uninstall Section */}
             {canUninstall && <div style={{

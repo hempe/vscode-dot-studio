@@ -28,6 +28,10 @@ Solutions that keep their package versions in `Directory.Packages.props` (`Manag
 | `v13.0.2 (override)` | the project's own `VersionOverride` |
 | `global` | a `GlobalPackageReference`: every project gets the package |
 
+![Central Package Management: an override, a global package, Set for This Project Only and Consolidate](images/central-packages.gif)
+
+Packages from a `GlobalPackageReference` carry a **global** badge in the lists. The details pane says where the selected package's version is set: the props file, and in the solution's manager which projects use that central version and which override it. **Set for This Project Only** (under Install, when the selected projects take the version from `Directory.Packages.props`) writes a `VersionOverride` with the chosen version instead of changing the central one, without asking.
+
 A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>`) keeps the versions in its project file, as before. When the .NET SDK cannot evaluate a project, its versions show as not known and are never offered as updates.
 
 ### What Install, Update and Uninstall change

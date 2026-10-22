@@ -3,6 +3,7 @@ import { ensureArray, LocalNuGetPackage } from "../shared";
 import { Checkbox } from "vscrui";
 import { logger } from "../../shared/logger";
 import { ProjectInfo as BackendProjectInfo } from "../../../services/nuget/types";
+import { versionLabel } from "../versionLabels";
 
 const log = logger('ProjectList');
 
@@ -99,8 +100,8 @@ export default function ProjectList({
                                 flexShrink: 0
                             }}>
                                 {(() => {
-                                    const installedPackage = project.packages?.find(pkg => pkg.id === selectedPackage.id);
-                                    return installedPackage ? `v${installedPackage.currentVersion}` : 'Not installed';
+                                    const installedPackage = project.packages?.find(pkg => pkg.id.toLowerCase() === selectedPackage.id.toLowerCase());
+                                    return installedPackage ? versionLabel(installedPackage) : 'Not installed';
                                 })()}
                             </div>
                         </div>

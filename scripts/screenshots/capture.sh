@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop gif-central-packages}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -112,6 +112,21 @@ close_panel() { click 1300 52; command "View: Hide Panel" 1; }
 # The panel's own close button: the command above fails at times while a webview has the focus (a build or test run
 # reopened the panel behind the template wizard). With no panel the click lands on empty space
 close_panel_button() { click 1570 696; }
+# A modal dialog of VS Code (a window of its own, at 0,0 without a window manager, under the cropped title bar): moved
+# to the middle of the screen; click_dialog_button <n> clicks the n-th of its two buttons (bottom row, left to right)
+dialog_window() { (timeout 10 xdotool search --sync --onlyvisible --name '^(Code - OSS|Visual Studio Code|VSCodium)$' || true) | tail -1; }
+# x y width height of a window
+window_box() { xdotool getwindowgeometry --shell "$1" | sed -n 's/^\(X\|Y\|WIDTH\|HEIGHT\)=//p' | tr '\n' ' '; }
+center_dialog() {
+    local w x y dw dh; w="$(dialog_window)"; [ -n "$w" ] || return 0
+    read -r x y dw dh <<< "$(window_box "$w")"
+    xdotool windowmove "$w" $(( (WIDTH - dw) / 2 )) $(( (HEIGHT - dh) / 3 ))
+}
+click_dialog_button() {
+    local w x y dw dh; w="$(dialog_window)"; [ -n "$w" ] || return 0
+    read -r x y dw dh <<< "$(window_box "$w")"
+    click $(( x + dw * ($1 * 2 - 1) / 4 )) $(( y + dh - 18 ))
+}
 # Every scene starts from the collapsed tree, with no editors and no panel
 reset() { command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
 
@@ -549,6 +564,81 @@ if wants gif-drag-and-drop; then
     cp "$WORK/Contoso.slnx.orig" "$SOLUTION/Contoso.slnx"
     rm -f "$SOLUTION/src/Shop.Core/Coupon.cs" "$SOLUTION/src/Shop.Core/Pricing/Coupon.cs"
     sleep 3
+fi
+
+if wants gif-central-packages; then
+    echo "Scene: gif-central-packages"
+    # The work copy moves to Central Package Management: the versions into Directory.Packages.props (an override in
+    # Shop.Core.NUnitTests, a global package), the Version attributes out of the projects. Put back and restored
+    # afterwards: the other scenes don't know it
+    (cd "$SOLUTION" && find src tests -name '*.csproj' -print0 | tar cf "$WORK/csproj.tar" --null -T -)
+    cat > "$SOLUTION/Directory.Packages.props" <<'XML'
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="NUnit" Version="4.3.2" />
+    <PackageVersion Include="NUnit.Analyzers" Version="4.7.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+  </ItemGroup>
+</Project>
+XML
+    find "$SOLUTION/src" "$SOLUTION/tests" -name '*.csproj' -exec sed -i -E '/<PackageReference /s/ Version="[^"]*"//' {} \;
+    sed -i 's|<PackageReference Include="Microsoft.NET.Test.Sdk"|& VersionOverride="17.14.0"|' "$SOLUTION/tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj"
+    (cd "$SOLUTION" && dotnet restore Contoso.slnx -v q -nologo >/dev/null)
+    # The project watchers re-evaluate the projects
+    sleep 8
+    reset
+    command "Notifications: Clear All Notifications" 1
+    # The C# extension warns while it reloads the edited projects: do not disturb (warnings and messages stay hidden,
+    # the confirmation is a dialog) until the end of the scene
+    command "Notifications: Toggle Do Not Disturb Mode" 1
+    tree_focus
+    record_start
+    # Dependencies > Packages: the override and the global package
+    tree_open Contoso tests Shop.Core.NUnitTests Dependencies Packages
+    pause 2
+    # Installed: Microsoft.SourceLink.GitHub (selected first) carries the global badge and says where it is set
+    command "Open NuGet Package Manager for Solution" 15
+    pause 3
+    # Filtered to Microsoft.NET.Test.Sdk and selected: the note names Directory.Packages.props and the override, the
+    # project list shows v17.14.1 and v17.14.0 (override)
+    click 1000 126; type_text "Test.Sdk"; pause 2
+    click 700 235; pause 4
+    # Shop.Core.XUnit2Tests checked (the last project row), the newest version (the dropdown's first entry), Set for This
+    # Project Only: a VersionOverride in that project, no question
+    click 965 551; pause 1.5
+    click 1295 615; pause 1.5
+    click 1240 639; pause 1.5
+    click 1437 649; xdotool mousemove 760 700; pause 7
+    # Consolidate (the fourth tab), Select all, the Consolidate button: the confirmation lists the edits
+    click 784 88; pause 4
+    click 507 156; pause 1
+    click 1524 126; pause 1
+    center_dialog; pause 4
+    click_dialog_button 2; pause 10
+    xdotool mousemove 1000 700; pause 2
+    record_stop central-packages
+    click 1300 52; command "Notifications: Toggle Do Not Disturb Mode" 1
+    command "Notifications: Clear All Notifications" 1
+    rm -f "$SOLUTION/Directory.Packages.props"
+    (cd "$SOLUTION" && tar xf "$WORK/csproj.tar")
+    (cd "$SOLUTION" && dotnet restore Contoso.slnx -v q -nologo >/dev/null)
+    sleep 5
+    command "View: Close All Editors" 1
 fi
 
 echo "Done: $OUT"

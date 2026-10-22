@@ -11,6 +11,7 @@ import { PackageList } from './components/PackageList';
 import { ProjectInfo } from '../../services/nuget/types';
 import { VersionUtils } from '../../services/versionUtils';
 import { NuGetViewData, UICmd } from '../../types/commands/ui';
+import { canSetForProjectOnly, centralNote } from './versionLabels';
 
 const log = logger('NuGetReact');
 
@@ -316,6 +317,31 @@ export const App: React.FC = () => {
                 includePrerelease
             }
         });
+    };
+
+    // Central Package Management: a VersionOverride in the selected projects instead of a new central version
+    const handleSetForProjectOnly = (pkg: LocalNuGetPackage, projects: string[], version: string) => {
+        setLoading(true);
+        sendToBackend({
+            type: 'installPackage',
+            payload: {
+                package: pkg,
+                projects,
+                version,
+                includePrerelease,
+                versionScope: 'project'
+            }
+        });
+    };
+
+    // Central Package Management: where the selected package's version comes from
+    const centralNoteBlock = (pkg: LocalNuGetPackage) => {
+        const note = centralNote(pkg, data.projects);
+        return note && (
+            <div style={{ fontSize: '12px', color: 'var(--vscode-descriptionForeground)', marginBottom: '12px' }}>
+                {note}
+            </div>
+        );
     };
 
     const handleUninstallPackage = (pkg: LocalNuGetPackage, projects: string[]) => {
@@ -862,6 +888,7 @@ export const App: React.FC = () => {
                                     Install it to reference it directly, e.g. to use a newer version.
                                 </div>
                             )}
+                            {centralNoteBlock(selectedPackage)}
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
@@ -881,6 +908,7 @@ export const App: React.FC = () => {
                                 onUninstall={handleUninstallPackage}
                                 getVersionOptions={getVersionOptions}
                                 canUninstall={!selectedPackage.transitiveReferencedBy}
+                                onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
                             />
                             <NugetDetails
                                 selectedPackage={selectedPackage}
@@ -1011,6 +1039,7 @@ export const App: React.FC = () => {
                     {selectedPackage ? (
                         <div>
                             <NugetHeader selectedPackage={selectedPackage} />
+                            {centralNoteBlock(selectedPackage)}
                             <ProjectList
                                 selectedPackage={selectedPackage}
                                 projects={data.projects || []}
@@ -1031,6 +1060,7 @@ export const App: React.FC = () => {
                                 onUninstall={handleUninstallPackage}
                                 getVersionOptions={getVersionOptions}
                                 installButtonText="Install"
+                                onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
                             />
 
                             {selectedProjects.size === 0 && (

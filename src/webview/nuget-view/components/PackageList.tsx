@@ -3,6 +3,7 @@ import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { Checkbox } from 'vscrui';
 import { VersionUtils } from '../../../services/versionUtils';
+import { isGlobal, versionLabel } from '../versionLabels';
 
 
 
@@ -174,6 +175,21 @@ export const PackageList: React.FC<PackageListProps> = ({
                                             }}>
                                                 {pkg.id}
                                             </span>
+                                            {isGlobal(pkg, pkg.projects) && (
+                                                <span
+                                                    title="GlobalPackageReference: every project gets it"
+                                                    style={{
+                                                        marginLeft: '6px',
+                                                        padding: '0 4px',
+                                                        borderRadius: '2px',
+                                                        fontSize: '10px',
+                                                        background: 'var(--vscode-badge-background)',
+                                                        color: 'var(--vscode-badge-foreground)'
+                                                    }}
+                                                >
+                                                    global
+                                                </span>
+                                            )}
                                             {!!pkg.authors?.length && (
                                                 <span style={{
                                                     fontWeight: 'normal',
@@ -241,15 +257,13 @@ export const PackageList: React.FC<PackageListProps> = ({
                                     </div>
                                     {/* Max installed version - only show if different from current and package has projects */}
                                     {pkg.projects && pkg.projects.length > 0 && (() => {
-                                        // Find the highest installed version across all projects
-                                        const installedVersions = pkg.projects.map(p => {
-                                            const installedPkg = p.packages?.find(installedPkg => installedPkg.id === pkg.id);
-                                            return installedPkg?.currentVersion;
-                                        }).filter(Boolean);
-                                        if (installedVersions.length > 0) {
-                                            const maxInstalledVersion = installedVersions.sort((a, b) => {
-                                                return compare(a!, b!); // rcompare for descending order
-                                            })[0];
+                                        // The highest installed version across all projects, with its source (override, global)
+                                        const installed = pkg.projects
+                                            .map(p => p.packages?.find(installedPkg => installedPkg.id.toLowerCase() === pkg.id.toLowerCase()))
+                                            .filter((installedPkg): installedPkg is NonNullable<typeof installedPkg> => !!installedPkg);
+                                        if (installed.length > 0) {
+                                            const known = installed.filter(installedPkg => installedPkg.currentVersion);
+                                            const maxInstalled = known.sort((a, b) => compare(a.currentVersion, b.currentVersion))[0] ?? installed[0];
 
                                             // Always show the max installed version when package is installed
                                             return (
@@ -258,7 +272,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                                     color: 'var(--vscode-descriptionForeground)',
                                                     marginTop: '1px'
                                                 }}>
-                                                    v{maxInstalledVersion}
+                                                    {versionLabel(maxInstalled)}
                                                 </div>
                                             );
                                         }

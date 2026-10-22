@@ -1,4 +1,4 @@
-import { NuGetPackage, InstalledPackage } from "../../services/nuget/types";
+import { NuGetPackage, InstalledPackage, PackageVersionSource } from "../../services/nuget/types";
 import { logger } from "../shared/logger";
 import { BackendCmd } from "../../types/commands/backend";
 import { UICmd } from "../../types/commands/ui";
@@ -13,6 +13,10 @@ export interface LocalNuGetPackage extends NuGetPackage {
     projectName?: string;
     /** Transitive packages: the top-level packages that bring it in */
     transitiveReferencedBy?: string[];
+    /** Installed packages: where the version comes from (Central Package Management) */
+    versionSource?: PackageVersionSource;
+    /** Installed packages: the file the version is written in */
+    versionFile?: string;
     projects?: {
         name: string;
         path: string;
