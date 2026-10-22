@@ -77,10 +77,15 @@ const same = (a: string, b: string) => path.normalize(a) === path.normalize(b);
 
 /**
  * After edits: restore (the whole solution when a props file changed, it reaches every project below it) and
- * evaluate the projects whose files or props files changed
+ * evaluate the projects whose files or props files changed, and those the CLI updated (`cliUpdated`)
  */
-async function afterEdits(changed: readonly string[], states: readonly ProjectState[], host: OperationsHost): Promise<PackageOperationResult[]> {
+async function afterEdits(
+    changed: readonly string[], states: readonly ProjectState[], host: OperationsHost, cliUpdated: readonly string[] = [],
+): Promise<PackageOperationResult[]> {
     if (changed.length === 0) {
+        if (cliUpdated.length > 0) {
+            await host.reevaluate([...new Set(cliUpdated)]);
+        }
         return [];
     }
     const propsChanged = changed.filter(file => !isProjectFile(file));
@@ -92,7 +97,8 @@ async function afterEdits(changed: readonly string[], states: readonly ProjectSt
     for (const target of targets) {
         results.push(await host.restore(target));
     }
-    await host.reevaluate(affected.map(state => state.path));
+    const evaluate = affected.map(state => state.path);
+    await host.reevaluate([...evaluate, ...new Set(cliUpdated.filter(projectPath => !evaluate.some(candidate => same(candidate, projectPath))))]);
     return results;
 }
 
@@ -132,6 +138,8 @@ export async function changePackageVersions(
     }
 
     const results: PackageOperationResult[] = [];
+    // Projects `dotnet add package` changed: evaluated again with the edited ones
+    const cliUpdated: string[] = [];
     const { changed, result } = await apply(plans.flatMap(candidate => candidate.edits));
     if (result) {
         return { cancelled: false, results: [result] };
@@ -141,10 +149,14 @@ export async function changePackageVersions(
             results.push({ success: true, message: `${candidate.id} ${candidate.version}`, packageId: candidate.id, version: candidate.version });
         }
         for (const projectPath of candidate.cliProjects) {
-            results.push(await host.install(projectPath, candidate.id, candidate.version));
+            const installed = await host.install(projectPath, candidate.id, candidate.version);
+            results.push(installed);
+            if (installed.success) {
+                cliUpdated.push(projectPath);
+            }
         }
     }
-    results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
+    results.push(...(await afterEdits(changed, states, host, cliUpdated)).filter(restore => !restore.success));
     return { cancelled: false, results };
 }
 
@@ -221,17 +233,22 @@ export async function consolidatePackages(changes: readonly { id: string; versio
         return { cancelled: false, results: [result] };
     }
     const results: PackageOperationResult[] = [];
+    const cliUpdated: string[] = [];
     for (const plan of plans) {
         if (plan.edits.length > 0) {
             results.push({ success: true, message: `${plan.id} ${plan.version}`, packageId: plan.id, version: plan.version });
         }
         for (const projectPath of plan.cliProjects) {
-            results.push(await host.install(projectPath, plan.id, plan.version));
+            const installed = await host.install(projectPath, plan.id, plan.version);
+            results.push(installed);
+            if (installed.success) {
+                cliUpdated.push(projectPath);
+            }
         }
         if (plan.edits.length === 0 && plan.cliProjects.length === 0) {
             results.push({ success: true, message: `${plan.id} is already at ${plan.version} in all projects`, packageId: plan.id });
         }
     }
-    results.push(...(await afterEdits(changed, states, host)).filter(restore => !restore.success));
+    results.push(...(await afterEdits(changed, states, host, cliUpdated)).filter(restore => !restore.success));
     return { cancelled: false, results };
 }

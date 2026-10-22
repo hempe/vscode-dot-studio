@@ -111,6 +111,16 @@ describe('central package operations (confirmations, edits, CLI, restore)', () =
         expect(read(extra())).toContain('Version="8.1.0"');
     });
 
+    test('projects updated with the CLI are evaluated again; a failed CLI update is not', async () => {
+        await changePackageVersions([{ id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] }], 'shared', host);
+        expect(host.reevaluate).toHaveBeenCalledWith([csproj('Legacy')]);
+
+        host.reevaluate.mockClear();
+        host.install.mockResolvedValue({ success: false, message: 'failed' });
+        await changePackageVersions([{ id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] }], 'shared', host);
+        expect(host.reevaluate).not.toHaveBeenCalled();
+    });
+
     test('an edit that fails leaves every file as it was and reports the error', async () => {
         fs.writeFileSync(extra(), '<Project>\n</Project>\n');
         const before = read(props());
@@ -168,5 +178,6 @@ describe('central package operations (confirmations, edits, CLI, restore)', () =
         expect(read(csproj('Override'))).toContain('VersionOverride="13.0.2"');
         await consolidatePackages([{ id: 'Polly', version: '8.1.0' }], host);
         expect(host.install).toHaveBeenCalledWith(csproj('Legacy'), 'Polly', '8.1.0');
+        expect(host.reevaluate).toHaveBeenCalledWith([csproj('Legacy')]);
     });
 });

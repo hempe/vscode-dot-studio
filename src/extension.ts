@@ -9,6 +9,7 @@ import { DotnetTaskProvider, DOTNET_TASK_TYPE } from './services/dotnetTaskProvi
 import { ErrorListViewProvider, ERROR_LIST_VIEW } from './webview/providers/ErrorListViewProvider';
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
+import { CentralPackageWatchers } from './services/nuget/centralPackageWatchers';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn, setLogSink } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
@@ -133,10 +134,20 @@ export function activate(context: vscode.ExtensionContext) {
         iconThemeService
     );
 
+    // Props files change what projects contain and their package versions: every project is evaluated again
+    const reevaluateAllProjects = async () => {
+        const solution = SolutionService.getActiveSolution();
+        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.reevaluateItems()));
+    };
+    // Files Directory.Packages.props imports (and props outside the workspace, re-checked when the NuGet editor gets focus)
+    const centralPackageWatchers = new CentralPackageWatchers(reevaluateAllProjects);
+    context.subscriptions.push(centralPackageWatchers);
+
     // Create NuGet custom editor provider
     const nugetCustomEditorProvider = new NuGetCustomEditorProvider(
         context.extensionUri,
-        context
+        context,
+        () => centralPackageWatchers.recheck()
     );
 
     // Register webview providers for both sidebar and secondary-sidebar locations
@@ -333,14 +344,13 @@ export function activate(context: vscode.ExtensionContext) {
     launchSettingsWatcher.onDidChange(handleLaunchSettingsChange);
     launchSettingsWatcher.onDidDelete(handleLaunchSettingsChange);
 
-    // Directory.Build.props/targets change what every project below contains
-    const buildPropsWatcher = vscode.workspace.createFileSystemWatcher('**/Directory.Build.{props,targets}');
+    // Directory.Build.props/targets change what every project below contains, Directory.Packages.props its package versions
+    const buildPropsWatcher = vscode.workspace.createFileSystemWatcher('**/Directory.{Build.props,Build.targets,Packages.props}');
     const handleBuildPropsChange = async (uri: vscode.Uri) => {
         if (isExcluded(uri.fsPath, rootOf(uri.fsPath))) {
             return;
         }
-        const solution = SolutionService.getActiveSolution();
-        await Promise.all([...(solution?.projects.values() ?? [])].map(project => project.reevaluateItems()));
+        await reevaluateAllProjects();
     };
     buildPropsWatcher.onDidCreate(handleBuildPropsChange);
     buildPropsWatcher.onDidChange(handleBuildPropsChange);

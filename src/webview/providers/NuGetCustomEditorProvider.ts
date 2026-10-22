@@ -11,6 +11,7 @@ import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallP
 import { NuGetViewData } from '../../types/commands/ui';
 import { VersionUtils } from '../../services/versionUtils';
 import { solutionWorkspaceFolder } from '../../services/workspaceFolders';
+import { ProjectItemsService } from '../../services/projectItems/projectItemsService';
 
 const log = logger('NuGetCustomEditorProvider');
 
@@ -19,12 +20,39 @@ const log = logger('NuGetCustomEditorProvider');
  */
 export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvider {
     public static readonly viewType = 'shinobi.nugetPackageManager';
-    private readonly _webviewPanels = new Map<string, vscode.WebviewPanel>();
+    private readonly _webviewPanels = new Map<string, { panel: vscode.WebviewPanel; context: { type: 'project' | 'solution', target: string }; includePrerelease: boolean }>();
+    // The packages version of each project last seen: a new one (Directory.Packages.props changed) refreshes the open editors
+    private readonly _packageVersions = new Map<string, number>();
+    private _refreshTimer?: ReturnType<typeof setTimeout>;
 
+    /** @param _onFocus re-checks props files no watcher sees (outside the workspace) when an editor gets focus */
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _extensionContext: vscode.ExtensionContext
+        private readonly _extensionContext: vscode.ExtensionContext,
+        private readonly _onFocus: () => Promise<void> = async () => { }
     ) {
+        ProjectItemsService.instance.onDidEvaluate(projectPath => this._packagesEvaluated(projectPath));
+    }
+
+    /** New package versions of a project: the open editors show them (once per burst of evaluations) */
+    private _packagesEvaluated(projectPath: string): void {
+        const version = ProjectItemsService.instance.packagesVersion(projectPath);
+        if (this._packageVersions.get(projectPath) === version) {
+            return;
+        }
+        this._packageVersions.set(projectPath, version);
+        if (this._webviewPanels.size === 0) {
+            return;
+        }
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+        }
+        this._refreshTimer = setTimeout(() => {
+            this._refreshTimer = undefined;
+            for (const { panel, context, includePrerelease } of this._webviewPanels.values()) {
+                void this._updateWebview(panel.webview, context, includePrerelease);
+            }
+        }, 500);
     }
 
     /**
@@ -38,12 +66,20 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         // Parse context and target from the document URI
         const context = this._getContextFromUri(document.uri);
 
-        // Store the webview panel for message handling
-        this._webviewPanels.set(document.uri.toString(), webviewPanel);
+        // Store the webview panel for message handling and refreshes
+        const entry = { panel: webviewPanel, context, includePrerelease: Settings.nugetIncludePrerelease() };
+        this._webviewPanels.set(document.uri.toString(), entry);
 
         // Clean up on dispose
         webviewPanel.onDidDispose(() => {
             this._webviewPanels.delete(document.uri.toString());
+        });
+
+        // Props files outside the workspace have no watcher: look at them when the editor comes to the front
+        webviewPanel.onDidChangeViewState(event => {
+            if (event.webviewPanel.active) {
+                void this._onFocus();
+            }
         });
 
         // Setup initial content for the webview
@@ -59,7 +95,12 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
         // Handle messages from the webview
         webviewPanel.webview.onDidReceiveMessage(
-            message => this._handleMessage(message, context, webviewPanel.webview),
+            message => {
+                if (message.type === 'getNuGetData') {
+                    entry.includePrerelease = message.payload.includePrerelease;
+                }
+                return this._handleMessage(message, context, webviewPanel.webview);
+            },
             undefined,
             []
         );
@@ -572,6 +613,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 return false;
             });
 
+            // The Installed and Updates tabs show the new versions
+            if (!cancelled) {
+                await this._updateWebview(webview, context, message.payload.includePrerelease);
+            }
+
             // Send completion message to frontend
             sendToUi(webview, {
                 type: 'bulkUpdateComplete',
@@ -644,8 +690,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 return false;
             });
 
-            // Refresh the consolidate tab data
+            // Refresh the consolidate tab data, and the Installed and Updates tabs (they show the versions consolidated)
             await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
+            if (!cancelled) {
+                await this._updateWebview(webview, context, message.payload.includePrerelease);
+            }
 
             // Send completion message to frontend
             sendToUi(webview, {
