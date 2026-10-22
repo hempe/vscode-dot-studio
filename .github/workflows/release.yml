@@ -5,6 +5,8 @@ name: Release
 # the same .vsix goes to the Visual Studio Marketplace, Open VSX and the GitHub release. Release notes left empty are
 # filled from the CHANGELOG.md section of that version.
 # A store is skipped while its token secret (VSCE_PAT, OVSX_PAT) is not set, so the workflow works before the accounts exist.
+# VSCE_PAT stays unset for now (an Azure DevOps organization needs an Azure subscription): the .vsix attached to the release
+# is uploaded to the Visual Studio Marketplace by hand, see RELEASING.md.
 on:
   release:
     types: [published]
