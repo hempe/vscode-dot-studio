@@ -11,7 +11,12 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 3. Commit and push that to `master`.
 4. GitHub > Releases > **Draft a new release**: choose "Create new tag" and type `v0.2.0` (the tag is the version, `v` + `major.minor.patch`, nothing else), target `master`. Tick **Set as a pre-release** for a first or risky release. Leave the notes empty to use the changelog section, or write them. Click **Publish release**.
 5. Watch Actions > Release. It runs typecheck and tests, builds one `.vsix` with the tag's version, publishes it to Open VSX (VSCodium) when `OVSX_PAT` is set, and attaches it to the release. The run's summary says which stores got it.
-6. **Visual Studio Marketplace, by hand:** download `shinobi-dotnet.vsix` from the release, open marketplace.visualstudio.com/manage/publishers/shinobi, and upload it (**New extension** the first time, then the extension's **...** menu > **Update**). Whether it is a pre-release is part of the `.vsix` (the workflow built it with `--pre-release` for a pre-release). The Marketplace checks the file for a few minutes before it shows the version.
+6. **Visual Studio Marketplace, by hand** (once the Release run is green and the release has its `.vsix`):
+   1. Get the file: GitHub > Releases > the release > Assets > `shinobi-dotnet.vsix`, or `gh release download v0.2.0 --pattern '*.vsix' --dir /tmp` (use the tag you released).
+   2. Open marketplace.visualstudio.com/manage/publishers/shinobi and sign in.
+   3. First release: **New extension** > **Visual Studio Code**, choose the `.vsix`. Later releases: the extension's **...** menu > **Update**, choose the `.vsix`.
+   4. Wait: the Marketplace validates the file and shows a verifying state for a few minutes. If it says the version already exists, the same version was uploaded before: release the next patch number.
+   5. The listing's pre-release flag comes from the `.vsix` itself (the workflow built it with `--pre-release` for a pre-release), nothing to tick on the page.
 7. Check the listings a few minutes later: marketplace.visualstudio.com/items?itemName=shinobi.dotnet and open-vsx.org/extension/shinobi/dotnet. Install the new version in VS Code once.
 
 Version numbers: `major.minor.patch`. For the Marketplace's pre-release channel use an odd minor for pre-releases (`0.1.x`) and an even one for stable (`0.2.x`); a store never accepts the same version twice, so a failed publish after the version went out needs a new patch number.
