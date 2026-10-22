@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 30 what may come later, phase 31 the other publish targets.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 25 packages per target framework, phase 30 what may come later, phase 31 the other publish targets.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
