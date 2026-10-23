@@ -21,6 +21,7 @@ Found along the way; fixed before the code review of Phase 22.
 - [ ] After a drag & drop a grey hover highlight sometimes stays on a row the drag started on or passed over (Chromium sends no mouse-leave during a drag); cosmetic, clear it on drag end
 - [ ] Central packages: after an edit in the NuGet manager the projects are possibly evaluated twice (the explicit re-evaluation plus the props and project file watchers); unverified, the CentralPackageWatchers have no debounce
 - [ ] Delete on a linked file deletes the real file, not just the link, and nothing in the confirmation says so: warn clearly and offer to remove only the link (a Remove Link command)
+- [ ] Startup profiles: a project with the action "Start without debugging" still runs under the debugger with the C# extension of Open VSX (`muhammad-sammy.csharp`, netcoredbg): its `launch.json` entry has `noDebug: true` and `ps` showed a netcoredbg process for it, its own log said `Debugger.IsAttached` true (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; cause assumed to be netcoredbg ignoring `noDebug`, Microsoft's debugger not tried); to try: start such projects through a `node-terminal` configuration (a command in a terminal, no .NET debugger) inside the compound, and make Stop and `stopAll` end them
 
 ## Phase 21, Part 4: Limitations we can fix
 Small to moderate, no design needed.
