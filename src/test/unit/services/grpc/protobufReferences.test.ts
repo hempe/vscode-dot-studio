@@ -161,6 +161,30 @@ describe('duplicateRefusal', () => {
             .toBe('Protos\\greet.proto is already taken by the gRPC reference ..\\shared\\greet.proto; rename one of the files.');
     });
 
+    test('a name that differs only in case (A.PROTO for a.proto) is the same file on Windows and macOS, another file on Linux', () => {
+        const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+        const lower = { include: 'Protos\\a.proto', fullPath: path.join(projectDir, 'Protos', 'a.proto') };
+        const lowerXml = addProtobufReference(project, { include: 'Protos\\a.proto', services: 'Client' });
+        const upper = path.join(projectDir, 'Protos', 'A.PROTO');
+        const outside = path.join(root, 'shared', 'A.PROTO');
+        const refusals = (name: string) => {
+            Object.defineProperty(process, 'platform', { value: name });
+            try {
+                return [
+                    duplicateRefusal([lower], project, projectDir, upper, protobufReferenceFor(projectDir, upper, 'Client')),
+                    duplicateRefusal([], lowerXml, projectDir, upper, protobufReferenceFor(projectDir, upper, 'Client')),
+                    duplicateRefusal([lower], project, projectDir, outside, protobufReferenceFor(projectDir, outside, 'Client')),
+                ];
+            } finally {
+                Object.defineProperty(process, 'platform', platform);
+            }
+        };
+        const taken = 'Protos\\A.PROTO is already taken by the gRPC reference Protos\\a.proto; rename one of the files.';
+        expect(refusals('win32')).toEqual(['A.PROTO is already a gRPC reference of Client.', 'A.PROTO is already a gRPC reference of Client.', taken]);
+        expect(refusals('darwin')).toEqual(['A.PROTO is already a gRPC reference of Client.', 'A.PROTO is already a gRPC reference of Client.', taken]);
+        expect(refusals('linux')).toEqual([undefined, undefined, undefined]);
+    });
+
     test('a new file is fine', () => {
         const orders = path.join(projectDir, 'Protos', 'orders.proto');
         expect(duplicateRefusal([greet], withReference, projectDir, orders, protobufReferenceFor(projectDir, orders, 'Client'))).toBeUndefined();
