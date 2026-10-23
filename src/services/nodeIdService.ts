@@ -22,11 +22,18 @@ export declare type ProjectNodeId = {
 export declare type FolderNodeId = {
     readonly type: 'folder';
     readonly path: string;
+    /**
+     * The project whose tree shows the folder, when the path alone would name another one: a folder in the folder
+     * of a nested project, shown in the outer project's tree. Absent otherwise (the deepest project around the path).
+     */
+    readonly project?: string;
 }
 
 export declare type FileNodeId = {
     readonly type: 'file';
     readonly path: string;
+    /** The project whose tree shows the file, when the path alone would name another one (see FolderNodeId) */
+    readonly project?: string;
 }
 
 export declare type SolutionFolderNodeId = {
@@ -193,20 +200,22 @@ export class NodeIdService {
     /**
      * Generates a unique ID for a folder node
      */
-    static generateFolderId(folderPath: string): NodeIdString {
+    static generateFolderId(folderPath: string, project?: string): NodeIdString {
         return this.encode({
             type: 'folder',
-            path: folderPath
+            path: folderPath,
+            ...(project ? { project } : {}),
         });
     }
 
     /**
      * Generates a unique ID for a file node
      */
-    static generateFileId(filePath: string): NodeIdString {
+    static generateFileId(filePath: string, project?: string): NodeIdString {
         return this.encode({
             type: 'file',
-            path: filePath
+            path: filePath,
+            ...(project ? { project } : {}),
         });
     }
 

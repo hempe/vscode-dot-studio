@@ -47,6 +47,20 @@ export function holdsProject(folder: string, projects: readonly string[]): boole
     });
 }
 
+/**
+ * Whether the file or folder lies in the folder of another of the projects that is below the project's folder: a
+ * nested project's file shown in the outer project's tree (the SDK globs include it). Its path alone names the
+ * nested project, so its node id also names the project whose tree shows it.
+ */
+export function inNestedProject(target: string, projectPath: string, projects: readonly string[]): boolean {
+    const projectDir = path.dirname(projectPath);
+    return projects.some(other => {
+        const otherDir = path.dirname(other);
+        const toTarget = path.relative(otherDir, target);
+        return other !== projectPath && isBelow(path.relative(projectDir, otherDir)) && (toTarget === '' || isBelow(toTarget));
+    });
+}
+
 /** Whether the project, as evaluated after the edit, has the file or folder out (exclude) or in (include) */
 export function membershipApplied(items: ProjectItems, target: string, isFolder: boolean, exclude: boolean): boolean {
     const included = isFolder ? items.itemTypesUnder(target).length > 0 : items.isIncluded(target);

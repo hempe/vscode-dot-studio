@@ -1280,7 +1280,9 @@ export class SolutionActionService {
             vscode.window.showWarningMessage(refusal);
             return;
         }
-        const projectPath = projectForPath(target);
+        // The project whose tree was clicked: in a nested project's folder the id names the outer one when it was there
+        const shownIn = nodeId.type === 'file' || nodeId.type === 'folder' ? nodeId.project : undefined;
+        const projectPath = shownIn ?? projectForPath(target);
         const project = projectPath ? solution?.projects.get(projectPath) : undefined;
         if (!projectPath || !project) {
             vscode.window.showWarningMessage('The item is not in a project.');

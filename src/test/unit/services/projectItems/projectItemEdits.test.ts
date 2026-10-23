@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { excludeEdit, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
+import { excludeEdit, inNestedProject, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
 import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
 
 const dir = path.resolve('/work/App');
@@ -80,6 +80,25 @@ describe('membershipRefusal', () => {
         expect(membershipRefusal(at('Sub'), true, solutionProjects)).toBeUndefined();
         expect(membershipRefusal(at('Tools', 'T.cs'), false, solutionProjects)).toBeUndefined();
         expect(membershipRefusal(at('Tool'), true, solutionProjects)).toBeUndefined();
+    });
+});
+
+describe('inNestedProject', () => {
+    const outer = path.join(dir, 'App.csproj');
+    const inner = at('Deep', 'Inner', 'Inner.csproj');
+    const solutionProjects = [outer, at('Tools', 'Tools.csproj'), inner];
+
+    test('a file or folder in the folder of a project below the outer one', () => {
+        expect(inNestedProject(at('Tools', 'T.cs'), outer, solutionProjects)).toBe(true);
+        expect(inNestedProject(at('Deep', 'Inner', 'Sub'), outer, solutionProjects)).toBe(true);
+        expect(inNestedProject(at('Deep', 'Inner'), outer, solutionProjects)).toBe(true);
+    });
+
+    test('not in the project\'s own folders, nor in the nested project\'s own tree', () => {
+        expect(inNestedProject(at('Sub', 'A.cs'), outer, solutionProjects)).toBe(false);
+        expect(inNestedProject(at('Deep', 'D.cs'), outer, solutionProjects)).toBe(false);
+        expect(inNestedProject(at('Toolbox', 'T.cs'), outer, solutionProjects)).toBe(false);
+        expect(inNestedProject(at('Deep', 'Inner', 'Sub', 'X.cs'), inner, solutionProjects)).toBe(false);
     });
 });
 

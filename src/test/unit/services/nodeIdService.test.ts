@@ -64,3 +64,19 @@ describe('NodeIdService encoding', () => {
         expect(NodeIdService.isValid(old)).toBe(true);
     });
 });
+
+describe('NodeIdService: the project whose tree shows a file or folder', () => {
+    test('file and folder ids carry the project only when it is given', () => {
+        const file = NodeIdService.parse(NodeIdService.generateFileId('/s/Outer/Inner/Foo.cs', '/s/Outer/Outer.csproj'));
+        expect(file).toEqual({ type: 'file', path: '/s/Outer/Inner/Foo.cs', project: '/s/Outer/Outer.csproj' });
+        const folder = NodeIdService.parse(NodeIdService.generateFolderId('/s/Outer/Inner/Sub', '/s/Outer/Outer.csproj'));
+        expect(folder).toEqual({ type: 'folder', path: '/s/Outer/Inner/Sub', project: '/s/Outer/Outer.csproj' });
+    });
+
+    test('without a project the ids stay as before (persisted expansion state still matches)', () => {
+        const before = Buffer.from(JSON.stringify({ type: 'folder', path: '/s/App/Sub' }), 'utf8').toString('base64url');
+        expect(NodeIdService.generateFolderId('/s/App/Sub')).toBe(before);
+        expect(NodeIdService.generateFolderId('/s/App/Sub', undefined)).toBe(before);
+        expect(NodeIdService.parse(NodeIdService.generateFileId('/s/App/A.cs'))).toEqual({ type: 'file', path: '/s/App/A.cs' });
+    });
+});

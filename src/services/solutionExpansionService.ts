@@ -141,7 +141,8 @@ export class SolutionExpansionService {
                     return;
                 }
 
-                const project = solution.getProject(path);
+                // A folder of a nested project's folder in the outer project's tree names the outer project
+                const project = solution.getProject(node.project ?? path);
                 if (project) {
                     const folderChildren = await project.getFolderChildren(path);
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);
@@ -623,14 +624,15 @@ export class SolutionExpansionService {
                     log.warn(`Could not find project for dependency category: ${path}`);
                 }
             } else if (nodeType === 'folder') {
-                const path = NodeIdService.parse(nodeId).path;
+                const folder = NodeIdService.parse(nodeId);
+                const path = folder.path;
 
                 if (!path) {
                     log.error(`Could not extract paths from folder expansion ID: ${nodeId}`);
                     return;
                 }
 
-                const project = solution.getProject(path);
+                const project = solution.getProject((folder.type === 'folder' ? folder.project : undefined) ?? path);
                 if (project) {
                     const folderChildren = await project.getFolderChildren(path);
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(folderChildren);

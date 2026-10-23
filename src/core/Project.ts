@@ -18,7 +18,7 @@ import { workspaceFolderOf } from '../services/workspaceFolders';
 import { ProjectItemsService } from '../services/projectItems/projectItemsService';
 import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
 import { ShowAllFiles } from '../services/showAllFiles';
-import { holdsProject } from '../services/projectItems/projectItemEdits';
+import { holdsProject, inNestedProject } from '../services/projectItems/projectItemEdits';
 import { ProjectItems } from '../services/projectItems/projectItems';
 import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
 import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
@@ -806,12 +806,14 @@ export class Project {
             : node.itemState === 'included' && (!isFolder || this.canExcludeFolder(node.path)) ? INCLUDED_ITEM
             : undefined;
         const folderValue = isFolder ? this.folderContextValue(node.path) : undefined;
+        // In a nested project's folder the path alone names that project: the id says this tree shows the node
+        const owner = inNestedProject(node.path, this._projectPath, this._solutionProjects()) ? this._projectPath : undefined;
         return {
             type: node.type,
             name: node.name,
             // Connected Services also lists the gRPC references
             hasChildren: node.hasChildren || (folderValue === 'connectedServices' && grpcReferenceNodes(this._projectPath).length > 0),
-            nodeId: isFolder ? NodeIdService.generateFolderId(node.path) : NodeIdService.generateFileId(node.path),
+            nodeId: isFolder ? NodeIdService.generateFolderId(node.path, owner) : NodeIdService.generateFileId(node.path, owner),
             contextValue: folderValue ?? itemValue,
             ...(node.itemState === 'excluded' || node.itemState === 'linked' ? { itemState: node.itemState } : {}),
             // Folders load their children when expanded; nested files are known with their parent

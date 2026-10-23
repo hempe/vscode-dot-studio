@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Project } from '../../../core/Project';
+import { NodeIdService } from '../../../services/nodeIdService';
 import { parseMsbuildItems } from '../../../services/projectItems/projectItems';
 import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
 import { ShowAllFiles } from '../../../services/showAllFiles';
@@ -123,6 +124,33 @@ describe('Project file tree with the item overlay', () => {
         const folder = (await project.getFolderChildren(dir)).find(child => child.name === 'Tools');
         expect(folder).toBeDefined();
         expect(folder?.contextValue).toBeUndefined();
+    });
+
+    test('files and folders in the folder of a nested project say in their id that they are shown in this project\'s tree', async () => {
+        const tools = path.join(dir, 'Tools');
+        fs.mkdirSync(path.join(tools, 'Sub'), { recursive: true });
+        fs.writeFileSync(path.join(tools, 'T.cs'), '');
+        fs.writeFileSync(path.join(tools, 'Sub', 'S.cs'), '');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [
+                { Identity: 'Program.cs', FullPath: path.join(dir, 'Program.cs') },
+                { Identity: 'Tools/T.cs', FullPath: path.join(tools, 'T.cs') },
+                { Identity: 'Tools/Sub/S.cs', FullPath: path.join(tools, 'Sub', 'S.cs') },
+            ] },
+        }), dir));
+        const project = new Project(projectPath, { name: 'App', path: 'App.csproj', guid: 'g', typeGuid: 't' } as never, () => false,
+            () => [projectPath, path.join(tools, 'Tools.csproj')]);
+        while (!project.isInitialized) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        const owner = (child: { nodeId: string } | undefined) => (NodeIdService.parse(child!.nodeId as never) as { project?: string }).project;
+        const root = await project.getFolderChildren(dir);
+        expect(owner(root.find(child => child.name === 'Program.cs'))).toBeUndefined();
+        expect(owner(root.find(child => child.name === 'Tools'))).toBe(projectPath);
+        const inTools = await project.getFolderChildren(tools);
+        expect(owner(inTools.find(child => child.name === 'T.cs'))).toBe(projectPath);
+        expect(owner(inTools.find(child => child.name === 'Sub'))).toBe(projectPath);
+        expect(inTools.find(child => child.name === 'T.cs')?.contextValue).toBe('included');
     });
 
     test('does not offer Exclude on a folder without files of the project (empty, or only linked files)', async () => {
