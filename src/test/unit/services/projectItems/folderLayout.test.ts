@@ -7,7 +7,7 @@ const at = (...parts: string[]) => path.join(dir, ...parts);
 const file = (name: string): DiskEntry => ({ name, isDirectory: false });
 const folder = (name: string): DiskEntry => ({ name, isDirectory: true });
 
-const items = parseMsbuildItems(JSON.stringify({
+const itemsJson = JSON.stringify({
     Items: {
         Compile: [
             { Identity: 'Program.cs', FullPath: at('Program.cs') },
@@ -15,7 +15,8 @@ const items = parseMsbuildItems(JSON.stringify({
             { Identity: '..\\Shared\\Shared.cs', FullPath: path.resolve('/work/Shared/Shared.cs'), Link: 'Linked\\Shared.cs' },
         ],
     },
-}), dir);
+});
+const items = parseMsbuildItems(itemsJson, dir);
 
 const summary = (entries: ReturnType<typeof layoutFolder>) => entries.map(entry => `${entry.name}:${entry.state ?? '-'}`);
 
@@ -60,15 +61,28 @@ describe('layoutFolder', () => {
         expect(summary(layoutFolder(dir, [folder('obj')], items, false, new Set([at('obj')])))).toEqual(['Linked:linked']);
     });
 
-    // pathKey compares case-sensitively on Linux, so Bin/OBJ are ordinary folders there
-    const ignoresCase = process.platform === 'win32' || process.platform === 'darwin';
-    test('bin and obj are hidden by any casing without Show All Files, shown with it (where paths ignore case)', () => {
+    // pathKey reads process.platform when it is called: every branch runs on every system
+    describe('bin and obj in another casing', () => {
+        const original = process.platform;
+        const setPlatform = (value: string) => Object.defineProperty(process, 'platform', { value });
+        afterEach(() => setPlatform(original));
         const mixed = [folder('Bin'), folder('OBJ')];
         const all = new Set<string>(); // empty folders count as included unless they are build output
-        expect(summary(layoutFolder(dir, mixed, items, false, all))).toEqual(
-            ignoresCase ? ['Linked:linked'] : ['Bin:included', 'OBJ:included', 'Linked:linked']);
-        expect(summary(layoutFolder(dir, mixed, items, true, all))).toEqual(
-            ignoresCase ? ['Bin:excluded', 'OBJ:excluded', 'Linked:linked'] : ['Bin:included', 'OBJ:included', 'Linked:linked']);
+
+        test.each(['win32', 'darwin'])('are build output on %s (paths ignore case): hidden without Show All Files, excluded with it', platform => {
+            setPlatform(platform);
+            // Parsed after the override: the item keys are made at parse time
+            const caseless = parseMsbuildItems(itemsJson, dir);
+            expect(summary(layoutFolder(dir, mixed, caseless, false, all))).toEqual(['Linked:linked']);
+            expect(summary(layoutFolder(dir, mixed, caseless, true, all))).toEqual(['Bin:excluded', 'OBJ:excluded', 'Linked:linked']);
+        });
+
+        test('are ordinary folders on linux (paths respect case)', () => {
+            setPlatform('linux');
+            const cased = parseMsbuildItems(itemsJson, dir);
+            expect(summary(layoutFolder(dir, mixed, cased, false, all))).toEqual(['Bin:included', 'OBJ:included', 'Linked:linked']);
+            expect(summary(layoutFolder(dir, mixed, cased, true, all))).toEqual(['Bin:included', 'OBJ:included', 'Linked:linked']);
+        });
     });
 
     describe('an excluded disk file with the name of a linked file', () => {
