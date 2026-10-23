@@ -82,7 +82,7 @@ Sync Namespaces, on projects and folders, is described in [Sync Namespaces](sync
 
 ## Drag and drop
 
-Drag nodes to move them, as in Visual Studio. The row a drop would go into is highlighted; where a drop is not possible the pointer says so. Hovering a collapsed folder or solution folder for a moment opens it.
+Drag nodes to move them, as in Visual Studio. The row a drop would go into is highlighted; where a drop is not possible the pointer says so. Hovering a collapsed folder or solution folder for a moment opens it. After the drop the node it went into is open and the moved nodes are selected, so they stay in sight (a moved file is selected once its project has been evaluated again, a moment later).
 
 | Drag | Onto | Does | With the copy key |
 |---|---|---|---|

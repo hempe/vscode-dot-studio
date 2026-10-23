@@ -14,6 +14,27 @@ import { grpcChildren } from './grpc/grpcNodes';
 
 const log = logger('SolutionExpansionService');
 
+/** Where a drop went and what it moved or copied, to show them once the tree is rebuilt */
+export interface DropResult {
+    /** The node the drop went into (for a file target the folder or project it is in) */
+    readonly container: NodeIdString;
+    /**
+     * In drop order: the path of projects, files, folders and solution items, the name of solution folders (the ids
+     * of solution folders and solution items change with their parent, so they are found again by these)
+     */
+    readonly nodes: readonly { readonly type: NodeType; readonly key: string }[];
+}
+
+/** The `DropResult` key of a tree node: its type with its name (solution folders) or path */
+function dropKey(node: ProjectNode): string | undefined {
+    try {
+        const id = NodeIdService.parse(node.nodeId);
+        return `${id.type}|${id.type === 'solutionFolder' ? id.name : id.path}`;
+    } catch {
+        return undefined;
+    }
+}
+
 /**
  * Service responsible for handling node expansion/collapse operations
  * Extracted from SolutionWebviewProvider to improve maintainability
@@ -320,6 +341,47 @@ export class SolutionExpansionService {
         }
         this.saveExpansionState(expanded, context);
         return chain[chain.length - 1].nodeId;
+    }
+
+    /**
+     * After a drop, like Visual Studio: opens the node the drop went into (loading its children where needed) and
+     * remembers it as expanded, then returns the ids of the moved nodes below it, in drop order. Empty when the tree
+     * does not have that node or does not show the moved nodes (yet).
+     * @param open false: only look for the moved nodes (the node was opened before, the user may have closed it since)
+     */
+    static async revealDrop(
+        drop: DropResult,
+        nodes: ProjectNode[],
+        context: vscode.ExtensionContext,
+        open = true,
+        loadChildren: (node: ProjectNode) => Promise<ProjectNode[]> = node => this._loadChildren(node)
+    ): Promise<NodeIdString[]> {
+        const container = SolutionTreeService.findNodeById(drop.container, nodes);
+        if (!container) {
+            return [];
+        }
+        if (open) {
+            if (!container.children?.length && (container.type === 'project' || container.type === 'folder')) {
+                container.children = await loadChildren(container);
+                container.hasChildren = container.children.length > 0;
+            }
+            container.expanded = true;
+            const expanded = this.getExpansionState(context);
+            expanded.add(container.nodeId);
+            this.saveExpansionState(expanded, context);
+        }
+
+        // Below the container, nested files included (a moved Index.cshtml.cs shows under Index.cshtml)
+        const below = new Map<string, NodeIdString>();
+        const walk = (list: ProjectNode[] | undefined) => list?.forEach(node => {
+            const key = dropKey(node);
+            if (key && !below.has(key)) {
+                below.set(key, node.nodeId);
+            }
+            walk(node.children);
+        });
+        walk(container.children);
+        return drop.nodes.map(node => below.get(`${node.type}|${node.key}`)).filter((id): id is NodeIdString => !!id);
     }
 
     /** Loads the children of a project or folder for revealing a file, with the watcher expanding by hand creates */

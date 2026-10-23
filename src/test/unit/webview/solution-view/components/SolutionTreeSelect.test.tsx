@@ -41,4 +41,22 @@ describe('SolutionTree: Sync with Active Document', () => {
         expect(document.activeElement).toBe(elsewhere);
         elsewhere.remove();
     });
+    it('selects all nodes a drop moved, the first one focused', () => {
+        Element.prototype.scrollIntoView = () => { };
+        const tree: ProjectNode[] = [{
+            ...projects[0],
+            children: [{ ...projects[0].children![0], children: [
+                { type: 'file', name: 'A.cs', nodeId: 'a' as NodeIdString },
+                { type: 'file', name: 'B.cs', nodeId: 'b' as NodeIdString },
+            ] }],
+        }];
+        const { container } = render(<SolutionTree projects={tree} onProjectAction={() => { }} />);
+
+        act(() => {
+            window.dispatchEvent(new MessageEvent('message', { data: { type: 'selectNode', payload: { nodeId: 'a', nodeIds: ['a', 'b'], focus: true } } }));
+        });
+
+        expect([...container.querySelectorAll('.tree-node.selected')].map(el => el.textContent)).toEqual(['A.cs', 'B.cs']);
+        expect(container.querySelector('.tree-node.focused')?.textContent).toBe('A.cs');
+    });
 });

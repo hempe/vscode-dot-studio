@@ -60,6 +60,9 @@ import { SolutionActionService } from '../../../services/solutionActionService';
 import { NodeIdService } from '../../../services/nodeIdService';
 import { solutionDropNode } from '../../../services/solutionDropNodes';
 import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+import { SolutionTreeService } from '../../../services/solutionTreeService';
+import { SolutionExpansionService } from '../../../services/solutionExpansionService';
+import { ProjectNode } from '../../../types';
 
 const fixture = path.join(__dirname, '../../../__fixtures__/solution-hierarchy');
 
@@ -224,5 +227,56 @@ describe('SolutionActionService.moveNodes (drag & drop)', () => {
         expect(fs.existsSync(helper)).toBe(true);
         expect(fs.existsSync(at('README.md'))).toBe(true);
         expect(fs.readFileSync(solution.solutionPath, 'utf8')).toBe(before);
+    });
+    test('returns where the drop went and what it moved: paths, and the names of solution folders; nothing for a refused drop', async () => {
+        write('namespace CoreLibrary;\n', 'lib', 'CoreLibrary', 'Helper.cs');
+        ui.answers = ['Skip'];
+        const readme = NodeIdService.generateSolutionItemId('README.md', guid('Web Projects'), at('README.md'));
+
+        expect(await SolutionActionService.moveNodes([fileNode('lib', 'CoreLibrary', 'Helper.cs')], projectNode('lib', 'Utils', 'Utils.csproj'), false)).toEqual({
+            container: projectNode('lib', 'Utils', 'Utils.csproj'),
+            nodes: [{ type: 'file', key: at('lib', 'Utils', 'Helper.cs') }],
+        });
+        expect(await SolutionActionService.moveNodes(
+            [projectNode('src', 'WebApp', 'WebApp.csproj'), readme, folderNode('Libraries', 'Shared')], folderNode('Tools'), false)).toEqual({
+            container: folderNode('Tools'),
+            nodes: [
+                { type: 'project', key: at('src', 'WebApp', 'WebApp.csproj') },
+                { type: 'solutionItem', key: at('README.md') },
+                { type: 'solutionFolder', key: 'Shared' },
+            ],
+        });
+        expect(await SolutionActionService.moveNodes([NodeIdService.generateDependenciesId(at('lib', 'Utils', 'Utils.csproj'))], folderNode('Tools'), false)).toBeUndefined();
+    });
+
+    test('.slnx: the rebuilt tree opens the collapsed solution folder of a drop and finds the moved nodes, also a solution folder whose id changed', async () => {
+        const slnx = new Solution(at('TestHierarchy.slnx'));
+        for (let i = 0; i < 100 && !slnx.isInitialized; i++) await new Promise(r => setTimeout(r, 10));
+        (SolutionService as any).activeSolution = slnx;
+        let saved: string[] = [];
+        const ctx = { workspaceState: { get: (_key: string, fallback: string[]) => saved.length ? saved : fallback, update: (_key: string, value: string[]) => { saved = value; } } } as any;
+        const all = (nodes: ProjectNode[]): ProjectNode[] => nodes.flatMap(node => [node, ...all(node.children ?? [])]);
+        const child = (parent: ProjectNode, name: string) => parent.children!.find(node => node.name === name)!;
+        try {
+            const before = await SolutionTreeService.buildSolutionTree(slnx);
+            const tools = all(before).find(node => node.type === 'solutionFolder' && node.name === 'Tools')!;
+            const shared = child(all(before).find(node => node.name === 'Web Projects')!, 'Shared');
+            const standalone = all(before).find(node => node.name === 'StandaloneProject')!;
+            expect(tools.expanded).toBeFalsy();
+
+            const drop = await SolutionActionService.moveNodes([standalone.nodeId, shared.nodeId], tools.nodeId, false);
+            const after = await SolutionTreeService.buildSolutionTree(slnx);
+            await SolutionExpansionService.restoreExpansionStates(after, ctx);
+            const revealed = await SolutionExpansionService.revealDrop(drop!, after, ctx);
+
+            const toolsAfter = all(after).find(node => node.nodeId === tools.nodeId)!;
+            expect(toolsAfter.expanded).toBe(true);
+            expect(saved).toContain(tools.nodeId);
+            expect(revealed).toEqual([child(toolsAfter, 'StandaloneProject').nodeId, child(toolsAfter, 'Shared').nodeId]);
+            // The folder's id comes from its path in a .slnx without Id attributes
+            expect(revealed[1]).not.toBe(shared.nodeId);
+        } finally {
+            slnx.dispose();
+        }
     });
 });

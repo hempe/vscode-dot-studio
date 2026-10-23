@@ -109,7 +109,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                 setFocusedNodeId(message.payload.nodeId);
                 setRenamingNodeId(message.payload.nodeId);
             } else if (message.type === 'selectNode') {
-                setSelectedNodeId(message.payload.nodeId);
+                setSelection(message.payload.nodeIds?.length ? [...message.payload.nodeIds] : [message.payload.nodeId]);
+                setSelectionAnchor(message.payload.nodeId);
                 setFocusedNodeId(message.payload.nodeId);
                 setRevealNodeId(message.payload.nodeId);
                 setRevealFocus(message.payload.focus !== false);

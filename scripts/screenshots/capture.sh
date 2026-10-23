@@ -572,10 +572,9 @@ if wants gif-drag-and-drop; then
     # Update Namespace, which opens the file
     drag 70 "$(row_y 8)" 330 "$(row_y 7)" 1.5; pause 1.5
     key Return; pause 2.5
-    # Pricing is open now: 8 Discounts, 9 Coupon.cs, 10 PriceCalculator.cs, 11 Shop.Generators, ..., 15 tools.
-    # Shop.Generators onto the tools solution folder, which is opened afterwards to show it
-    drag 70 "$(row_y 11)" 330 "$(row_y 15)"; pause 2
-    click 200 "$(row_y 14)"; key Right; pause 2
+    # Pricing is open now, Coupon.cs selected: 8 Discounts, 9 Coupon.cs, 10 PriceCalculator.cs, 11 Shop.Generators, ...,
+    # 15 tools. Shop.Generators onto the collapsed tools solution folder, which opens with it selected
+    drag 70 "$(row_y 11)" 330 "$(row_y 15)"; pause 3
     xdotool mousemove 1000 400; pause 1
     record_stop drag-and-drop
     command "File: Save All" 1

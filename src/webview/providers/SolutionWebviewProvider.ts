@@ -4,7 +4,7 @@ import { ShowAllFiles } from '../../services/showAllFiles';
 import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
 import { SolutionActionService } from '../../services/solutionActionService';
-import { SolutionExpansionService } from '../../services/solutionExpansionService';
+import { DropResult, SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
 import { NodeIdService } from '../../services/nodeIdService';
 import { ProjectNode, SolutionData } from '../../types';
@@ -31,6 +31,9 @@ import { solutionWorkspaceFolder } from '../../services/workspaceFolders';
 
 const log = logger('SolutionWebviewProvider');
 
+/** How long after a drop the tree still looks for the moved nodes to select them (a moved file waits for MSBuild) */
+const DROP_REVEAL_MS = 10000;
+
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'shinobi-solution-webview';
@@ -55,6 +58,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     // Cache for solution tree data to improve expand performance
     private _cachedSolutionData?: ProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
+    /** A drop whose target opens and whose moved nodes are selected once the tree is rebuilt (and shows them) */
+    private _dropToReveal?: { readonly drop: DropResult; readonly until: number; opened: boolean };
     private get webview(): vscode.Webview | undefined {
         return this._view?.webview;
     }
@@ -78,9 +83,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const solutionData = await this._getSolutionData();
 
                 await SolutionExpansionService.restoreExpansionStates(solutionData, this._context);
+                const dropped = await this._revealDrop(solutionData);
                 await this._sendSolutionData(solutionData);
 
                 this._cachedSolutionData = solutionData;
+                if (dropped.length > 0) {
+                    sendToUi(this.webview, { type: 'selectNode', payload: { nodeId: dropped[0], nodeIds: dropped, focus: false } });
+                }
                 // Note: hideLoading is not needed here - the solutionData message handler
                 // will automatically set loading=false in useVsCodeApi.ts (line 388-389)
             } catch (error) {
@@ -311,7 +320,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     log.warn('moveNodes without nodes or target ignored');
                     break;
                 }
-                await SolutionActionService.moveNodes(nodeIds, targetNodeId, copy === true);
+                const drop = await SolutionActionService.moveNodes(nodeIds, targetNodeId, copy === true);
+                if (drop) {
+                    this._dropToReveal = { drop, until: Date.now() + DROP_REVEAL_MS, opened: false };
+                }
                 // Solution nodes change the solution file, files and folders the disk: refresh both ways, like the other operations
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
@@ -739,6 +751,27 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             log.error('Error creating folder:', error);
             vscode.window.showErrorMessage(`Error creating folder: ${error}`);
         }
+    }
+
+    /**
+     * After a drop, like Visual Studio: the node it went into opens (once) and the moved nodes get selected. A moved
+     * file shows only once MSBuild evaluated its project again, so later rebuilds look for them, for a while.
+     */
+    private async _revealDrop(tree: ProjectNode[]): Promise<NodeIdString[]> {
+        const pending = this._dropToReveal;
+        if (!pending) {
+            return [];
+        }
+        if (Date.now() > pending.until) {
+            this._dropToReveal = undefined;
+            return [];
+        }
+        const revealed = await SolutionExpansionService.revealDrop(pending.drop, tree, this._context, !pending.opened);
+        pending.opened = true;
+        if (revealed.length > 0) {
+            this._dropToReveal = undefined;
+        }
+        return revealed;
     }
 
     /**

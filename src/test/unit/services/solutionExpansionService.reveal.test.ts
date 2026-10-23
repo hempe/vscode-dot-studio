@@ -107,3 +107,77 @@ describe('SolutionExpansionService.collapseAll', () => {
         expect(ctx.saved).toEqual([solutionId]);
     });
 });
+
+describe('SolutionExpansionService.revealDrop (after a drop)', () => {
+    const apiPath = path.resolve('/repo/src/Api/Api.csproj');
+
+    it('opens the solution folder a project was dropped onto and returns the project, remembered as expanded', async () => {
+        const nodes = tree();
+        const ctx = context();
+
+        const revealed = await SolutionExpansionService.revealDrop({ container: srcFolderId, nodes: [{ type: 'project', key: apiPath }] }, nodes, ctx, true, load);
+
+        expect(revealed).toEqual([apiId]);
+        expect(find(nodes, srcFolderId)?.expanded).toBe(true);
+        expect(ctx.saved).toEqual([srcFolderId]);
+    });
+
+    it('finds a moved solution folder and solution item by name and path: their ids changed with the parent', async () => {
+        const nodes = tree();
+        const src = find(nodes, srcFolderId)!;
+        const sharedId = NodeIdService.generateSolutionFolderId('Shared', '/repo/App.slnx', 'guid-new', 'guid-src');
+        const readmeId = NodeIdService.generateSolutionItemId('README.md', 'guid-src', path.resolve('/repo/README.md'));
+        src.children!.push({ type: 'solutionFolder', name: 'Shared', nodeId: sharedId, children: [] }, { type: 'solutionItem', name: 'README.md', nodeId: readmeId });
+
+        const revealed = await SolutionExpansionService.revealDrop({
+            container: srcFolderId,
+            nodes: [{ type: 'solutionItem', key: path.resolve('/repo/README.md') }, { type: 'solutionFolder', key: 'Shared' }],
+        }, nodes, context(), true, load);
+
+        expect(revealed).toEqual([readmeId, sharedId]);
+    });
+
+    it('loads the children of a collapsed folder a file was dropped onto, nested files included', async () => {
+        const nodes = tree();
+        const api = find(nodes, apiId)!;
+        api.expanded = true;
+        api.children = await load(api);
+
+        const revealed = await SolutionExpansionService.revealDrop({
+            container: pagesId,
+            nodes: [{ type: 'file', key: path.resolve('/repo/src/Api/Pages/Index.cshtml.cs') }],
+        }, nodes, context(), true, load);
+
+        expect(revealed).toEqual([pageCodeId]);
+        expect(find(nodes, pagesId)?.expanded).toBe(true);
+    });
+
+    it('opens the target even when the tree does not show the moved nodes yet, and returns none', async () => {
+        const nodes = tree();
+
+        const revealed = await SolutionExpansionService.revealDrop({ container: srcFolderId, nodes: [{ type: 'project', key: path.resolve('/repo/Other/Other.csproj') }] }, nodes, context(), true, load);
+
+        expect(revealed).toEqual([]);
+        expect(find(nodes, srcFolderId)?.expanded).toBe(true);
+    });
+
+    it('a container the tree does not have: nothing is opened or remembered', async () => {
+        const nodes = tree();
+        const ctx = context();
+        const gone = NodeIdService.generateSolutionFolderId('Gone', '/repo/App.slnx', 'guid-gone');
+
+        expect(await SolutionExpansionService.revealDrop({ container: gone, nodes: [{ type: 'project', key: apiPath }] }, nodes, ctx, true, load)).toEqual([]);
+        expect(ctx.saved).toEqual([]);
+    });
+
+    it('open false only looks: a target the user closed again stays closed', async () => {
+        const nodes = tree();
+        const ctx = context();
+
+        const revealed = await SolutionExpansionService.revealDrop({ container: srcFolderId, nodes: [{ type: 'project', key: apiPath }] }, nodes, ctx, false, load);
+
+        expect(revealed).toEqual([apiId]);
+        expect(find(nodes, srcFolderId)?.expanded).toBe(false);
+        expect(ctx.saved).toEqual([]);
+    });
+});

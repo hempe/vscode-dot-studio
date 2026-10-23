@@ -140,11 +140,13 @@ export declare type StartRenameCmd = {
     }
 }
 
-/** Selects, focuses and scrolls to a tree node, e.g. after "Sync with Active Document" */
+/** Selects, focuses and scrolls to a tree node, e.g. after "Sync with Active Document" or a drop */
 export declare type SelectNodeCmd = {
     readonly type: 'selectNode',
     readonly payload: {
         readonly nodeId: NodeIdString,
+        /** All nodes to select, `nodeId` among them (the nodes a drop moved); without it only `nodeId` */
+        readonly nodeIds?: readonly NodeIdString[],
         /** Move the keyboard focus to the tree; not when only following the active editor */
         readonly focus?: boolean,
     }
