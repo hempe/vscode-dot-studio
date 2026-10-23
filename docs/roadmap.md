@@ -1,54 +1,51 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Parts 3 to 5 are the known bugs and the limitations we can and want to fix, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
 ## Known bugs
 
-Found along the way, to be fixed:
+Bugs found later are listed here, to be fixed. The ones found so far are in Phase 21, Part 3.
+
+## Phase 21, Part 3: Known bugs
+Found along the way; fixed before the code review of Phase 22.
+
 - [ ] A one-time MSBuild failure (timeout, a half-saved project file) is cached as "no item list" until the project changes again (project file, a props file, new files), so the project shows the plain disk listing meanwhile; retry with a backoff, or when the project is expanded next
 - [ ] Exclude From Project / Include In Project on a file in the folder of a nested project, from the outer project's tree, edits the nested (deepest) project's file; only folders that hold a project are refused
 - [ ] Item matching in the project file skips XML comments and items inside `<Target>`, but only knows self-closing items: a block-form item (`<Compile Remove="Old.cs"></Compile>`, or one with metadata children) is not found, so Include In Project leaves its `Remove` in place and adds an `Include` item after it instead (the file is included, the project file gets both), and Exclude does not see an existing block-form `Remove` and adds a self-closing one
 - [ ] After a new item list, `Project.reloadLoadedFolders` reloads the expanded folders in the order they were expanded, not parents before children (by depth)
 - [ ] Show All Files is read from a global that is set to the new solution only after it has loaded (`ShowAllFiles.setSolution` after `solution.ready`): folders read while the solution loads, e.g. after an evaluation answered from the cache right after switching solutions, use the previous solution's setting
 - [ ] The tests of path casing for Windows and macOS (bin/obj in any casing, `folderLayout.test.ts`) only run their case-insensitive branch on those systems; on Linux they check the case-sensitive one
-- [ ] The Visual Studio build-action item types added to the item list (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) come from memory and are not checked against Visual Studio; the platform files of iOS/MAUI projects are not checked either (workloads not installed)
-- [ ] The position of the link badge of linked files in the tree was never seen on screen
-- [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
 - [ ] After a project, folder or solution folder is dropped onto a collapsed solution folder, the target stays collapsed and the moved node is out of sight; expand the target and select the moved node (Visual Studio does, as far as known)
 - [ ] After a drag & drop a grey hover highlight sometimes stays on a row the drag started on or passed over (Chromium sends no mouse-leave during a drag); cosmetic, clear it on drag end
-- [ ] Central packages: a package with several conditional `PackageVersion` entries (e.g. one per target framework) gets only the first matching one edited
-- [ ] Central packages: a `Version="$(Prop)"` shared by several packages is replaced by a literal version on the edited package only, so it no longer follows the property
-- [ ] Central packages: multi-targeted projects are evaluated for their first target framework only, so packages (and versions) of the other target frameworks are not seen: not shown, not updated, and not counted when uninstalling (which is why the "no project uses it any more" question is never asked then)
 - [ ] Central packages: after an edit in the NuGet manager the projects are possibly evaluated twice (the explicit re-evaluation plus the props and project file watchers); unverified, the CentralPackageWatchers have no debounce
+- [ ] Delete on a linked file deletes the real file, not just the link, and nothing in the confirmation says so: warn clearly and offer to remove only the link (a Remove Link command)
 
-## Known limitations
+## Phase 21, Part 4: Limitations we can fix
+Small to moderate, no design needed.
 
-- [ ] Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used; store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
-- [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
-- [ ] Files a project links from outside its own directory are not rolled up into the project's marker
-- [ ] Updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2)
-- [ ] svcutil cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`); remove them when porting before updating a reference
-- [ ] Exclude From Project and Include In Project work on SDK-style projects only; a linked file has no Exclude, and Delete on it deletes the real file
-- [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
-- [ ] Drag & drop works within the Solution Explorer only: files dropped from VS Code's Explorer or the file manager are not taken (a webview gets no file paths from such drops)
-- [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
-- [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
-- [ ] Central Package Management: a props file imported through a property (`$(SomeDir)/x.props`) or a wildcard is not watched, only imports written with a literal path, `$(MSBuildThisFileDirectory)` or `GetPathOfFileAbove` are; edit it, then change a project file or reopen the NuGet manager
-- [ ] Central Package Management: props files outside the opened folder are only re-checked when the NuGet manager gets focus; the tree shows their changes after that, or after a project file changes
-- [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
-- [ ] Central Package Management: a `PackageReference` that comes from a props file (not from the project file) cannot be uninstalled from the NuGet manager (`dotnet remove package` reports that the project has no such reference); edit the props file
 - [ ] The Test Explorer does not use a `.runsettings` file or `RunSettingsFilePath`: VSTest projects are run with a fixed minimal setting (`vstestClient.ts`), so `MaxCpuCount` (parallel test assemblies) and `BatchSize` of a team's file have no effect (a speed difference, not a different result; data collectors only matter for coverage, which stays a script); Microsoft.Testing.Platform projects were not checked for what they do with such settings
-- [ ] gRPC references: Update only works for references added from a URL (`SourceUrl`); a local `.proto` is the file itself
-- [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
 - [ ] gRPC references: the packages come in the newest stable version on the configured sources; a project that pins an older `Google.Protobuf` may need it raised by hand (NU1605 at restore)
 - [ ] gRPC references: a case-only duplicate such as `a.proto` / `A.PROTO` on Windows or macOS is not detected (unproven)
+
+## Phase 21, Part 5: Limitations we want to fix
+Valuable but bigger, or edge cases. Phase 35 holds the per-framework package work (conditional `PackageVersion` entries, packages of the other target frameworks, `PackageReference` items from props files).
+
+- [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
+- [ ] Central packages: a `Version="$(Prop)"` shared by several packages is replaced by a literal version on the edited package only, so it no longer follows the property
+- [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
+- [ ] Files a project links from outside its own directory are not rolled up into the project's marker
+- [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
+- [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
+- [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
+- [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
+- [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
 
 ## Phase 22: Quality and documentation
 - [ ] Code review of the whole code base, once the nice-to-haves are in: plan in [the code review plan](superpowers/plans/2026-10-21-code-review.md)
 - [ ] Automate manual checks: spike driving VS Code with Playwright (`_electron.launch` on `code-oss`, webviews as frames) in the throwaway profile of `scripts/screenshots/capture.sh`; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
-- [ ] Compare with Visual Studio feature by feature and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
+- [ ] Compare with Visual Studio feature by feature (including how its NuGet manager handles Central Package Management and which build actions it lists) and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
 
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
@@ -76,6 +73,11 @@ Found along the way, to be fixed:
 - Task List (`// TODO` comments)
 - Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
 - The other publish targets of Visual Studio, with the `.pubxml` format it writes for each: Azure App Service (ZIP deploy through the Azure CLI), container registry (the SDK's container publish), FTP/FTPS, IIS Web Deploy (Windows only); folder publishing exists and profiles for the other targets are listed but publish from Visual Studio; to be built if someone opens an issue
+- Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used: store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
+- `dotnet-svcutil` limits, not ours to fix: updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2), and it cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`; remove them when porting before updating a reference)
+- Exclude From Project and Include In Project on old-style (non-SDK) projects, and Exclude for linked files: SDK-style projects only
+- Drag & drop from VS Code's Explorer or the file manager into the Solution Explorer: a webview gets no file paths from such drops
+- Central Package Management props files imported through a property (`$(SomeDir)/x.props`) or a wildcard, or located outside the opened folder, are not watched live (only imports written with a literal path, `$(MSBuildThisFileDirectory)` or `GetPathOfFileAbove` are, and outside files are re-checked when the NuGet manager gets focus): VS Code's file watching cannot see them; edit, then change a project file or reopen the NuGet manager
 - Search in the Solution Explorer (Visual Studio's Ctrl+;): Ctrl+P and Sync with Active Document cover it; to be built if someone opens an issue for it
 - The diagnostic rules of each analyzer under Dependencies > Analyzers: `.editorconfig` sets their severities
 - OpenAPI clients (Visual Studio's "Add Connected Service > OpenAPI"): Microsoft deprecated `<OpenApiReference>` and `dotnet openapi` in .NET 10 and recommends the generators' own tools (NSwag, Kiota with its VS Code extension); to be built if someone opens an issue
