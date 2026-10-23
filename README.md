@@ -8,15 +8,15 @@
 
 ## Install
 
-<!-- Fill in when published:
 [![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/shinobi.dotnet-studio?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/shinobi.dotnet-studio)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
 [![Open VSX](https://img.shields.io/open-vsx/v/shinobi/dotnet-studio?label=Open%20VSX)](https://open-vsx.org/extension/shinobi/dotnet-studio)
 [![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet-studio)](https://open-vsx.org/extension/shinobi/dotnet-studio)
 
-VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet-studio`.
-VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet-studio`.
--->
+VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet-studio --pre-release`.
+VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet-studio --pre-release`.
+
+Until the first stable release this is a pre-release: in the Extensions view choose **Install Pre-Release Version**.
 
 A C# extension is needed for editing and debugging, see [Requirements](#requirements).
 
