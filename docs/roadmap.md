@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Part 5 is the limitations we want to fix, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Part 5 is the limitations we want to fix, phase 22 quality and documentation, phase 23 the small limitations left until after the code review, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -13,22 +13,26 @@ Bugs found later are listed here, to be fixed.
 - [ ] A project without packages, project references and assemblies has no Dependencies node (`Project.getRootChildren`: `if (this.dependencies.length > 0)`), so a bare console project shows nothing to right-click for Add Project Reference / Add Service Reference; Visual Studio always shows Dependencies (with Analyzers and Frameworks) and offers Add Connected Service on it. Show the node on every SDK-style project and put Add Service Reference... in its menu (seen 2026-10-23 with `SoapClient` in `/home/hempe/manual-test/3-soap-references`)
 
 ## Phase 21, Part 5: Limitations we want to fix
-Valuable but bigger, or edge cases. Phase 35 holds the per-framework package work (conditional `PackageVersion` entries, packages of the other target frameworks, `PackageReference` items from props files).
+Valuable for the team's daily work; fixed before the code review of Phase 22.
 
-- [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
 - [ ] Central packages: a `Version="$(Prop)"` shared by several packages is replaced by a literal version on the edited package only, so it no longer follows the property
 - [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
-- [ ] Files a project links from outside its own directory are not rolled up into the project's marker
 - [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
 - [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
-- [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
-- [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
-- [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
 
 ## Phase 22: Quality and documentation
 - [ ] Code review of the whole code base, once the nice-to-haves are in: plan in [the code review plan](superpowers/plans/2026-10-21-code-review.md)
 - [ ] Automate manual checks: spike driving VS Code with Playwright (`_electron.launch` on `code-oss`, webviews as frames) in the throwaway profile of `scripts/screenshots/capture.sh`; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
 - [ ] Compare with Visual Studio feature by feature (including how its NuGet manager handles Central Package Management and which build actions it lists) and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
+
+## Phase 23: Limitations to look at after the code review
+Edge cases and cosmetics; decided to leave until the code review of Phase 22 is done. Phase 35 holds the per-framework package work.
+
+- [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
+- [ ] Files a project links from outside its own directory are not rolled up into the project's marker
+- [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
+- [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
+- [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
 
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
