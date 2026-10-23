@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import type { DragEvent, MouseEvent } from 'react';
 import { DiagnosticMarkers, NodeType, ProjectNode } from "../../../types";
 import { NodeIdString } from "../../../types/nodeId";
 import { ProjectActionCmd } from "../../../types/commands/project-action";
@@ -31,6 +31,10 @@ export interface TreeNodeProps {
     onNodeDragOver?: (nodeId: NodeIdString, e: DragEvent) => void;
     onNodeDrop?: (nodeId: NodeIdString, e: DragEvent) => void;
     onNodeDragEnd?: () => void;
+    /** The row under the mouse: a class, not CSS :hover, which Chromium moves to a wrong row after a drop */
+    hoveredNodeId?: NodeIdString;
+    /** A mouseover or mousemove on the row */
+    onNodeHover?: (nodeId: NodeIdString, e: MouseEvent) => void;
 }
 
 export interface SolutionTreeProps {

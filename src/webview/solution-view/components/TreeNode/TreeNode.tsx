@@ -33,7 +33,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onNodeDragStart,
     onNodeDragOver,
     onNodeDrop,
-    onNodeDragEnd
+    onNodeDragEnd,
+    hoveredNodeId,
+    onNodeHover
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
 
@@ -327,7 +329,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''} ${hoveredNodeId === nodeIdentifier ? 'hovered' : ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
@@ -337,6 +339,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onDragOver={e => onNodeDragOver?.(nodeIdentifier, e)}
                 onDrop={e => onNodeDrop?.(nodeIdentifier, e)}
                 onDragEnd={() => onNodeDragEnd?.()}
+                onMouseOver={e => onNodeHover?.(nodeIdentifier, e)}
+                onMouseMove={e => onNodeHover?.(nodeIdentifier, e)}
                 data-vscode-context={node.isTemporary ? undefined : JSON.stringify({
                     webviewSection: 'node',
                     nodeType: node.type,
@@ -459,6 +463,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onNodeDragOver={onNodeDragOver}
                             onNodeDrop={onNodeDrop}
                             onNodeDragEnd={onNodeDragEnd}
+                            hoveredNodeId={hoveredNodeId}
+                            onNodeHover={onNodeHover}
                         />
                     ))}
                 </div>

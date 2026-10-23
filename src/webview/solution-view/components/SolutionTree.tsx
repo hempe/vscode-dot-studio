@@ -178,6 +178,24 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     };
     useEffect(() => () => clearExpandTimer(), []);
 
+    // The row under the mouse. Not CSS :hover: after a drop Chromium sends a mouseover (and moves :hover) to the row now
+    // at the point where the drag started, though the mouse is elsewhere. So from a drag's start nothing is hovered
+    // until the mouse really moves: a mousemove with a movement (Chromium's own events after the drop have none)
+    const [hoveredNodeId, setHoveredNodeId] = useState<NodeIdString | undefined>();
+    const hoverPaused = useRef(false);
+    const handleNodeHover = (nodeId: NodeIdString | undefined, e: React.MouseEvent) => {
+        if (draggedIds.current.length > 0) {
+            return;
+        }
+        if (hoverPaused.current) {
+            if (e.type !== 'mousemove' || (!e.movementX && !e.movementY)) {
+                return;
+            }
+            hoverPaused.current = false;
+        }
+        setHoveredNodeId(nodeId);
+    };
+
     /** The rules' answer for what is dragged over `targetId`; undefined when nothing is dragged */
     const dropVerdict = (targetId: NodeIdString, e: React.DragEvent) => {
         const target = dropNodes.get(targetId);
@@ -200,6 +218,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             setSelectedNodeId(nodeId);
         }
         draggedIds.current = ids;
+        hoverPaused.current = true;
+        setHoveredNodeId(undefined);
         e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(ids));
         e.dataTransfer.effectAllowed = 'copyMove';
     };
@@ -233,6 +253,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     const endDrag = () => {
         draggedIds.current = [];
         setDropTargetId(undefined);
+        setHoveredNodeId(undefined);
         clearExpandTimer();
     };
 
@@ -553,6 +574,18 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             className="solution-tree"
             tabIndex={0}
             data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
+            onMouseOver={e => {
+                // Below the last row: no row is hovered (a row's own handler sets it)
+                if (!(e.target as Element).closest('.tree-node')) {
+                    handleNodeHover(undefined, e);
+                }
+            }}
+            onMouseMove={e => {
+                if (!(e.target as Element).closest('.tree-node')) {
+                    handleNodeHover(undefined, e);
+                }
+            }}
+            onMouseLeave={() => setHoveredNodeId(undefined)}
             onDragLeave={e => {
                 // Leaving the tree, not just moving from one row to the next
                 if (!treeRef.current?.contains(e.relatedTarget as Node | null)) {
@@ -584,6 +617,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     onNodeDragOver={handleNodeDragOver}
                     onNodeDrop={handleNodeDrop}
                     onNodeDragEnd={endDrag}
+                    hoveredNodeId={hoveredNodeId}
+                    onNodeHover={handleNodeHover}
                 />
             ))}
         </div>

@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { act, createEvent, fireEvent, render } from '@testing-library/react';
 
 const sent: any[] = [];
@@ -186,5 +188,60 @@ describe('SolutionTree drag & drop', () => {
         expect(row('A.cs').getAttribute('draggable')).toBe('false');
         const start = drag('dragStart', 'A.cs');
         expect(start.defaultPrevented).toBe(true);
+    });
+
+    // jsdom's MouseEvent has no movementX/Y: set by hand, like the modifier keys of the drag events
+    const mouseMove = (target: Element, movement: number) => {
+        const event = createEvent.mouseMove(target);
+        Object.defineProperty(event, 'movementX', { value: movement });
+        Object.defineProperty(event, 'movementY', { value: 0 });
+        fireEvent(target, event);
+    };
+    const hovered = () => [...document.querySelectorAll('.tree-node.hovered')].map(el => el.textContent);
+
+    it('the hover highlight follows the mouse', () => {
+        const { row } = setup();
+        fireEvent.mouseOver(row('A.cs'));
+        expect(hovered()).toEqual(['A.cs']);
+        fireEvent.mouseOver(row('B.cs'));
+        expect(hovered()).toEqual(['B.cs']);
+    });
+
+    it('a drag clears the hover highlight; after the drop it comes back only when the mouse really moves', () => {
+        const { row, drag } = setup();
+        fireEvent.mouseOver(row('B.cs'));
+        drag('dragStart', 'B.cs');
+        expect(hovered()).toEqual([]);
+        drag('dragOver', 'Controllers');
+        drag('drop', 'Controllers');
+        drag('dragEnd', 'B.cs');
+        expect(hovered()).toEqual([]);
+
+        // What Chromium sends after the drop, at the point where the drag started: no movement
+        fireEvent.mouseOver(row('A.cs'));
+        mouseMove(row('A.cs'), 0);
+        expect(hovered()).toEqual([]);
+
+        mouseMove(row('Models'), 3);
+        expect(hovered()).toEqual(['Models']);
+        fireEvent.mouseOver(row('A.cs'));
+        expect(hovered()).toEqual(['A.cs']);
+    });
+
+    it('the hover highlight goes when the mouse is below the rows or leaves the tree', () => {
+        const { row } = setup();
+        const tree = document.querySelector('.solution-tree')!;
+        fireEvent.mouseOver(row('A.cs'));
+        fireEvent.mouseOver(tree);
+        expect(hovered()).toEqual([]);
+        fireEvent.mouseOver(row('A.cs'));
+        fireEvent.mouseLeave(tree);
+        expect(hovered()).toEqual([]);
+    });
+
+    it('the stylesheet highlights the hovered row by its class, not with :hover', () => {
+        const html = fs.readFileSync(path.join(__dirname, '../../../../../webview/providers/views/SolutionWebview.ts'), 'utf8');
+        expect(html).not.toContain('.tree-node:hover');
+        expect(html).toContain('.tree-node.hovered {');
     });
 });

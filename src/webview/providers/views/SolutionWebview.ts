@@ -103,7 +103,8 @@ export class SolutionWebView {
                             white-space: nowrap;
                         }
     
-                        .tree-node:hover {
+                        /* The row under the mouse: a class set by the tree, as Chromium moves :hover to a wrong row after a drop */
+                        .tree-node.hovered {
                             background-color: var(--vscode-list-hoverBackground);
                         }
     
