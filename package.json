@@ -1,5 +1,5 @@
 {
-  "name": "dotnet",
+  "name": "dotnet-studio",
   "displayName": "Shinobi .NET Studio",
   "description": "The Visual Studio workflow in VS Code and VSCodium: Solution Explorer, NuGet, Test Explorer, Error List, Run & Debug, Configuration Manager, Publish.",
   "version": "0.0.1",

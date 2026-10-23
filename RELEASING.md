@@ -17,7 +17,7 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
    3. Drag the `.vsix` onto the upload area ("Drag and Drop a file here or click to upload", seen on 2026-10-22), or click it and choose the file. Later releases: the extension's **...** menu > **Update**, if the page does not already offer the upload.
    4. Wait: the Marketplace validates the file and shows a verifying state for a few minutes. If it says the version already exists, the same version was uploaded before: release the next patch number.
    5. The listing's pre-release flag comes from the `.vsix` itself (the workflow built it with `--pre-release` for a pre-release), nothing to tick on the page.
-7. Check the listings a few minutes later: marketplace.visualstudio.com/items?itemName=shinobi.dotnet and open-vsx.org/extension/shinobi/dotnet. Install the new version in VS Code once.
+7. Check the listings a few minutes later: marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio and open-vsx.org/extension/shinobi/dotnet-studio. Install the new version in VS Code once.
 
 Version numbers: `major.minor.patch`. For the Marketplace's pre-release channel use an odd minor for pre-releases (`0.1.x`) and an even one for stable (`0.2.x`); a store never accepts the same version twice, so a failed publish after the version went out needs a new patch number.
 

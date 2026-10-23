@@ -9,13 +9,13 @@
 ## Install
 
 <!-- Fill in when published:
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/shinobi.dotnet?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/shinobi.dotnet)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet)
-[![Open VSX](https://img.shields.io/open-vsx/v/shinobi/dotnet?label=Open%20VSX)](https://open-vsx.org/extension/shinobi/dotnet)
-[![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet)](https://open-vsx.org/extension/shinobi/dotnet)
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/shinobi.dotnet-studio?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/shinobi.dotnet-studio)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
+[![Open VSX](https://img.shields.io/open-vsx/v/shinobi/dotnet-studio?label=Open%20VSX)](https://open-vsx.org/extension/shinobi/dotnet-studio)
+[![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet-studio)](https://open-vsx.org/extension/shinobi/dotnet-studio)
 
-VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet`.
-VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet`.
+VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet-studio`.
+VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet-studio`.
 -->
 
 A C# extension is needed for editing and debugging, see [Requirements](#requirements).
