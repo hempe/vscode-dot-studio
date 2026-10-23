@@ -1,6 +1,8 @@
 import { spawnSync } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService, RETRY_DELAYS_MS } from '../../../../services/projectItems/projectItemsService';
 
 const fixture = path.resolve(__dirname, '../../../../__fixtures__/project-items/ItemsApp/ItemsApp.csproj');
 const dir = path.dirname(fixture);
@@ -208,16 +210,68 @@ describe('ProjectItemsService', () => {
         expect(service.version(fixture)).not.toBe(first);
     });
 
-    test('a failing MSBuild gives undefined, is not retried until invalidated, and does not throw', async () => {
+    test('a failing MSBuild gives undefined and does not throw; it is not retried before the first delay', async () => {
+        let clock = 1000;
         const run = jest.fn().mockRejectedValue(new Error('no sdk'));
-        const service = new ProjectItemsService(run);
+        const service = new ProjectItemsService(run, 2, () => clock);
         expect(await service.evaluate(fixture)).toBeUndefined();
+        clock += RETRY_DELAYS_MS[0] - 1;
         expect(await service.evaluate(fixture)).toBeUndefined();
+        expect(service.get(fixture)).toBeUndefined();
         expect(run).toHaveBeenCalledTimes(1);
         service.invalidate(fixture);
         expect(await service.evaluate(fixture)).toBeUndefined();
-        expect(service.get(fixture)).toBeUndefined();
         expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    test('a failed evaluation is retried once its delay has passed, and the list it then gets is published', async () => {
+        let clock = 1000;
+        const run = jest.fn().mockRejectedValueOnce(new Error('timeout')).mockResolvedValue(output('A.cs'));
+        const service = new ProjectItemsService(run, 2, () => clock);
+        expect(await service.evaluate(fixture)).toBeUndefined();
+        expect(service.retryDue(fixture)).toBe(false);
+        clock += RETRY_DELAYS_MS[0];
+        expect(service.retryDue(fixture)).toBe(true);
+        expect((await service.evaluate(fixture))?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.version(fixture)).toBe(1);
+        expect(service.retryDue(fixture)).toBe(false);
+        expect(service.retryDelay(fixture)).toBeUndefined();
+        await service.evaluate(fixture);
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    test('the delays grow with each failure in a row; after the last one the project no longer retries by itself', async () => {
+        let clock = 1000;
+        const service = new ProjectItemsService(jest.fn().mockRejectedValue(new Error('timeout')), 2, () => clock);
+        expect(service.retryDelay(fixture)).toBeUndefined();
+        const delays: (number | undefined)[] = [];
+        await service.evaluate(fixture);
+        for (let i = 0; i < RETRY_DELAYS_MS.length; i++) {
+            delays.push(service.retryDelay(fixture));
+            clock += service.retryDelay(fixture)!;
+            await service.evaluate(fixture);
+        }
+        expect(delays).toEqual([...RETRY_DELAYS_MS]);
+        expect(service.retryDelay(fixture)).toBeUndefined();
+        // Asked for again (a folder expanded), it still runs MSBuild once the last delay has passed
+        clock += RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+        expect(service.retryDue(fixture)).toBe(true);
+    });
+
+    test('a failure that keeps the last good list is retried too, and the retry replaces the list', async () => {
+        let clock = 1000;
+        const run = jest.fn()
+            .mockResolvedValueOnce(output('A.cs'))
+            .mockRejectedValueOnce(new Error('timeout'))
+            .mockResolvedValueOnce(output('B.cs'));
+        const service = new ProjectItemsService(run, 2, () => clock);
+        await service.evaluate(fixture);
+        service.invalidate(fixture);
+        expect((await service.evaluate(fixture))?.isIncluded(path.join(dir, 'A.cs'))).toBe(true);
+        expect(service.retryDelay(fixture)).toBe(RETRY_DELAYS_MS[0]);
+        clock += RETRY_DELAYS_MS[0];
+        expect((await service.evaluate(fixture))?.isIncluded(path.join(dir, 'B.cs'))).toBe(true);
+        expect(run).toHaveBeenCalledTimes(3);
     });
 
     test('evaluatedAt is when the MSBuild run of the published list started: the re-run after a change, not the outdated run', async () => {
@@ -323,6 +377,25 @@ describe('ProjectItemsService', () => {
         expect(items!.isIncluded(path.join(dir, 'Legacy', 'Old.cs'))).toBe(false);
         expect(items!.isIncluded(path.join(dir, 'Excluded', 'Skip.cs'))).toBe(false);
         expect(items!.linkedFilesIn(path.join(dir, 'Linked')).map(item => path.basename(item.fullPath))).toEqual(['Shared.cs']);
+    }, 150000);
+
+    (hasDotnet ? test : test.skip)('real MSBuild: a half-saved project file fails, and the retry after the delay reads the saved one', async () => {
+        const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'items-retry-'));
+        try {
+            const project = path.join(scratch, 'App.csproj');
+            const saved = '<Project Sdk="Microsoft.NET.Sdk">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n';
+            fs.writeFileSync(path.join(scratch, 'A.cs'), 'class A { }\n');
+            fs.writeFileSync(project, saved.slice(0, 60));
+            let clock = 1000;
+            const service = new ProjectItemsService(undefined, 2, () => clock);
+            expect(await service.evaluate(project)).toBeUndefined();
+            fs.writeFileSync(project, saved);
+            expect(await service.evaluate(project)).toBeUndefined();
+            clock += RETRY_DELAYS_MS[0];
+            expect((await service.evaluate(project))?.isIncluded(path.join(scratch, 'A.cs'))).toBe(true);
+        } finally {
+            fs.rmSync(scratch, { recursive: true, force: true });
+        }
     }, 150000);
 
     describe('packages from the same evaluation', () => {

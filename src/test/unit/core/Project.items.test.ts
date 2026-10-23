@@ -387,4 +387,45 @@ describe('Project file tree with the item overlay', () => {
         const shared = (await project.loadFolderChildren(dir)).find(node => node.name === 'Shared');
         expect(shared?.hasChildren).toBe(true);
     });
+
+    test('a failed evaluation is tried again by itself after its delay, and a redraw follows when that gives a list', async () => {
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        jest.spyOn(ProjectItemsService.instance, 'retryDelay').mockReturnValueOnce(20).mockReturnValue(undefined);
+        const project = await newProject();
+        await project.getRootChildren();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(evaluate).toHaveBeenCalledTimes(1);
+        let version = 0;
+        jest.spyOn(ProjectItemsService.instance, 'version').mockImplementation(() => version);
+        evaluate.mockImplementation(async () => { version = 1; return undefined; });
+        fired(project).mockClear();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        expect(evaluate).toHaveBeenCalledTimes(2);
+        expect(fired(project)).toHaveBeenCalled();
+        // no failure any more: no further retry
+        await new Promise(resolve => setTimeout(resolve, 100));
+        expect(evaluate).toHaveBeenCalledTimes(2);
+    });
+
+    test('expanding a folder after a failed evaluation whose delay has passed evaluates again', async () => {
+        const project = await newProject();
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        await project.loadFolderChildren(dir);
+        expect(evaluate).not.toHaveBeenCalled();
+        jest.spyOn(ProjectItemsService.instance, 'retryDue').mockReturnValue(true);
+        await project.loadFolderChildren(dir);
+        expect(evaluate).toHaveBeenCalledTimes(1);
+    });
+
+    test('dispose cancels a pending retry', async () => {
+        jest.spyOn(ProjectItemsService.instance, 'retryDelay').mockReturnValueOnce(20).mockReturnValue(undefined);
+        const project = await newProject();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
+        evaluate.mockClear();
+        project.dispose();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        expect(evaluate).not.toHaveBeenCalled();
+    });
 });

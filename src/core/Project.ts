@@ -93,6 +93,7 @@ export class Project {
     private _collapsedState: Map<string, boolean> = new Map(); // Track expanded/collapsed state
     private _folderWatchers: Map<string, vscode.FileSystemWatcher> = new Map(); // Lazy folder watchers
     private _reevaluateTimer?: ReturnType<typeof setTimeout>; // New files: evaluate once a burst is over
+    private _retryTimer?: ReturnType<typeof setTimeout>; // A failed evaluation: try again after its delay
     private _evaluatedProjectFile?: string; // Stamp of the project file the last evaluation was asked for
     private _reevaluatedFor = new Set<string>(); // Unlisted entries (path and change time) that already asked for an evaluation
 
@@ -366,6 +367,10 @@ export class Project {
                 if (await this.checkFolderHasChildren(full)) {
                     nonEmptyFolders.add(full);
                 }
+            }
+            // The last evaluation failed (the tree shows the plain disk listing): expanding tries again once its delay has passed
+            if (ProjectItemsService.instance.retryDue(this._projectPath) && !this._isUnloaded()) {
+                void this.evaluateItems();
             }
             const items = ProjectItemsService.instance.get(this._projectPath);
             const laidOut = layoutFolder(folderPath, disk, items, showAll, nonEmptyFolders);
@@ -855,6 +860,7 @@ export class Project {
         const before = service.version(this._projectPath);
         const packagesBefore = service.packagesVersion(this._projectPath);
         await service.evaluate(this._projectPath);
+        this.scheduleRetry();
         // New package versions (Directory.Packages.props changed): Dependencies > Packages shows them
         const packagesChanged = service.packagesVersion(this._projectPath) !== packagesBefore;
         // Same list, or a failure that keeps the last one (or still none): the tree shows what it showed
@@ -902,6 +908,21 @@ export class Project {
         } catch {
             return undefined;
         }
+    }
+
+    /** A failed evaluation (timeout, half-saved project file) is tried again after a delay that grows with each failure */
+    private scheduleRetry(): void {
+        const delay = ProjectItemsService.instance.retryDelay(this._projectPath);
+        if (delay === undefined || !this._isInitialized) {
+            return;
+        }
+        if (this._retryTimer) {
+            clearTimeout(this._retryTimer);
+        }
+        this._retryTimer = setTimeout(() => {
+            this._retryTimer = undefined;
+            void this.evaluateItems();
+        }, delay);
     }
 
     /** New files may match a glob: evaluate again when no file was created for a moment */
@@ -1083,6 +1104,10 @@ export class Project {
         if (this._reevaluateTimer) {
             clearTimeout(this._reevaluateTimer);
             this._reevaluateTimer = undefined;
+        }
+        if (this._retryTimer) {
+            clearTimeout(this._retryTimer);
+            this._retryTimer = undefined;
         }
 
         // Dispose event emitter

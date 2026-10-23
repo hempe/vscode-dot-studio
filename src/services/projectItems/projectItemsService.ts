@@ -27,6 +27,13 @@ export const runMsbuild: RunMsbuild = async projectPath => {
     return framework ? run(`-p:TargetFramework=${framework}`) : stdout;
 };
 
+/**
+ * After a failed evaluation (a timeout, a half-saved project file) the next attempts wait this long: the project
+ * retries by itself after each delay, and after the last one only when the next evaluation is asked for (a folder
+ * of it is expanded, the project or a props file changes).
+ */
+export const RETRY_DELAYS_MS: readonly number[] = [5_000, 30_000, 120_000];
+
 /** What one MSBuild run gave: undefined parts were not in the output (or MSBuild failed) */
 interface Evaluation {
     readonly items?: ProjectItems;
@@ -47,7 +54,7 @@ interface Evaluation {
 export class ProjectItemsService {
     static readonly instance = new ProjectItemsService();
 
-    // null: MSBuild failed and there was no earlier result; not retried before `invalidate`
+    // null: MSBuild failed and there was no earlier result
     private readonly cache = new Map<string, ProjectItems | null>();
     // Projects whose cached result is outdated: still returned by `get`, but `evaluate` runs MSBuild again
     private readonly stale = new Set<string>();
@@ -58,6 +65,8 @@ export class ProjectItemsService {
     // The packages of the same evaluation; an evaluation without them keeps the last ones
     private readonly packageCache = new Map<string, ProjectPackages>();
     private readonly packageVersions = new Map<string, number>();
+    // Projects whose last evaluation failed: how often in a row, and from when on `evaluate` runs MSBuild again
+    private readonly failures = new Map<string, { readonly count: number; readonly retryAt: number }>();
     // Opening a solution evaluates every project: start at most `maxConcurrent` processes at once
     private readonly flights: SingleFlight<ProjectItems | undefined>;
 
@@ -103,9 +112,27 @@ export class ProjectItemsService {
         return this.packages(projectPath);
     }
 
+    /** Whether the last evaluation failed and its retry delay has passed: the next `evaluate` runs MSBuild again */
+    retryDue(projectPath: string): boolean {
+        const failure = this.failures.get(projectPath);
+        return !!failure && this.now() >= failure.retryAt;
+    }
+
+    /**
+     * How long until the project should retry its failed evaluation by itself (ms, at least 0); undefined when the
+     * last evaluation did not fail, or after the last of `RETRY_DELAYS_MS`
+     */
+    retryDelay(projectPath: string): number | undefined {
+        const failure = this.failures.get(projectPath);
+        if (!failure || failure.count > RETRY_DELAYS_MS.length) {
+            return undefined;
+        }
+        return Math.max(0, failure.retryAt - this.now());
+    }
+
     /** The cached result, or the result of the evaluation running (or started now) for the project */
     evaluate(projectPath: string): Promise<ProjectItems | undefined> {
-        if (this.cache.has(projectPath) && !this.stale.has(projectPath)) {
+        if (this.cache.has(projectPath) && !this.stale.has(projectPath) && !this.retryDue(projectPath)) {
             return Promise.resolve(this.get(projectPath));
         }
         return this.flights.run(projectPath, () => this.evaluateNow(projectPath), evaluation => this.publish(projectPath, evaluation));
@@ -128,6 +155,13 @@ export class ProjectItemsService {
 
     private publish(projectPath: string, { items, packages, startedAt }: Evaluation): ProjectItems | undefined {
         this.stale.delete(projectPath);
+        if (items) {
+            this.failures.delete(projectPath);
+        } else {
+            const count = (this.failures.get(projectPath)?.count ?? 0) + 1;
+            const delay = RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1];
+            this.failures.set(projectPath, { count, retryAt: this.now() + delay });
+        }
         const previousPackages = this.packageCache.get(projectPath);
         if (packages && (!previousPackages || !packagesEqual(previousPackages, packages))) {
             this.packageCache.set(projectPath, packages);

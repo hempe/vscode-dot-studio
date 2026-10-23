@@ -41,6 +41,8 @@ The title bar's Show All Files button works like Visual Studio's. It is off by d
 
 The tree is drawn from the disk first and corrected as soon as MSBuild has evaluated the project, which takes a moment on big solutions. Evaluating needs the .NET SDK. A multi-targeted project (`<TargetFrameworks>net48;net10.0</TargetFrameworks>`) shows what its first target framework contains, like Visual Studio's active framework. Changing a `Directory.Build.props` or `Directory.Build.targets` re-evaluates the projects.
 
+When an evaluation fails (a timeout on a busy machine, a project file read while it was being saved), the tree keeps what it showed (the last result, or the disk listing) and tries again after 5 seconds, 30 seconds and 2 minutes, and after that whenever a folder of the project is expanded.
+
 ### Exclude From Project and Include In Project
 
 Right-click a file or folder the project contains to take it out of the project, or a greyed-out one (Show All Files) to put it back. Both work on SDK-style projects only; an old-style project has neither entry.
