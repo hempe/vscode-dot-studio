@@ -80,7 +80,7 @@ The file format (a JSON array of profiles, paths relative to the solution), if y
 ]
 ```
 
-How it works: the profile is written to `.vscode/launch.json` as one configuration per project (named `<profile>: <project>`) and a compound named `Startup` that lists them, builds the solution first (`StartupPreBuild` in `tasks.json`) and stops them together (`stopAll`). It replaces the single `Startup` configuration while the profile is active, and is rewritten when the profile, the configuration or a launch profile changes. Limits:
+How it works: the profile is written to `.vscode/launch.json` as one configuration per project (named `<profile>: <project>`) and a compound named `Startup` that lists them, builds the solution first (`StartupPreBuild` in `tasks.json`) and stops them together (`stopAll`). The project configurations are hidden in the Run and Debug view (`"presentation": {"hidden": true}`) and the compound is listed first (`"order": 1`), so VS Code selects `Startup` and F5 builds before it starts the projects; a configuration selected there before, such as a project entry written by version 0.1.1, gives way to `Startup` once the profile is written again. It replaces the single `Startup` configuration while the profile is active, and is rewritten when the profile, the configuration or a launch profile changes. Limits:
 - Projects the solution does not have are skipped, with a warning. Adding or removing a project in the solution file updates the launches.
 - A failed build stops the start with VS Code's own prompt, as for a single startup project.
 - A profile that starts no project makes F5 fall back to the next entry of the Run and Debug view; Ctrl+F5 says so.

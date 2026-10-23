@@ -178,6 +178,11 @@ export class DebugConfigService {
      * a `noDebug` in a configuration is kept, which gives mixed actions with plain F5. A parent session would not help:
      * stopping a parent does not stop its children, `lifecycleManagedByParent` only forwards a child's stop to its parent.
      * The single "Startup" configuration is removed (the names would clash); updateStartupConfiguration puts it back.
+     *
+     * The project configurations are `presentation.hidden` and the compound has `presentation.order`: F5 runs the entry
+     * selected in Run and Debug, and VS Code selects the first visible one of its sorted list (entries with a
+     * `presentation` before those without) when nothing valid is selected yet. Visible project configurations came
+     * first, and F5 started one project without the compound's build. Hidden configurations still run in the compound.
      */
     static async updateStartupProfileConfiguration(launches: readonly ProfileProjectLaunch[], buildTarget: string): Promise<void> {
         try {
@@ -189,12 +194,12 @@ export class DebugConfigService {
             const vscodeFolder = path.join(workspacePath, '.vscode');
             const launchJsonPath = path.join(vscodeFolder, 'launch.json');
 
-            const configs: Array<{ name: string; noDebug?: boolean }> = [];
+            const configs: Array<{ name: string; noDebug?: boolean; presentation: { hidden: boolean } }> = [];
             for (const launch of launches) {
                 const profiles = this.readLaunchProfiles(path.dirname(launch.projectPath));
                 const profile = profiles.find(candidate => candidate.name === launch.launchProfile) ?? profiles[0];
                 const { config } = await this.launchConfiguration(launch.projectPath, workspacePath, launch.framework, profile, launch.name);
-                configs.push(launch.noDebug ? { ...config, noDebug: true } : config);
+                configs.push({ ...config, ...(launch.noDebug && { noDebug: true }), presentation: { hidden: true } });
             }
 
             if (!fs.existsSync(vscodeFolder)) {
@@ -222,7 +227,7 @@ export class DebugConfigService {
                 text = upsertArrayItem(text, 'configurations', (item: any) => item?.name === config.name, config, 'first');
             }
             text = upsertArrayItem(text, 'compounds', (item: any) => item?.name === 'Startup',
-                { name: 'Startup', configurations: names, preLaunchTask: 'StartupPreBuild', stopAll: true }, 'first');
+                { name: 'Startup', configurations: names, preLaunchTask: 'StartupPreBuild', stopAll: true, presentation: { order: 1 } }, 'first');
             if (text !== original) {
                 log.info(`Writing the startup profile to ${launchJsonPath}: ${names.join(', ')}`);
                 fs.writeFileSync(launchJsonPath, text, 'utf8');

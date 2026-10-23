@@ -83,6 +83,7 @@ const API_CONFIG = {
     cwd: '${workspaceFolder}/Api',
     console: 'integratedTerminal',
     stopAtEntry: false,
+    presentation: { hidden: true },
 };
 const WORKER_CONFIG = {
     name: 'Both: Worker',
@@ -94,8 +95,11 @@ const WORKER_CONFIG = {
     console: 'integratedTerminal',
     stopAtEntry: false,
     noDebug: true,
+    presentation: { hidden: true },
 };
-const COMPOUND = { name: 'Startup', configurations: ['Both: Api', 'Both: Worker'], preLaunchTask: 'StartupPreBuild', stopAll: true };
+// The project entries are hidden and the compound comes first in Run and Debug: plain F5 runs the selected entry, which
+// VS Code picks as the first one of the list for a new folder; a project entry alone would start without the build
+const COMPOUND = { name: 'Startup', configurations: ['Both: Api', 'Both: Worker'], preLaunchTask: 'StartupPreBuild', stopAll: true, presentation: { order: 1 } };
 
 describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
     let solutionPath: string;
@@ -170,6 +174,23 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         // Once, not on every refresh
         await refreshStartup();
         expect(env.warnings).toEqual(['The startup profile "Both" names projects the solution does not have, they are skipped: Gone/Gone.csproj']);
+    }, 60000);
+
+    it('adds the presentation fields to a launch.json written without them (0.1.1)', async () => {
+        await activate();
+        const strip = (item: any) => { const { presentation: _presentation, ...rest } = item; return rest; };
+        fs.writeFileSync(launchJsonPath(), JSON.stringify({
+            version: '0.2.0',
+            configurations: [strip(API_CONFIG), strip(WORKER_CONFIG)],
+            compounds: [strip(COMPOUND)],
+        }, null, 4));
+
+        await DebugConfigService.updateStartupProfileConfiguration(
+            [{ name: 'Both: Api', projectPath: apiPath, framework: 'net10.0', launchProfile: 'https', noDebug: false },
+             { name: 'Both: Worker', projectPath: path.join(env.workspacePath, 'Worker', 'Worker.csproj'), framework: 'net10.0', noDebug: true }],
+            solutionPath);
+
+        expect(launchJson()).toEqual({ version: '0.2.0', configurations: [API_CONFIG, WORKER_CONFIG], compounds: [COMPOUND] });
     }, 60000);
 
     it('leaves unloaded projects out of the launches, and starts them again once reloaded', async () => {
