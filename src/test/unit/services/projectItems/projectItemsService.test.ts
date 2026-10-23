@@ -380,7 +380,8 @@ describe('ProjectItemsService', () => {
     }, 150000);
 
     (hasDotnet ? test : test.skip)('real MSBuild: a half-saved project file fails, and the retry after the delay reads the saved one', async () => {
-        const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'items-retry-'));
+        // realpath: on Windows os.tmpdir() can be an 8.3 short path (RUNNER~1) while MSBuild reports the long one
+        const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'items-retry-')));
         try {
             const project = path.join(scratch, 'App.csproj');
             const saved = '<Project Sdk="Microsoft.NET.Sdk">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n';
