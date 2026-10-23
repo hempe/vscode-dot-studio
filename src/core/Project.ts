@@ -963,10 +963,16 @@ export class Project {
     }
 
     private async reloadLoadedFolders(): Promise<void> {
-        const loaded = Array.from(this._collapsedState.entries()).filter(([, isCollapsed]) => !isCollapsed).map(([folderPath]) => folderPath);
         const projectDir = path.dirname(this._projectPath);
+        // Parents before children: reading a folder replaces the nodes of its subfolders, so a subfolder read first
+        // would be thrown away again (the expanded folders are kept in the order they were first expanded)
+        const depth = (folderPath: string) => path.relative(projectDir, folderPath).split(path.sep).length;
+        const loaded = Array.from(this._collapsedState.entries())
+            .filter(([folderPath, isCollapsed]) => !isCollapsed && folderPath !== projectDir)
+            .map(([folderPath]) => folderPath)
+            .sort((a, b) => depth(a) - depth(b));
         const reloaded = new Set<ProjectFileNode>();
-        for (const folderPath of [projectDir, ...loaded.filter(folderPath => folderPath !== projectDir)]) {
+        for (const folderPath of [projectDir, ...loaded]) {
             const node = this.findNodeById(folderPath);
             if (node) {
                 node.children = await this.loadFolderChildren(folderPath);

@@ -428,4 +428,28 @@ describe('Project file tree with the item overlay', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
         expect(evaluate).not.toHaveBeenCalled();
     });
+
+    test('after a new item list the expanded folders are read again parents first, also when a subfolder was expanded first', async () => {
+        const sub = path.join(dir, 'Sub');
+        const inner = path.join(sub, 'Inner');
+        fs.mkdirSync(inner, { recursive: true });
+        fs.writeFileSync(path.join(inner, 'A.cs'), '');
+        const project = await newProject();
+        // Restoring the expansion asks for the subfolder before its parent is loaded (it is not found yet)
+        await project.getFolderChildren(inner);
+        await project.getRootChildren();
+        await project.getFolderChildren(sub);
+        await project.getFolderChildren(inner);
+        expect([...project.getCollapsedState().keys()].map(key => path.relative(dir, key))).toEqual([path.join('Sub', 'Inner'), '', 'Sub']);
+        let version = 0;
+        jest.spyOn(ProjectItemsService.instance, 'version').mockImplementation(() => version);
+        (ProjectItemsService.instance.evaluate as jest.Mock).mockImplementation(async () => { version = 1; return undefined; });
+        const load = jest.spyOn(project, 'loadFolderChildren');
+        await project.evaluateItems();
+        expect(load.mock.calls.map(([folder]) => path.relative(dir, folder))).toEqual(['', 'Sub', path.join('Sub', 'Inner')]);
+        // The subfolder's new listing is in the tree, not thrown away by reading its parent afterwards
+        load.mockClear();
+        expect((await project.getFolderChildren(inner)).map(child => child.name)).toEqual(['A.cs']);
+        expect(load).not.toHaveBeenCalled();
+    });
 });
