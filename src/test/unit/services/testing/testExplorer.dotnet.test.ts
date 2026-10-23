@@ -65,6 +65,7 @@ jest.mock('vscode', () => {
 
 import * as vscode from 'vscode';
 import { TestExplorer } from '../../../../services/testing/testExplorer';
+import { evaluateTestProject, installedRuntimeMajors, pickTestFramework } from '../../../../services/testing/testProjects';
 
 const mock = vscode as any;
 const hasDotnet = spawnSync('dotnet', ['--version']).status === 0;
@@ -92,6 +93,21 @@ public class MathTests
 {
     [TestMethod] public void Adds() => Assert.AreEqual(2, 1 + 1);
     [TestMethod, DataRow(1), DataRow(2)] public void Positive(int x) => Assert.IsTrue(x > 0);
+}
+`,
+    // Multi-targeted VSTest project (xUnit v2): net472 can't run (or be built without reference assemblies) on Linux
+    'MT/MT.csproj': `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFrameworks>net472;net8.0;net10.0</TargetFrameworks></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
+  </ItemGroup>
+</Project>`,
+    'MT/MultiTests.cs': `namespace MT;
+public class MultiTests
+{
+    [Xunit.Fact] public void Runs() => Xunit.Assert.True(true);
 }
 `,
 };
@@ -132,6 +148,31 @@ describe('Test Explorer with dotnet', () => {
         const events = mock.runs[0].events;
         expect(events.filter((e: string) => e.startsWith('failed'))).toEqual(['failed Fails']);
         expect(events.filter((e: string) => e.startsWith('passed'))).toHaveLength(6);
+        explorer.dispose();
+    });
+
+    it('discovers and runs a multi-targeted test project on the framework of an installed runtime', async () => {
+        const projectPath = path.join(dir, 'MT/MT.csproj');
+        if (!hasDotnet || spawnSync('dotnet', ['restore', projectPath]).status !== 0) {
+            console.warn('dotnet or the test packages are not available, skipping');
+            return;
+        }
+        const project = await evaluateTestProject(projectPath, 'Debug');
+        const framework = pickTestFramework(['net472', 'net8.0', 'net10.0'], await installedRuntimeMajors());
+        expect(project).toMatchObject({ testingPlatform: false, targetFramework: framework });
+        expect(project!.targetPath).toContain(`${path.sep}${framework}${path.sep}`);
+
+        const explorer = new TestExplorer({ projects: () => [projectPath] });
+        await explorer.refresh(true);
+        const item = mock.controller.items.get(projectPath);
+        expect(item.error).toBeUndefined();
+        const labels = (items: any): string[] => { const all: string[] = []; items.forEach((i: any) => all.push(i.label, ...labels(i.children))); return all; };
+        expect(labels(item.children)).toContain('Runs');
+
+        // This explorer's Run profile: the shared mock controller still holds the first test's
+        const run = mock.controller.profiles[mock.controller.profiles.length - 2];
+        await run.handler({ include: [item], exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+        expect(mock.runs[mock.runs.length - 1].events).toContain('passed Runs');
         explorer.dispose();
     });
 });

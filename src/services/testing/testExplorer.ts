@@ -24,8 +24,8 @@ export interface TestExplorerDeps {
     projects(): string[];
     readProject(projectPath: string): string;
     evaluate(projectPath: string, configuration: string): Promise<TestProject | undefined>;
-    /** Builds the project; false when the build failed */
-    build(projectPath: string, configuration: string, output: (text: string) => void): Promise<boolean>;
+    /** Builds the project (for one framework of a multi-targeted project); false when the build failed */
+    build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string): Promise<boolean>;
     /** Starts the test app with the server arguments, in the debugger for debug runs */
     start(project: TestProject, args: string[], debug: boolean): Promise<TestApp>;
     /** Starts vstest.console in design mode, connecting to the port (VSTest projects) */
@@ -98,8 +98,8 @@ const defaultDeps: TestExplorerDeps = {
     projects: () => [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])],
     readProject: projectPath => fs.readFileSync(projectPath, 'utf8'),
     evaluate: evaluateTestProject,
-    build: (projectPath, configuration, output) => new Promise(resolve => {
-        execFile('dotnet', ['build', projectPath, '--configuration', configuration, '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
+    build: (projectPath, configuration, output, targetFramework) => new Promise(resolve => {
+        execFile('dotnet', ['build', projectPath, '--configuration', configuration, ...(targetFramework ? ['--framework', targetFramework] : []), '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
             { cwd: path.dirname(projectPath), timeout: 600000 }, (error, stdout, stderr) => {
                 output(`${stdout}${stderr}`);
                 resolve(!error);
@@ -253,7 +253,7 @@ export class TestExplorer implements vscode.Disposable {
                 state = { project, item };
                 this.states.set(projectPath, state);
             }
-            if (build && !await this.deps.build(projectPath, configuration, text => log.debug(text))) {
+            if (build && !await this.deps.build(projectPath, configuration, text => log.debug(text), project.targetFramework)) {
                 state.item.error = 'Build failed, see the Problems panel';
                 return;
             }
@@ -358,7 +358,7 @@ export class TestExplorer implements vscode.Disposable {
                     break;
                 }
                 items.forEach(item => run.enqueued(item));
-                if (!await this.deps.build(state.project.projectPath, configuration, text => run.appendOutput(terminal(text)))) {
+                if (!await this.deps.build(state.project.projectPath, configuration, text => run.appendOutput(terminal(text)), state.project.targetFramework)) {
                     items.forEach(item => run.errored(item, new vscode.TestMessage('Build failed, see the Problems panel')));
                     continue;
                 }

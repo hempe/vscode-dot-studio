@@ -11,6 +11,8 @@ Test projects of the solution show in VS Code's **Testing** view (the flask icon
 
 Which kind a project is, MSBuild decides (`IsTestingPlatformApplication`).
 
+A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`).
+
 ## Running and debugging
 
 - In the **Testing view**: ▷ runs, the bug icon debugs a test, class, namespace or project; the refresh button builds and discovers again.

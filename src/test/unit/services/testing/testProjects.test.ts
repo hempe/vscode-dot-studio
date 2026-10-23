@@ -1,4 +1,4 @@
-import { isTestProjectCandidate, parseTestProperties } from '../../../../services/testing/testProjects';
+import { isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -27,5 +27,41 @@ describe('test projects', () => {
         expect(parseTestProperties('{"Properties":{"IsTestingPlatformApplication":"false","TargetPath":"/r/N.dll","VSTestConsolePath":"/sdk/vstest.console.dll"}}'))
             .toEqual({ testingPlatform: false, targetPath: '/r/N.dll', vstestConsolePath: '/sdk/vstest.console.dll' });
         expect(parseTestProperties('error MSB1009')).toEqual({ testingPlatform: false });
+    });
+});
+
+describe('the framework a multi-targeted test project runs on', () => {
+    const pick = (frameworks: string, runtimes: number[]) => pickTestFramework(frameworks.split(';'), runtimes);
+
+    it('takes the highest modern framework an installed runtime supports', () => {
+        expect(pick('net8.0;net9.0;net472', [8, 10])).toBe('net8.0');
+        expect(pick('net8.0;net9.0;net472', [8, 9, 10])).toBe('net9.0');
+        expect(pick('net10.0;net8.0', [8])).toBe('net8.0');
+        expect(pick('netstandard2.0;net8.0', [8, 10])).toBe('net8.0');
+        expect(pick('netcoreapp3.1;net6.0-windows', [3, 6])).toBe('net6.0-windows');
+    });
+
+    it('takes the highest modern framework when no runtime fits, else the first', () => {
+        expect(pick('net8.0;net9.0;net472', [])).toBe('net9.0');
+        expect(pick('netstandard2.0;net8.0', [10])).toBe('net8.0');
+        expect(pick('net472', [8, 10])).toBe('net472');
+        expect(pick('net48;net472', [8])).toBe('net48');
+        expect(pick('netcoreapp2.1;net461', [8])).toBe('netcoreapp2.1');
+    });
+
+    it('reads the installed runtime versions', () => {
+        expect(parseRuntimeMajors([
+            'Microsoft.AspNetCore.App 10.0.11 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]',
+            'Microsoft.NETCore.App 8.0.30 [/usr/share/dotnet/shared/Microsoft.NETCore.App]',
+            'Microsoft.NETCore.App 10.0.11 [/usr/share/dotnet/shared/Microsoft.NETCore.App]',
+            'Microsoft.WindowsDesktop.App 9.0.1 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]',
+        ].join('\r\n'))).toEqual([8, 10]);
+        expect(parseRuntimeMajors('')).toEqual([]);
+    });
+
+    it('reads the frameworks of a multi-targeted project from MSBuild', () => {
+        expect(multiTargetFrameworks('{"Properties":{"TargetFramework":"","TargetFrameworks":"net8.0; net9.0;net472;"}}')).toEqual(['net8.0', 'net9.0', 'net472']);
+        expect(multiTargetFrameworks('{"Properties":{"TargetFramework":"net10.0","TargetFrameworks":""}}')).toEqual([]);
+        expect(multiTargetFrameworks('error MSB1009')).toEqual([]);
     });
 });
