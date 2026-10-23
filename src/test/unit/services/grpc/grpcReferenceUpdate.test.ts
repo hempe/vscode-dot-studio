@@ -6,14 +6,17 @@ jest.mock('vscode', () => ({
     Uri: { file: (fsPath: string) => ({ fsPath }) },
 }), { virtual: true });
 
+import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { GrpcHost, removeGrpcReference, updateGrpcReference } from '../../../../services/grpc/grpcReferenceService';
 import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
 
 const fixture = path.resolve(__dirname, '../../../../__fixtures__/grpc');
 const REMOTE_URL = 'https://raw.githubusercontent.com/grpc/grpc-dotnet/master/examples/Greeter/Proto/greet.proto';
+const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
 
 /** Update and Remove on the Consumer project of src/__fixtures__/grpc (a linked, a URL and a wildcard reference) */
 describe('updateGrpcReference and removeGrpcReference', () => {
@@ -89,7 +92,7 @@ describe('updateGrpcReference and removeGrpcReference', () => {
         expect(local.calls.info).toEqual(['greet.proto was not added from a URL: there is nothing to update it from.']);
         const failing = host({ download: async () => { throw new Error('404'); } });
         expect(await updateGrpcReference(consumer, remote(), failing.fake)).toBe(false);
-        expect(failing.calls.fail).toEqual([`Updating remote.proto failed: ${REMOTE_URL} could not be downloaded.`]);
+        expect(failing.calls.fail).toEqual([`Updating remote.proto failed: ${REMOTE_URL} could not be downloaded. remote.proto is unchanged.`]);
         expect(fs.readFileSync(remote(), 'utf8')).toBe(before);
     });
 
@@ -120,4 +123,63 @@ describe('updateGrpcReference and removeGrpcReference', () => {
         expect(calls.info).toEqual(['money.proto is not listed by itself in Consumer.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.']);
         expect(fs.readFileSync(consumer, 'utf8')).toBe(before);
     });
+
+    test('Update answered with an HTML page (a sign-in page) or nothing: refused, the local file stays', async () => {
+        const before = fs.readFileSync(remote(), 'utf8');
+        for (const answer of ['<!DOCTYPE html><html><body>Sign in</body></html>', '  \n']) {
+            const { fake, calls } = host({ download: async () => Buffer.from(answer) });
+            expect(await updateGrpcReference(consumer, remote(), fake)).toBe(false);
+            expect(calls.fail).toEqual([expect.stringMatching(/^Updating remote\.proto failed: .* did not send a \.proto file .*remote\.proto is unchanged\.$/)]);
+        }
+        expect(fs.readFileSync(remote(), 'utf8')).toBe(before);
+    });
+
+    test('Update with credentials in SourceUrl: used for the download, not shown in messages or the output', async () => {
+        const url = 'https://user:s3cret@example.com/remote.proto?token=TOPSECRET';
+        fs.writeFileSync(consumer, fs.readFileSync(consumer, 'utf8').replace(REMOTE_URL, url));
+        const shown: string[] = [];
+        const { fake, calls } = host({
+            items: async () => parseMsbuildItems(JSON.stringify({ Items: { Protobuf: [{ Identity: 'Protos\\remote.proto', FullPath: remote(), SourceUrl: url, DefiningProjectFullPath: consumer }] } }), dir),
+            log: line => { shown.push(line); },
+        });
+        expect(await updateGrpcReference(consumer, remote(), fake)).toBe(true);
+        expect(calls.downloaded).toEqual([url]);
+        expect(calls.info).toEqual(['remote.proto updated from https://***@example.com/remote.proto?***. The code is generated again when the project builds.']);
+        expect([...shown, ...calls.info].join('\n')).not.toMatch(/s3cret|TOPSECRET/);
+    });
+
+    test('Update or Remove when MSBuild cannot evaluate the project says so', async () => {
+        const update = host({ items: async () => undefined });
+        expect(await updateGrpcReference(consumer, remote(), update.fake)).toBe(false);
+        expect(update.calls.info).toEqual(['Consumer.csproj could not be evaluated by MSBuild (does it build?), so the SourceUrl of remote.proto is not known.']);
+        const remove = host({ items: async () => undefined });
+        expect(await removeGrpcReference(consumer, money(), remove.fake)).toBe(false);
+        expect(remove.calls.info).toEqual(['Consumer.csproj could not be evaluated by MSBuild (does it build?), so where money.proto comes from is not known: Consumer.csproj does not list it by itself.']);
+    });
+
+    test('Remove of a file listed through MSBuild properties says so, not wildcard', async () => {
+        fs.writeFileSync(consumer, fs.readFileSync(consumer, 'utf8').replace('Include="Contracts\\*.proto"', 'Include="$(ContractsDir)\\money.proto"'));
+        const { fake, calls } = host();
+        expect(await removeGrpcReference(consumer, money(), fake)).toBe(false);
+        expect(calls.info).toEqual(['money.proto is listed in Consumer.csproj through MSBuild properties ($(ContractsDir)\\money.proto): edit the project file.']);
+    });
+
+    withDotnet('against real MSBuild: Update downloads the SourceUrl as written (%2B, %26, %20 and a signed query stay escaped)', async () => {
+        const url = 'https://example.com/a%2Bb/my%20svc.proto?sv=2024&sig=ab%2Bcd%3D&x=%26';
+        fs.writeFileSync(consumer, fs.readFileSync(consumer, 'utf8').replace(`<SourceUrl>${REMOTE_URL}</SourceUrl>`, `<SourceUrl>${url.replace(/&/g, '&amp;')}</SourceUrl>`));
+        const items = await new ProjectItemsService().evaluate(consumer);
+        // What MSBuild reports is unescaped: downloading that would ask for another URL
+        expect(items?.protobuf.find(item => item.fullPath === remote())?.sourceUrl).toBe('https://example.com/a+b/my svc.proto?sv=2024&sig=ab+cd=&x=&');
+        const { fake, calls } = host({ items: async () => items });
+        expect(await updateGrpcReference(consumer, remote(), fake)).toBe(true);
+        expect(calls.downloaded).toEqual([url]);
+    }, 150000);
+
+    withDotnet('against real MSBuild: Remove of the wildcard-included file is refused with the wildcard message', async () => {
+        const before = fs.readFileSync(consumer, 'utf8');
+        const { fake, calls } = host({ items: projectPath => new ProjectItemsService().evaluate(projectPath) });
+        expect(await removeGrpcReference(consumer, money(), fake)).toBe(false);
+        expect(calls.info).toEqual(['money.proto is not listed by itself in Consumer.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.']);
+        expect(fs.readFileSync(consumer, 'utf8')).toBe(before);
+    }, 150000);
 });

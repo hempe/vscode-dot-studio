@@ -64,4 +64,23 @@ describe('gRPC references with real MSBuild', () => {
         const generated = fs.readdirSync(path.join(root, 'Client', 'obj'), { recursive: true }).map(String);
         expect(generated.some(file => /GreetGrpc\.cs$/.test(file))).toBe(true);
     }, TIMEOUT);
+
+    withDotnet('a multi-target project whose Protobuf items are in a net8.0-only ItemGroup: the new item counts for net9.0 too', () => {
+        const multi = path.join(root, 'Multi', 'Multi.csproj');
+        fs.mkdirSync(path.join(root, 'Multi', 'Protos'), { recursive: true });
+        fs.writeFileSync(path.join(root, 'Multi', 'Protos', 'legacy.proto'), 'syntax = "proto3";\n');
+        fs.writeFileSync(path.join(root, 'Multi', 'Protos', 'new.proto'), 'syntax = "proto3";\n');
+        fs.writeFileSync(multi, '<Project Sdk="Microsoft.NET.Sdk">\n  <PropertyGroup>\n    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>\n  </PropertyGroup>\n'
+            + '  <ItemGroup Condition="\'$(TargetFramework)\' == \'net8.0\'">\n    <Protobuf Include="Protos\\legacy.proto" GrpcServices="Client" />\n  </ItemGroup>\n</Project>\n');
+        const reference = protobufReferenceFor(path.dirname(multi), path.join(root, 'Multi', 'Protos', 'new.proto'), 'Client');
+        fs.writeFileSync(multi, addProtobufReference(fs.readFileSync(multi, 'utf8'), reference));
+
+        const protobufFor = (framework: string) => {
+            const result = spawnSync('dotnet', ['msbuild', multi, '-nologo', '-getItem:Protobuf', `-p:TargetFramework=${framework}`], { encoding: 'utf8' });
+            expect(result.status).toBe(0);
+            return (JSON.parse(result.stdout).Items.Protobuf as { Identity: string }[]).map(item => item.Identity.replace(/\\/g, '/')).sort();
+        };
+        expect(protobufFor('net9.0')).toEqual(['Protos/new.proto']);
+        expect(protobufFor('net8.0')).toEqual(['Protos/legacy.proto', 'Protos/new.proto']);
+    }, TIMEOUT);
 });

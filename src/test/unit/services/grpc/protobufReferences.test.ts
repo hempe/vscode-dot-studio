@@ -1,7 +1,7 @@
 import * as path from 'path';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, duplicateRefusal, ensureDevelopmentDependency, grpcPackages, notListedMessage,
-    protobufReferenceFor, protoFileName, referenceLabel, removeProtobufReference,
+    protobufReferenceFor, protoFileName, referenceLabel, removeProtobufReference, sourceUrlInProjectFile,
 } from '../../../../services/grpc/protobufReferences';
 
 const root = path.resolve('/work');
@@ -76,6 +76,29 @@ describe('addProtobufReference', () => {
         expect(added).toContain('  <ItemGroup>\r\n    <Protobuf Include="Protos\\greet.proto" GrpcServices="Client" />\r\n  </ItemGroup>\r\n');
         expect(added.replace(/\r\n/g, '')).not.toContain('\n');
     });
+
+    const orders = { include: 'Protos\\orders.proto', services: 'Client' } as const;
+    const ordersLine = '<Protobuf Include="Protos\\orders.proto" GrpcServices="Client" />';
+
+    test('never into an ItemGroup with a Condition: the item would count for one framework only', () => {
+        const conditional = project.replace('</Project>',
+            '  <ItemGroup Condition="\'$(TargetFramework)\' == \'net8.0\'">\n    <Protobuf Include="Protos\\legacy.proto" />\n  </ItemGroup>\n\n</Project>');
+        const added = addProtobufReference(conditional, orders);
+        expect(added).toContain('    <Protobuf Include="Protos\\legacy.proto" />\n  </ItemGroup>\n\n  <ItemGroup>\n    ' + ordersLine + '\n  </ItemGroup>\n');
+    });
+
+    test('never inside Choose/When', () => {
+        const choose = project.replace('</Project>',
+            '  <Choose>\n    <When Condition="true">\n      <ItemGroup>\n        <Protobuf Include="Protos\\w.proto" />\n      </ItemGroup>\n    </When>\n  </Choose>\n\n</Project>');
+        const added = addProtobufReference(choose, orders);
+        expect(added).toContain('      </ItemGroup>\n    </When>\n  </Choose>\n\n  <ItemGroup>\n    ' + ordersLine + '\n  </ItemGroup>\n');
+    });
+
+    test('after the last Protobuf item that is in a plain ItemGroup, skipping a later conditional one', () => {
+        const mixed = withReference.replace('</Project>',
+            '  <ItemGroup Condition="\'$(Configuration)\' == \'Debug\'">\n    <Protobuf Include="Protos\\debug.proto" />\n  </ItemGroup>\n\n</Project>');
+        expect(addProtobufReference(mixed, orders)).toBe(mixed.replace('Link="Protos\\greet.proto" />\n', 'Link="Protos\\greet.proto" />\n    ' + ordersLine + '\n'));
+    });
 });
 
 describe('removeProtobufReference', () => {
@@ -98,6 +121,17 @@ describe('removeProtobufReference', () => {
         expect(removeProtobufReference(glob, projectDir, path.join(projectDir, 'Protos', 'a.proto'))).toBe(glob);
         expect(removeProtobufReference(withReference, projectDir, path.join(root, 'other.proto'))).toBe(withReference);
     });
+
+    test('an XML-escaped name (a&b.proto) is a single file, not a list: removed', () => {
+        const ampersand = addProtobufReference(project, { include: 'Protos\\a&b.proto', services: 'Client' });
+        expect(ampersand).toContain('Include="Protos\\a&amp;b.proto"');
+        expect(removeProtobufReference(ampersand, projectDir, path.join(projectDir, 'Protos', 'a&b.proto'))).toBe(project);
+    });
+
+    test('an Include with MSBuild properties is not taken for a file of that name', () => {
+        const property = project.replace('</Project>', '  <ItemGroup>\n    <Protobuf Include="$(X).proto" />\n  </ItemGroup>\n</Project>');
+        expect(removeProtobufReference(property, projectDir, path.join(projectDir, '$(X).proto'))).toBe(property);
+    });
 });
 
 describe('duplicateRefusal', () => {
@@ -112,6 +146,18 @@ describe('duplicateRefusal', () => {
     test('another file with the same name outside the project would get the same Link', () => {
         const other = path.join(root, 'other', 'greet.proto');
         expect(duplicateRefusal([greet], withReference, projectDir, other, protobufReferenceFor(projectDir, other, 'Client')))
+            .toBe('Protos\\greet.proto is already taken by the gRPC reference ..\\shared\\greet.proto; rename one of the files.');
+    });
+
+    test('the duplicate check of the project file reads XML escapes (a&amp;b.proto)', () => {
+        const file = path.join(projectDir, 'Protos', 'a&b.proto');
+        const ampersand = addProtobufReference(project, { include: 'Protos\\a&b.proto', services: 'Client' });
+        expect(duplicateRefusal([], ampersand, projectDir, file, protobufReferenceFor(projectDir, file, 'Client'))).toBe('a&b.proto is already a gRPC reference of Client.');
+    });
+
+    test('a file downloaded to where a linked reference is shown (Protos\\greet.proto) is refused', () => {
+        const target = path.join(projectDir, 'Protos', 'greet.proto');
+        expect(duplicateRefusal([greet], withReference, projectDir, target, protobufReferenceFor(projectDir, target, 'Client', 'https://example.com/greet.proto')))
             .toBe('Protos\\greet.proto is already taken by the gRPC reference ..\\shared\\greet.proto; rename one of the files.');
     });
 
@@ -174,6 +220,7 @@ describe('helpers', () => {
         expect(protoFileName('https://example.com/api/orders%20v2.proto?ref=main')).toBe('orders v2.proto');
         expect(protoFileName('https://example.com/protos/greet')).toBe('greet.proto');
         expect(protoFileName('https://example.com/')).toBe('service.proto');
+        expect(protoFileName('https://h/a/%ZZ.proto')).toBe('%ZZ.proto');
     });
 
     test('referenceLabel shows the file and what it generates, Both when the item does not say', () => {
@@ -192,5 +239,25 @@ describe('helpers', () => {
             .toBe('a.proto comes from Directory.Build.props, not from Client.csproj: remove it there.');
         expect(notListedMessage({ include: 'Protos/a.proto', fullPath: proto, definedIn: projectPath }, projectPath, proto))
             .toBe('a.proto is not listed by itself in Client.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.');
+    });
+
+    test('notListedMessage: an Include built from MSBuild properties is not called a wildcard', () => {
+        const proto = path.join(projectDir, 'Protos', 'a.proto');
+        const xml = project.replace('</Project>', '  <ItemGroup>\n    <Protobuf Include="$(ProtoDir)\\a.proto" />\n  </ItemGroup>\n</Project>');
+        expect(notListedMessage({ include: 'Protos/a.proto', fullPath: proto, definedIn: projectPath }, projectPath, proto, xml))
+            .toBe('a.proto is listed in Client.csproj through MSBuild properties ($(ProtoDir)\\a.proto): edit the project file.');
+        const both = xml.replace('</ItemGroup>', '  <Protobuf Include="Protos\\*.proto" />\n  </ItemGroup>');
+        expect(notListedMessage({ include: 'Protos/a.proto', fullPath: proto, definedIn: projectPath }, projectPath, proto, both))
+            .toBe('a.proto is not listed by itself in Client.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.');
+    });
+
+    test('sourceUrlInProjectFile: the URL as written (XML unescaped, MSBuild escapes kept), from the element or attribute', () => {
+        const url = 'https://example.com/a%2Bb/my%20svc.proto?sig=ab%2Bcd%3D&se=2026';
+        const remote = path.join(projectDir, 'Protos', 'remote.proto');
+        const xml = addProtobufReference(project, { include: 'Protos\\remote.proto', services: 'Client', sourceUrl: url });
+        expect(sourceUrlInProjectFile(xml, projectDir, remote)).toBe(url);
+        const attribute = project.replace('</Project>', `  <ItemGroup>\n    <Protobuf Include="Protos/remote.proto" SourceUrl="${url.replace('&', '&amp;')}" />\n  </ItemGroup>\n</Project>`);
+        expect(sourceUrlInProjectFile(attribute, projectDir, remote)).toBe(url);
+        expect(sourceUrlInProjectFile(withReference, projectDir, path.join(root, 'shared', 'greet.proto'))).toBeUndefined();
     });
 });

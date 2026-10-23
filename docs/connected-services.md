@@ -30,16 +30,19 @@ If `dotnet-svcutil` is missing, you are offered to install it **for the reposito
 ### Add
 
 Right-click a project or its **Connected Services** node > **Add Service Reference...** > **gRPC**:
-1. The service description: **Browse for .proto File...**, or **Enter URL...** (the file is downloaded into the project's `Protos` folder; a file there with other content is replaced only after you confirm).
+1. The service description: **Browse for .proto File...**, or **Enter URL...** (the file is downloaded into the project's `Protos` folder; a file there with other content is replaced only after you confirm). The download can be cancelled from its notification and gives up after 30 seconds; an answer that is a web page (a sign-in page, say), empty or larger than 5 MB is refused and nothing changes, and so is a redirect from https to http. Credentials in the URL (`https://user:password@...` or a token in the query) are sent but not shown in messages or the output; the project file keeps the URL as you entered it, as `dotnet-grpc` does.
 2. What to generate: **Client**, **Server** or **Both**. Both comes first in web projects (`Microsoft.NET.Sdk.Web`), Client in the others, as with `dotnet-grpc`.
 
 The project file gets the item `dotnet-grpc` writes, formatting kept:
 - a file in the project: `<Protobuf Include="Protos\greet.proto" GrpcServices="Client" />`
 - a file outside it: `<Protobuf Include="..\shared\greet.proto" GrpcServices="Client" Link="Protos\greet.proto" />` (the tree shows it in Protos)
 - from a URL: the item with a `<SourceUrl>` child, which Update uses
+- it goes after the last `<Protobuf>` item that is in an ItemGroup without a Condition (and not in a Choose), so it counts for every target framework and configuration
 - Both leaves `GrpcServices` out (Grpc.Tools' default)
 
-A file the project references already is refused, and so is a second file with the same name from outside the project (both would be shown as `Protos\greet.proto`).
+A file the project references already is refused, and so is a second file with the same name from outside the project, or a download to `Protos\greet.proto` while a linked file is shown there (both would be shown as `Protos\greet.proto`).
+
+If adding the packages fails (no network, say), the item stays in the project file and the error says so: add the same reference again once the package sources can be reached, and only the missing packages are added.
 
 ### Packages
 
@@ -52,7 +55,7 @@ Every `<Protobuf>` item of a project is a gRPC reference: Connected Services lis
 ### Update and remove
 
 Right-click the reference in Connected Services:
-- **Update gRPC Reference** (references added from a URL) downloads the file again from its `SourceUrl` and replaces the local copy only when the content changed; the code follows with the next build.
-- **Remove gRPC Reference** takes the `<Protobuf>` item out of the project file after asking. The `.proto` file and the packages stay, as with `dotnet-grpc remove`. A file that a wildcard (`Protos\*.proto`) or a props file includes cannot be removed this way: the message says where it comes from.
+- **Update gRPC Reference** (references added from a URL) downloads the file again from its `SourceUrl`, exactly as written in the project file (escapes such as `%2B` in a signed URL stay), and replaces the local copy only when the content changed; the code follows with the next build. The download is checked as for Add: a web page or an empty answer leaves the local file as it was.
+- **Remove gRPC Reference** takes the `<Protobuf>` item out of the project file after asking. The `.proto` file and the packages stay, as with `dotnet-grpc remove`. A file that a wildcard (`Protos\*.proto`), an Include built from MSBuild properties (`$(ProtoDir)\greet.proto`) or a props file includes cannot be removed this way: the message says where it comes from.
 
 ![Adding a gRPC reference from a URL, then updating and removing it](images/grpc.gif)

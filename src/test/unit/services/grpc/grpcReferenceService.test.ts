@@ -10,6 +10,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { DownloadCancelled } from '../../../../services/grpc/download';
 import { addGrpcReference, GrpcHost, installGrpcPackages } from '../../../../services/grpc/grpcReferenceService';
 import { OperationsHost } from '../../../../services/nuget/centralPackageOperations';
 import { ProjectState } from '../../../../services/nuget/centralPackagePlan';
@@ -19,6 +20,7 @@ import { parseMsbuildItems } from '../../../../services/projectItems/projectItem
 
 const fixture = path.resolve(__dirname, '../../../../__fixtures__/grpc');
 const GREET_URL = 'https://example.com/protos/greet.proto';
+const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
 
 describe('addGrpcReference', () => {
     let root: string;
@@ -113,7 +115,7 @@ describe('addGrpcReference', () => {
         const before = fs.readFileSync(client, 'utf8');
         const { fake, calls } = host({ pickSource: async () => ({ kind: 'url', url: GREET_URL }), download: async () => { throw new Error('404'); } });
         expect(await addGrpcReference(client, fake)).toBe(false);
-        expect(calls.fail).toEqual([`Downloading ${GREET_URL} failed.`]);
+        expect(calls.fail).toEqual([`Adding gRPC reference greet.proto failed: ${GREET_URL} could not be downloaded. Nothing was changed.`]);
         expect(fs.readFileSync(client, 'utf8')).toBe(before);
         expect(fs.existsSync(path.join(root, 'Client', 'Protos'))).toBe(false);
     });
@@ -121,9 +123,10 @@ describe('addGrpcReference', () => {
     test('a file the project references already is refused', async () => {
         const items = parseMsbuildItems(JSON.stringify({ Items: { Protobuf: [{ Identity: '..\\shared\\greet.proto', FullPath: shared(), Link: 'Protos\\greet.proto' }] } }), root);
         const before = fs.readFileSync(client, 'utf8');
-        const { fake, calls } = host({ items: async () => items });
+        const { fake, calls } = host({ items: async () => items, referencedPackages: async () => ['Grpc.AspNetCore'] });
         expect(await addGrpcReference(client, fake)).toBe(false);
         expect(calls.info).toEqual(['greet.proto is already a gRPC reference of Client.']);
+        expect(calls.installed).toEqual([]);
         expect(fs.readFileSync(client, 'utf8')).toBe(before);
     });
 
@@ -131,8 +134,94 @@ describe('addGrpcReference', () => {
         const { fake, calls } = host({ latestVersion: async () => undefined });
         expect(await addGrpcReference(client, fake)).toBe(true);
         expect(fs.readFileSync(client, 'utf8')).toContain('<Protobuf Include="..\\shared\\greet.proto"');
-        expect(calls.fail).toEqual(['gRPC reference greet.proto added, but adding its packages failed.']);
+        expect(calls.fail).toEqual(['gRPC reference greet.proto added, but adding its packages failed. '
+            + 'Once the package sources can be reached, add the same reference again: that adds the missing packages.']);
     });
+
+    test('Add again after the packages failed (offline): the missing packages are added, the item is not written twice', async () => {
+        const offline = host({ latestVersion: async () => undefined, items: async () => undefined });
+        expect(await addGrpcReference(client, offline.fake)).toBe(true);
+        const halfDone = fs.readFileSync(client, 'utf8');
+        // MSBuild could not tell (items undefined): the project file text says it is there
+        const { fake, calls } = host({ items: async () => undefined });
+        expect(await addGrpcReference(client, fake)).toBe(true);
+        expect(calls.installed).toEqual(['Google.Protobuf 3.30.2', 'Grpc.Net.ClientFactory 2.71.0', 'Grpc.Tools 2.71.0']);
+        expect(calls.info).toEqual(['greet.proto was a gRPC reference already; its missing packages were added. The code is generated when the project builds.']);
+        const content = fs.readFileSync(client, 'utf8');
+        expect(content.match(/<Protobuf /g)).toHaveLength(1);
+        expect(content.startsWith(halfDone.replace(/\n<\/Project>\n$/, ''))).toBe(true);
+        expect(content).toContain('<PrivateAssets>all</PrivateAssets>');
+    });
+
+    withDotnet('Add again after the packages failed, evaluated by real MSBuild: the item\'s GrpcServices decide the packages', async () => {
+        const offline = host({ latestVersion: async () => undefined });
+        expect(await addGrpcReference(client, offline.fake)).toBe(true);
+        // This time Both is picked; the item says Client
+        const { fake, calls } = host({
+            pickServices: async () => 'Both',
+            items: projectPath => new ProjectItemsService().evaluate(projectPath),
+            referencedPackages: async projectPath => (await new ProjectItemsService().evaluatePackages(projectPath))?.references.map(reference => reference.id) ?? [],
+        });
+        expect(await addGrpcReference(client, fake)).toBe(true);
+        expect(calls.installed).toEqual(['Google.Protobuf 3.30.2', 'Grpc.Net.ClientFactory 2.71.0', 'Grpc.Tools 2.71.0']);
+        expect(fs.readFileSync(client, 'utf8').match(/<Protobuf /g)).toHaveLength(1);
+    }, 150000);
+
+    test('a URL answered with an HTML page (a sign-in page) or nothing: refused, the local file and the project stay', async () => {
+        fs.mkdirSync(path.join(root, 'Client', 'Protos'));
+        fs.writeFileSync(path.join(root, 'Client', 'Protos', 'greet.proto'), 'old');
+        const before = fs.readFileSync(client, 'utf8');
+        for (const answer of ['\n<!DOCTYPE html><html><body>Sign in</body></html>', '']) {
+            const { fake, calls } = host({ pickSource: async () => ({ kind: 'url', url: GREET_URL }), download: async () => Buffer.from(answer), ask: async () => true });
+            expect(await addGrpcReference(client, fake)).toBe(false);
+            expect(calls.asked).toEqual([]);
+            expect(calls.fail).toEqual([expect.stringMatching(new RegExp(`^Adding gRPC reference greet.proto failed: ${GREET_URL} did not send a .proto file \\((it answered with a web page|the answer was empty).*Nothing was changed\\.$`))]);
+        }
+        expect(fs.readFileSync(path.join(root, 'Client', 'Protos', 'greet.proto'), 'utf8')).toBe('old');
+        expect(fs.readFileSync(client, 'utf8')).toBe(before);
+    });
+
+    test('credentials in the URL are not shown or logged, but are used and stored as written', async () => {
+        const url = 'https://user:s3cret@example.com/protos/greet.proto?token=TOPSECRET';
+        const shown: string[] = [];
+        const downloaded: string[] = [];
+        const failing = host({
+            pickSource: async () => ({ kind: 'url', url }), log: line => { shown.push(line); },
+            download: async requested => { downloaded.push(requested); throw new Error('https://***@example.com/protos/greet.proto?*** answered 500'); },
+        });
+        await addGrpcReference(client, failing.fake);
+        const { fake, calls } = host({ pickSource: async () => ({ kind: 'url', url }), log: line => { shown.push(line); } });
+        expect(await addGrpcReference(client, fake)).toBe(true);
+        expect(downloaded).toEqual([url]);
+        expect([...shown, ...failing.calls.fail, ...calls.info, ...calls.fail].join('\n')).not.toMatch(/s3cret|TOPSECRET/);
+        expect(failing.calls.fail).toEqual(['Adding gRPC reference greet.proto failed: https://***@example.com/protos/greet.proto?*** could not be downloaded. Nothing was changed.']);
+        expect(fs.readFileSync(client, 'utf8')).toContain(`<SourceUrl>${url}</SourceUrl>`);
+    });
+
+    test('a cancelled download changes nothing and is no error', async () => {
+        const before = fs.readFileSync(client, 'utf8');
+        const { fake, calls } = host({ pickSource: async () => ({ kind: 'url', url: GREET_URL }), download: async () => { throw new DownloadCancelled(); } });
+        expect(await addGrpcReference(client, fake)).toBe(false);
+        expect(calls.fail).toEqual([]);
+        expect(fs.readFileSync(client, 'utf8')).toBe(before);
+    });
+
+    withDotnet('a URL whose file would be where a linked reference is shown (Consumer: Link="Protos\\greet.proto") is refused before downloading', async () => {
+        const consumer = path.join(root, 'Consumer', 'Consumer.csproj');
+        const before = fs.readFileSync(consumer, 'utf8');
+        const downloaded: string[] = [];
+        const { fake, calls } = host({
+            pickSource: async () => ({ kind: 'url', url: GREET_URL }),
+            items: projectPath => new ProjectItemsService().evaluate(projectPath),
+            download: async url => { downloaded.push(url); return Buffer.from('syntax = "proto3";\n'); },
+        });
+        expect(await addGrpcReference(consumer, fake)).toBe(false);
+        // MSBuild on Linux and macOS reports the Include with forward slashes
+        expect(calls.info).toEqual([expect.stringMatching(/^Protos\\greet\.proto is already taken by the gRPC reference \.\.[\\/]shared[\\/]greet\.proto; rename one of the files\.$/)]);
+        expect(downloaded).toEqual([]);
+        expect(fs.readFileSync(consumer, 'utf8')).toBe(before);
+        expect(fs.existsSync(path.join(root, 'Consumer', 'Protos', 'greet.proto'))).toBe(false);
+    }, 150000);
 
     test('cancelled at the source or at what to generate: nothing changes', async () => {
         const before = fs.readFileSync(client, 'utf8');
@@ -144,7 +233,6 @@ describe('addGrpcReference', () => {
 
 describe('addGrpcReference under Central Package Management (the packages go through changePackageVersions)', () => {
     const cpmFixture = path.resolve(__dirname, '../../../../__fixtures__/central-packages/cpm');
-    const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
     let root: string;
     let app: string;
     let legacy: string;
