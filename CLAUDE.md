@@ -24,6 +24,10 @@ Tests live both next to sources (`*.spec.ts`) and under `src/test/unit/**` (`*.t
 
 TypeScript is `strict` with `noUnusedLocals`/`noUnusedParameters`, and webpack builds use `noEmitOnError` — unused variables break the build. `npm run build:dev` builds two configurations; judge it by its exit code, not by grepping for "compiled successfully" (the extension half can succeed while the webview half fails). Webview code runs in a browser: it must not reach `vscode` or Node modules, not even through shared files like `core/logger.ts`; `src/test/unit/build/webviewBundle.test.ts` builds the webview bundles to catch that.
 
+### Running VS Code or Electron (agents and scripts)
+
+Never start VS Code, Code - OSS or another Electron app on the user's desktop: a window pops up on their screen and a `code` command hands the folder to their running instance. Real-editor runs (screenshots, measurements, `@vscode/test-electron`, Playwright) go in their own Xvfb display with `DISPLAY` set explicitly for every launch (`scripts/screenshots/capture.sh` uses `:97`; take another free number such as `:93` when two runs overlap), `WAYLAND_DISPLAY` unset, their own `--user-data-dir` and `--extensions-dir` in `/tmp`, and a copy of the fixture in `/tmp` (not `src/__fixtures__`). Check with `/proc/<pid>/environ` that `DISPLAY` is not `:0.0`, and kill what you started when done.
+
 ## Architecture
 
 Two separate webpack bundles (see `webpack.config.js`):
