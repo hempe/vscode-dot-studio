@@ -24,6 +24,7 @@ import { changedSince, unlistedEntries } from '../services/projectItems/unseenFi
 import { INCLUDED_ITEM, EXCLUDED_ITEM, LINKED_ITEM } from './contextMenus';
 import { ProjectPackages } from '../services/nuget/centralPackages';
 import { PackageVersionSource } from '../services/nuget/types';
+import { OwnWrites } from '../services/ownWrites';
 
 export interface ProjectFileNode {
     name: string;
@@ -896,10 +897,11 @@ export class Project {
     /**
      * A watcher saw the project file change. When it is the version an evaluation was already asked for (an edit
      * of ours like Include or Exclude, or a second watcher of the same folder), that evaluation reads it: no new one.
+     * The same for a package edit of the NuGet manager, which evaluates the project itself after its restore.
      */
     private async reevaluateItemsIfProjectFileChanged(): Promise<void> {
         const stamp = this.projectFileStamp();
-        if (stamp !== undefined && stamp === this._evaluatedProjectFile) {
+        if (stamp !== undefined && (stamp === this._evaluatedProjectFile || OwnWrites.isOwn(this._projectPath))) {
             return;
         }
         await this.reevaluateItems();

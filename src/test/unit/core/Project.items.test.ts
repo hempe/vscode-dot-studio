@@ -17,6 +17,7 @@ import { NodeIdService } from '../../../services/nodeIdService';
 import { parseMsbuildItems } from '../../../services/projectItems/projectItems';
 import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
 import { ShowAllFiles } from '../../../services/showAllFiles';
+import { OwnWrites } from '../../../services/ownWrites';
 
 describe('Project file tree with the item overlay', () => {
     let dir: string;
@@ -278,6 +279,19 @@ describe('Project file tree with the item overlay', () => {
         fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"></Project>');
         await changed.handleFileChanged({ fsPath: projectPath });
         expect(invalidate).toHaveBeenCalledTimes(2);
+    });
+
+    test('the watcher event of a package edit of the NuGet manager does not evaluate (the manager does, after the restore)', async () => {
+        const project = await newProject();
+        const invalidate = jest.spyOn(ProjectItemsService.instance, 'invalidate');
+        const changed = (project as unknown as { handleFileChanged(uri: { fsPath: string }): Promise<void> });
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Serilog" VersionOverride="4.0.0" /></ItemGroup></Project>');
+        OwnWrites.record(projectPath);
+        await changed.handleFileChanged({ fsPath: projectPath });
+        expect(invalidate).not.toHaveBeenCalled();
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+        await changed.handleFileChanged({ fsPath: projectPath });
+        expect(invalidate).toHaveBeenCalledTimes(1);
     });
 
     test('a new file the item list already includes does not evaluate again', async () => {

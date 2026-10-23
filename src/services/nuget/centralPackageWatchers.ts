@@ -5,6 +5,7 @@ import { ProjectItemsService } from '../projectItems/projectItemsService';
 import { centralFiles } from './centralPackages';
 import { importChain } from './centralPackageFiles';
 import { Stamp, changedFiles, watchPlan } from './centralPackageWatch';
+import { OwnWrites } from '../ownWrites';
 
 /**
  * Watches the props files the solution's central package versions come from, beyond `Directory.Packages.props`
@@ -44,7 +45,12 @@ export class CentralPackageWatchers implements vscode.Disposable {
         }
         for (const file of watch.filter(candidate => !this.watchers.has(candidate))) {
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(path.dirname(file), path.basename(file)));
-            const changed = () => { void this.reevaluate(); };
+            const changed = (uri: vscode.Uri) => {
+                // An edit of the NuGet manager: it evaluates the projects itself, after the restore
+                if (!OwnWrites.isOwn(uri.fsPath)) {
+                    void this.reevaluate();
+                }
+            };
             watcher.onDidChange(changed);
             watcher.onDidCreate(changed);
             watcher.onDidDelete(changed);
@@ -56,7 +62,7 @@ export class CentralPackageWatchers implements vscode.Disposable {
 
     /** Props files outside the workspace: evaluates again when one changed since the last look */
     async recheck(): Promise<void> {
-        if (changedFiles(this.plan().outside, this.stamps).length > 0) {
+        if (changedFiles(this.plan().outside, this.stamps).some(file => !OwnWrites.isOwn(file))) {
             await this.reevaluate();
         }
     }

@@ -23,6 +23,7 @@ import { changedFiles, Stamp, watchPlan } from '../../../../services/nuget/centr
 import { CentralPackageWatchers } from '../../../../services/nuget/centralPackageWatchers';
 import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
 import { parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
+import { applyPackageEdits } from '../../../../services/nuget/centralPackageFiles';
 
 describe('watchPlan', () => {
     const root = path.resolve('/work/repo');
@@ -120,12 +121,46 @@ describe('CentralPackageWatchers', () => {
     test('a change seen by a watcher evaluates the projects again', () => {
         const reevaluate = jest.fn().mockResolvedValue(undefined);
         const watchers = new CentralPackageWatchers(reevaluate);
-        evaluated(path.join(dir, 'build', 'Versions.props'));
+        const versions = path.join(dir, 'build', 'Versions.props');
+        evaluated(versions);
         const created = createdWatchers().results[0].value;
         for (const event of [created.onDidChange, created.onDidCreate, created.onDidDelete]) {
-            event.mock.calls[0][0]();
+            event.mock.calls[0][0]({ fsPath: versions });
         }
         expect(reevaluate).toHaveBeenCalledTimes(3);
+        watchers.dispose();
+    });
+
+    const writeVersions = (file: string) => {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, '<Project>\n  <ItemGroup>\n    <PackageVersion Include="Serilog" Version="3.1.1" />\n  </ItemGroup>\n</Project>\n');
+    };
+
+    test('the watcher event of a file the NuGet manager wrote does not evaluate (the manager does, after the restore); a later edit does', async () => {
+        const versions = path.join(dir, 'build', 'Versions.props');
+        writeVersions(versions);
+        const reevaluate = jest.fn().mockResolvedValue(undefined);
+        const watchers = new CentralPackageWatchers(reevaluate);
+        evaluated(versions);
+        const onDidChange = createdWatchers().results[0].value.onDidChange.mock.calls[0][0];
+        await applyPackageEdits([{ kind: 'setPackageVersion', file: versions, id: 'Serilog', version: '4.0.0' }]);
+        onDidChange({ fsPath: versions });
+        expect(reevaluate).not.toHaveBeenCalled();
+        fs.writeFileSync(versions, fs.readFileSync(versions, 'utf8').replace('4.0.0', '4.10.0'));
+        onDidChange({ fsPath: versions });
+        expect(reevaluate).toHaveBeenCalledTimes(1);
+        watchers.dispose();
+    });
+
+    test('recheck leaves out a props file outside the workspace that the NuGet manager wrote', async () => {
+        const file = path.join(outside, 'Company.Packages.props');
+        writeVersions(file);
+        const reevaluate = jest.fn().mockResolvedValue(undefined);
+        const watchers = new CentralPackageWatchers(reevaluate);
+        evaluated(file);
+        await applyPackageEdits([{ kind: 'setPackageVersion', file, id: 'Serilog', version: '4.0.0' }]);
+        await watchers.recheck();
+        expect(reevaluate).not.toHaveBeenCalled();
         watchers.dispose();
     });
 

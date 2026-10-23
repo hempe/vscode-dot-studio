@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
 import { PackageEdit, applyEdit, globalPackageReferences } from './centralPackageEdits';
 import { CentralEntry } from './centralPackages';
+import { OwnWrites } from '../ownWrites';
 
 /**
  * Writes planned edits: each file is read once, gets its edits in order, and is written only when it changed.
@@ -26,6 +27,8 @@ export async function applyPackageEdits(edits: readonly PackageEdit[]): Promise<
     try {
         for (const result of changed) {
             await fs.promises.writeFile(result.file, result.edited, 'utf8');
+            // The caller evaluates the projects after its restore: the watchers leave this version alone
+            OwnWrites.record(result.file);
             written.push(result);
         }
     } catch (error) {

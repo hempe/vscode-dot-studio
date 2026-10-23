@@ -10,6 +10,7 @@ import { ErrorListViewProvider, ERROR_LIST_VIEW } from './webview/providers/Erro
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
 import { CentralPackageWatchers } from './services/nuget/centralPackageWatchers';
+import { OwnWrites } from './services/ownWrites';
 import { isExcluded } from './core/constants';
 import { logger as loggerFn, setLogSink } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
@@ -348,7 +349,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Directory.Build.props/targets change what every project below contains, Directory.Packages.props its package versions
     const buildPropsWatcher = vscode.workspace.createFileSystemWatcher('**/Directory.{Build.props,Build.targets,Packages.props}');
     const handleBuildPropsChange = async (uri: vscode.Uri) => {
-        if (isExcluded(uri.fsPath, rootOf(uri.fsPath))) {
+        // A version the NuGet manager wrote: it evaluates the projects itself, after the restore
+        if (isExcluded(uri.fsPath, rootOf(uri.fsPath)) || OwnWrites.isOwn(uri.fsPath)) {
             return;
         }
         await reevaluateAllProjects();
