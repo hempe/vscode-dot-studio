@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–20 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer and for NuGet. Phase 21 is the second round for connected services, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -40,9 +40,10 @@ Found along the way, to be fixed:
 - [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
 - [ ] Central Package Management: a `PackageReference` that comes from a props file (not from the project file) cannot be uninstalled from the NuGet manager (`dotnet remove package` reports that the project has no such reference); edit the props file
 - [ ] The Test Explorer does not use a `.runsettings` file or `RunSettingsFilePath`: VSTest projects are run with a fixed minimal setting (`vstestClient.ts`), so `MaxCpuCount` (parallel test assemblies) and `BatchSize` of a team's file have no effect (a speed difference, not a different result; data collectors only matter for coverage, which stays a script); Microsoft.Testing.Platform projects were not checked for what they do with such settings
-
-## Phase 21: Connected Services, Part 2
-- [ ] gRPC references from `.proto` files (Visual Studio's "Add Connected Service > gRPC", `dotnet-grpc`): add, update, remove, in Connected Services; plan in [the gRPC spec](superpowers/specs/2026-10-23-grpc-references-design.md)
+- [ ] gRPC references: Update only works for references added from a URL (`SourceUrl`); a local `.proto` is the file itself
+- [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
+- [ ] gRPC references: the packages come in the newest stable version on the configured sources; a project that pins an older `Google.Protobuf` may need it raised by hand (NU1605 at restore)
+- [ ] gRPC references: a case-only duplicate such as `a.proto` / `A.PROTO` on Windows or macOS is not detected (unproven)
 
 ## Phase 22: Quality and documentation
 - [ ] Code review of the whole code base, once the nice-to-haves are in: plan in [the code review plan](superpowers/plans/2026-10-21-code-review.md)

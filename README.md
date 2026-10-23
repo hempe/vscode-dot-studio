@@ -128,7 +128,7 @@ A Publish tab like Visual Studio's for folder publishing, with the same `.pubxml
 
 ### Connected Services
 
-Add, update and remove WCF/SOAP service references, compatible with the ones Visual Studio made.
+Add, update and remove WCF/SOAP service references, compatible with the ones Visual Studio made, and gRPC references from `.proto` files or URLs (client, server or both, with the packages).
 
 [Connected Services](docs/connected-services.md)
 
