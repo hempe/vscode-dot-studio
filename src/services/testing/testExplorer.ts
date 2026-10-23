@@ -134,6 +134,9 @@ const dotnetQueue = new RequestQueue(4);
 
 const terminal = (text: string) => text.replace(/\r?\n/g, '\r\n');
 
+/** The description of a test project item whose test app isn't built: nothing to discover yet */
+export const NOT_BUILT = 'not built yet: Run or refresh builds it';
+
 interface ProjectState {
     project: TestProject;
     item: vscode.TestItem;
@@ -275,15 +278,27 @@ export class TestExplorer implements vscode.Disposable {
                 state.item.error = 'Build failed, see the Problems panel';
                 return;
             }
-            const modified = this.deps.modified(project.targetPath);
-            if (modified !== undefined && modified !== state.discoveredAt) {
-                await this.discover(state);
-                state.discoveredAt = modified;
-            }
+            await this.discoverIfChanged(state);
         })));
     }
 
-    private async discover(state: ProjectState): Promise<void> {
+    /**
+     * Discovers the tests of the project when its build changed since the last discovery (or that failed).
+     * Without a build there is nothing to discover: the project item says so instead of looking empty.
+     */
+    private async discoverIfChanged(state: ProjectState): Promise<void> {
+        const modified = this.deps.modified(state.project.targetPath);
+        if (modified === undefined) {
+            state.item.description = NOT_BUILT;
+            return;
+        }
+        if (modified !== state.discoveredAt && await this.discover(state)) {
+            state.discoveredAt = modified;
+        }
+    }
+
+    /** False when discovering failed (the reason is on the project item) */
+    private async discover(state: ProjectState): Promise<boolean> {
         const discovered: TestNode[] = [];
         try {
             if (state.project.testingPlatform) {
@@ -305,10 +320,13 @@ export class TestExplorer implements vscode.Disposable {
         } catch (error) {
             log.error(`Discovering the tests of ${state.project.projectPath} failed:`, error);
             state.item.error = `Discovering tests failed: ${error instanceof Error ? error.message : error}`;
-            return;
+            state.item.description = undefined;
+            return false;
         }
         state.item.error = undefined;
+        state.item.description = undefined;
         state.item.children.replace(buildTestTree(discovered).map(entry => this.toItem(entry)));
+        return true;
     }
 
     private toItem(entry: TreeEntry): vscode.TestItem {
@@ -344,6 +362,8 @@ export class TestExplorer implements vscode.Disposable {
     }
 
     private async run(request: vscode.TestRunRequest, token: vscode.CancellationToken, debug: boolean): Promise<void> {
+        // The refresh on load may still be adding test projects: run all of them, not those found so far
+        await this.refreshing;
         // Select Framework changed since: multi-targeted projects now run on another framework
         if (this.states.size === 0 || this.deps.selectedFramework() !== this.evaluatedFor) {
             await this.refresh(false);
@@ -382,11 +402,11 @@ export class TestExplorer implements vscode.Disposable {
                     items.forEach(item => run.errored(item, new vscode.TestMessage('Build failed, see the Problems panel')));
                     continue;
                 }
-                // Not discovered for this build yet (a framework not built before): discover first, so the results have tests to go to
-                const modified = this.deps.modified(state.project.targetPath);
-                if (modified !== undefined && modified !== state.discoveredAt) {
-                    await this.discover(state);
-                    state.discoveredAt = modified;
+                // Not discovered for this build yet (never built, or a framework not built before): discover first,
+                // so the results have tests to go to and the tree fills in
+                await this.discoverIfChanged(state);
+                if (all && items.size === 0) {
+                    this.leaves(state.item, []).forEach(item => run.enqueued(item));
                 }
                 await this.runProject(state, all ? undefined : [...items], run, token, debug);
             }
@@ -406,10 +426,18 @@ export class TestExplorer implements vscode.Disposable {
         };
         collect(state.item);
 
+        /** Results of tests without an item, by uid (the last one of a test wins) */
+        const unmatched = new Map<string, TestNode>();
         const report = (node: TestNode) => {
             const item = byUid.get(node.uid);
             const outcome = outcomeOf(node);
-            if (!item || !outcome) {
+            if (!outcome) {
+                return;
+            }
+            if (!item) {
+                if (outcome.state !== 'started') {
+                    unmatched.set(node.uid, node);
+                }
                 return;
             }
             const output = [node.standardOutput, node.standardError].filter(Boolean).join('\n');
@@ -443,11 +471,44 @@ export class TestExplorer implements vscode.Disposable {
             (failed.length > 0 ? failed : [state.item]).forEach(item => run.errored(item, message));
         };
 
-        if (!state.project.testingPlatform) {
+        if (state.project.testingPlatform) {
+            await this.runTestingPlatformProject(state, items, run, token, debug, report, fail);
+        } else {
             await this.runVsTestProject(state, items, run, token, debug, report, fail);
-            return;
         }
 
+        if (unmatched.size === 0) {
+            return;
+        }
+        // Results of tests the tree doesn't have (discovered from another build, or not at all): discover again
+        // so they get their items, and say so for any that still have none rather than dropping them
+        if (!token.isCancellationRequested) {
+            const modified = this.deps.modified(state.project.targetPath);
+            if (await this.discover(state) && modified !== undefined) {
+                state.discoveredAt = modified;
+            }
+            byUid.clear();
+            collect(state.item);
+        }
+        const pending = [...unmatched.values()];
+        unmatched.clear();
+        pending.forEach(report);
+        if (unmatched.size > 0) {
+            const names = [...unmatched.values()].map(node => node['display-name']).join(', ');
+            run.appendOutput(terminal(`${unmatched.size} result(s) of ${path.basename(state.project.projectPath)} could not be matched to a test in the Testing view: ${names}\n`));
+        }
+    }
+
+    /** Runs or debugs the tests of a Microsoft.Testing.Platform project through its server mode */
+    private async runTestingPlatformProject(
+        state: ProjectState,
+        items: vscode.TestItem[] | undefined,
+        run: vscode.TestRun,
+        token: vscode.CancellationToken,
+        debug: boolean,
+        report: (node: TestNode) => void,
+        fail: (error: unknown) => void
+    ): Promise<void> {
         let session: TestSession;
         try {
             session = await connectTestApp(args => this.deps.start(state.project, args, debug));

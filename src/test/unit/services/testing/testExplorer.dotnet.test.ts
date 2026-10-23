@@ -122,6 +122,48 @@ public class FrameworkTests
     [Xunit.Fact] public void Runtime() => System.Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
 }
 `,
+    // Restored but never built: Run all on them must build, discover and report (xUnit v3, xUnit v2, NUnit)
+    'Unbuilt/U3/U3.csproj': `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><PackageReference Include="xunit.v3" Version="3.2.2" /><Using Include="Xunit" /></ItemGroup>
+</Project>`,
+    'Unbuilt/U3/V3Tests.cs': `namespace U3;
+public class V3Tests
+{
+    [Fact] public void V3Passes() => Assert.Equal(2, 1 + 1);
+    [Fact] public void V3Fails() => Assert.Equal(3, 1 + 1);
+}
+`,
+    'Unbuilt/U2/U2.csproj': `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>`,
+    'Unbuilt/U2/V2Tests.cs': `namespace U2;
+public class V2Tests
+{
+    [Xunit.Fact] public void V2Passes() => Xunit.Assert.Equal(2, 1 + 1);
+    [Xunit.Fact] public void V2Fails() => Xunit.Assert.Equal(3, 1 + 1);
+}
+`,
+    'Unbuilt/UN/UN.csproj': `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+  </ItemGroup>
+</Project>`,
+    'Unbuilt/UN/NUnitTests.cs': `namespace UN;
+public class NUnitTests
+{
+    [NUnit.Framework.Test] public void NPasses() => NUnit.Framework.Assert.That(1 + 1, NUnit.Framework.Is.EqualTo(2));
+    [NUnit.Framework.Test] public void NFails() => NUnit.Framework.Assert.That(1 + 1, NUnit.Framework.Is.EqualTo(3));
+}
+`,
     'MT/MultiTests.cs': `namespace MT;
 public class MultiTests
 {
@@ -166,6 +208,33 @@ describe('Test Explorer with dotnet', () => {
         const events = mock.runs[0].events;
         expect(events.filter((e: string) => e.startsWith('failed'))).toEqual(['failed Fails']);
         expect(events.filter((e: string) => e.startsWith('passed'))).toHaveLength(6);
+        explorer.dispose();
+    });
+
+    it('Run all on restored but unbuilt projects builds, discovers, reports every result and fills the tree', async () => {
+        const projectPaths = ['U3', 'U2', 'UN'].map(name => path.join(dir, 'Unbuilt', name, `${name}.csproj`));
+        if (!hasDotnet || projectPaths.some(projectPath => spawnSync('dotnet', ['restore', projectPath]).status !== 0)) {
+            console.warn('dotnet or the test packages are not available, skipping');
+            return;
+        }
+        const explorer = new TestExplorer({ projects: () => projectPaths });
+        // What the Testing view does on load: no build, so nothing to discover yet
+        await explorer.refresh(false);
+        const projectItems = projectPaths.map(projectPath => mock.controller.items.get(projectPath));
+        projectItems.forEach(item => {
+            expect(item.children.size).toBe(0);
+            expect(item.description).toMatch(/not built yet/i);
+        });
+
+        const run = mock.controller.profiles[mock.controller.profiles.length - 2];
+        await run.handler({ include: undefined, exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+        const testRun = mock.runs[mock.runs.length - 1];
+        expect(testRun.events.filter((e: string) => /^(passed|failed) /.test(e)).sort()).toEqual(
+            ['failed NFails', 'failed V2Fails', 'failed V3Fails', 'passed NPasses', 'passed V2Passes', 'passed V3Passes']);
+
+        const labels = (items: any): string[] => { const all: string[] = []; items.forEach((i: any) => all.push(i.label, ...labels(i.children))); return all; };
+        expect(labels(mock.controller.items)).toEqual(expect.arrayContaining(['V3Passes', 'V3Fails', 'V2Passes', 'V2Fails', 'NPasses', 'NFails']));
+        projectPaths.forEach(projectPath => expect(mock.controller.items.get(projectPath).description).toBeFalsy());
         explorer.dispose();
     });
 

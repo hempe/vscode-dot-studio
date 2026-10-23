@@ -36,6 +36,8 @@ Each run builds the project first. Results show the failure message, the stack t
 
 After every build started by this extension (Ctrl+Shift+B, the context menu, F5) and when the solution loads, for projects that were built. The refresh button builds first.
 
+A test project that was never built shows *not built yet: Run or refresh builds it* next to its name. **Run All Tests** (or Run/Debug on the project) builds such projects, discovers their tests and then runs them, so the first run on a freshly cloned solution reports its results and fills the tree. If a result arrives for a test the tree doesn't have, the project is discovered again; results that still have no test are listed in the Test Results output instead of being dropped.
+
 ## The C# extension's test commands
 
 The C# extension has its own test commands, which go through VSTest and fail for Microsoft.Testing.Platform projects without `Microsoft.NET.Test.Sdk` ("testhost.dll was not found"). This extension hides its "Run Test | Debug Test" code lenses by default (`"dotnet.codeLens.enableTestsCodeLens": true` brings them back). Its **Run/Debug Tests in Context** menu items can't be hidden by another extension; use the commands above instead.

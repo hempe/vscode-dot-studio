@@ -70,7 +70,7 @@ jest.mock('vscode', () => {
 }, { virtual: true });
 
 import * as vscode from 'vscode';
-import { TestExplorer } from '../../../../services/testing/testExplorer';
+import { NOT_BUILT, TestExplorer } from '../../../../services/testing/testExplorer';
 import { frame, MessageReader } from '../../../../services/testing/testingPlatformClient';
 import { replay as replayVsTest } from './vstestReplay';
 import { MONO_DEBUG_UNSUPPORTED } from '../../../../services/testing/monoVsTest';
@@ -79,7 +79,7 @@ const recording = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__
     .split('\n').filter(Boolean).map(line => JSON.parse(line));
 
 /** Plays the recorded xUnit v3 app: discovery updates for discoverTests, result updates for runTests */
-async function replayApp(args: string[]) {
+async function replayApp(args: string[], discovers = true) {
     const socket = net.connect(Number(args[args.indexOf('--client-port') + 1]), '127.0.0.1');
     const reader = new MessageReader();
     const updates = recording.filter(m => m.method === 'testing/testUpdates/tests' && m.params.changes);
@@ -88,7 +88,7 @@ async function replayApp(args: string[]) {
         for (const message of reader.push(chunk as Buffer) as any[]) {
             const reply = (result: unknown) => socket.write(frame({ jsonrpc: '2.0', id: message.id, result }));
             if (message.method === 'initialize') reply(recording[0].result);
-            if (message.method === 'testing/discoverTests') { discovered.forEach(m => socket.write(frame(m))); reply({}); }
+            if (message.method === 'testing/discoverTests') { if (discovers) discovered.forEach(m => socket.write(frame(m))); reply({}); }
             if (message.method === 'testing/runTests') { updates.filter(m => !discovered.includes(m)).forEach(m => socket.write(frame(m))); reply({ attachments: [] }); }
             if (message.method === 'exit') socket.end();
         }
@@ -167,6 +167,73 @@ describe('TestExplorer', () => {
     it('leaves VSTest projects out', async () => {
         await explorer({ evaluate: async (p: string) => ({ projectPath: p, targetPath: '/t.dll', testingPlatform: false }) }).refresh(false);
         expect(mock.controller.items.size).toBe(0);
+    });
+
+    describe('Run all before the tests are known', () => {
+        const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) };
+        const passedOrFailed = (run: any) => run.events.filter((event: string) => /^(passed|failed) /.test(event)).sort();
+
+        it('says a project that was never built is not built yet, then builds, discovers and runs it', async () => {
+            let modified: number | undefined;
+            await explorer({ build: async () => { modified = 1; return true; }, modified: () => modified }).refresh(false);
+            const project = mock.controller.items.get(projectPath);
+            expect(project.children.size).toBe(0);
+            expect(project.description).toBe(NOT_BUILT);
+
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            expect(passedOrFailed(mock.runs[0])).toEqual(['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2']);
+            expect(mock.runs[0].events).toContain('enqueued Adds');
+            expect(project.description).toBeUndefined();
+            expect(outline(mock.controller.items)).toContain('      Adds :4');
+        });
+
+        it('waits for the refresh in progress, so every test project runs', async () => {
+            const other = '/repo/Y3/Y3.csproj';
+            const tests = explorer({
+                projects: () => [projectPath, other],
+                readProject: () => '<Project><ItemGroup><PackageReference Include="xunit.v3" /></ItemGroup></Project>',
+                evaluate: async (p: string) => {
+                    if (p === other) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                    return { projectPath: p, targetPath: p.replace('.csproj', '.dll'), testingPlatform: true };
+                },
+            });
+            void tests.refresh(false);
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            expect(mock.runs[0].events.filter((event: string) => event === 'passed Adds')).toHaveLength(2);
+        });
+
+        it('discovers again when results arrive for tests the tree does not have', async () => {
+            let discovers = false;
+            const tests = explorer({ start: async (_project: unknown, args: string[]) => replayApp(args, discovers) });
+            await tests.refresh(false);
+            expect(mock.controller.items.get(projectPath).children.size).toBe(0);
+
+            discovers = true;
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            expect(passedOrFailed(mock.runs[0])).toEqual(['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2']);
+            expect(outline(mock.controller.items)).toContain('      Adds :4');
+        });
+
+        it('says in the run output how many results have no test rather than dropping them', async () => {
+            const tests = explorer({ start: async (_project: unknown, args: string[]) => replayApp(args, false) });
+            await tests.refresh(false);
+
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            expect(passedOrFailed(mock.runs[0])).toEqual([]);
+            expect(mock.runs[0].output.join('')).toMatch(/\d+ result\(s\) of X3\.csproj could not be matched to a test in the Testing view: .*Adds/);
+        });
     });
 
     describe('running the tests of a Solution Explorer node', () => {
