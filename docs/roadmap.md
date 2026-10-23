@@ -1,36 +1,16 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Parts 3 to 5 are the known bugs and the limitations we can and want to fix, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Part 5 is the limitations we want to fix, phase 22 quality and documentation, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
 ## Known bugs
 
-Bugs found later are listed here, to be fixed. The ones found so far are in Phase 21, Part 3.
+Bugs found later are listed here, to be fixed.
 
-## Phase 21, Part 3: Known bugs
-Found along the way; fixed before the code review of Phase 22.
-
-- [ ] A one-time MSBuild failure (timeout, a half-saved project file) is cached as "no item list" until the project changes again (project file, a props file, new files), so the project shows the plain disk listing meanwhile; retry with a backoff, or when the project is expanded next
-- [ ] Exclude From Project / Include In Project on a file in the folder of a nested project, from the outer project's tree, edits the nested (deepest) project's file; only folders that hold a project are refused
-- [ ] Item matching in the project file skips XML comments and items inside `<Target>`, but only knows self-closing items: a block-form item (`<Compile Remove="Old.cs"></Compile>`, or one with metadata children) is not found, so Include In Project leaves its `Remove` in place and adds an `Include` item after it instead (the file is included, the project file gets both), and Exclude does not see an existing block-form `Remove` and adds a self-closing one
-- [ ] After a new item list, `Project.reloadLoadedFolders` reloads the expanded folders in the order they were expanded, not parents before children (by depth)
-- [ ] Show All Files is read from a global that is set to the new solution only after it has loaded (`ShowAllFiles.setSolution` after `solution.ready`): folders read while the solution loads, e.g. after an evaluation answered from the cache right after switching solutions, use the previous solution's setting
-- [ ] The tests of path casing for Windows and macOS (bin/obj in any casing, `folderLayout.test.ts`) only run their case-insensitive branch on those systems; on Linux they check the case-sensitive one
-- [ ] After a project, folder or solution folder is dropped onto a collapsed solution folder, the target stays collapsed and the moved node is out of sight; expand the target and select the moved node (Visual Studio does, as far as known)
-- [ ] After a drag & drop a grey hover highlight sometimes stays on a row the drag started on or passed over (Chromium sends no mouse-leave during a drag); cosmetic, clear it on drag end
-- [ ] Central packages: after an edit in the NuGet manager the projects are possibly evaluated twice (the explicit re-evaluation plus the props and project file watchers); unverified, the CentralPackageWatchers have no debounce
-- [ ] Delete on a linked file deletes the real file, not just the link, and nothing in the confirmation says so: warn clearly and offer to remove only the link (a Remove Link command)
 - [ ] Startup profiles: a project with the action "Start without debugging" is attached to the debugger anyway with the C# extension of Open VSX (`muhammad-sammy.csharp`, netcoredbg) but gets no breakpoints: its `launch.json` entry has `noDebug: true`, `ps` showed a netcoredbg process for it, its own log said `Debugger.IsAttached` true, and its breakpoints never hit (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; explanation, unverified: netcoredbg ignores `noDebug` for the launch but VS Code sends no breakpoints to a `noDebug` session; Microsoft's debugger not tried). To try: start such projects through a `node-terminal` configuration (a command in a terminal, no .NET debugger) inside the compound, and make Stop and `stopAll` end them
 - [ ] Startup profiles: deleting the `.slnLaunch` file (or choosing the single project) when no single startup project was ever set before the profile removes the profile's `launch.json` entries and writes no `Startup` entry (`doRefreshStartup` in `startProfile.ts`, the branch without a remembered single project), so F5 asks "Select a debugger" until Set as Startup Project is used (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; read from the code and the user's result, not run); fall back to a default startup project (the first startable project, like Visual Studio) or say so
 - [ ] A project without packages, project references and assemblies has no Dependencies node (`Project.getRootChildren`: `if (this.dependencies.length > 0)`), so a bare console project shows nothing to right-click for Add Project Reference / Add Service Reference; Visual Studio always shows Dependencies (with Analyzers and Frameworks) and offers Add Connected Service on it. Show the node on every SDK-style project and put Add Service Reference... in its menu (seen 2026-10-23 with `SoapClient` in `/home/hempe/manual-test/3-soap-references`)
-
-## Phase 21, Part 4: Limitations we can fix
-Small to moderate, no design needed.
-
-- [ ] The Test Explorer does not use a `.runsettings` file or `RunSettingsFilePath`: VSTest projects are run with a fixed minimal setting (`vstestClient.ts`), so `MaxCpuCount` (parallel test assemblies) and `BatchSize` of a team's file have no effect (a speed difference, not a different result; data collectors only matter for coverage, which stays a script); Microsoft.Testing.Platform projects were not checked for what they do with such settings
-- [ ] gRPC references: the packages come in the newest stable version on the configured sources; a project that pins an older `Google.Protobuf` may need it raised by hand (NU1605 at restore)
-- [ ] gRPC references: a case-only duplicate such as `a.proto` / `A.PROTO` on Windows or macOS is not detected (unproven)
 
 ## Phase 21, Part 5: Limitations we want to fix
 Valuable but bigger, or edge cases. Phase 35 holds the per-framework package work (conditional `PackageVersion` entries, packages of the other target frameworks, `PackageReference` items from props files).
