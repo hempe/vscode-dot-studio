@@ -104,6 +104,14 @@ export interface NuGetPackage {
     readonly versions?: string[];
     /** Package source URL or name where this package was found */
     readonly source?: string;
+    /** Per version, the packages it depends on (all target frameworks together); from the registration data */
+    readonly dependencies?: Readonly<Record<string, readonly PackageDependency[]>>;
+}
+
+/** A dependency of a package version: `{ id: 'Google.Protobuf', range: '[3.35.1, )' }` */
+export interface PackageDependency {
+    readonly id: string;
+    readonly range: string;
 }
 
 /**

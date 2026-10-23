@@ -11,8 +11,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { DownloadCancelled } from '../../../../services/grpc/download';
-import { addGrpcReference, GrpcHost, installGrpcPackages } from '../../../../services/grpc/grpcReferenceService';
+import { addGrpcReference, GrpcHost, installGrpcPackages, vscodeGrpcHost } from '../../../../services/grpc/grpcReferenceService';
+import { PackageBrowseService } from '../../../../services/nuget/packageBrowseService';
 import { OperationsHost } from '../../../../services/nuget/centralPackageOperations';
+import { PackageOperationsService } from '../../../../services/nuget/packageOperationsService';
 import { ProjectState } from '../../../../services/nuget/centralPackagePlan';
 import { ProjectPackages, parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
 import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
@@ -51,6 +53,7 @@ describe('addGrpcReference', () => {
             items: async () => parseMsbuildItems(JSON.stringify({ Items: {} }), root),
             referencedPackages: async () => [],
             latestVersion: async id => ({ 'Google.Protobuf': '3.30.2', 'Grpc.Net.ClientFactory': '2.71.0', 'Grpc.Tools': '2.71.0', 'Grpc.AspNetCore': '2.71.0' } as Record<string, string>)[id],
+            dependencyMinimum: async () => undefined,
             installPackages: async (projectPath, packages) => {
                 calls.installed.push(...packages.map(entry => `${entry.id} ${entry.version}`));
                 const content = fs.readFileSync(projectPath, 'utf8');
@@ -86,10 +89,67 @@ describe('addGrpcReference', () => {
     });
 
     test('packages the project has are left alone', async () => {
-        const { fake, calls } = host({ referencedPackages: async () => ['Grpc.AspNetCore'] });
+        const { fake, calls } = host({ referencedPackages: async () => [{ id: 'Grpc.AspNetCore', version: '2.71.0' }] });
         await addGrpcReference(client, fake);
         expect(calls.installed).toEqual([]);
         expect(calls.info).toHaveLength(1);
+    });
+
+    describe('a project that pins an older Google.Protobuf than the new packages need (NU1605 at restore)', () => {
+        const pinned = (version: string, ask: (message: string) => boolean) => host({
+            referencedPackages: async () => [{ id: 'Google.Protobuf', version }],
+            dependencyMinimum: async (id, version, dependency) => id === 'Grpc.AspNetCore' && version === '2.71.0' && dependency === 'Google.Protobuf' ? '3.30.2' : undefined,
+            ask: async message => ask(message),
+        });
+
+        test('asks, then raises Google.Protobuf to what the packages need, before adding them', async () => {
+            const asked: string[] = [];
+            const { fake, calls } = pinned('3.20.0', message => { asked.push(message); return true; });
+            expect(await addGrpcReference(web, fake)).toBe(true);
+            expect(asked).toEqual(['Grpc.AspNetCore 2.71.0 needs Google.Protobuf 3.30.2 or newer; Web has 3.20.0.']);
+            expect(calls.installed).toEqual(['Google.Protobuf 3.30.2', 'Grpc.AspNetCore 2.71.0']);
+            expect(calls.info).toEqual(['gRPC reference greet.proto added (Both). The code is generated when the project builds.']);
+            expect(calls.fail).toEqual([]);
+        });
+
+        test('kept: the reference is added without the packages, and the message says what to raise', async () => {
+            const { fake, calls } = pinned('3.20.0', () => false);
+            expect(await addGrpcReference(web, fake)).toBe(true);
+            expect(fs.readFileSync(web, 'utf8')).toContain('<Protobuf Include="..\\shared\\greet.proto" Link="Protos\\greet.proto" />');
+            expect(calls.installed).toEqual([]);
+            expect(calls.info).toEqual(['gRPC reference greet.proto added, but not its packages: Grpc.AspNetCore 2.71.0 needs Google.Protobuf 3.30.2 or newer '
+                + 'and Web keeps 3.20.0. Raise Google.Protobuf, then add the same reference again: that adds the missing packages.']);
+            expect(calls.fail).toEqual([]);
+        });
+
+        test('kept on Add again (the reference is there already): its missing packages are not added, the message says why', async () => {
+            fs.writeFileSync(web, fs.readFileSync(web, 'utf8').replace('</Project>', '  <ItemGroup>\n    <Protobuf Include="..\\shared\\greet.proto" Link="Protos\\greet.proto" />\n  </ItemGroup>\n</Project>'));
+            const { fake, calls } = pinned('3.20.0', () => false);
+            expect(await addGrpcReference(web, fake)).toBe(false);
+            expect(calls.installed).toEqual([]);
+            expect(calls.info).toEqual(['greet.proto is a gRPC reference already; its missing packages were not added: Grpc.AspNetCore 2.71.0 needs Google.Protobuf 3.30.2 '
+                + 'or newer and Web keeps 3.20.0. Raise Google.Protobuf, then add the same reference again: that adds the missing packages.']);
+            expect(calls.fail).toEqual([]);
+        });
+
+        test('a Google.Protobuf that is new enough, or not known, is left alone without a question', async () => {
+            for (const version of ['3.30.2', '3.31.0', '']) {
+                const asked: string[] = [];
+                const { fake, calls } = pinned(version, message => { asked.push(message); return true; });
+                expect(await addGrpcReference(web, fake)).toBe(true);
+                expect(asked).toEqual([]);
+                expect(calls.installed).toEqual(['Grpc.AspNetCore 2.71.0']);
+                fs.cpSync(path.join(fixture, 'Web', 'Web.csproj'), web);
+            }
+        });
+
+        test('Client packages do not depend on Google.Protobuf: nothing is asked (the project keeps its version)', async () => {
+            const asked: string[] = [];
+            const { fake, calls } = pinned('3.20.0', message => { asked.push(message); return true; });
+            expect(await addGrpcReference(client, fake)).toBe(true);
+            expect(asked).toEqual([]);
+            expect(calls.installed).toEqual(['Grpc.Net.ClientFactory 2.71.0', 'Grpc.Tools 2.71.0']);
+        });
     });
 
     test('a URL: downloaded into Protos (created), referenced with its SourceUrl', async () => {
@@ -123,7 +183,7 @@ describe('addGrpcReference', () => {
     test('a file the project references already is refused', async () => {
         const items = parseMsbuildItems(JSON.stringify({ Items: { Protobuf: [{ Identity: '..\\shared\\greet.proto', FullPath: shared(), Link: 'Protos\\greet.proto' }] } }), root);
         const before = fs.readFileSync(client, 'utf8');
-        const { fake, calls } = host({ items: async () => items, referencedPackages: async () => ['Grpc.AspNetCore'] });
+        const { fake, calls } = host({ items: async () => items, referencedPackages: async () => [{ id: 'Grpc.AspNetCore', version: '2.71.0' }] });
         expect(await addGrpcReference(client, fake)).toBe(false);
         expect(calls.info).toEqual(['greet.proto is already a gRPC reference of Client.']);
         expect(calls.installed).toEqual([]);
@@ -160,7 +220,7 @@ describe('addGrpcReference', () => {
         const { fake, calls } = host({
             pickServices: async () => 'Both',
             items: projectPath => new ProjectItemsService().evaluate(projectPath),
-            referencedPackages: async projectPath => (await new ProjectItemsService().evaluatePackages(projectPath))?.references.map(reference => reference.id) ?? [],
+            referencedPackages: async projectPath => (await new ProjectItemsService().evaluatePackages(projectPath))?.references ?? [],
         });
         expect(await addGrpcReference(client, fake)).toBe(true);
         expect(calls.installed).toEqual(['Google.Protobuf 3.30.2', 'Grpc.Net.ClientFactory 2.71.0', 'Grpc.Tools 2.71.0']);
@@ -293,6 +353,7 @@ describe('addGrpcReference under Central Package Management (the packages go thr
         items: async () => undefined,
         referencedPackages: async () => [],
         latestVersion: async id => versions[id],
+        dependencyMinimum: async () => undefined,
         installPackages: (projectPath, packages) => installGrpcPackages(projectPath, packages, ops),
         reevaluate: async () => undefined,
     });
@@ -310,6 +371,39 @@ describe('addGrpcReference under Central Package Management (the packages go thr
         expect(project).toMatch(/<PackageReference Include="Grpc.Tools">\r?\n\s*<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive<\/IncludeAssets>\r?\n\s*<PrivateAssets>all<\/PrivateAssets>\r?\n\s*<\/PackageReference>/);
         expect(project).not.toMatch(/Include="(Google\.Protobuf|Grpc\.[A-Za-z.]+)"[^>]*Version=/);
         expect(project).toContain('<Protobuf Include="..\\shared\\greet.proto" GrpcServices="Client" Link="Protos\\greet.proto" />');
+        expect(installs).toEqual([]);
+    });
+
+    test('a CPM project with an older central Google.Protobuf: Raise sets the central version, with the new package in the same batch', async () => {
+        fs.writeFileSync(props(), fs.readFileSync(props(), 'utf8').replace('<PackageVersion Include="Serilog" Version="3.1.1" />',
+            '<PackageVersion Include="Serilog" Version="3.1.1" />\n    <PackageVersion Include="Google.Protobuf" Version="3.20.0" />'));
+        fs.writeFileSync(app, fs.readFileSync(app, 'utf8').replace('<PackageReference Include="Polly" />', '<PackageReference Include="Polly" />\n    <PackageReference Include="Google.Protobuf" />'));
+        const states = async (): Promise<ProjectState[]> => [{
+            name: 'App', path: app, packages: parseMsbuildPackages(JSON.stringify({
+                Properties: { ManagePackageVersionsCentrally: 'true', DirectoryPackagesPropsPath: props() },
+                Items: {
+                    PackageReference: [{ Identity: 'Newtonsoft.Json' }, { Identity: 'Serilog' }, { Identity: 'Google.Protobuf' }].map(reference => ({ DefiningProjectFullPath: app, ...reference })),
+                    PackageVersion: [['Newtonsoft.Json', '13.0.1'], ['Serilog', '3.1.1'], ['Google.Protobuf', '3.20.0']]
+                        .map(([id, version]) => ({ Identity: id, Version: version, DefiningProjectFullPath: props() })),
+                },
+            }), app) as ProjectPackages,
+        }];
+        const { ops, installs } = operations(states);
+        const asked: string[] = [];
+        expect(await addGrpcReference(app, {
+            ...grpcHost(ops),
+            pickServices: async () => 'Server',
+            referencedPackages: async () => (await states())[0].packages!.references,
+            latestVersion: async id => ({ ...versions, 'Grpc.AspNetCore': '2.71.0' } as Record<string, string>)[id],
+            dependencyMinimum: async (id, version, dependency) => id === 'Grpc.AspNetCore' && version === '2.71.0' && dependency === 'Google.Protobuf' ? '3.30.2' : undefined,
+            ask: async message => { asked.push(message); return true; },
+        })).toBe(true);
+        expect(asked).toEqual(['Grpc.AspNetCore 2.71.0 needs Google.Protobuf 3.30.2 or newer; App has 3.20.0.']);
+        const central = fs.readFileSync(props(), 'utf8');
+        expect(central).toContain('<PackageVersion Include="Google.Protobuf" Version="3.30.2" />');
+        expect(central).toContain('<PackageVersion Include="Grpc.AspNetCore" Version="2.71.0" />');
+        expect(central).not.toContain('3.20.0');
+        expect(fs.readFileSync(app, 'utf8')).toContain('<PackageReference Include="Grpc.AspNetCore" />');
         expect(installs).toEqual([]);
     });
 
@@ -340,4 +434,173 @@ describe('addGrpcReference under Central Package Management (the packages go thr
             'Grpc.Tools 2.71.0 central Directory.Packages.props',
         ]);
     }, 150000);
+});
+
+/**
+ * The NU1605 a pinned older Google.Protobuf gives, with the real `dotnet add package` and `dotnet restore` (packages
+ * from nuget.org or the NuGet cache). Pinned versions: Grpc.AspNetCore 2.71.0 needs Google.Protobuf 3.30.2 or newer.
+ */
+describe('addGrpcReference to a project with an older Google.Protobuf, with real dotnet add package and restore', () => {
+    const PINNED = '3.20.0';
+    const NEEDED = '3.30.2';
+    let root: string;
+    let web: string;
+    const restore = (target: string) => spawnSync('dotnet', ['restore', target], { encoding: 'utf8' });
+    const unreachable = (output: string) => /NU1301|Unable to load the service index|NU1101|NU1102/.test(output);
+
+    beforeEach(() => {
+        root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'grpc-nu1605-')));
+        fs.cpSync(fixture, root, { recursive: true });
+        web = path.join(root, 'Web', 'Web.csproj');
+    });
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    /** Web with `<PackageReference Include="Google.Protobuf" .../>`; under CPM the version is in Directory.Packages.props */
+    const pin = (cpm: boolean) => {
+        const reference = cpm ? '<PackageReference Include="Google.Protobuf" />' : `<PackageReference Include="Google.Protobuf" Version="${PINNED}" />`;
+        fs.writeFileSync(web, fs.readFileSync(web, 'utf8').replace('</Project>', `  <ItemGroup>\n    ${reference}\n  </ItemGroup>\n\n</Project>`));
+        if (cpm) {
+            fs.writeFileSync(path.join(root, 'Directory.Packages.props'), '<Project>\n  <PropertyGroup>\n    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>\n'
+                + `  </PropertyGroup>\n  <ItemGroup>\n    <PackageVersion Include="Google.Protobuf" Version="${PINNED}" />\n  </ItemGroup>\n</Project>\n`);
+        }
+    };
+
+    /** False (with a warning) when dotnet cannot restore the pinned project: no network and not in the NuGet cache */
+    const canRestore = () => {
+        if (spawnSync('dotnet', ['--version']).status !== 0) {
+            console.warn('Skipped: dotnet is not available');
+            return false;
+        }
+        const result = restore(web);
+        if (result.status !== 0) {
+            console.warn(`Skipped: the pinned project does not restore (nuget.org not reachable, Google.Protobuf ${PINNED} not in the NuGet cache?)`);
+            return false;
+        }
+        return true;
+    };
+
+    const ops = (solutionPath?: string): OperationsHost => ({
+        ask: async (_message, _detail, ...buttons) => buttons[0],
+        states: async projects => Promise.all(projects.map(async projectPath => ({
+            name: path.basename(projectPath, '.csproj'), path: projectPath, packages: await new ProjectItemsService().evaluatePackages(projectPath),
+        }))),
+        install: (projectPath, id, version) => PackageOperationsService.installPackage({ packageId: id, version, projectPath }),
+        uninstall: async () => ({ success: true, message: '' }),
+        restore: async target => {
+            const result = restore(target);
+            return { success: result.status === 0, message: result.stdout + result.stderr };
+        },
+        solutionPath: () => solutionPath,
+        reevaluate: async () => undefined,
+    });
+
+    const realHost = (raise: boolean, operations: OperationsHost) => {
+        const calls = { asked: [] as string[], info: [] as string[], fail: [] as string[], log: [] as string[] };
+        const host: GrpcHost = {
+            pickSource: async () => ({ kind: 'file', path: path.join(root, 'shared', 'greet.proto') }),
+            pickServices: async () => 'Both',
+            ask: async message => { calls.asked.push(message); return raise; },
+            info: message => { calls.info.push(message); },
+            fail: message => { calls.fail.push(message); },
+            log: line => { calls.log.push(line); },
+            progress: (_title, task) => task(),
+            download: async () => Buffer.alloc(0),
+            items: projectPath => new ProjectItemsService().evaluate(projectPath),
+            referencedPackages: async projectPath => (await new ProjectItemsService().evaluatePackages(projectPath))?.references ?? [],
+            latestVersion: async id => ({ 'Grpc.AspNetCore': '2.71.0' } as Record<string, string>)[id],
+            dependencyMinimum: async (id, version, dependency) => id === 'Grpc.AspNetCore' && version === '2.71.0' && dependency === 'Google.Protobuf' ? NEEDED : undefined,
+            installPackages: (projectPath, packages) => installGrpcPackages(projectPath, packages, operations),
+            reevaluate: async () => undefined,
+        };
+        return { host, calls };
+    };
+
+    test('the bug: dotnet add package Grpc.AspNetCore on the pinned project fails with NU1605 (package downgrade)', () => {
+        pin(false);
+        if (!canRestore()) {
+            return;
+        }
+        const added = spawnSync('dotnet', ['add', web, 'package', 'Grpc.AspNetCore', '--version', '2.71.0'], { encoding: 'utf8' });
+        if (added.status !== 0 && unreachable(added.stdout + added.stderr)) {
+            console.warn('Skipped: Grpc.AspNetCore 2.71.0 is not reachable and not in the NuGet cache');
+            return;
+        }
+        expect(added.stdout + added.stderr).toContain(`NU1605`);
+        expect(added.stdout + added.stderr).toContain(`Google.Protobuf from ${NEEDED} to ${PINNED}`);
+    }, 300000);
+
+    test('Raise: Google.Protobuf goes to the version Grpc.AspNetCore needs first, then the package; the project restores', async () => {
+        pin(false);
+        if (!canRestore()) {
+            return;
+        }
+        const { host, calls } = realHost(true, ops());
+        expect(await addGrpcReference(web, host)).toBe(true);
+        if (calls.fail.length > 0 && unreachable(calls.log.join('\n'))) {
+            console.warn('Skipped: Grpc.AspNetCore 2.71.0 is not reachable and not in the NuGet cache');
+            return;
+        }
+        expect(calls.asked).toEqual([`Grpc.AspNetCore 2.71.0 needs Google.Protobuf ${NEEDED} or newer; Web has ${PINNED}.`]);
+        expect(calls.fail).toEqual([]);
+        expect(calls.info).toEqual(['gRPC reference greet.proto added (Both). The code is generated when the project builds.']);
+        const content = fs.readFileSync(web, 'utf8');
+        expect(content).toContain(`<PackageReference Include="Google.Protobuf" Version="${NEEDED}" />`);
+        expect(content).toContain('<PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />');
+        const restored = restore(web);
+        expect(restored.stdout + restored.stderr).not.toContain('NU1605');
+        expect(restored.status).toBe(0);
+    }, 300000);
+
+    test('Raise under Central Package Management: the central version is raised; the project restores', async () => {
+        pin(true);
+        if (!canRestore()) {
+            return;
+        }
+        const { host, calls } = realHost(true, ops());
+        expect(await addGrpcReference(web, host)).toBe(true);
+        if (calls.fail.length > 0 && unreachable(calls.log.join('\n'))) {
+            console.warn('Skipped: Grpc.AspNetCore 2.71.0 is not reachable and not in the NuGet cache');
+            return;
+        }
+        expect(calls.asked).toEqual([`Grpc.AspNetCore 2.71.0 needs Google.Protobuf ${NEEDED} or newer; Web has ${PINNED}.`]);
+        expect(calls.fail).toEqual([]);
+        const central = fs.readFileSync(path.join(root, 'Directory.Packages.props'), 'utf8');
+        expect(central).toContain(`<PackageVersion Include="Google.Protobuf" Version="${NEEDED}" />`);
+        expect(central).toContain('<PackageVersion Include="Grpc.AspNetCore" Version="2.71.0" />');
+        const restored = restore(web);
+        expect(restored.stdout + restored.stderr).not.toContain('NU1605');
+        expect(restored.status).toBe(0);
+    }, 300000);
+
+    test('Keep: only the <Protobuf> item is added, no package; the project still restores', async () => {
+        pin(false);
+        if (!canRestore()) {
+            return;
+        }
+        const { host, calls } = realHost(false, ops());
+        expect(await addGrpcReference(web, host)).toBe(true);
+        expect(calls.asked).toHaveLength(1);
+        expect(calls.info).toEqual([`gRPC reference greet.proto added, but not its packages: Grpc.AspNetCore 2.71.0 needs Google.Protobuf ${NEEDED} or newer `
+            + `and Web keeps ${PINNED}. Raise Google.Protobuf, then add the same reference again: that adds the missing packages.`]);
+        const content = fs.readFileSync(web, 'utf8');
+        expect(content).toContain('<Protobuf Include="..\\shared\\greet.proto" Link="Protos\\greet.proto" />');
+        expect(content).toContain(`<PackageReference Include="Google.Protobuf" Version="${PINNED}" />`);
+        expect(content).not.toContain('Grpc.AspNetCore');
+        expect(restore(web).status).toBe(0);
+    }, 300000);
+});
+
+describe('vscodeGrpcHost.dependencyMinimum', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test('the highest lower bound over the target frameworks of that version; undefined without such a dependency', async () => {
+        jest.spyOn(PackageBrowseService, 'getPackageDetails').mockResolvedValue({
+            id: 'Grpc.AspNetCore', currentVersion: '2.84.0', dependencies: {
+                '2.84.0': [{ id: 'Google.Protobuf', range: '[3.30.0, )' }, { id: 'google.protobuf', range: '[3.35.1, )' }, { id: 'Grpc.Tools', range: '[2.84.0, )' }],
+            },
+        });
+        expect(await vscodeGrpcHost.dependencyMinimum('Grpc.AspNetCore', '2.84.0', 'Google.Protobuf')).toBe('3.35.1');
+        expect(await vscodeGrpcHost.dependencyMinimum('Grpc.AspNetCore', '2.71.0', 'Google.Protobuf')).toBeUndefined();
+        expect(await vscodeGrpcHost.dependencyMinimum('Grpc.AspNetCore', '2.84.0', 'Serilog')).toBeUndefined();
+    });
 });

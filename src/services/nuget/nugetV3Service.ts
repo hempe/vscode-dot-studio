@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
+import { NuGetPackage, PackageDependency, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import * as https from 'https';
 import { VersionUtils } from '../versionUtils';
 import { PersistentCache } from '../../core/persistentCache';
@@ -10,6 +10,13 @@ import { reportRejectedCredentials } from './feedAuth';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 
 const log = logger('NuGetV3Service');
+
+/** The dependencies of a registration catalog entry, every target framework's group in turn */
+function dependenciesOf(entry: { dependencyGroups?: { dependencies?: { id?: string; range?: string }[] }[] }): PackageDependency[] {
+    return (entry.dependencyGroups ?? []).flatMap(group => (group.dependencies ?? [])
+        .filter(dependency => dependency.id)
+        .map(dependency => ({ id: dependency.id!, range: dependency.range ?? '' })));
+}
 
 /**
  * Service for interacting with NuGet V3 API feeds
@@ -615,7 +622,8 @@ export class NuGetV3Service {
                 source: entry.source,
                 tags,
                 totalDownloads: 0, // still not exposed by registration API
-                versions: sorted.filter(x => x.version).map(x => x.version)
+                versions: sorted.filter(x => x.version).map(x => x.version),
+                dependencies: Object.fromEntries(sorted.filter(x => x.version).map(x => [x.version, dependenciesOf(x)])),
             };
         } catch (error) {
             log.error(`Error parsing package details: ${packageUrl}`, error, flatEntries);

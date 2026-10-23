@@ -46,7 +46,7 @@ If adding the packages fails (no network, say), the item stays in the project fi
 
 ### Packages
 
-Client: `Google.Protobuf`, `Grpc.Net.ClientFactory` (in web projects `Grpc.AspNetCore.Server.ClientFactory`) and `Grpc.Tools` as a private development dependency; Server and Both: `Grpc.AspNetCore`, which brings the rest. Each in its newest stable version on your package sources. Packages the project already references, or gets from one it references, are left alone. With Central Package Management the versions go into `Directory.Packages.props` (see [NuGet](nuget.md#central-package-management)). The C# code is not written by the extension: Grpc.Tools generates it into `obj/` when the project builds.
+Client: `Google.Protobuf`, `Grpc.Net.ClientFactory` (in web projects `Grpc.AspNetCore.Server.ClientFactory`) and `Grpc.Tools` as a private development dependency; Server and Both: `Grpc.AspNetCore`, which brings the rest. Each in its newest stable version on your package sources. Packages the project already references, or gets from one it references, are left alone. When the project references an older `Google.Protobuf` than the new packages need (Grpc.AspNetCore 2.84.0 needs 3.35.1 or newer), restoring would fail with NU1605 (package downgrade): you are asked first, and **Raise to 3.35.1** raises it to the lowest version they need before they are added; when you keep your version, the reference is added without its packages and the message says what to raise. With Central Package Management the versions go into `Directory.Packages.props` (see [NuGet](nuget.md#central-package-management)). The C# code is not written by the extension: Grpc.Tools generates it into `obj/` when the project builds.
 
 ### In the tree
 

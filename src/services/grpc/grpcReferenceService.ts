@@ -13,11 +13,17 @@ import { serviceReferencesOutput, showServiceReferenceFailure } from '../service
 import { Cancellation, download, DownloadCancelled, redactUrl } from './download';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, downloadedContentRefusal, duplicateRefusal, ensureDevelopmentDependency, GRPC_SERVICES,
-    GrpcServices, grpcPackages, isExistingReference, notListedMessage, protobufReferenceFor, protoFileName, PROTOS_FOLDER, removeProtobufReference,
-    servicesOf, sourceUrlInProjectFile,
+    GrpcServices, grpcPackages, isExistingReference, notListedMessage, protobufReferenceFor, protoFileName, PROTOS_FOLDER, rangeMinimum,
+    removeProtobufReference, servicesOf, sourceUrlInProjectFile,
 } from './protobufReferences';
 
 export type GrpcSource = { readonly kind: 'file'; readonly path: string } | { readonly kind: 'url'; readonly url: string };
+
+/** A package a project references, with the version it gets ('' when not known) */
+export interface ReferencedPackage {
+    readonly id: string;
+    readonly version: string;
+}
 
 /** What adding a gRPC reference needs from VS Code, NuGet and MSBuild; replaced in tests */
 export interface GrpcHost {
@@ -36,10 +42,12 @@ export interface GrpcHost {
     download(url: string, token?: Cancellation): Promise<Buffer>;
     /** The project's evaluation (its Protobuf items); undefined when MSBuild could not tell */
     items(projectPath: string): Promise<ProjectItems | undefined>;
-    /** Ids of the packages the project references (evaluated, so also those from props files) */
-    referencedPackages(projectPath: string): Promise<readonly string[]>;
+    /** The packages the project references (evaluated, so also those from props files); version '' when not known */
+    referencedPackages(projectPath: string): Promise<readonly ReferencedPackage[]>;
     /** The newest stable version on the configured package sources */
     latestVersion(id: string): Promise<string | undefined>;
+    /** The lowest version of `dependency` that version `version` of package `id` needs; undefined when it needs none (or the sources do not say) */
+    dependencyMinimum(id: string, version: string, dependency: string): Promise<string | undefined>;
     /** Adds the packages, Central Package Management aware */
     installPackages(projectPath: string, packages: readonly { id: string; version: string }[]): Promise<PackageOperationResult[]>;
     /** Evaluates the project again after its file changed (the tree follows) */
@@ -77,6 +85,13 @@ async function downloadProto(url: string, title: string, host: GrpcHost, failed:
 }
 
 const PACKAGES_FAILED = 'Once the package sources can be reached, add the same reference again: that adds the missing packages.';
+const PROTOBUF = 'Google.Protobuf';
+
+/**
+ * What adding the packages came to: added, failed (see the output), or kept: the user did not want the project's older
+ * Google.Protobuf raised, so nothing was added (`message` says why)
+ */
+type PackagesOutcome = { readonly kind: 'added' | 'failed' } | { readonly kind: 'kept'; readonly message: string };
 
 /**
  * Add on a file the project references already: adds the packages the reference needs and the project lacks (an Add
@@ -86,43 +101,82 @@ async function completeExistingReference(
     projectPath: string, protoPath: string, services: GrpcServices, refusal: string, projectXml: string, host: GrpcHost,
 ): Promise<boolean> {
     const name = path.basename(protoPath);
-    const ids = grpcPackages(services, isWebProject(projectXml), await host.referencedPackages(projectPath));
+    const referenced = await host.referencedPackages(projectPath);
+    const ids = grpcPackages(services, isWebProject(projectXml), referenced.map(entry => entry.id));
     if (ids.length === 0) {
         host.info(refusal);
         return false;
     }
     return host.progress(`Adding the packages of gRPC reference ${name}...`, async () => {
         host.log(`${name} is a gRPC reference of ${path.basename(projectPath)} already, but ${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} missing.`);
-        const added = await addPackages(projectPath, ids, host);
+        const outcome = await addPackages(projectPath, ids, referenced, host);
         await host.reevaluate(projectPath);
-        if (added) {
+        if (outcome.kind === 'added') {
             host.info(`${name} was a gRPC reference already; its missing packages were added. The code is generated when the project builds.`);
+        } else if (outcome.kind === 'kept') {
+            host.info(`${name} is a gRPC reference already; its missing packages were not added: ${outcome.message}`);
         } else {
             host.fail(`Adding the packages of gRPC reference ${name} failed. ${PACKAGES_FAILED}`);
         }
-        return added;
+        return outcome.kind === 'added';
     });
 }
 
-/** Adds the packages the reference needs and the project lacks; false when that failed (see the output) */
-async function addPackages(projectPath: string, ids: readonly string[], host: GrpcHost): Promise<boolean> {
+/**
+ * The Google.Protobuf the new packages need when the project references an older one (Grpc.AspNetCore 2.84.0 needs
+ * 3.35.1 or newer): restoring would fail with NU1605 (package downgrade). Undefined when nothing needs raising.
+ */
+async function protobufNeeded(
+    packages: readonly { id: string; version: string }[], current: string, host: GrpcHost,
+): Promise<{ version: string; by: string } | undefined> {
+    let needed: { version: string; by: string } | undefined;
+    for (const entry of packages) {
+        const minimum = await host.dependencyMinimum(entry.id, entry.version, PROTOBUF);
+        if (minimum && VersionUtils.isOutdated(current, minimum) && (!needed || VersionUtils.isOutdated(needed.version, minimum))) {
+            needed = { version: minimum, by: `${entry.id} ${entry.version}` };
+        }
+    }
+    return needed;
+}
+
+/**
+ * Adds the packages the reference needs and the project lacks. A Google.Protobuf of the project older than they need
+ * is raised first, to the lowest version they need, after asking (else nothing is added).
+ */
+async function addPackages(projectPath: string, ids: readonly string[], referenced: readonly ReferencedPackage[], host: GrpcHost): Promise<PackagesOutcome> {
     if (ids.length === 0) {
-        return true;
+        return { kind: 'added' };
     }
     const packages: { id: string; version: string }[] = [];
     for (const id of ids) {
         const version = await host.latestVersion(id);
         if (!version) {
             host.log(`${id} was not found on the package sources.`);
-            return false;
+            return { kind: 'failed' };
         }
         packages.push({ id, version });
+    }
+    const project = path.basename(projectPath, path.extname(projectPath));
+    const current = referenced.find(entry => entry.id.toLowerCase() === PROTOBUF.toLowerCase())?.version;
+    const needed = current ? await protobufNeeded(packages, current, host) : undefined;
+    if (current && needed) {
+        if (!await host.ask(`${needed.by} needs ${PROTOBUF} ${needed.version} or newer; ${project} has ${current}.`,
+            `Raise ${PROTOBUF} to ${needed.version}? Restoring the project fails otherwise (NU1605, package downgrade).`, `Raise to ${needed.version}`)) {
+            host.log(`${PROTOBUF} ${current} of ${project} was kept: ${ids.join(', ')} not added.`);
+            return {
+                kind: 'kept',
+                message: `${needed.by} needs ${PROTOBUF} ${needed.version} or newer and ${project} keeps ${current}. `
+                    + `Raise ${PROTOBUF}, then add the same reference again: that adds the missing packages.`,
+            };
+        }
+        // First: `dotnet add package` restores after each package, and the gRPC one would fail with the old version
+        packages.unshift({ id: PROTOBUF, version: needed.version });
     }
     host.log(`Adding ${packages.map(entry => `${entry.id} ${entry.version}`).join(', ')} to ${path.basename(projectPath)}`);
     const results = await host.installPackages(projectPath, packages);
     results.forEach(result => host.log(result.message));
     if (results.some(result => !result.success)) {
-        return false;
+        return { kind: 'failed' };
     }
     // Under Central Package Management the reference is written bare: mark Grpc.Tools as dotnet add package does
     if (ids.includes('Grpc.Tools')) {
@@ -132,7 +186,7 @@ async function addPackages(projectPath: string, ids: readonly string[], host: Gr
             fs.writeFileSync(projectPath, marked);
         }
     }
-    return true;
+    return { kind: 'added' };
 }
 
 /**
@@ -187,11 +241,14 @@ export async function addGrpcReference(projectPath: string, host: GrpcHost = vsc
         }
         fs.writeFileSync(projectPath, addProtobufReference(fs.readFileSync(projectPath, 'utf8'), reference));
         host.log(`Added ${relative(projectPath, protoPath)} (${services}) to ${path.basename(projectPath)}`);
-        const ids = grpcPackages(services, isWebProject(projectXml), await host.referencedPackages(projectPath));
-        const packagesAdded = await addPackages(projectPath, ids, host);
+        const referenced = await host.referencedPackages(projectPath);
+        const ids = grpcPackages(services, isWebProject(projectXml), referenced.map(entry => entry.id));
+        const outcome = await addPackages(projectPath, ids, referenced, host);
         await host.reevaluate(projectPath);
-        if (packagesAdded) {
+        if (outcome.kind === 'added') {
             host.info(`gRPC reference ${path.basename(protoPath)} added (${services}). The code is generated when the project builds.`);
+        } else if (outcome.kind === 'kept') {
+            host.info(`gRPC reference ${path.basename(protoPath)} added, but not its packages: ${outcome.message}`);
         } else {
             host.fail(`gRPC reference ${path.basename(protoPath)} added, but adding its packages failed. ${PACKAGES_FAILED}`);
         }
@@ -325,14 +382,27 @@ export const vscodeGrpcHost: GrpcHost = {
     referencedPackages: async projectPath => {
         const packages = await ProjectItemsService.instance.evaluatePackages(projectPath);
         if (packages) {
-            return packages.references.map(reference => reference.id);
+            return packages.references.map(reference => ({ id: reference.id, version: reference.version }));
         }
         // No evaluation: the project file's own references
-        return [...fs.readFileSync(projectPath, 'utf8').matchAll(/<PackageReference\b[^>]*\bInclude\s*=\s*"([^"]+)"/gi)].map(match => match[1]);
+        return [...fs.readFileSync(projectPath, 'utf8').matchAll(/<PackageReference\b([^>]*)>/gi)].flatMap(match => {
+            const id = /\bInclude\s*=\s*"([^"]+)"/i.exec(match[1])?.[1];
+            return id ? [{ id, version: /\bVersion\s*=\s*"([^"]*)"/i.exec(match[1])?.[1] ?? '' }] : [];
+        });
     },
     latestVersion: async id => {
         const details = await PackageBrowseService.getPackageDetails(id);
         return details ? VersionUtils.findLatest([...(details.versions ?? []), details.currentVersion].filter(Boolean)) ?? undefined : undefined;
+    },
+    dependencyMinimum: async (id, version, dependency) => {
+        const details = await PackageBrowseService.getPackageDetails(id);
+        const versionKey = Object.keys(details?.dependencies ?? {}).find(candidate => candidate.toLowerCase() === version.toLowerCase());
+        const minimums = (versionKey ? details!.dependencies![versionKey] : [])
+            .filter(entry => entry.id.toLowerCase() === dependency.toLowerCase())
+            .map(entry => rangeMinimum(entry.range))
+            .filter((minimum): minimum is string => !!minimum);
+        // Per target framework: the highest (compare sorts newest first)
+        return minimums.sort((a, b) => VersionUtils.compare(a, b))[0];
     },
     installPackages: (projectPath, packages) => installGrpcPackages(projectPath, packages),
     reevaluate: async projectPath => {

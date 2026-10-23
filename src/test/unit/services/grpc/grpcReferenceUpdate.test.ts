@@ -60,6 +60,7 @@ describe('updateGrpcReference and removeGrpcReference', () => {
             items: async () => evaluation(),
             referencedPackages: async () => [],
             latestVersion: async () => undefined,
+            dependencyMinimum: async () => undefined,
             installPackages: async () => [],
             reevaluate: async projectPath => { calls.reevaluated.push(projectPath); },
             ...overrides,

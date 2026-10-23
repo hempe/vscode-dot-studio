@@ -29,4 +29,31 @@ describe('NuGetV3Service.getPackageDetails', () => {
         expect(details?.currentVersion).toBe('2.0.0');
         expect(details?.authors).toEqual(['Ann', 'Bob']);
     });
+
+    it('keeps the dependencies of each version, all target frameworks together', async () => {
+        const withDependencies = (version: string, protobuf: string) => ({
+            catalogEntry: {
+                '@type': 'PackageDetails', id: 'Grpc.AspNetCore', version, dependencyGroups: [
+                    { targetFramework: 'net8.0', dependencies: [{ id: 'Google.Protobuf', range: protobuf }, { id: 'Grpc.Tools', range: `[${version}, )` }] },
+                    { targetFramework: 'net9.0', dependencies: [{ id: 'Google.Protobuf', range: protobuf }] },
+                    { targetFramework: 'net10.0' },
+                ],
+            },
+        });
+        const pages: Record<string, unknown> = {
+            'https://deps/index.json': { resources: [{ '@type': 'RegistrationsBaseUrl', '@id': 'https://deps/reg/' }] },
+            'https://deps/reg/grpc.aspnetcore/index.json': { items: [
+                { '@id': 'https://deps/reg/grpc.aspnetcore/page/0.json', lower: '2.71.0', upper: '2.84.0', items: [withDependencies('2.71.0', '[3.30.2, )'), withDependencies('2.84.0', '[3.35.1, )')] },
+            ] },
+        };
+        jest.spyOn(NuGetV3Service as any, 'makeRequest').mockImplementation(async (url: any) =>
+            url in pages ? { body: JSON.stringify(pages[url]), statusCode: 200 } : { body: '', statusCode: 404 });
+
+        const details = await NuGetV3Service.getPackageDetails('Grpc.AspNetCore', [{ name: 'deps', url: 'https://deps/index.json', enabled: true } as any]);
+
+        expect(details?.dependencies?.['2.84.0']).toEqual([
+            { id: 'Google.Protobuf', range: '[3.35.1, )' }, { id: 'Grpc.Tools', range: '[2.84.0, )' }, { id: 'Google.Protobuf', range: '[3.35.1, )' },
+        ]);
+        expect(details?.dependencies?.['2.71.0']?.[0]).toEqual({ id: 'Google.Protobuf', range: '[3.30.2, )' });
+    });
 });

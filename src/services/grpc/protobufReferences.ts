@@ -204,6 +204,15 @@ export function grpcPackages(services: GrpcServices, isWeb: boolean, referenced:
 }
 
 /**
+ * The lowest version a NuGet version range allows: `3.35.1` and `[3.35.1, )` (what a package's dependency says) give
+ * `3.35.1`; undefined for a range without a lower bound (`(, 4.0.0)`)
+ */
+export function rangeMinimum(range: string): string | undefined {
+    const lower = range.trim().replace(/^[[(]\s*/, '').split(/[\s,\])]/)[0];
+    return lower ? lower : undefined;
+}
+
+/**
  * Marks a development dependency (Grpc.Tools) as `dotnet add package` does, so it does not flow to the projects that
  * reference this one. Needed after the Central Package Management edits, which write a bare
  * `<PackageReference Include="Grpc.Tools" />`; nothing changes when the reference has `PrivateAssets` already or is

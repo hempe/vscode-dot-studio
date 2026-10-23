@@ -1,7 +1,7 @@
 import * as path from 'path';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, duplicateRefusal, ensureDevelopmentDependency, grpcPackages, notListedMessage,
-    protobufReferenceFor, protoFileName, referenceLabel, removeProtobufReference, sourceUrlInProjectFile,
+    protobufReferenceFor, protoFileName, rangeMinimum, referenceLabel, removeProtobufReference, sourceUrlInProjectFile,
 } from '../../../../services/grpc/protobufReferences';
 
 const root = path.resolve('/work');
@@ -205,6 +205,18 @@ describe('grpcPackages', () => {
         expect(grpcPackages('Client', true, ['Grpc.AspNetCore'])).toEqual([]);
         expect(grpcPackages('Server', false, ['Google.Protobuf', 'Grpc.Net.ClientFactory', 'Grpc.Tools'])).toEqual(['Grpc.AspNetCore']);
         expect(grpcPackages('Client', false, ['Grpc.AspNetCore.Server.ClientFactory'])).toEqual(['Google.Protobuf', 'Grpc.Tools']);
+    });
+});
+
+describe('rangeMinimum', () => {
+    test('the lower bound of a NuGet version range, undefined when there is none', () => {
+        expect(rangeMinimum('3.35.1')).toBe('3.35.1');
+        expect(rangeMinimum('[3.35.1, )')).toBe('3.35.1');
+        expect(rangeMinimum('[3.35.1,4.0.0)')).toBe('3.35.1');
+        expect(rangeMinimum('(3.0.0, )')).toBe('3.0.0');
+        expect(rangeMinimum('[1.2.3]')).toBe('1.2.3');
+        expect(rangeMinimum('(, 4.0.0)')).toBeUndefined();
+        expect(rangeMinimum('')).toBeUndefined();
     });
 });
 
