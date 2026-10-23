@@ -5,6 +5,8 @@ name: Release
 # the same .vsix goes to the Visual Studio Marketplace, Open VSX and the GitHub release. Release notes left empty are
 # filled from the CHANGELOG.md section of that version.
 # A store is skipped while its token secret (VSCE_PAT, OVSX_PAT) is not set, so the workflow works before the accounts exist.
+# Open VSX can also publish without any token (trusted publishing, OIDC): register this workflow at
+# open-vsx.org/user-settings/trusted-publishers and set the repository variable OVSX_TRUSTED_PUBLISHING to true, see RELEASING.md.
 # VSCE_PAT stays unset for now (an Azure DevOps organization needs an Azure subscription): the .vsix attached to the release
 # is uploaded to the Visual Studio Marketplace by hand, see RELEASING.md.
 on:
@@ -13,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # only used by the Open VSX trusted publishing step
 
 jobs:
   release:
@@ -88,6 +91,16 @@ jobs:
           if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
           npx ovsx publish shinobi-dotnet.vsix --pat "$OVSX_PAT" "${flags[@]}"
 
+      # No stored token: the job asks GitHub for a short-lived OIDC identity and Open VSX exchanges it for a one-extension
+      # publishing token. Only runs when OVSX_TRUSTED_PUBLISHING is true and no OVSX_PAT is set (a PAT would take precedence).
+      - name: Publish to Open VSX (trusted publishing)
+        if: ${{ vars.OVSX_TRUSTED_PUBLISHING == 'true' && env.OVSX_PAT == '' }}
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
+          npx --yes ovsx@1.2.0 publish shinobi-dotnet.vsix --trusted-publishing "${flags[@]}"
+
       - name: Attach the .vsix to the release
         shell: bash
         env:
@@ -102,7 +115,8 @@ jobs:
         shell: bash
         run: |
           marketplace="skipped, no VSCE_PAT secret"; if [[ -n "$VSCE_PAT" ]]; then marketplace="yes"; fi
-          openvsx="skipped, no OVSX_PAT secret"; if [[ -n "$OVSX_PAT" ]]; then openvsx="yes"; fi
+          openvsx="skipped, no OVSX_PAT secret and trusted publishing is off"
+          if [[ -n "$OVSX_PAT" ]]; then openvsx="yes, with the OVSX_PAT token"; elif [[ "${{ vars.OVSX_TRUSTED_PUBLISHING }}" == "true" ]]; then openvsx="yes, trusted publishing"; fi
           {
             echo "## Released ${{ steps.version.outputs.version }}"
             echo "- GitHub release: yes"

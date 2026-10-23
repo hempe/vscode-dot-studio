@@ -10,7 +10,7 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0` (a date after it is fine) followed by what changed for users since the last release. The first release (`0.1.0`) is just "Initial release" with a short summary of the features, not a history. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
 3. Commit and push that to `master`.
 4. GitHub > Releases > **Draft a new release**: choose "Create new tag" and type `v0.2.0` (the tag is the version, `v` + `major.minor.patch`, nothing else), target `master`. Tick **Set as a pre-release** for a first or risky release. Leave the notes empty to use the changelog section, or write them. Click **Publish release**.
-5. Watch Actions > Release. It runs typecheck and tests, builds one `.vsix` with the tag's version, publishes it to Open VSX (VSCodium) when `OVSX_PAT` is set, and attaches it to the release. The run's summary says which stores got it.
+5. Watch Actions > Release. It runs typecheck and tests, builds one `.vsix` with the tag's version, publishes it to Open VSX (VSCodium) when `OVSX_PAT` is set or trusted publishing is switched on (`OVSX_TRUSTED_PUBLISHING`), and attaches it to the release. The run's summary says which stores got it.
 6. **Visual Studio Marketplace, by hand** (once the Release run is green and the release has its `.vsix`):
    1. Get the file: GitHub > Releases > the release > Assets > `shinobi-dotnet.vsix`, or `gh release download v0.2.0 --pattern '*.vsix' --dir /tmp` (use the tag you released).
    2. Open marketplace.visualstudio.com/manage/publishers/shinobi and sign in.
@@ -25,7 +25,7 @@ Version numbers: `major.minor.patch`. For the Marketplace's pre-release channel 
 
 - *CHANGELOG.md has no "## x.y.z" section*: add it, then delete the release **and its tag** (Releases > the release > Delete, then `git push origin :refs/tags/v0.2.0`), and publish again.
 - *The tagged commit is not on master*: tag a commit that is on master.
-- *401 or 403 from Open VSX*: the token is wrong or expired: create a token at open-vsx.org > Settings > Access Tokens, update `OVSX_PAT`, and check it with `npx ovsx verify-pat shinobi -p <token>`.
+- *401 or 403 from Open VSX*: with trusted publishing, the registration does not match (user, repository, workflow filename `release.yml`, environment) or the namespace has lost its verified owner or its last active version; with a token, it is wrong or expired: create a new one and update `OVSX_PAT`.
 - *Version already exists*: the stores keep every version forever; use the next patch number.
 - Try packaging by hand any time with `npx vsce package` (it runs the production build and lists what goes into the `.vsix`).
 
@@ -43,13 +43,17 @@ Why not automatic: `vsce publish` needs a Personal Access Token from an Azure De
 
 **Open VSX (VSCodium, and other editors that do not use Microsoft's store)**
 
-- [ ] Sign in at open-vsx.org with GitHub.
-- [ ] An Eclipse Foundation account at accounts.eclipse.org, with the same email, and your GitHub username filled in on its profile.
-- [ ] Back on open-vsx.org: your profile > **Log in with Eclipse**, then sign the **Publisher Agreement** (publishing is refused until you did).
-- [ ] An access token: open-vsx.org > Settings > **Access Tokens** > Generate New Token.
-- [ ] The namespace, once: `npx ovsx create-namespace shinobi -p <token>` (it must match the publisher `shinobi`). Check the token with `npx ovsx verify-pat shinobi -p <token>`.
-- [ ] The token as the repository secret **`OVSX_PAT`**.
-- [ ] Optional: ask for the namespace to be verified (an issue at github.com/EclipseFdn/open-vsx.org, "Namespace ownership") so the listing does not say "unverified publisher".
+No long-lived token is needed in the end: Open VSX supports *trusted publishing* from GitHub Actions (the workflow proves its identity with a short-lived OIDC token, wiki: github.com/eclipse-openvsx/openvsx/wiki/Trusted-Publishing). It needs ownership of the namespace, a signed Publisher Agreement and an extension with at least one active version, so the very first version goes up by hand. Registering a trusted publisher currently needs a public GitHub repository (ours is).
+
+- [x] An Eclipse Foundation account at accounts.eclipse.org with your GitHub username filled in on its profile (exactly as on GitHub).
+- [ ] Sign in at open-vsx.org with GitHub, profile settings > **Log in with Eclipse**, sign the **Publisher Agreement** (publishing is refused until you did).
+- [ ] A short-lived access token only to create the namespace: open-vsx.org/user-settings/tokens > generate; then, in your own terminal (not in a chat), `npx ovsx create-namespace shinobi -p <token>` (it must match `publisher` in `package.json`, same case). Delete the token afterwards.
+- [ ] Claim the namespace so you are its verified owner (creating it does not do that): the ownership process in Open VSX's "Managing Namespaces" documentation (an issue at github.com/EclipseFdn/open-vsx.org).
+- [ ] The first version by hand: after the first Release run, download `shinobi-dotnet.vsix` from the GitHub release and upload it with open-vsx.org's **Publish** link (as for the Marketplace).
+- [ ] Register the trusted publisher: open-vsx.org/user-settings/trusted-publishers > GitHub Actions: user `hempe`, repository `vscode-dot-studio`, workflow filename `release.yml`, no environment. (A registration cannot be edited; delete and recreate it to change it.)
+- [ ] Switch it on: `gh variable set OVSX_TRUSTED_PUBLISHING --body true`. The Release workflow then publishes to Open VSX by itself (step "Publish to Open VSX (trusted publishing)", `npx ovsx publish --trusted-publishing`; the job has `id-token: write`). Do **not** also set an `OVSX_PAT` secret: a token always takes precedence over trusted publishing.
+- [ ] Not tried yet: this step and the pinned `ovsx` version (1.2.0, which a web search named as the first with `--trusted-publishing`; the wiki gives no version, so check `npx ovsx --help` and raise the pin if needed) have never run. Check the Release run's summary after the second release; if the step fails, upload by hand and fix the workflow.
+- [ ] Fallback without trusted publishing: a token as the repository secret `OVSX_PAT` (`gh secret set OVSX_PAT`); the workflow then publishes with it. Check it with `npx ovsx verify-pat shinobi -p <token>`.
 
 **First release**
 
