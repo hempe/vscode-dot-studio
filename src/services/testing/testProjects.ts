@@ -19,6 +19,8 @@ export interface TestProject {
     readonly testingPlatform: boolean;
     /** The SDK's vstest.console.dll, which runs VSTest projects */
     readonly vstestConsolePath?: string;
+    /** The team's `.runsettings` file (`RunSettingsFilePath`), absolute */
+    readonly runSettingsPath?: string;
     /** The framework a multi-targeted project is built and run for (see chooseTestFramework); unset for single-target projects */
     readonly targetFramework?: string;
     /** Why a multi-targeted project runs on targetFramework, for the log */
@@ -27,13 +29,14 @@ export interface TestProject {
     readonly netFramework?: boolean;
 }
 
-export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; targetPath?: string; vstestConsolePath?: string } {
+export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
     try {
         const properties = JSON.parse(msbuildJson).Properties ?? {};
         return {
             testingPlatform: String(properties.IsTestingPlatformApplication).toLowerCase() === 'true',
             ...(properties.TargetPath ? { targetPath: properties.TargetPath } : {}),
             ...(properties.VSTestConsolePath ? { vstestConsolePath: properties.VSTestConsolePath } : {}),
+            ...(properties.RunSettingsFilePath ? { runSettingsPath: properties.RunSettingsFilePath } : {}),
         };
     } catch {
         return { testingPlatform: false };
@@ -129,14 +132,32 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
     return new Promise(resolve => {
         execFile('dotnet', [
             'msbuild', projectPath, '-nologo',
-            '-getProperty:IsTestingPlatformApplication', '-getProperty:TargetPath', '-getProperty:VSTestConsolePath',
+            '-getProperty:IsTestingPlatformApplication', '-getProperty:TargetPath', '-getProperty:VSTestConsolePath', '-getProperty:RunSettingsFilePath',
             `-property:Configuration=${configuration}`, ...extra,
         ], { cwd: path.dirname(projectPath), timeout: 60000 }, (_error, stdout) => resolve(stdout ?? ''));
     });
 }
 
 /**
- * Asks MSBuild whether the project is a Microsoft.Testing.Platform app, where it builds to and where vstest.console is.
+ * The project from what MSBuild said (for `framework`, chosen by `choice` when multi-targeted);
+ * a relative `RunSettingsFilePath` is relative to the project folder
+ */
+export function testProjectFrom(projectPath: string, msbuildJson: string, framework?: string, choice?: { framework: string; reason: string }): TestProject | undefined {
+    const { testingPlatform, targetPath, vstestConsolePath, runSettingsPath } = parseTestProperties(msbuildJson);
+    return targetPath
+        ? {
+            projectPath, targetPath, testingPlatform,
+            ...(vstestConsolePath ? { vstestConsolePath } : {}),
+            ...(runSettingsPath ? { runSettingsPath: path.resolve(path.dirname(projectPath), runSettingsPath) } : {}),
+            ...(choice ? { targetFramework: choice.framework, frameworkReason: choice.reason } : {}),
+            ...(isNetFramework(framework) ? { netFramework: true } : {}),
+        }
+        : undefined;
+}
+
+/**
+ * Asks MSBuild whether the project is a Microsoft.Testing.Platform app, where it builds to, where vstest.console is
+ * and which run settings file it uses.
  * A multi-targeted project has no TargetPath as a whole: it is evaluated again for the framework chooseTestFramework
  * chooses, the solution's selected framework (`selectedFramework`) when the project targets it.
  */
@@ -150,13 +171,5 @@ export async function evaluateTestProject(projectPath: string, configuration: st
         framework = choice?.framework;
         output = await getTestProperties(projectPath, configuration, [`-property:TargetFramework=${framework}`]);
     }
-    const { testingPlatform, targetPath, vstestConsolePath } = parseTestProperties(output);
-    return targetPath
-        ? {
-            projectPath, targetPath, testingPlatform,
-            ...(vstestConsolePath ? { vstestConsolePath } : {}),
-            ...(choice ? { targetFramework: choice.framework, frameworkReason: choice.reason } : {}),
-            ...(isNetFramework(framework) ? { netFramework: true } : {}),
-        }
-        : undefined;
+    return testProjectFrom(projectPath, output, framework, choice);
 }

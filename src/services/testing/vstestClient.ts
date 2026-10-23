@@ -1,5 +1,6 @@
 import * as net from 'net';
 import { TestApp, TestNode } from './testingPlatformClient';
+import { DEFAULT_RUN_SETTINGS } from './runSettings';
 
 // Client for vstest.console in design mode, the protocol Visual Studio uses for classic VSTest projects
 // (xUnit v2, NUnit and MSTest with their VSTest adapters): we listen on a port, start
@@ -7,7 +8,6 @@ import { TestApp, TestNode } from './testingPlatformClient';
 // length as .NET's BinaryWriter writes strings (7-bit encoded).
 
 const PROTOCOL_VERSION = 7;
-const RUN_SETTINGS = '<RunSettings><RunConfiguration><DesignMode>true</DesignMode></RunConfiguration></RunSettings>';
 
 /** A test case as VSTest reports it */
 export interface VsTestCase {
@@ -124,14 +124,14 @@ export function vstestResultNode(result: VsTestResult): TestNode {
 
 /** A connected vstest.console */
 export interface VsTestSession {
-    /** The test cases in the test assemblies */
-    discover(sources: string[]): Promise<VsTestCase[]>;
+    /** The test cases in the test assemblies; `runSettings` from `vstestRunSettings`, else the default */
+    discover(sources: string[], runSettings?: string): Promise<VsTestCase[]>;
     /**
      * Runs all tests of the sources, or the given test cases; results arrive in batches. With `attach`,
      * VSTest starts the test host paused and the tests run once `attach` (the debugger) resolves true.
      */
     run(
-        request: { readonly sources?: string[]; readonly testCases?: VsTestCase[] },
+        request: { readonly sources?: string[]; readonly testCases?: VsTestCase[]; readonly runSettings?: string },
         onResults: (results: VsTestResult[]) => void,
         attach?: (processId: number) => Promise<boolean>
     ): Promise<void>;
@@ -205,7 +205,7 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
             });
 
             const session: VsTestSession = {
-                discover: async sources => {
+                discover: async (sources, runSettings) => {
                     const found: VsTestCase[] = [];
                     const done = operation<VsTestCase[]>(message => {
                         if (message.MessageType === 'TestDiscovery.TestFound') {
@@ -216,10 +216,10 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
                         }
                         return undefined;
                     });
-                    send('TestDiscovery.Start', { Sources: sources, RunSettings: RUN_SETTINGS });
+                    send('TestDiscovery.Start', { Sources: sources, RunSettings: runSettings ?? DEFAULT_RUN_SETTINGS });
                     return done;
                 },
-                run: async ({ sources, testCases }, onResults, attach) => {
+                run: async ({ sources, testCases, runSettings }, onResults, attach) => {
                     const done = operation<true>(async message => {
                         switch (message.MessageType) {
                             case 'TestExecution.StatsChange':
@@ -239,7 +239,7 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
                                 return undefined;
                         }
                     });
-                    const payload = { ...(testCases ? { TestCases: testCases } : { Sources: sources }), RunSettings: RUN_SETTINGS };
+                    const payload = { ...(testCases ? { TestCases: testCases } : { Sources: sources }), RunSettings: runSettings ?? DEFAULT_RUN_SETTINGS };
                     if (attach) {
                         send(testCases ? 'TestExecution.GetTestRunnerProcessStartInfoForRunSelected' : 'TestExecution.GetTestRunnerProcessStartInfoForRunAll',
                             { ...payload, DebuggingEnabled: true });

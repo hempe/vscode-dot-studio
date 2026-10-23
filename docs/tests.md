@@ -32,6 +32,17 @@ Each run builds the project first. Results show the failure message, the stack t
 
 **Debugging** stops at breakpoints in tests and in the code they test. For VSTest projects, VSTest starts the test host paused and the debugger attaches to it before the tests run.
 
+## Run settings
+
+A project's `.runsettings` file is used when MSBuild names it in `RunSettingsFilePath` (in the project file or, for every project, in `Directory.Build.props`), the way `dotnet test` and Visual Studio find it:
+
+| Kind | What is used |
+|---|---|
+| **VSTest** | Everything in the file except data collectors and loggers: `RunConfiguration` (`MaxCpuCount`, `EnvironmentVariables`, `TestSessionTimeout`...), `TestRunParameters` and the sections of the adapters (`NUnit`, `MSTest`, `xUnit`). VSTest projects that use the same file run in one VSTest session, so `MaxCpuCount` runs their test assemblies in parallel (.NET Framework projects run under Mono outside Windows get a session of their own) |
+| **Microsoft.Testing.Platform** | MSTest and NUnit runner projects get the file (`--settings`) and its environment variables; xUnit v3 and TUnit do not read run settings files. `MaxCpuCount` does not apply there (the platform says so in the test output) |
+
+Code coverage stays a script (`dotnet test --collect "XPlat Code Coverage"`): the data collectors in the file are not run from the Testing view. A file that is missing or not a run settings file is skipped with a line in the test output.
+
 ## When tests appear
 
 After every build started by this extension (Ctrl+Shift+B, the context menu, F5) and when the solution loads, for projects that were built. The refresh button builds first.

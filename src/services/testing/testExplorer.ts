@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { spawn, execFile } from 'child_process';
 import { logger } from '../../core/logger';
 import { sln } from '../../core/utils';
@@ -15,6 +17,7 @@ import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
+import { testingPlatformRunSettings, vstestRunSettings } from './runSettings';
 import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const log = logger('TestExplorer');
@@ -31,20 +34,26 @@ export interface TestExplorerDeps {
     platform(): NodeJS.Platform;
     /** Builds the project (for one framework of a multi-targeted project); false when the build failed */
     build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string): Promise<boolean>;
-    /** Starts the test app with the server arguments, in the debugger for debug runs */
-    start(project: TestProject, args: string[], debug: boolean): Promise<TestApp>;
+    /** Starts the test app with the server arguments, in the debugger for debug runs, with extra environment variables */
+    start(project: TestProject, args: string[], debug: boolean, environment: Readonly<Record<string, string>>): Promise<TestApp>;
     /** Starts vstest.console in design mode, connecting to the port (VSTest projects) */
     startVsTest(project: TestProject, port: number): Promise<TestApp>;
     /** Attaches the debugger to a test host VSTest started paused; false when it couldn't */
     attachDebugger(project: TestProject, processId: number): Promise<boolean>;
     /** Last write time of the test app, to re-discover only what a build changed */
     modified(file: string): number | undefined;
+    /** The content of a run settings file; undefined when it can't be read */
+    readRunSettings(file: string): string | undefined;
+    /** Whether the Microsoft.Testing.Platform app has the VSTest bridge, which reads run settings (`--settings`) */
+    hasVsTestBridge(targetPath: string): boolean;
+    /** Writes run settings for `--settings` to a temporary file and gives its path */
+    writeRunSettings(content: string): string;
 }
 
-function startProcess(project: TestProject, args: string[]): Promise<TestApp> {
+function startProcess(project: TestProject, args: string[], environment: Readonly<Record<string, string>>): Promise<TestApp> {
     const child = spawn('dotnet', [project.targetPath, ...args], {
         cwd: path.dirname(project.projectPath),
-        env: { ...process.env, TESTINGPLATFORM_TELEMETRY_OPTOUT: '1' },
+        env: { ...process.env, TESTINGPLATFORM_TELEMETRY_OPTOUT: '1', ...environment },
     });
     let output = '';
     child.stdout.on('data', chunk => { output += chunk; });
@@ -53,7 +62,7 @@ function startProcess(project: TestProject, args: string[]): Promise<TestApp> {
     return Promise.resolve({ kill: () => { child.kill(); }, output: () => output });
 }
 
-async function startInDebugger(project: TestProject, args: string[]): Promise<TestApp> {
+async function startInDebugger(project: TestProject, args: string[], environment: Readonly<Record<string, string>>): Promise<TestApp> {
     const name = `Debug tests: ${path.parse(project.projectPath).name}`;
     let session: vscode.DebugSession | undefined;
     const listener = vscode.debug.onDidStartDebugSession(started => {
@@ -68,7 +77,7 @@ async function startInDebugger(project: TestProject, args: string[]): Promise<Te
         program: project.targetPath,
         args,
         cwd: path.dirname(project.projectPath),
-        env: { TESTINGPLATFORM_TELEMETRY_OPTOUT: '1' },
+        env: { TESTINGPLATFORM_TELEMETRY_OPTOUT: '1', ...environment },
         console: 'internalConsole',
     });
     listener.dispose();
@@ -117,7 +126,7 @@ const defaultDeps: TestExplorerDeps = {
                 resolve(!error);
             });
     }),
-    start: (project, args, debug) => debug ? startInDebugger(project, args) : startProcess(project, args),
+    start: (project, args, debug, environment) => debug ? startInDebugger(project, args, environment) : startProcess(project, args, environment),
     startVsTest: startVsTestConsole,
     attachDebugger: attachToTestHost,
     modified: file => {
@@ -126,6 +135,20 @@ const defaultDeps: TestExplorerDeps = {
         } catch {
             return undefined;
         }
+    },
+    readRunSettings: file => {
+        try {
+            return fs.readFileSync(file, 'utf8');
+        } catch {
+            return undefined;
+        }
+    },
+    hasVsTestBridge: targetPath => fs.existsSync(path.join(path.dirname(targetPath), 'Microsoft.Testing.Extensions.VSTestBridge.dll')),
+    writeRunSettings: content => {
+        // One file per content: concurrent runs of projects with different settings don't overwrite each other
+        const file = path.join(os.tmpdir(), `shinobi-${createHash('sha256').update(content).digest('hex').slice(0, 16)}.runsettings`);
+        fs.writeFileSync(file, content, 'utf8');
+        return file;
     },
 };
 
@@ -141,6 +164,12 @@ interface ProjectState {
     project: TestProject;
     item: vscode.TestItem;
     discoveredAt?: number;
+}
+
+/** A project in a run: its tests to run, or undefined for all of them */
+interface ProjectRun {
+    readonly state: ProjectState;
+    readonly items: vscode.TestItem[] | undefined;
 }
 
 /** The ".NET Tests" controller: the tests of the active solution in the Test Explorer, Microsoft.Testing.Platform and VSTest projects */
@@ -302,14 +331,15 @@ export class TestExplorer implements vscode.Disposable {
         const discovered: TestNode[] = [];
         try {
             if (state.project.testingPlatform) {
-                const session = await connectTestApp(args => this.deps.start(state.project, args, false));
+                const settings = this.testingPlatformSettings(state.project);
+                const session = await connectTestApp(args => this.deps.start(state.project, [...args, ...settings.args], false, settings.environment));
                 session.onUpdate(nodes => discovered.push(...nodes.filter(node => node['execution-state'] === 'discovered')));
                 await session.discover();
                 await session.close();
             } else {
                 const session = await connectVsTest(port => this.deps.startVsTest(state.project, port));
                 try {
-                    for (const testCase of await session.discover([state.project.targetPath])) {
+                    for (const testCase of await session.discover([state.project.targetPath], this.vstestSettings(state.project))) {
                         this.vstestCases.set(testCase.Id, testCase);
                         discovered.push(vstestCaseNode(testCase));
                     }
@@ -392,6 +422,10 @@ export class TestExplorer implements vscode.Disposable {
 
         const run = this.controller.createTestRun(request);
         const configuration = BuildConfiguration.active;
+        // VSTest projects with the same vstest.console and run settings file run in one session, as in Visual Studio:
+        // that is where the run settings' MaxCpuCount runs test assemblies in parallel. Projects that run through
+        // Mono's vstest.console (.NET Framework outside Windows) are a group of their own.
+        const vstestGroups = new Map<string, ProjectRun[]>();
         try {
             for (const [state, { items, all }] of byProject) {
                 if (token.isCancellationRequested) {
@@ -408,14 +442,31 @@ export class TestExplorer implements vscode.Disposable {
                 if (all && items.size === 0) {
                     this.leaves(state.item, []).forEach(item => run.enqueued(item));
                 }
-                await this.runProject(state, all ? undefined : [...items], run, token, debug);
+                const projectRun: ProjectRun = { state, items: all ? undefined : [...items] };
+                if (state.project.testingPlatform) {
+                    await this.runProjects([projectRun], run, token, debug);
+                } else {
+                    const vstestConsole = needsMono(state.project, this.deps.platform()) ? 'mono' : state.project.vstestConsolePath;
+                    const key = JSON.stringify([vstestConsole, state.project.runSettingsPath ?? '']);
+                    vstestGroups.set(key, [...(vstestGroups.get(key) ?? []), projectRun]);
+                }
+            }
+            for (const group of vstestGroups.values()) {
+                if (token.isCancellationRequested) {
+                    break;
+                }
+                await this.runProjects(group, run, token, debug);
             }
         } finally {
             run.end();
         }
     }
 
-    private async runProject(state: ProjectState, items: vscode.TestItem[] | undefined, run: vscode.TestRun, token: vscode.CancellationToken, debug: boolean): Promise<void> {
+    /**
+     * Runs the projects' tests (one Microsoft.Testing.Platform project, or VSTest projects sharing a vstest.console
+     * session) and reports the results
+     */
+    private async runProjects(projects: readonly ProjectRun[], run: vscode.TestRun, token: vscode.CancellationToken, debug: boolean): Promise<void> {
         const byUid = new Map<string, vscode.TestItem>();
         const collect = (item: vscode.TestItem) => {
             const node = this.nodes.get(item);
@@ -424,7 +475,7 @@ export class TestExplorer implements vscode.Disposable {
             }
             item.children.forEach(collect);
         };
-        collect(state.item);
+        projects.forEach(({ state }) => collect(state.item));
 
         /** Results of tests without an item, by uid (the last one of a test wins) */
         const unmatched = new Map<string, TestNode>();
@@ -462,19 +513,21 @@ export class TestExplorer implements vscode.Disposable {
                 }
             }
         };
-        /** Errors the tests (the project when none are known), the reason in the run output too */
+        /** Errors the tests (a project when none of its tests are known), the reason in the run output too */
         const fail = (error: unknown) => {
             const text = error instanceof Error ? error.message : String(error);
             run.appendOutput(terminal(`${text}\n`));
             const message = new vscode.TestMessage(text);
-            const failed = items ?? [...byUid.values()];
-            (failed.length > 0 ? failed : [state.item]).forEach(item => run.errored(item, message));
+            for (const { state, items } of projects) {
+                const failed = items ?? this.leaves(state.item, []);
+                (failed.length > 0 ? failed : [state.item]).forEach(item => run.errored(item, message));
+            }
         };
 
-        if (state.project.testingPlatform) {
-            await this.runTestingPlatformProject(state, items, run, token, debug, report, fail);
+        if (projects[0].state.project.testingPlatform) {
+            await this.runTestingPlatformProject(projects[0], run, token, debug, report, fail);
         } else {
-            await this.runVsTestProject(state, items, run, token, debug, report, fail);
+            await this.runVsTestProjects(projects, run, token, debug, report, fail);
         }
 
         if (unmatched.size === 0) {
@@ -483,35 +536,38 @@ export class TestExplorer implements vscode.Disposable {
         // Results of tests the tree doesn't have (discovered from another build, or not at all): discover again
         // so they get their items, and say so for any that still have none rather than dropping them
         if (!token.isCancellationRequested) {
-            const modified = this.deps.modified(state.project.targetPath);
-            if (await this.discover(state) && modified !== undefined) {
-                state.discoveredAt = modified;
+            for (const { state } of projects) {
+                const modified = this.deps.modified(state.project.targetPath);
+                if (await this.discover(state) && modified !== undefined) {
+                    state.discoveredAt = modified;
+                }
             }
             byUid.clear();
-            collect(state.item);
+            projects.forEach(({ state }) => collect(state.item));
         }
         const pending = [...unmatched.values()];
         unmatched.clear();
         pending.forEach(report);
         if (unmatched.size > 0) {
             const names = [...unmatched.values()].map(node => node['display-name']).join(', ');
-            run.appendOutput(terminal(`${unmatched.size} result(s) of ${path.basename(state.project.projectPath)} could not be matched to a test in the Testing view: ${names}\n`));
+            const of = projects.map(({ state }) => path.basename(state.project.projectPath)).join(', ');
+            run.appendOutput(terminal(`${unmatched.size} result(s) of ${of} could not be matched to a test in the Testing view: ${names}\n`));
         }
     }
 
     /** Runs or debugs the tests of a Microsoft.Testing.Platform project through its server mode */
     private async runTestingPlatformProject(
-        state: ProjectState,
-        items: vscode.TestItem[] | undefined,
+        { state, items }: ProjectRun,
         run: vscode.TestRun,
         token: vscode.CancellationToken,
         debug: boolean,
         report: (node: TestNode) => void,
         fail: (error: unknown) => void
     ): Promise<void> {
+        const settings = this.testingPlatformSettings(state.project, text => run.appendOutput(terminal(text)));
         let session: TestSession;
         try {
-            session = await connectTestApp(args => this.deps.start(state.project, args, debug));
+            session = await connectTestApp(args => this.deps.start(state.project, [...args, ...settings.args], debug, settings.environment));
         } catch (error) {
             fail(error);
             return;
@@ -536,23 +592,26 @@ export class TestExplorer implements vscode.Disposable {
         }
     }
 
-    /** Runs or debugs (attaching to the test host) the tests of a VSTest project through vstest.console */
-    private async runVsTestProject(
-        state: ProjectState,
-        items: vscode.TestItem[] | undefined,
+    /**
+     * Runs or debugs (attaching to the test hosts) the tests of VSTest projects that share vstest.console and the
+     * run settings file, in one vstest.console session
+     */
+    private async runVsTestProjects(
+        projects: readonly ProjectRun[],
         run: vscode.TestRun,
         token: vscode.CancellationToken,
         debug: boolean,
         report: (node: TestNode) => void,
         fail: (error: unknown) => void
     ): Promise<void> {
-        if (debug && needsMono(state.project, this.deps.platform())) {
+        const first = projects[0].state.project;
+        if (debug && needsMono(first, this.deps.platform())) {
             fail(MONO_DEBUG_UNSUPPORTED);
             return;
         }
         let session: VsTestSession;
         try {
-            session = await connectVsTest(port => this.deps.startVsTest(state.project, port));
+            session = await connectVsTest(port => this.deps.startVsTest(first, port));
         } catch (error) {
             fail(error);
             return;
@@ -561,11 +620,15 @@ export class TestExplorer implements vscode.Disposable {
         session.onLog(message => run.appendOutput(terminal(`${message}\n`)));
 
         try {
-            const testCases = items?.flatMap(item => this.vstestCases.get(this.nodes.get(item)!.uid) ?? []);
+            // VSTest takes either whole assemblies or test cases: once a project runs only some tests, all go as test cases
+            const testCases = projects.some(({ items }) => items)
+                ? projects.flatMap(({ state, items }) => (items ?? this.leaves(state.item, [])).flatMap(item => this.vstestCases.get(this.nodes.get(item)!.uid) ?? []))
+                : undefined;
+            const runSettings = this.vstestSettings(first, text => run.appendOutput(terminal(text)));
             await session.run(
-                testCases ? { testCases } : { sources: [state.project.targetPath] },
+                { ...(testCases ? { testCases } : { sources: projects.map(({ state }) => state.project.targetPath) }), runSettings },
                 results => results.map(vstestResultNode).forEach(report),
-                debug ? processId => this.deps.attachDebugger(state.project, processId) : undefined
+                debug ? processId => this.deps.attachDebugger(first, processId) : undefined
             );
         } catch (error) {
             run.appendOutput(terminal(`${error instanceof Error ? error.message : error}\n`));
@@ -573,6 +636,54 @@ export class TestExplorer implements vscode.Disposable {
             cancel.dispose();
             await session.close();
         }
+    }
+
+    /** The project's run settings file, or undefined when it has none or it can't be read (said in the output) */
+    private runSettingsContent(project: TestProject, output?: (text: string) => void): string | undefined {
+        if (!project.runSettingsPath) {
+            return undefined;
+        }
+        const content = this.deps.readRunSettings(project.runSettingsPath);
+        if (content === undefined) {
+            this.warn(`The run settings file ${project.runSettingsPath} (RunSettingsFilePath of ${path.basename(project.projectPath)}) can't be read; running without it.\n`, output);
+        }
+        return content;
+    }
+
+    private warn(problem: string, output?: (text: string) => void): void {
+        log.warn(problem.trimEnd());
+        output?.(problem);
+    }
+
+    /** What VSTest gets: the project's run settings without data collectors and loggers; undefined for the default */
+    private vstestSettings(project: TestProject, output?: (text: string) => void): string | undefined {
+        const content = this.runSettingsContent(project, output);
+        const settings = content === undefined ? undefined : vstestRunSettings(content);
+        if (content !== undefined && settings === undefined) {
+            this.warn(`${project.runSettingsPath} is not a run settings file (<RunSettings>); running without it.\n`, output);
+        }
+        return settings;
+    }
+
+    /**
+     * What a Microsoft.Testing.Platform app gets: `--settings` with the project's run settings when the app has the
+     * VSTest bridge (MSTest, NUnit runner; xUnit v3 and TUnit don't read run settings and would refuse the option),
+     * and the file's environment variables (in the file they make the app restart as a test host that can't connect)
+     */
+    private testingPlatformSettings(project: TestProject, output?: (text: string) => void): { args: string[]; environment: Readonly<Record<string, string>> } {
+        const none = { args: [], environment: {} };
+        if (!project.runSettingsPath || !this.deps.hasVsTestBridge(project.targetPath)) {
+            return none;
+        }
+        const content = this.runSettingsContent(project, output);
+        const settings = content === undefined ? undefined : testingPlatformRunSettings(content);
+        if (!settings) {
+            if (content !== undefined) {
+                this.warn(`${project.runSettingsPath} is not a run settings file (<RunSettings>); running without it.\n`, output);
+            }
+            return none;
+        }
+        return { args: ['--settings', this.deps.writeRunSettings(settings.settings)], environment: settings.environment };
     }
 
     dispose(): void {

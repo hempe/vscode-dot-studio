@@ -1,6 +1,7 @@
 import { connectVsTest, encode, VsTestReader, vstestCaseNode, vstestResultNode, VsTestCase } from '../../../../services/testing/vstestClient';
 import { recording, replay } from './vstestReplay';
 import { buildTestTree, outcomeOf } from '../../../../services/testing/testTree';
+import { DEFAULT_RUN_SETTINGS } from '../../../../services/testing/runSettings';
 
 describe('vstestClient', () => {
     it('frames messages like .NET\'s BinaryWriter strings (7-bit encoded length)', () => {
@@ -92,5 +93,22 @@ describe('vstestClient', () => {
         expect(attached).toEqual([expect.any(Number)]);
         expect(sent.find(m => m.MessageType === 'TestExecution.EditorAttachDebuggerCallback').Payload).toEqual({ Attached: true });
         expect(results).toHaveLength(2);
+    });
+
+    it('sends the given run settings for discovery and runs, the default ones otherwise', async () => {
+        const settings = '<RunSettings><RunConfiguration><DesignMode>true</DesignMode><MaxCpuCount>0</MaxCpuCount></RunConfiguration></RunSettings>';
+        const sent: any[] = [];
+        const session = await connectVsTest(replay('NUnitTests-discover', sent));
+        await session.discover(['/repo/x.dll'], settings);
+        await session.discover(['/repo/x.dll']);
+        await session.close();
+        expect(sent.filter(m => m.MessageType === 'TestDiscovery.Start').map(m => m.Payload.RunSettings)).toEqual([settings, DEFAULT_RUN_SETTINGS]);
+
+        const ran: any[] = [];
+        const running = await connectVsTest(replay('NUnitTests-run', ran));
+        await running.run({ sources: ['/repo/a.dll', '/repo/b.dll'], runSettings: settings }, () => { });
+        await running.close();
+        const request = ran.find(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost');
+        expect(request.Payload).toEqual({ Sources: ['/repo/a.dll', '/repo/b.dll'], RunSettings: settings });
     });
 });

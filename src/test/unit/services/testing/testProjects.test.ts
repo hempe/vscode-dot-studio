@@ -1,4 +1,5 @@
-import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework } from '../../../../services/testing/testProjects';
+import * as path from 'path';
+import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, testProjectFrom } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -94,5 +95,25 @@ describe('the selected framework (Select Framework) and the test framework', () 
     it('tells .NET Framework frameworks apart', () => {
         expect(['net472', 'net48', 'net481', 'net462', 'net45', 'net40', 'net35'].every(isNetFramework)).toBe(true);
         expect(['net8.0', 'net10.0', 'netcoreapp3.1', 'netstandard2.0', 'net6.0-windows', undefined].some(isNetFramework)).toBe(false);
+    });
+});
+
+describe('the run settings file of a test project', () => {
+    it('reads the run settings file, relative to the project folder when MSBuild gives a relative path', () => {
+        const projectPath = path.resolve('repo', 'tests', 'A', 'A.csproj');
+        const json = (runSettings: string) => JSON.stringify({ Properties: { IsTestingPlatformApplication: 'false', TargetPath: path.resolve('repo', 'A.dll'), RunSettingsFilePath: runSettings } });
+        expect(testProjectFrom(projectPath, json(path.join(path.dirname(projectPath), '..', 'team.runsettings')))?.runSettingsPath)
+            .toBe(path.resolve('repo', 'tests', 'team.runsettings'));
+        expect(testProjectFrom(projectPath, json('local.runsettings'))?.runSettingsPath).toBe(path.resolve('repo', 'tests', 'A', 'local.runsettings'));
+        expect(testProjectFrom(projectPath, json(''))).not.toHaveProperty('runSettingsPath');
+        expect(testProjectFrom(projectPath, 'error MSB1009')).toBeUndefined();
+    });
+
+    it('keeps the framework choice of a multi-targeted project', () => {
+        const json = JSON.stringify({ Properties: { IsTestingPlatformApplication: 'false', TargetPath: '/r/bin/net472/A.dll', VSTestConsolePath: '/sdk/vstest.console.dll' } });
+        expect(testProjectFrom('/r/A.csproj', json, 'net472', { framework: 'net472', reason: 'the selected framework' })).toEqual({
+            projectPath: '/r/A.csproj', targetPath: '/r/bin/net472/A.dll', testingPlatform: false, vstestConsolePath: '/sdk/vstest.console.dll',
+            targetFramework: 'net472', frameworkReason: 'the selected framework', netFramework: true,
+        });
     });
 });

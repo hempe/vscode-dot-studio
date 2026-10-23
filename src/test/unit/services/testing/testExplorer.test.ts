@@ -73,6 +73,7 @@ import * as vscode from 'vscode';
 import { NOT_BUILT, TestExplorer } from '../../../../services/testing/testExplorer';
 import { frame, MessageReader } from '../../../../services/testing/testingPlatformClient';
 import { replay as replayVsTest } from './vstestReplay';
+import { DEFAULT_RUN_SETTINGS } from '../../../../services/testing/runSettings';
 import { MONO_DEBUG_UNSUPPORTED } from '../../../../services/testing/monoVsTest';
 
 const recording = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/testing-platform/X3.jsonl'), 'utf8')
@@ -236,6 +237,52 @@ describe('TestExplorer', () => {
         });
     });
 
+    describe('run settings (RunSettingsFilePath)', () => {
+        const team = '<RunSettings><RunConfiguration><MaxCpuCount>0</MaxCpuCount><EnvironmentVariables><TEAM_VAR>yes</TEAM_VAR></EnvironmentVariables></RunConfiguration>'
+            + '<TestRunParameters><Parameter name="Env" value="team" /></TestRunParameters><DataCollectionRunSettings><DataCollectors /></DataCollectionRunSettings></RunSettings>';
+        const withSettings = async (p: string) => ({ projectPath: p, targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: true, runSettingsPath: '/repo/team.runsettings' });
+        const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) };
+
+        it('gives a Microsoft.Testing.Platform app with the VSTest bridge the settings (--settings) and their environment variables', async () => {
+            const starts: { args: string[]; environment: Record<string, string> }[] = [];
+            const written: string[] = [];
+            const tests = explorer({
+                evaluate: withSettings,
+                hasVsTestBridge: () => true,
+                readRunSettings: (file: string) => file === '/repo/team.runsettings' ? team : undefined,
+                writeRunSettings: (content: string) => { written.push(content); return '/tmp/shinobi-1.runsettings'; },
+                start: async (_project: unknown, args: string[], _debug: boolean, environment: Record<string, string>) => { starts.push({ args, environment }); return replayApp(args); },
+            });
+            await tests.refresh(false);
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            expect(starts).toHaveLength(2);
+            for (const start of starts) {
+                expect(start.args.slice(-2)).toEqual(['--settings', '/tmp/shinobi-1.runsettings']);
+                expect(start.environment).toEqual({ TEAM_VAR: 'yes' });
+            }
+            expect(written[0]).toContain('<Parameter name="Env" value="team" />');
+            expect(written[0]).not.toContain('EnvironmentVariables');
+            expect(written[0]).not.toContain('DataCollectionRunSettings');
+            expect(mock.runs[0].events).toContain('passed Adds');
+        });
+
+        it('starts apps without the VSTest bridge (xUnit v3, TUnit: they refuse --settings) as before', async () => {
+            const starts: { args: string[]; environment: Record<string, string> }[] = [];
+            const tests = explorer({
+                evaluate: withSettings,
+                hasVsTestBridge: () => false,
+                readRunSettings: () => team,
+                start: async (_project: unknown, args: string[], _debug: boolean, environment: Record<string, string>) => { starts.push({ args, environment }); return replayApp(args); },
+            });
+            await tests.refresh(false);
+            expect(starts).toHaveLength(1);
+            expect(starts[0].args).not.toContain('--settings');
+            expect(starts[0].environment).toEqual({});
+        });
+    });
+
     describe('running the tests of a Solution Explorer node', () => {
         const ran = () => mock.runs[0].events.filter((event: string) => event.startsWith('passed') || event.startsWith('failed')).sort();
         const all = ['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2'];
@@ -361,6 +408,129 @@ describe('TestExplorer', () => {
 
             expect(attached).toEqual([[nunit, expect.any(Number)]]);
             expect(mock.runs[0].events).toEqual(expect.arrayContaining(['failed FailsOnPurpose', 'passed SumsTheLines']));
+        });
+
+        describe('run settings', () => {
+            const team = '<RunSettings><RunConfiguration><MaxCpuCount>0</MaxCpuCount></RunConfiguration><DataCollectionRunSettings><DataCollectors /></DataCollectionRunSettings></RunSettings>';
+            const evaluate = (settingsOf: (p: string) => string | undefined) => async (p: string) => ({
+                projectPath: p,
+                targetPath: p.replace(/[^/]+\.csproj$/, `bin/Debug/net10.0/${path.basename(p, '.csproj')}.dll`),
+                testingPlatform: false,
+                vstestConsolePath: '/sdk/vstest.console.dll',
+                ...(settingsOf(p) ? { runSettingsPath: settingsOf(p) } : {}),
+            });
+
+            it('discovers with the project\'s run settings, and runs projects sharing them in one vstest.console session', async () => {
+                const discoverySent: any[] = [];
+                const tests = vstestExplorer('XUnit2Tests-discover', {
+                    evaluate: evaluate(() => '/repo/team.runsettings'),
+                    readRunSettings: () => team,
+                    startVsTest: async (project: any, port: number) => replayVsTest(project.projectPath === nunit ? 'NUnitTests-discover' : 'XUnit2Tests-discover', discoverySent)(port),
+                });
+                await tests.refresh(false);
+                const discovery = discoverySent.filter(m => m.MessageType === 'TestDiscovery.Start');
+                expect(discovery).toHaveLength(2);
+                expect(discovery[0].Payload.RunSettings).toBe('<RunSettings><RunConfiguration><DesignMode>true</DesignMode><MaxCpuCount>0</MaxCpuCount></RunConfiguration></RunSettings>');
+
+                const sent: any[] = [];
+                let sessions = 0;
+                (tests as any).deps.startVsTest = async (_project: any, port: number) => { sessions++; return replayVsTest('XUnit2Tests-run', sent)(port); };
+                const [run] = mock.controller.profiles;
+                await run.handler({ include: undefined, exclude: [] }, token);
+
+                expect(sessions).toBe(1);
+                const request = sent.find(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost');
+                expect(request.Payload.Sources).toEqual([
+                    '/repo/tests/Shop.Core.XUnit2Tests/bin/Debug/net10.0/Shop.Core.XUnit2Tests.dll',
+                    '/repo/tests/Shop.Core.NUnitTests/bin/Debug/net10.0/Shop.Core.NUnitTests.dll',
+                ]);
+                expect(request.Payload.RunSettings).toContain('<MaxCpuCount>0</MaxCpuCount>');
+                expect(request.Payload.RunSettings).not.toContain('DataCollectionRunSettings');
+                expect(mock.runs[0].events).toEqual(expect.arrayContaining(['passed NoDiscountBelowTen', 'failed FailsOnPurpose']));
+            });
+
+            it('one project runs selected tests: the whole group goes as test cases', async () => {
+                const tests = vstestExplorer('XUnit2Tests-discover', { evaluate: evaluate(() => '/repo/team.runsettings'), readRunSettings: () => team });
+                await tests.refresh(false);
+                const sent: any[] = [];
+                (tests as any).deps.startVsTest = async (_project: any, port: number) => replayVsTest('NUnitTests-run', sent)(port);
+                const orderTests = mock.controller.items.get(nunit).children.get('namespace:Shop.Core.NUnitTests.Orders').children.get('class:Shop.Core.NUnitTests.Orders.OrderTests');
+                const [run] = mock.controller.profiles;
+
+                await run.handler({ include: [mock.controller.items.get(xunit2), orderTests.children.get('6c9c8c82-38ae-7f87-8c24-0a264044ae98')], exclude: [] }, token);
+
+                const request = sent.find(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost');
+                expect(request.Payload.Sources).toBeUndefined();
+                // all four xUnit cases, and the one NUnit test
+                expect(request.Payload.TestCases.map((test: any) => test.Source.replace(/^.*\//, ''))).toEqual([
+                    'Shop.Core.XUnit2Tests.dll', 'Shop.Core.XUnit2Tests.dll', 'Shop.Core.XUnit2Tests.dll', 'Shop.Core.XUnit2Tests.dll', 'Shop.Core.NUnitTests.dll',
+                ]);
+                expect(request.Payload.TestCases[4].DisplayName).toBe('FailsOnPurpose');
+            });
+
+            it('projects with different run settings get their own sessions; an unreadable file runs with the default settings', async () => {
+                const tests = vstestExplorer('XUnit2Tests-discover', {
+                    evaluate: evaluate(p => p === nunit ? '/repo/missing.runsettings' : undefined),
+                    readRunSettings: () => undefined,
+                });
+                await tests.refresh(false);
+                const sent: any[] = [];
+                let sessions = 0;
+                (tests as any).deps.startVsTest = async (project: any, port: number) => { sessions++; return replayVsTest(project.projectPath === nunit ? 'NUnitTests-run' : 'XUnit2Tests-run', sent)(port); };
+                const [run] = mock.controller.profiles;
+                await run.handler({ include: undefined, exclude: [] }, token);
+
+                expect(sessions).toBe(2);
+                expect(sent.filter(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost').map(m => m.Payload.RunSettings))
+                    .toEqual([DEFAULT_RUN_SETTINGS, DEFAULT_RUN_SETTINGS]);
+            });
+            it('projects run through Mono (.NET Framework outside Windows) get their own session, apart from the others', async () => {
+                const fx = '/repo/tests/Fx/Fx.csproj';
+                const tests = vstestExplorer('XUnit2Tests-discover', {
+                    projects: () => [xunit2, nunit, fx],
+                    evaluate: async (p: string) => ({
+                        ...(await evaluate(() => '/repo/team.runsettings')(p)),
+                        ...(p === fx ? { targetPath: '/repo/tests/Fx/bin/Debug/net472/Fx.dll', netFramework: true } : {}),
+                    }),
+                    platform: () => 'linux',
+                    readRunSettings: () => team,
+                    startVsTest: async (project: any, port: number) => replayVsTest(project.projectPath === nunit ? 'NUnitTests-discover' : 'XUnit2Tests-discover')(port),
+                });
+                await tests.refresh(false);
+                const sent: any[] = [];
+                const started: string[] = [];
+                (tests as any).deps.startVsTest = async (project: any, port: number) => { started.push(project.projectPath); return replayVsTest('XUnit2Tests-run', sent)(port); };
+                const [run] = mock.controller.profiles;
+                await run.handler({ include: undefined, exclude: [] }, token);
+
+                expect(started).toEqual([xunit2, fx]);
+                expect(sent.filter(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost').map(m => m.Payload.Sources)).toEqual([
+                    ['/repo/tests/Shop.Core.XUnit2Tests/bin/Debug/net10.0/Shop.Core.XUnit2Tests.dll', '/repo/tests/Shop.Core.NUnitTests/bin/Debug/net10.0/Shop.Core.NUnitTests.dll'],
+                    ['/repo/tests/Fx/bin/Debug/net472/Fx.dll'],
+                ]);
+            });
+
+            it('debugging leaves out only the Mono group, the others are debugged', async () => {
+                const fx = '/repo/tests/Fx/Fx.csproj';
+                const tests = vstestExplorer('NUnitTests-discover', {
+                    projects: () => [nunit, fx],
+                    evaluate: async (p: string) => ({
+                        ...(await evaluate(() => undefined)(p)),
+                        ...(p === fx ? { netFramework: true } : {}),
+                    }),
+                    platform: () => 'linux',
+                    startVsTest: async (_project: any, port: number) => replayVsTest('NUnitTests-discover')(port),
+                    attachDebugger: async () => true,
+                });
+                await tests.refresh(false);
+                const started: string[] = [];
+                (tests as any).deps.startVsTest = async (project: any, port: number) => { started.push(project.projectPath); return replayVsTest('NUnitTests-debug')(port); };
+                const [, debug] = mock.controller.profiles;
+                await debug.handler({ include: undefined, exclude: [] }, token);
+
+                expect(started).toEqual([nunit]);
+                expect(mock.runs[0].output.join('')).toContain(MONO_DEBUG_UNSUPPORTED);
+            });
         });
 
         describe('on .NET Framework (net472)', () => {
