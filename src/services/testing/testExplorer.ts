@@ -14,6 +14,7 @@ import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatfor
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
+import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
 import { solutionWorkspaceFolder } from '../workspaceFolders';
 
 const log = logger('TestExplorer');
@@ -23,7 +24,11 @@ export interface TestExplorerDeps {
     /** Project files of the active solution */
     projects(): string[];
     readProject(projectPath: string): string;
-    evaluate(projectPath: string, configuration: string): Promise<TestProject | undefined>;
+    /** MSBuild's view of a test project; a multi-targeted one for `selectedFramework` when it targets it */
+    evaluate(projectPath: string, configuration: string, selectedFramework?: string): Promise<TestProject | undefined>;
+    /** The solution's framework from Select Framework (the Startup launch configuration); undefined for Auto */
+    selectedFramework(): string | undefined;
+    platform(): NodeJS.Platform;
     /** Builds the project (for one framework of a multi-targeted project); false when the build failed */
     build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string): Promise<boolean>;
     /** Starts the test app with the server arguments, in the debugger for debug runs */
@@ -73,8 +78,13 @@ async function startInDebugger(project: TestProject, args: string[]): Promise<Te
     return { kill: () => { void vscode.debug.stopDebugging(session); }, output: () => '' };
 }
 
-function startVsTestConsole(project: TestProject, port: number): Promise<TestApp> {
-    const child = spawn('dotnet', [project.vstestConsolePath!, `--port:${port}`, `--parentprocessid:${process.pid}`], {
+/**
+ * The SDK's vstest.console.dll in design mode; for .NET Framework projects outside Windows the TestPlatform
+ * package's vstest.console.exe under Mono instead (see monoVsTest.ts)
+ */
+async function startVsTestConsole(project: TestProject, port: number): Promise<TestApp> {
+    const [command, consolePath] = needsMono(project, process.platform) ? ['mono', await monoVsTestConsole()] : ['dotnet', project.vstestConsolePath!];
+    const child = spawn(command, [consolePath, `--port:${port}`, `--parentprocessid:${process.pid}`], {
         cwd: path.dirname(project.projectPath),
         env: { ...process.env, VSTEST_TELEMETRY_OPTEDIN: '0' },
     });
@@ -82,7 +92,7 @@ function startVsTestConsole(project: TestProject, port: number): Promise<TestApp
     child.stdout.on('data', chunk => { output += chunk; });
     child.stderr.on('data', chunk => { output += chunk; });
     child.on('error', error => { output += String(error); });
-    return Promise.resolve({ kill: () => { child.kill(); }, output: () => output });
+    return { kill: () => { child.kill(); }, output: () => output };
 }
 
 async function attachToTestHost(project: TestProject, processId: number): Promise<boolean> {
@@ -98,6 +108,8 @@ const defaultDeps: TestExplorerDeps = {
     projects: () => [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])],
     readProject: projectPath => fs.readFileSync(projectPath, 'utf8'),
     evaluate: evaluateTestProject,
+    selectedFramework: () => SolutionService.getActiveSolution()?.getActiveFramework() ?? undefined,
+    platform: () => process.platform,
     build: (projectPath, configuration, output, targetFramework) => new Promise(resolve => {
         execFile('dotnet', ['build', projectPath, '--configuration', configuration, ...(targetFramework ? ['--framework', targetFramework] : []), '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
             { cwd: path.dirname(projectPath), timeout: 600000 }, (error, stdout, stderr) => {
@@ -138,6 +150,8 @@ export class TestExplorer implements vscode.Disposable {
     private readonly vstestCases = new Map<string, VsTestCase>();
     private readonly disposables: vscode.Disposable[] = [];
     private refreshing: Promise<void> | undefined;
+    /** The selected framework the test projects were last evaluated for */
+    private evaluatedFor: string | undefined;
 
     constructor(deps: Partial<TestExplorerDeps> = {}) {
         this.deps = { ...defaultDeps, ...deps };
@@ -223,6 +237,7 @@ export class TestExplorer implements vscode.Disposable {
 
     private async doRefresh(build: boolean): Promise<void> {
         const configuration = BuildConfiguration.active;
+        this.evaluatedFor = this.deps.selectedFramework();
         const candidates = this.deps.projects().filter(projectPath => {
             try {
                 return isTestProjectCandidate(this.deps.readProject(projectPath));
@@ -238,9 +253,12 @@ export class TestExplorer implements vscode.Disposable {
 
         // A few test projects at a time: each step starts dotnet (MSBuild, the build, the test app)
         await Promise.all(candidates.map(projectPath => dotnetQueue.next(async () => {
-            const project = await this.deps.evaluate(projectPath, configuration);
+            const project = await this.deps.evaluate(projectPath, configuration, this.evaluatedFor);
             if (!project) {
                 return;
+            }
+            if (project.targetFramework) {
+                log.info(`${path.basename(projectPath)}: testing ${project.targetFramework} (${project.frameworkReason})`);
             }
             if (!project.testingPlatform && !project.vstestConsolePath) {
                 log.info(`${path.basename(projectPath)} uses VSTest, but MSBuild doesn't say where vstest.console is`);
@@ -326,7 +344,8 @@ export class TestExplorer implements vscode.Disposable {
     }
 
     private async run(request: vscode.TestRunRequest, token: vscode.CancellationToken, debug: boolean): Promise<void> {
-        if (this.states.size === 0) {
+        // Select Framework changed since: multi-targeted projects now run on another framework
+        if (this.states.size === 0 || this.deps.selectedFramework() !== this.evaluatedFor) {
             await this.refresh(false);
         }
         const exclude = request.exclude ?? [];
@@ -345,7 +364,8 @@ export class TestExplorer implements vscode.Disposable {
                 continue;
             }
             const entry = byProject.get(state) ?? { items: new Set(), all: false };
-            entry.all ||= root === state.item && exclude.length === 0;
+            // By id: a refresh may have replaced the project's item since the request was made
+            entry.all ||= root.id === state.item.id && exclude.length === 0;
             this.leaves(root, exclude).forEach(item => entry.items.add(item));
             byProject.set(state, entry);
         }
@@ -361,6 +381,12 @@ export class TestExplorer implements vscode.Disposable {
                 if (!await this.deps.build(state.project.projectPath, configuration, text => run.appendOutput(terminal(text)), state.project.targetFramework)) {
                     items.forEach(item => run.errored(item, new vscode.TestMessage('Build failed, see the Problems panel')));
                     continue;
+                }
+                // Not discovered for this build yet (a framework not built before): discover first, so the results have tests to go to
+                const modified = this.deps.modified(state.project.targetPath);
+                if (modified !== undefined && modified !== state.discoveredAt) {
+                    await this.discover(state);
+                    state.discoveredAt = modified;
                 }
                 await this.runProject(state, all ? undefined : [...items], run, token, debug);
             }
@@ -408,9 +434,13 @@ export class TestExplorer implements vscode.Disposable {
                 }
             }
         };
+        /** Errors the tests (the project when none are known), the reason in the run output too */
         const fail = (error: unknown) => {
-            const message = new vscode.TestMessage(error instanceof Error ? error.message : String(error));
-            (items ?? [...byUid.values()]).forEach(item => run.errored(item, message));
+            const text = error instanceof Error ? error.message : String(error);
+            run.appendOutput(terminal(`${text}\n`));
+            const message = new vscode.TestMessage(text);
+            const failed = items ?? [...byUid.values()];
+            (failed.length > 0 ? failed : [state.item]).forEach(item => run.errored(item, message));
         };
 
         if (!state.project.testingPlatform) {
@@ -455,6 +485,10 @@ export class TestExplorer implements vscode.Disposable {
         report: (node: TestNode) => void,
         fail: (error: unknown) => void
     ): Promise<void> {
+        if (debug && needsMono(state.project, this.deps.platform())) {
+            fail(MONO_DEBUG_UNSUPPORTED);
+            return;
+        }
         let session: VsTestSession;
         try {
             session = await connectVsTest(port => this.deps.startVsTest(state.project, port));

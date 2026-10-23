@@ -33,14 +33,14 @@ jest.mock('vscode', () => {
         createTestRun: () => {
             const events: string[] = [];
             const run = {
-                events, messages: new Map<string, any>(),
+                events, messages: new Map<string, any>(), output: [] as string[],
                 enqueued: (item: any) => events.push(`enqueued ${item.label}`),
                 started: (item: any) => events.push(`started ${item.label}`),
                 passed: (item: any) => events.push(`passed ${item.label}`),
                 skipped: (item: any) => events.push(`skipped ${item.label}`),
                 failed: (item: any, message: any) => { events.push(`failed ${item.label}`); run.messages.set(item.label, message); },
                 errored: (item: any, message: any) => { events.push(`errored ${item.label}`); run.messages.set(item.label, message); },
-                appendOutput: () => { },
+                appendOutput: (text: string) => { run.output.push(text); },
                 end: () => events.push('end'),
             };
             runs.push(run);
@@ -69,6 +69,7 @@ import { evaluateTestProject, installedRuntimeMajors, pickTestFramework } from '
 
 const mock = vscode as any;
 const hasDotnet = spawnSync('dotnet', ['--version']).status === 0;
+const hasMono = spawnSync('mono', ['--version']).status === 0;
 
 const projects: Record<string, string> = {
     'X3/X3.csproj': `<Project Sdk="Microsoft.NET.Sdk">
@@ -104,6 +105,23 @@ public class MathTests
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
   </ItemGroup>
 </Project>`,
+    // net472 next to net8.0 with Select Framework on net472: outside Windows the tests run under Mono
+    'FX/FX.csproj': `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFrameworks>net8.0;net472</TargetFrameworks><LangVersion>latest</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>`,
+    'FX/FrameworkTests.cs': `namespace FX;
+public class FrameworkTests
+{
+    [Xunit.Fact] public void Passes() => Xunit.Assert.Equal(2, 1 + 1);
+    [Xunit.Fact] public void Fails() => Xunit.Assert.Equal(3, 1 + 1);
+    [Xunit.Fact] public void Runtime() => System.Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+}
+`,
     'MT/MultiTests.cs': `namespace MT;
 public class MultiTests
 {
@@ -173,6 +191,36 @@ describe('Test Explorer with dotnet', () => {
         const run = mock.controller.profiles[mock.controller.profiles.length - 2];
         await run.handler({ include: [item], exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
         expect(mock.runs[mock.runs.length - 1].events).toContain('passed Runs');
+        explorer.dispose();
+    });
+
+    it('runs the net472 tests of the selected framework under Mono outside Windows', async () => {
+        const projectPath = path.join(dir, 'FX/FX.csproj');
+        // Mono behaviour only: on Windows net472 runs natively; CI has no Mono
+        if (process.platform === 'win32' || !hasDotnet || !hasMono || spawnSync('dotnet', ['restore', projectPath]).status !== 0) {
+            console.warn('Windows, or dotnet, mono or the test packages are not available, skipping');
+            return;
+        }
+        const project = await evaluateTestProject(projectPath, 'Debug', 'net472');
+        expect(project).toMatchObject({ testingPlatform: false, targetFramework: 'net472', frameworkReason: 'the selected framework', netFramework: true });
+
+        const explorer = new TestExplorer({ projects: () => [projectPath], selectedFramework: () => 'net472' });
+        await explorer.refresh(true);
+        const item = mock.controller.items.get(projectPath);
+        if (item.error?.includes('Could not download')) {
+            console.warn(`vstest.console.exe for Mono could not be downloaded, skipping: ${item.error}`);
+            explorer.dispose();
+            return;
+        }
+        expect(item.error).toBeUndefined();
+        const labels = (items: any): string[] => { const all: string[] = []; items.forEach((i: any) => all.push(i.label, ...labels(i.children))); return all; };
+        expect(labels(item.children)).toEqual(expect.arrayContaining(['Passes', 'Fails', 'Runtime']));
+
+        const run = mock.controller.profiles[mock.controller.profiles.length - 2];
+        await run.handler({ include: [item], exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+        const testRun = mock.runs[mock.runs.length - 1];
+        expect(testRun.events).toEqual(expect.arrayContaining(['passed Passes', 'failed Fails', 'passed Runtime']));
+        expect(testRun.output.join('')).toMatch(/Mono \d/);
         explorer.dispose();
     });
 });

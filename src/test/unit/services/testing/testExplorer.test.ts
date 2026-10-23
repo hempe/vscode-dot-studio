@@ -32,14 +32,14 @@ jest.mock('vscode', () => {
         createTestRun: () => {
             const events: string[] = [];
             const run = {
-                events, messages: new Map<string, any>(),
+                events, messages: new Map<string, any>(), output: [] as string[],
                 enqueued: (item: any) => events.push(`enqueued ${item.label}`),
                 started: (item: any) => events.push(`started ${item.label}`),
                 passed: (item: any) => events.push(`passed ${item.label}`),
                 skipped: (item: any) => events.push(`skipped ${item.label}`),
                 failed: (item: any, message: any) => { events.push(`failed ${item.label}`); run.messages.set(item.label, message); },
                 errored: (item: any, message: any) => { events.push(`errored ${item.label}`); run.messages.set(item.label, message); },
-                appendOutput: () => { },
+                appendOutput: (text: string) => { run.output.push(text); },
                 end: () => events.push('end'),
             };
             runs.push(run);
@@ -73,6 +73,7 @@ import * as vscode from 'vscode';
 import { TestExplorer } from '../../../../services/testing/testExplorer';
 import { frame, MessageReader } from '../../../../services/testing/testingPlatformClient';
 import { replay as replayVsTest } from './vstestReplay';
+import { MONO_DEBUG_UNSUPPORTED } from '../../../../services/testing/monoVsTest';
 
 const recording = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/testing-platform/X3.jsonl'), 'utf8')
     .split('\n').filter(Boolean).map(line => JSON.parse(line));
@@ -294,5 +295,87 @@ describe('TestExplorer', () => {
             expect(attached).toEqual([[nunit, expect.any(Number)]]);
             expect(mock.runs[0].events).toEqual(expect.arrayContaining(['failed FailsOnPurpose', 'passed SumsTheLines']));
         });
+
+        describe('on .NET Framework (net472)', () => {
+            const netFramework = (overrides: Record<string, unknown> = {}) => vstestExplorer('NUnitTests-discover', {
+                projects: () => [nunit],
+                evaluate: async (p: string) => ({ projectPath: p, targetPath: '/repo/N/bin/Debug/net472/N.dll', testingPlatform: false, vstestConsolePath: '/sdk/vstest.console.dll', netFramework: true }),
+                platform: () => 'linux',
+                ...overrides,
+            });
+            const cannotRun = '.NET Framework test projects need Mono outside Windows, and `mono` is not on the PATH';
+
+            it('says why the tests cannot be discovered when they cannot run here', async () => {
+                await netFramework({ startVsTest: async () => { throw new Error(cannotRun); } }).refresh(false);
+                expect(mock.controller.items.get(nunit).error).toBe(`Discovering tests failed: ${cannotRun}`);
+            });
+
+            it('says why in the run output and on the project when the tests cannot run here', async () => {
+                const tests = netFramework({ startVsTest: async () => { throw new Error(cannotRun); } });
+                await tests.refresh(false);
+                const [run] = mock.controller.profiles;
+
+                await run.handler({ include: [mock.controller.items.get(nunit)], exclude: [] }, token);
+
+                expect(mock.runs[0].output.join('')).toContain(cannotRun);
+                expect(mock.runs[0].events).toContain('errored Shop.Core.NUnitTests');
+                expect(mock.runs[0].messages.get('Shop.Core.NUnitTests').message).toBe(cannotRun);
+            });
+
+            it('says debugging them is not supported outside Windows', async () => {
+                const tests = netFramework();
+                await tests.refresh(false);
+                const started: unknown[] = [];
+                (tests as any).deps.startVsTest = async (project: unknown) => { started.push(project); throw new Error('not started'); };
+                const [, debug] = mock.controller.profiles;
+
+                await debug.handler({ include: [mock.controller.items.get(nunit)], exclude: [] }, token);
+
+                expect(started).toEqual([]);
+                expect(mock.runs[0].output.join('')).toContain(MONO_DEBUG_UNSUPPORTED);
+                expect(mock.runs[0].messages.get('SumsTheLines').message).toBe(MONO_DEBUG_UNSUPPORTED);
+            });
+
+            it('debugs them on Windows like other VSTest projects', async () => {
+                const attached: number[] = [];
+                const tests = netFramework({ platform: () => 'win32', attachDebugger: async (_project: unknown, processId: number) => { attached.push(processId); return true; } });
+                await tests.refresh(false);
+                (tests as any).deps.startVsTest = async (_project: any, port: number) => replayVsTest('NUnitTests-debug')(port);
+                const [, debug] = mock.controller.profiles;
+
+                await debug.handler({ include: [mock.controller.items.get(nunit)], exclude: [] }, token);
+
+                expect(attached).toHaveLength(1);
+            });
+        });
+    });
+
+    it('tests multi-targeted projects on the framework selected for the solution', async () => {
+        const asked: unknown[][] = [];
+        await explorer({
+            selectedFramework: () => 'net472',
+            evaluate: async (...args: unknown[]) => { asked.push(args); return { projectPath: args[0], targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: true }; },
+        }).refresh(false);
+        expect(asked).toEqual([[projectPath, 'Debug', 'net472']]);
+    });
+
+    it('runs on the newly selected framework after Select Framework changed', async () => {
+        let selected = 'net8.0';
+        const asked: unknown[] = [];
+        await explorer({
+            selectedFramework: () => selected,
+            evaluate: async (p: string, _configuration: string, framework?: string) => {
+                asked.push(framework);
+                return { projectPath: p, targetPath: `/repo/X3/bin/Debug/${framework}/X3.dll`, testingPlatform: true, targetFramework: framework, frameworkReason: 'the selected framework' };
+            },
+        }).refresh(false);
+        const before = mock.controller.items.get(projectPath);
+        selected = 'net10.0';
+        const [run] = mock.controller.profiles;
+
+        await run.handler({ include: [before], exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+
+        expect(asked).toEqual(['net8.0', 'net10.0']);
+        expect(mock.runs[0].events).toEqual(expect.arrayContaining(['passed Adds', 'failed Fails']));
     });
 });

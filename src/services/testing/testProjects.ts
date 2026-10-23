@@ -19,8 +19,12 @@ export interface TestProject {
     readonly testingPlatform: boolean;
     /** The SDK's vstest.console.dll, which runs VSTest projects */
     readonly vstestConsolePath?: string;
-    /** The framework a multi-targeted project is built and run for (see pickTestFramework); unset for single-target projects */
+    /** The framework a multi-targeted project is built and run for (see chooseTestFramework); unset for single-target projects */
     readonly targetFramework?: string;
+    /** Why a multi-targeted project runs on targetFramework, for the log */
+    readonly frameworkReason?: string;
+    /** The tests run on .NET Framework (net472 etc.): under Mono outside Windows */
+    readonly netFramework?: boolean;
 }
 
 export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; targetPath?: string; vstestConsolePath?: string } {
@@ -71,6 +75,31 @@ export function pickTestFramework(frameworks: readonly string[], runtimeMajors: 
     return modern.find(entry => runtimeMajors.includes(entry.version[0]))?.framework ?? modern[0]?.framework ?? frameworks[0];
 }
 
+/** .NET Framework target frameworks: net20 ... net481 */
+export function isNetFramework(framework: string | undefined): boolean {
+    return /^net[1-4]\d{1,2}$/i.test(framework ?? '');
+}
+
+/**
+ * The framework to test a multi-targeted project on and why: the solution's selected framework (Select Framework)
+ * when the project targets it, .NET Framework ones included; else pickTestFramework's automatic pick.
+ */
+export function chooseTestFramework(frameworks: readonly string[], runtimeMajors: readonly number[], selected?: string): { framework: string; reason: string } | undefined {
+    const selectedFramework = selected ? frameworks.find(framework => framework.toLowerCase() === selected.toLowerCase()) : undefined;
+    if (selectedFramework) {
+        return { framework: selectedFramework, reason: 'the selected framework' };
+    }
+    const framework = pickTestFramework(frameworks, runtimeMajors);
+    if (!framework) {
+        return undefined;
+    }
+    const version = modernVersion(framework);
+    const how = !version ? 'no modern .NET, the first framework'
+        : runtimeMajors.includes(version[0]) ? 'the highest .NET with an installed runtime'
+            : 'no installed runtime fits, the highest .NET';
+    return { framework, reason: selected ? `automatic: the selected framework ${selected} is not one of ${frameworks.join(', ')}; ${how}` : `automatic: ${how}` };
+}
+
 /** Major versions of the installed Microsoft.NETCore.App runtimes from `dotnet --list-runtimes` */
 export function parseRuntimeMajors(listRuntimes: string): number[] {
     const majors = [...listRuntimes.matchAll(/^Microsoft\.NETCore\.App\s+(\d+)\./gm)].map(match => Number(match[1]));
@@ -87,6 +116,15 @@ export function installedRuntimeMajors(): Promise<number[]> {
     return runtimeMajors;
 }
 
+/** The TargetFramework property from MSBuild's JSON output */
+function targetFrameworkProperty(msbuildJson: string): string | undefined {
+    try {
+        return String(JSON.parse(msbuildJson).Properties?.TargetFramework ?? '').trim() || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 function getTestProperties(projectPath: string, configuration: string, extra: string[]): Promise<string> {
     return new Promise(resolve => {
         execFile('dotnet', [
@@ -99,18 +137,26 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
 
 /**
  * Asks MSBuild whether the project is a Microsoft.Testing.Platform app, where it builds to and where vstest.console is.
- * A multi-targeted project has no TargetPath as a whole: it is evaluated again for the framework pickTestFramework chooses.
+ * A multi-targeted project has no TargetPath as a whole: it is evaluated again for the framework chooseTestFramework
+ * chooses, the solution's selected framework (`selectedFramework`) when the project targets it.
  */
-export async function evaluateTestProject(projectPath: string, configuration: string): Promise<TestProject | undefined> {
+export async function evaluateTestProject(projectPath: string, configuration: string, selectedFramework?: string): Promise<TestProject | undefined> {
     let output = await getTestProperties(projectPath, configuration, ['-getProperty:TargetFramework', '-getProperty:TargetFrameworks']);
-    let targetFramework: string | undefined;
+    let framework = targetFrameworkProperty(output);
+    let choice: { framework: string; reason: string } | undefined;
     const frameworks = multiTargetFrameworks(output);
     if (frameworks.length > 0) {
-        targetFramework = pickTestFramework(frameworks, await installedRuntimeMajors());
-        output = await getTestProperties(projectPath, configuration, [`-property:TargetFramework=${targetFramework}`]);
+        choice = chooseTestFramework(frameworks, await installedRuntimeMajors(), selectedFramework);
+        framework = choice?.framework;
+        output = await getTestProperties(projectPath, configuration, [`-property:TargetFramework=${framework}`]);
     }
     const { testingPlatform, targetPath, vstestConsolePath } = parseTestProperties(output);
     return targetPath
-        ? { projectPath, targetPath, testingPlatform, ...(vstestConsolePath ? { vstestConsolePath } : {}), ...(targetFramework ? { targetFramework } : {}) }
+        ? {
+            projectPath, targetPath, testingPlatform,
+            ...(vstestConsolePath ? { vstestConsolePath } : {}),
+            ...(choice ? { targetFramework: choice.framework, frameworkReason: choice.reason } : {}),
+            ...(isNetFramework(framework) ? { netFramework: true } : {}),
+        }
         : undefined;
 }

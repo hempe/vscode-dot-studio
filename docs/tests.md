@@ -11,7 +11,16 @@ Test projects of the solution show in VS Code's **Testing** view (the flask icon
 
 Which kind a project is, MSBuild decides (`IsTestingPlatformApplication`).
 
-A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`).
+A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the one picked with **Select Framework** in the title bar (the same choice F5 uses, see [Run and debug](run-and-debug.md)) when the project targets it, `net472` included. Otherwise (Auto, or a framework the project doesn't target) the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`). A new choice takes effect with the next run or refresh. The **Shinobi .NET Studio** output says which framework each test project runs on and why.
+
+## .NET Framework test projects (net472, net48, ...)
+
+On Windows they run like any other VSTest project. On Linux and macOS they run under [Mono](https://www.mono-project.com/) (the `mono` command must work):
+
+- The .NET SDK for Linux and macOS has no .NET Framework test host, so `dotnet test` fails there (`Cannot open assembly '.../TestHostNetFramework/testhost.net472.exe'`). The Test Explorer instead runs the tests through the .NET Framework `vstest.console.exe` of the `Microsoft.TestPlatform.Portable` package under Mono. The first run downloads that package (about 13 MB) into the NuGet packages folder and copies its runner to the temp folder.
+- Without Mono the project shows why in the Testing view and in the run output (`.NET Framework test projects need Mono outside Windows ...`); install Mono, or pick a modern framework with Select Framework.
+- Debugging .NET Framework tests is not supported outside Windows: the C# debugger (`coreclr`) cannot attach to Mono processes. Debug Tests says so; run them instead, or debug them on a modern framework.
+- Building needs no Developer Pack: the SDK references `Microsoft.NETFramework.ReferenceAssemblies` by itself.
 
 ## Running and debugging
 

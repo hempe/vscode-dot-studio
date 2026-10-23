@@ -1,4 +1,4 @@
-import { isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework } from '../../../../services/testing/testProjects';
+import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -63,5 +63,36 @@ describe('the framework a multi-targeted test project runs on', () => {
         expect(multiTargetFrameworks('{"Properties":{"TargetFramework":"","TargetFrameworks":"net8.0; net9.0;net472;"}}')).toEqual(['net8.0', 'net9.0', 'net472']);
         expect(multiTargetFrameworks('{"Properties":{"TargetFramework":"net10.0","TargetFrameworks":""}}')).toEqual([]);
         expect(multiTargetFrameworks('error MSB1009')).toEqual([]);
+    });
+});
+
+describe('the selected framework (Select Framework) and the test framework', () => {
+    const choose = (frameworks: string, selected?: string, runtimes = [8, 10]) => chooseTestFramework(frameworks.split(';'), runtimes, selected)!;
+
+    it('takes the selected framework when the project targets it', () => {
+        expect(choose('net8.0;net10.0', 'net8.0')).toEqual({ framework: 'net8.0', reason: 'the selected framework' });
+        expect(choose('net8.0;net9.0', 'net9.0').framework).toBe('net9.0');
+    });
+
+    it('takes net472 when it is selected, even with modern frameworks next to it', () => {
+        expect(choose('net8.0;net472;net10.0', 'net472').framework).toBe('net472');
+    });
+
+    it('picks automatically when the selected framework is not one of the project\'s', () => {
+        expect(choose('net8.0;net472', 'net10.0')).toEqual({
+            framework: 'net8.0',
+            reason: 'automatic: the selected framework net10.0 is not one of net8.0, net472; the highest .NET with an installed runtime',
+        });
+    });
+
+    it('picks automatically when no framework is selected', () => {
+        expect(choose('net8.0;net9.0;net472', undefined)).toEqual({ framework: 'net8.0', reason: 'automatic: the highest .NET with an installed runtime' });
+        expect(choose('net9.0;net472', undefined, [8]).reason).toBe('automatic: no installed runtime fits, the highest .NET');
+        expect(choose('net48;net472', undefined)).toEqual({ framework: 'net48', reason: 'automatic: no modern .NET, the first framework' });
+    });
+
+    it('tells .NET Framework frameworks apart', () => {
+        expect(['net472', 'net48', 'net481', 'net462', 'net45', 'net40', 'net35'].every(isNetFramework)).toBe(true);
+        expect(['net8.0', 'net10.0', 'netcoreapp3.1', 'netstandard2.0', 'net6.0-windows', undefined].some(isNetFramework)).toBe(false);
     });
 });
