@@ -204,6 +204,11 @@ export declare type IncludeInProjectActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type RemoveLinkActionCmd = {
+    readonly action: 'removeLink';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type CopyActionCmd = {
     readonly action: 'copy';
     readonly nodeId: NodeIdString;
@@ -352,6 +357,7 @@ export type ProjectActionCmd =
     | CopyActionCmd
     | ExcludeFromProjectActionCmd
     | IncludeInProjectActionCmd
+    | RemoveLinkActionCmd
     | CutActionCmd
     | EditProjectFileActionCmd
     | AddExistingItemActionCmd

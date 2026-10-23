@@ -35,6 +35,8 @@ export const UNLOADED_PROJECT = 'unloaded';
 export const INCLUDED_ITEM = 'included';
 /** `contextValue` of files and folders on disk the project does not contain (shown with Show All Files): they can be included */
 export const EXCLUDED_ITEM = 'excluded';
+/** `contextValue` of linked files (the file lives outside the project folder): Remove Link takes the link out */
+export const LINKED_ITEM = 'linked';
 /** `contextValue` of gRPC references added from a URL: they can be updated */
 export const GRPC_URL_REFERENCE = 'url';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
@@ -88,7 +90,8 @@ export const menuCommands = {
     cut: { title: 'Cut', description: 'Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files.', key: 'ctrl+x', mac: 'cmd+x' },
     paste: { title: 'Paste', description: 'Pastes the copied or cut file or folder into this folder or project.', key: 'ctrl+v', mac: 'cmd+v' },
     rename: { title: 'Rename', description: 'Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent.', key: 'f2' },
-    deleteFile: { title: 'Delete', description: 'Moves the file or folder to the trash, after asking.', key: 'delete', mac: 'cmd+backspace' },
+    deleteFile: { title: 'Delete', description: 'Moves the file or folder to the trash, after asking. On a linked file this is the real file outside the project: the question says so and offers Remove Link instead.', key: 'delete', mac: 'cmd+backspace' },
+    removeLink: { title: 'Remove Link', description: 'Takes a linked file out of the project: deletes the item that links it (the one with `Link`) from the project file. The file itself stays where it is.' },
     excludeFromProject: { title: 'Exclude From Project', description: 'Takes the file or folder out of the project (a `Remove` item in the project file) and leaves it on disk. It stays visible with Show All Files, greyed out.' },
     includeInProject: { title: 'Include In Project', description: 'Puts a file or folder the project does not contain back into it: deletes the `Remove` item that excluded it, or adds `Include` items. Shown with Show All Files.' },
     deleteProject: { title: 'Delete', description: 'Removes the project from the solution and moves its folder to the trash, after asking.' },
@@ -195,6 +198,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     [`folder.${INCLUDED_ITEM}`]: [[], [], ['excludeFromProject']],
     [`file.${EXCLUDED_ITEM}`]: [[], [], ['includeInProject']],
     [`folder.${EXCLUDED_ITEM}`]: [[], [], ['includeInProject']],
+    [`file.${LINKED_ITEM}`]: [[], [], ['removeLink']],
     folder: [
         ['addNewItem', 'addExistingItem', 'addFile', 'addFolder'],
         ['copy', 'cut', 'paste'],
@@ -208,7 +212,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     file: [
         ['openFile'],
         ['copy', 'cut', 'paste'],
-        [], // excludeFromProject or includeInProject (SDK-style projects)
+        [], // excludeFromProject or includeInProject (SDK-style projects), removeLink on linked files
         ['rename', 'deleteFile'],
         [], // runTests, debugTests in test projects
         ['codeCleanup'],
@@ -287,6 +291,7 @@ const conditionNames: Readonly<Record<string, string>> = {
     [`folder.${INCLUDED_ITEM}`]: 'On folders the project contains (SDK-style projects)',
     [`file.${EXCLUDED_ITEM}`]: 'On files the project does not contain (Show All Files)',
     [`folder.${EXCLUDED_ITEM}`]: 'On folders the project does not contain (Show All Files)',
+    [`file.${LINKED_ITEM}`]: 'On linked files (they live outside the project folder)',
     'folder.connectedServices': 'On the Connected Services folder',
     'folder.serviceReference': 'On a service reference (a folder in Connected Services)',
     [`grpcReference.${GRPC_URL_REFERENCE}`]: 'On a gRPC reference added from a URL',

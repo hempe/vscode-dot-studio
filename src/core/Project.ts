@@ -21,7 +21,7 @@ import { ShowAllFiles } from '../services/showAllFiles';
 import { holdsProject, inNestedProject } from '../services/projectItems/projectItemEdits';
 import { ProjectItems } from '../services/projectItems/projectItems';
 import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
-import { INCLUDED_ITEM, EXCLUDED_ITEM } from './contextMenus';
+import { INCLUDED_ITEM, EXCLUDED_ITEM, LINKED_ITEM } from './contextMenus';
 import { ProjectPackages } from '../services/nuget/centralPackages';
 import { PackageVersionSource } from '../services/nuget/types';
 
@@ -801,7 +801,9 @@ export class Project {
     /** A file or folder for the tree; files bring the files nested under them (Index.cshtml.cs under Index.cshtml) */
     private toProjectChild(node: ProjectFileNode): ProjectChild {
         const isFolder = node.type === 'folder';
-        const itemValue = !this._isSdkStyle ? undefined
+        // Remove Link edits the item, which works in old-style project files too
+        const itemValue = !isFolder && node.itemState === 'linked' ? LINKED_ITEM
+            : !this._isSdkStyle ? undefined
             : node.itemState === 'excluded' ? EXCLUDED_ITEM
             : node.itemState === 'included' && (!isFolder || this.canExcludeFolder(node.path)) ? INCLUDED_ITEM
             : undefined;

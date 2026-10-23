@@ -109,6 +109,16 @@ describe('Project file tree with the item overlay', () => {
         expect(children.find(child => child.name === 'Old.cs')?.contextValue).toBe('excluded');
     });
 
+    test('offers Remove Link on linked files (also in old-style projects), not Exclude', async () => {
+        fs.writeFileSync(projectPath, '<Project ToolsVersion="15.0"></Project>');
+        const outside = path.join(os.tmpdir(), 'Elsewhere', 'Common.cs');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: [{ Identity: outside, FullPath: outside, Link: 'Common.cs' }] },
+        }), dir));
+        const children = await (await newProject()).getFolderChildren(dir);
+        expect(children.find(child => child.name === 'Common.cs')).toMatchObject({ itemState: 'linked', contextValue: 'linked' });
+    });
+
     test('does not offer Exclude on a folder that is a project of the solution', async () => {
         const tools = path.join(dir, 'Tools');
         fs.mkdirSync(tools);

@@ -32,6 +32,9 @@ import { dependentRenames } from './templates/dependentRenames';
 import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 import { removeGrpcReference, updateGrpcReference } from './grpc/grpcReferenceService';
+import { linkedDeleteDetail, multiDeleteQuestion, removeLinkedItem } from './projectItems/linkedItems';
+import { pathKey } from './projectItems/projectItems';
+import type { Project } from '../core/Project';
 
 const log = logger('SolutionActionService');
 
@@ -259,6 +262,10 @@ export class SolutionActionService {
             case 'excludeFromProject':
             case 'includeInProject':
                 await this._handleItemMembership(nodeId, cmd.action === 'excludeFromProject');
+                break;
+
+            case 'removeLink':
+                await this._handleRemoveLink(nodeId);
                 break;
 
             case 'copy':
@@ -489,6 +496,20 @@ export class SolutionActionService {
             const isDirectory = stats.isDirectory();
             const itemType = isDirectory ? 'folder' : 'file';
 
+            // A linked file lives outside the project: say that the real file goes, and offer to remove only the link
+            const linking = isDirectory ? [] : this._projectsLinking(filePath);
+            if (linking.length > 0) {
+                const choice = await vscode.window.showWarningMessage(`Delete the linked file '${path.basename(filePath)}'?`,
+                    { modal: true, detail: linkedDeleteDetail(filePath, linking.map(project => project.name)) }, 'Remove Link', 'Delete');
+                if (choice === 'Remove Link') {
+                    await this._handleRemoveLink(nodeId);
+                } else if (choice === 'Delete') {
+                    await vscode.workspace.fs.delete(vscode.Uri.file(filePath), { recursive: false, useTrash: true });
+                    log.info(`linked file deleted: ${filePath}`);
+                }
+                return;
+            }
+
             const answer = await vscode.window.showWarningMessage(
                 `Delete the ${itemType} '${path.basename(filePath)}'?${isDirectory ? ' Everything in it' : ' It'} is moved to the trash.`,
                 { modal: true },
@@ -504,6 +525,54 @@ export class SolutionActionService {
         } catch (error) {
             log.error('Error deleting file/folder:', error);
             vscode.window.showErrorMessage(`Error deleting: ${error}`);
+        }
+    }
+
+    /** The loaded projects of the solution that link the file (their evaluation lists it at a `Link` path) */
+    private static _projectsLinking(filePath: string): Project[] {
+        const solution = SolutionService.getActiveSolution();
+        return [...(solution?.projects.values() ?? [])]
+            .filter(project => ProjectItemsService.instance.get(project.projectPath)?.isLinked(filePath));
+    }
+
+    /** Remove Link: deletes the item that links the file from the project file; the file itself stays */
+    private static async _handleRemoveLink(nodeId: NodeId): Promise<void> {
+        const filePath = nodeId.path;
+        const name = path.basename(filePath);
+        const linking = this._projectsLinking(filePath);
+        if (linking.length === 0) {
+            vscode.window.showWarningMessage(`${name} is not a linked file of a project.`);
+            return;
+        }
+        // A file id can name the project whose tree shows it (a nested project's folder): that one, without asking
+        const owner = nodeId.type === 'file' && nodeId.project
+            ? linking.find(candidate => pathKey(path.normalize(candidate.projectPath)) === pathKey(path.normalize(nodeId.project!)))
+            : undefined;
+        let project = owner ?? linking[0];
+        if (!owner && linking.length > 1) {
+            // The node id is the file: the tree row it was clicked in is not known
+            const picked = await vscode.window.showQuickPick(linking.map(candidate => ({ label: candidate.name, project: candidate })),
+                { placeHolder: `${name} is linked by several projects: remove the link from which one?` });
+            if (!picked) {
+                return;
+            }
+            project = picked.project;
+        }
+        const projectPath = project.projectPath;
+        try {
+            const itemTypes = ProjectItemsService.instance.get(projectPath)?.itemTypesOf(filePath) ?? [];
+            const content = await fs.promises.readFile(projectPath, 'utf8');
+            const edit = removeLinkedItem(content, path.dirname(projectPath), filePath, itemTypes);
+            if (!edit.removed) {
+                vscode.window.showWarningMessage(`The link to ${name} is not an item of its own in ${path.basename(projectPath)}: `
+                    + 'a wildcard or another file (Directory.Build.props, an import) adds it. Remove it there.');
+                return;
+            }
+            await fs.promises.writeFile(projectPath, edit.content, 'utf8');
+            await project.reevaluateItems();
+        } catch (error) {
+            log.error(`Remove Link failed for ${filePath}:`, error);
+            vscode.window.showErrorMessage(`Could not remove the link to ${name}: ${error instanceof Error ? error.message : error}`);
         }
     }
 
@@ -1383,7 +1452,8 @@ export class SolutionActionService {
         try {
             switch (action) {
                 case 'deleteFile':
-                    if (await confirm(`Delete ${nodes.length} items? They are moved to the trash.`, 'Delete')) {
+                    if (await confirm(multiDeleteQuestion(nodes.length,
+                        nodes.filter(node => node.type === 'file' && this._projectsLinking(node.path).length > 0).map(node => node.path)), 'Delete')) {
                         for (const node of nodes) {
                             await vscode.workspace.fs.delete(vscode.Uri.file(node.path), { recursive: true, useTrash: true });
                         }

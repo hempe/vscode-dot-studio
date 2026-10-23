@@ -111,6 +111,11 @@ export class ProjectItems {
         return this.byFullPath.has(key(fullPath));
     }
 
+    /** Whether the project lists the file as a link: shown at its `Link` path, the file itself lives elsewhere */
+    isLinked(fullPath: string): boolean {
+        return (this.byFullPath.get(key(fullPath)) ?? []).some(entry => entry.linked);
+    }
+
     /** The file's item type; the first in ITEM_TYPES order when it is listed under several */
     itemTypeOf(fullPath: string): string | undefined {
         return this.byFullPath.get(key(fullPath))?.[0].itemType;

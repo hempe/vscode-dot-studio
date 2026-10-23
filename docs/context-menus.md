@@ -140,7 +140,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Cut | Ctrl+X (macOS: Cmd+X) | Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files. |
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
-| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
+| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. On a linked file this is the real file outside the project: the question says so and offers Remove Link instead. |
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Sync Namespaces |  | Changes the namespaces of the C# files of the project or folder to match the project's root namespace and the folders (the language server's "Change namespace" action, which also updates references in other files); needs the C# extension and IDE0130 reporting in `.editorconfig`. Asks first, with progress and Cancel. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
@@ -188,7 +188,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Cut | Ctrl+X (macOS: Cmd+X) | Marks the file or folder to move; Paste moves it and updates the namespaces of moved C# files. |
 | Paste | Ctrl+V (macOS: Cmd+V) | Pastes the copied or cut file or folder into this folder or project. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
-| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. |
+| Delete | Delete (macOS: Cmd+Backspace) | Moves the file or folder to the trash, after asking. On a linked file this is the real file outside the project: the question says so and offers Remove Link instead. |
 | Code Cleanup |  | Runs Code Cleanup on the solution, project, folder or C# file: formatting, unused usings and the `.editorconfig` code style fixes (`dotnet format`), with progress and Cancel. See the `shinobi.codeCleanup.severity` setting. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
@@ -204,6 +204,12 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Command | Key | What it does |
 |---|---|---|
 | Include In Project |  | Puts a file or folder the project does not contain back into it: deletes the `Remove` item that excluded it, or adds `Include` items. Shown with Show All Files. |
+
+**On linked files (they live outside the project folder)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Remove Link |  | Takes a linked file out of the project: deletes the item that links it (the one with `Link`) from the project file. The file itself stays where it is. |
 
 **In test projects**
 

@@ -660,6 +660,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.removeLink",
+        "title": "Remove Link",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.excludeFromProject",
         "title": "Exclude From Project",
         "category": ".NET"
@@ -1176,6 +1181,11 @@
           "group": "03_group@1"
         },
         {
+          "command": "shinobi.solutionExplorer.removeLink",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && contextValue == 'linked'",
+          "group": "03_group@1"
+        },
+        {
           "command": "shinobi.solutionExplorer.addNewItem",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'folder'",
           "group": "01_group@1"
@@ -1604,6 +1614,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.deleteFile",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeLink",
           "when": "false"
         },
         {
