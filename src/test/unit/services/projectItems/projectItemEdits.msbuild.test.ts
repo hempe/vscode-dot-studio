@@ -116,4 +116,13 @@ describe('Exclude/Include against real MSBuild', () => {
         }
         expect(items.isIncluded(at('Out', 'starry.txt'))).toBe(false);
     }, TIMEOUT);
+
+    withDotnet('Include deletes a block-form Remove instead of adding an Include after it, and Exclude adds it back once', async () => {
+        setUp(sdkProject('\n  <ItemGroup>\n    <Compile Remove="Old.cs"></Compile>\n  </ItemGroup>\n'), ['Program.cs', 'Old.cs']);
+        expect((await evaluate()).isIncluded(at('Old.cs'))).toBe(false);
+        expect((await include(at('Old.cs'))).isIncluded(at('Old.cs'))).toBe(true);
+        expect(fs.readFileSync(projectPath, 'utf8')).toBe(sdkProject());
+        expect((await exclude(at('Old.cs'))).isIncluded(at('Old.cs'))).toBe(false);
+        expect(fs.readFileSync(projectPath, 'utf8').match(/Remove="Old\.cs"/g)).toHaveLength(1);
+    }, TIMEOUT);
 });

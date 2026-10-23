@@ -70,8 +70,8 @@ export class ProjectFileEditor {
         return content.slice(0, insertAt) + separator + group + content.slice(insertAt);
     }
 
-    // Self-closing item element: `<Compile Remove="x" />`; attribute values may contain '>'
-    private static readonly ITEM_ELEMENT_RE = /<([A-Za-z]+)\b((?:[^>"']|"[^"]*"|'[^']*')*?)\/>/g;
+    // Opening tag of an item: `<Compile Remove="x" />` (group 3 is the slash) or `<Compile Remove="x">`; attribute values may contain '>'
+    private static readonly ITEM_OPEN_TAG_RE = /<([A-Za-z][\w-]*)\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
 
     /** Comments and targets: their items are not part of the evaluation (targets add items when they run) */
     static ignoredRanges(content: string): [number, number][] {
@@ -83,21 +83,31 @@ export class ProjectFileEditor {
         return ranges.some(([start, end]) => index >= start && index < end);
     }
 
-    /** Self-closing items carrying `attribute`, in document order */
+    /**
+     * Items carrying `attribute`, in document order: self-closing (`<Compile Remove="x" />`) or in block form
+     * (`<Compile Remove="x"></Compile>`, an Include with metadata children); `end` is after the closing tag.
+     * Only opening tags are matched, so an ItemGroup (or an item with children) does not hide the items in it.
+     */
     private static findItemElements(content: string, attribute: 'Include' | 'Remove'): { itemType: string; value: string; start: number; end: number }[] {
         const attributeRe = new RegExp(`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`);
         const ignored = this.ignoredRanges(content);
         const items: { itemType: string; value: string; start: number; end: number }[] = [];
-        for (const match of content.matchAll(this.ITEM_ELEMENT_RE)) {
+        for (const match of content.matchAll(this.ITEM_OPEN_TAG_RE)) {
             const found = attributeRe.exec(match[2]);
-            if (found && !this.inRanges(ignored, match.index!)) {
-                items.push({
-                    itemType: match[1],
-                    value: this.unescape(found[1] ?? found[2]),
-                    start: match.index!,
-                    end: match.index! + match[0].length,
-                });
+            if (!found || this.inRanges(ignored, match.index!)) {
+                continue;
             }
+            let end = match.index! + match[0].length;
+            if (match[3] !== '/') {
+                const closing = new RegExp(`</${match[1]}\\s*>`, 'g');
+                closing.lastIndex = end;
+                const close = closing.exec(content);
+                if (!close) {
+                    continue;
+                }
+                end = close.index + close[0].length;
+            }
+            items.push({ itemType: match[1], value: this.unescape(found[1] ?? found[2]), start: match.index!, end });
         }
         return items;
     }

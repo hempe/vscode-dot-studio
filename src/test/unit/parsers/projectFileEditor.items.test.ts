@@ -152,4 +152,45 @@ describe('ProjectFileEditor items', () => {
             expect(ProjectFileEditor.removeRemoveItem(sdkProject, 'Nope.cs')).toEqual({ content: sdkProject, removed: false });
         });
     });
+
+    describe('block-form items', () => {
+        const withItems = (items: string) => sdkProject.replace('</Project>', `  <ItemGroup>\n${items}  </ItemGroup>\n\n</Project>`);
+
+        test('removeRemoveItem deletes an empty block-form Remove, and the ItemGroup it leaves empty', () => {
+            expect(ProjectFileEditor.removeRemoveItem(withItems('    <Compile Remove="Old.cs"></Compile>\n'), 'Old.cs'))
+                .toEqual({ content: sdkProject, removed: true });
+        });
+
+        test('removeRemoveItem deletes a Remove whose closing tag is on its own line', () => {
+            expect(ProjectFileEditor.removeRemoveItem(withItems('    <None Remove="notes.txt">\n    </None>\n'), 'notes.txt'))
+                .toEqual({ content: sdkProject, removed: true });
+        });
+
+        test('removeRemoveItem keeps the other entries of a block-form Remove', () => {
+            expect(ProjectFileEditor.removeRemoveItem(withItems('    <Compile Remove="A.cs;Old.cs"></Compile>\n'), 'Old.cs').content)
+                .toBe(withItems('    <Compile Remove="A.cs"></Compile>\n'));
+        });
+
+        test('an item with metadata children does not hide the items after it', () => {
+            const content = withItems('    <None Include="readme.txt">\n      <Pack>true</Pack>\n    </None>\n    <Compile Remove="Old.cs" />\n');
+            expect(ProjectFileEditor.removeRemoveItem(content, 'Old.cs').content)
+                .toBe(withItems('    <None Include="readme.txt">\n      <Pack>true</Pack>\n    </None>\n'));
+        });
+
+        test('excludeItem sees an existing block-form Remove', () => {
+            const content = withItems('    <Compile Remove="Old.cs"></Compile>\n');
+            expect(ProjectFileEditor.excludeItem(content, 'Compile', 'Old.cs')).toBe(content);
+        });
+
+        test('includeItem sees an existing Include with metadata children', () => {
+            const content = withItems('    <None Include="Gen\\Made.txt">\n      <CopyToOutputDirectory>Always</CopyToOutputDirectory>\n    </None>\n');
+            expect(ProjectFileEditor.includeItem(content, 'None', 'Gen\\Made.txt')).toBe(content);
+        });
+
+        test('block-form items in comments and targets are still skipped', () => {
+            const content = withItems('    <!-- <Compile Remove="Old.cs"></Compile> -->\n')
+                .replace('</Project>', '<Target Name="T">\n    <ItemGroup>\n      <Compile Remove="Old.cs"></Compile>\n    </ItemGroup>\n  </Target>\n</Project>');
+            expect(ProjectFileEditor.removeRemoveItem(content, 'Old.cs')).toEqual({ content, removed: false });
+        });
+    });
 });
