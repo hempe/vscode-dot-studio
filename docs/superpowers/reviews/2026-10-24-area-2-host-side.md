@@ -217,3 +217,92 @@ The `projectAction` special cases split between `SolutionWebviewProvider._handle
 - No real `dotnet`/MSBuild was needed for these findings; A2-12 (timing) was not reproduced, and A2-9 was measured on the 5-project fixture, not a 100-project solution.
 - `Solution.ts`, `Project.ts`, parsers and `projectItems/` (area 1), the webview React code (area 3), the NuGet services behind the editor (area 4), and the services the actions call into (templates, publish, service references, debug: areas 5 and 6) were only followed as far as needed for the host-side findings. Command construction in `_handleAddProjectReference` (`terminal.sendText` with the paths in double quotes, so `$(...)` in a path would run in a POSIX shell) belongs to the Known bug that replaces it with `addProjectReferences`.
 - Windows and macOS were checked by reading only (A2-14's collapse branch, A2-16's log line); the Windows CI was not run.
+
+## Verification (second pass, 2026-10-24)
+
+Method: every cited line reread at HEAD `e7a8b58`; my own scratch tests in a separate copy (`/tmp/ver2/repo/src/verify/verify.test.ts`, `node_modules` symlinked, real `Solution`/`ProjectFileParser`/provider; actions driven through `SolutionActionService.handleProjectAction` or `SolutionWebviewProvider._handleMessage`, the paths the webview uses, not the private helpers). My `workspace.fs.rename` mock refuses an existing target and creates parent folders, the way VS Code's `FileService.move` does. A2-5 was rerun against the real URI code: `vscode-uri` 3.2.0 (the npm package generated from VS Code's `src/vs/base/common/uri.ts`), including a `toJSON`/`URI.revive` round trip like the IPC hop to the custom editor. For A2-8 I read the extension host bundle of the installed code-oss (`/usr/lib/code/out/vs/workbench/api/node/extensionHostProcess.js`: `ExtHostWebviewViews.$resolveWebviewView`, `WebviewView.show`, `Webview.postMessage`) and the API docs in `@types/vscode`. No VS Code or Electron was started. No source file was changed.
+
+| Id | Verdict | Severity after verification | Note |
+|---|---|---|---|
+| A2-1 | CONFIRMED | bug, **urgent** | Reproduced through the real dispatcher with a real `.sln`: the folder holding `.git`, `App.sln`, `Tests/` is passed to `fs.delete(recursive, useTrash)` |
+| A2-2 | CONFIRMED | bug, **urgent** | Reproduced through the provider: no question, no error, file is 0 bytes; also `../Outer.cs` from a subfolder empties a file in the parent |
+| A2-3 | CONFIRMED | bug (high) | Reproduced with ids as the tree builds them: `Core` also removes `MyCore`; comment, blank lines and CRLF lost; `Legacy, Version=...` gives "Failed to remove Legacy from App" |
+| A2-4 | CONFIRMED | bug | Reproduced with `SimpleDebounceManager`, the wrapper the provider actually uses: 1 run for 2 triggers |
+| A2-5 | CONFIRMED | bug (medium) | Reproduced with VS Code's real URI code: same results as the reviewer's emulation |
+| A2-6 | PARTIALLY CONFIRMED | bug (medium, not data loss on its own) | `../Escaped` moves the folder out of the project (reproduced). Rename onto an existing name fails (`overwrite` is false), so rename does not destroy anything. New File with `../x` combines with A2-2 and empties existing files |
+| A2-7 | PARTIALLY CONFIRMED | cleanup / minor bug (downgraded) | The temporary id is stored and survives a restore (with the `[ERR]` line). But the next expand of any node prunes it: `handleExpandNode` saves `getExpandedNodePaths(tree)`. So "never pruned / grows with every file" is wrong |
+| A2-8 | PARTIALLY CONFIRMED | risk (low) | Leak reproduced (2 resolves, 2 listeners, 0 disposed). The trigger is narrower than the reviewer says: collapse or switching the sidebar does not re-resolve. Only a disposed view does (hidden through the view's context menu, location setting switched, view moved) |
+| A2-9 | CONFIRMED | risk | Reran: 15 `Project.refresh` for 3 dropped files in 5 projects, plus one more round from the provider (`_triggerImmediateTreeRefresh`). `refresh` does not start MSBuild, it re-reads XML and loaded folders |
+| A2-10 | CONFIRMED | risk (low) | Malformed id rejects `_handleMessage` (reproduced). The `if (!nodeId)` guard is unreachable. Ids are self-describing |
+| A2-11 | CONFIRMED (code and bundle) | risk | The current `out/webview/solution-view/bundle.js` contains all three iconify API hosts. The expand chevron is always an iconify `<Icon>`; theme icons replace only file icons. Neither bundle contains `eval(` or `new Function`, and neither devtool setting uses eval. Network traffic not captured |
+| A2-12 | UNVERIFIED (plausible) | risk (low) | Needs a timed overlap; not run. Mostly heals itself: the expand saves the node into the stored state, so the next rebuild restores it. What stays: a short collapse, and ids dropped when the old tree overwrites the stored state |
+| A2-13 | CONFIRMED (code) | risk | `openSolution` disposes the old `Solution`, and with it the emitter the panels subscribed to. Nothing re-subscribes (`onDidChangeActiveSolution` is used only by `centralPackageWatchers`). The tab stops refreshing; edits still go to the new solution, validated by `applyRequest`. Not run |
+| A2-14..16 | sanity OK | cleanup | Spot checks hold: `loading` is never sent, `_isRenaming` is never set, `firstLoad` is always false, `FrameworkSelector` is not rendered, the provider is not in `context.subscriptions` |
+
+### Evidence per finding
+
+**A2-1.** The real `Solution` loaded `/tmp/ver2-*/App.csproj` and `Tests/Tests.csproj`. `handleProjectAction({action:'deleteProject'})` with answer "Delete" printed:
+`deleted: [{"path":"/tmp/ver2-tk54x7","options":{"recursive":true,"useTrash":true},"contents":[".git","App.csproj","App.sln","Program.cs","Tests"]}]`. The `.sln` still lists `Tests`, but the solution file, the Tests project and `.git` are all inside the folder sent to the trash.
+- **Trigger:** right-click a project (also an unloaded one) > **Delete**. It is not in the multi-select actions and has no key binding (the `delete` key on a project does nothing; on files it is `deleteFile`).
+- **Safeguards:** one modal dialog: "Delete project 'App'? It is removed from the solution and its folder is moved to the trash." The dialog does not name the folder, so a user cannot tell that it is the repository root. `useTrash: true`, so on a local desktop the folder can be restored from the OS trash. There is no undo in VS Code.
+- **Not checked:** remote or WSL providers without a trash (VS Code's `FileService` refuses `useTrash` when the provider lacks the capability, so most likely an error rather than a permanent delete).
+- **Also hit:** a project whose folder contains another project (`App/App.csproj` with `App/Tests/Tests.csproj`). The usual VS layout (`App/App.csproj`, nothing else inside) is not affected.
+- **Urgency:** high. One menu item plus one "Delete" click sends a whole working copy to the trash.
+
+**A2-2.** `_handleMessage({type:'projectAction', payload:{action:'addFile', nodeId:<temporary id>, data:{name:'Program.cs', confirmed:true}}})` printed: `Program.cs: 0 chars, Outer.cs (via Sub + ../Outer.cs): 0 chars, questions: [], errors: []`.
+- **Trigger:** right-click a project or folder > **Add File...**, type the name of an existing file in that folder, then press Enter **or just click elsewhere** (`RenameInput.handleBlur` confirms too). The input starts empty (`name: ''`), so any typed name counts.
+- **Safeguards:** none. No dialog, no check in the webview (`TreeNode.handleRenameConfirmLocal`) or the host (`createFile` is `mkdir -p` + `writeFile(path, '')`), no trash.
+- **Recovery:** only git, or an open editor that still holds the text (not tested in VS Code).
+- **Out of scope here:** Add New Item (templates) is a different code path.
+- **Urgency:** high. A plain typo-level mistake silently destroys a file.
+
+**A2-3.** `ProjectFileParser` names the dependencies `ProjectReference:Core`, `ProjectReference:MyCore`, `Reference:Legacy`. The `Reference` gets its short name from `split(',')[0]`, so the reviewer's premise holds. `handleProjectAction({action:'removeDependency', nodeId: generateDependencyId(proj,'projects','Core')})` with "Remove" rewrote the CRLF file with the comment as:
+`"<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>...\n  <ItemGroup>\n    <Reference Include=\"Legacy, Version=1.2.0.0, ...\">...` (LF only, no comment, no blank line, **both** project references gone).
+Remove on `Legacy` then showed `Failed to remove Legacy from App`, and the file still contains Legacy.
+- **Trigger:** Dependencies > Projects/Packages/Assemblies/Frameworks > a node > **Remove**, or the **Delete** key on a focused dependency, or a multi-selection of dependencies > Remove.
+- **Safeguards:** a modal "Are you sure you want to remove X from the project?" (multi: "Remove N references from their projects?"). The dialog does not say that other references may go too.
+- **Recovery:** the file is written with `fs.writeFile`. There is no VS Code undo even when the project file is open; only git restores it.
+- **Severity:** removing an extra project reference shows up at the next build (compile errors), so the damage is visible, but the formatting loss is silent. Point 4 (CPM/imported packages) was read only, not run.
+
+**A2-4.** `new SimpleDebounceManager(cb 300 ms, 100)`: trigger, wait 200 ms (the callback is running), trigger again; after 1.2 s the callback had run once. The `_process` code at HEAD matches the report.
+
+**A2-5.** `vscode-uri` 3.2.0 `URI.parse` → `toJSON` → `URI.revive` → the provider's `URLSearchParams` + `decodeURIComponent`:
+`/src/R&D/App/App.csproj -> "/src/R"`, `/src/C++Interop/Interop.csproj -> "/src/C  Interop/Interop.csproj"`, `Shinobi.C#Tools -> path "NuGet Package Manager - Shinobi.C", query "", fragment "Tools.nuget?context=...", target ""`, `/src/100%Done/... -> THROWS URI malformed`. A path with spaces round-trips fine.
+- **Trigger:** Manage NuGet Packages on a project, or on the solution (same code at `294-298`), whose path contains one of these characters.
+- **Severity:** wrong or empty target, so the editor shows the wrong data or fails. No file damage was seen: install/uninstall on a truncated path would point at a non-existent file (not run).
+
+**A2-6.** Driven through `handleProjectAction({action:'rename'})`:
+- `Models` → `../Escaped` ended at `<root>/Escaped/A.cs`, out of the project.
+- `Other` → `../Proj` (an existing name) failed with `Error renaming: Error: EntryExists`; `Other/B.cs` stayed in place.
+
+So rename moves things but does not overwrite (real VS Code `workspace.fs.rename` and `WorkspaceEdit.renameFile` default to no overwrite). New Folder uses `mkdir -p`, which is harmless. New File is the dangerous case, through A2-2 (shown in V2). VS Code's own Explorer accepts `a/b.cs` to create subfolders, so `Sub/Name.cs` alone is a VS-parity point, not a bug. Severity: bug, medium; the data-loss part belongs to A2-2.
+
+**A2-7.** The stored expansion types were:
+- after New File: `['temporary']`
+- after `restoreExpansionStates`: `['temporary']`
+- after `handleExpandNode(project)`: `['project']`
+
+`handleExpandNode` (`solutionExpansionService.ts:193-195`) replaces the stored set with the expanded nodes of the tree. The reviewer's "never pruned" and "the list grows with every file created" are therefore **refuted**. What holds: the temporary id is stored instead of the parent, and there is one `[ERR]` line per rebuild until the next expand. The same pruning applies to deleted or renamed folders. Downgraded to cleanup.
+
+**A2-8.** Two `resolveWebviewView` calls registered 2 listeners and disposed 0. VS Code facts:
+- `@types/vscode` says collapsing or switching view containers keeps the `WebviewView` alive (only the document is deallocated). Disposal happens when the user hides the view via its context menu. `$resolveWebviewView` builds a new `WebviewView` per resolve.
+- So the leak grows per dispose-and-show cycle (view hidden from its menu and shown again, `shinobi.solutionExplorer.location` switched, view dragged to another container), not per collapse. The reviewer's "hidden and shown again (the view has no `retainContextWhenHidden`)" overstates it: `retainContextWhenHidden` does not affect re-resolving.
+- On a disposed view, `webview.postMessage` returns `false` (no throw) and `visible` does not throw, but `show()` throws `Webview is disposed`. So Sync with Active Document after the user hid the view would raise an error (code read, not run).
+- Effect while the view lives: duplicate `activeFileChanged` posts and duplicate `syncWithActiveDocument` runs per extra listener.
+
+**A2-9.** The reviewer's `refreshCount.test.ts`, rerun in my copy: `H: 5 projects, Project.refresh called 15 times for a drop of 3 files`. `_pasteOne` (`1646-1650`) and `_triggerImmediateTreeRefresh` (`787`) both call `forceRefreshAllProjects`. `Project.refresh` = `parseProjectFile` (XML parsing, no MSBuild) + `reloadLoadedFolders`. The cost is lower than the "2100 parses" wording suggests, but the count holds.
+
+**A2-10.** `_handleMessage` with `nodeId: 'not-an-id'` rejects. Nothing awaits the `onDidReceiveMessage` listener, so the rejection is unhandled: the user sees nothing and the extension host logs it. Exposure is low as stated.
+
+**A2-11.** Bundle grep, current build (`out/` from 13:27 today): `api.iconify.design`, `api.simplesvg.com`, `api.unisvg.com` once each; no `eval(` or `new Function` in either bundle.
+- **CSP:** the Solution Explorer has `connect-src https: data:` and `'unsafe-eval'`. The NuGet view has `connect-src https://api.nuget.org` and `'unsafe-eval'`. The reviewer said "also `NuGetWebview.ts:25`" only for `unsafe-eval`, which is correct.
+- **When it fetches:** `TreeNode.tsx:354` uses the iconify `<Icon>` for every expand chevron, so the fetch happens even when an icon theme is active.
+
+**A2-12.** Not reproduced. Read the code: the race exists as described, with the softening in the table.
+
+**A2-13.** Code read:
+- `ConfigurationManagerPanel.watchSolution` and `StartupProjectsPanel.watchSolution` run once, from the constructor.
+- `SolutionService.openSolution` (`solutionService.ts:137-141`) disposes the old solution. Both Open Solution and `_renameSolution` (`solutionActionService.ts:376`) call it.
+- No `onDidChangeActiveSolution` subscription exists in either panel.
+
+Confirmed by code, not run.
