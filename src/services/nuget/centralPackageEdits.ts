@@ -9,7 +9,9 @@ import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
 /** One change to one file; `file` is the props file or the project file it is applied to */
 export type PackageEdit =
     | { readonly kind: 'setPackageVersion' | 'addPackageVersion' | 'setGlobalPackageVersion' | 'setVersionOverride'; readonly file: string; readonly id: string; readonly version: string }
-    | { readonly kind: 'removePackageVersion' | 'removeGlobalPackageReference' | 'addPackageReference' | 'removeVersionOverride' | 'addGlobalOptOut' | 'removeGlobalOptOut'; readonly file: string; readonly id: string };
+    | { readonly kind: 'removePackageVersion' | 'removeGlobalPackageReference' | 'addPackageReference' | 'removeVersionOverride' | 'addGlobalOptOut' | 'removeGlobalOptOut'; readonly file: string; readonly id: string }
+    /** The value of the MSBuild property a `Version="$(property)"` names, where it is defined */
+    | { readonly kind: 'setVersionProperty'; readonly file: string; readonly property: string; readonly version: string };
 
 interface Element {
     readonly id: string;
@@ -169,9 +171,89 @@ export function globalPackageReferences(content: string): { id: string; version:
     });
 }
 
+/** The version written on `<tag Include="id">` (attribute or child element), unescaped and trimmed; undefined without one */
+export function writtenVersion(content: string, tag: string, id: string): string | undefined {
+    const element = find(content, tag, id);
+    const text = element ? content.slice(element.start, element.end) : '';
+    const found = /\sVersion\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(text) ?? /<Version\s*>([^<]*)<\/Version\s*>/.exec(text);
+    return found ? Xml.unescape(found[1] ?? found[2]).trim() : undefined;
+}
+
+/** The name of the property a version is when it is just `$(Name)`; undefined for a literal or anything around it */
+export function propertyReference(version: string | undefined): string | undefined {
+    return /^\$\(\s*([A-Za-z_][\w.-]*)\s*\)$/.exec(version?.trim() ?? '')?.[1];
+}
+
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A `<Name>value</Name>` in a PropertyGroup; `conditional` when it or its group has a Condition, or it is in a Choose */
+export interface PropertyDefinition {
+    readonly value: string;
+    readonly conditional: boolean;
+    /** Where the value is (between the tags) */
+    readonly valueStart: number;
+    readonly valueEnd: number;
+}
+
+/** The definitions of an MSBuild property in the file, in document order (names compare case-insensitively, as MSBuild's do) */
+export function propertyDefinitions(content: string, name: string): PropertyDefinition[] {
+    const ignored = Xml.ignoredRanges(content);
+    const definitions: PropertyDefinition[] = [];
+    for (const match of content.matchAll(new RegExp(`<${escapeRe(name)}(\\s(?:[^>"']|"[^"]*"|'[^']*')*?)?>([^<]*)<\\/${escapeRe(name)}\\s*>`, 'gi'))) {
+        const index = match.index!;
+        const groupOpen = content.slice(0, index).match(/<PropertyGroup\b(?:[^>"']|"[^"]*"|'[^']*')*>(?![\s\S]*<\/PropertyGroup\s*>)/i);
+        // Outside a PropertyGroup the element is item metadata, not a property
+        if (!groupOpen || Xml.inRanges(ignored, index)) {
+            continue;
+        }
+        const before = content.slice(0, index);
+        const inChoose = before.lastIndexOf('<Choose') > before.lastIndexOf('</Choose');
+        const valueStart = index + match[0].indexOf('>') + 1;
+        definitions.push({
+            value: Xml.unescape(match[2]).trim(),
+            conditional: inChoose || /\bCondition\s*=/i.test(match[1] ?? '') || /\bCondition\s*=/i.test(groupOpen[0]),
+            valueStart,
+            valueEnd: valueStart + match[2].length,
+        });
+    }
+    return definitions;
+}
+
+/** Sets the property's last unconditional definition in the file (the one MSBuild ends up with) */
+export function setVersionProperty(content: string, name: string, version: string): string {
+    const definition = propertyDefinitions(content, name).filter(candidate => !candidate.conditional).pop();
+    if (!definition) {
+        throw new Error(`No <${name}> in the file`);
+    }
+    return content.slice(0, definition.valueStart) + Xml.escape(version) + content.slice(definition.valueEnd);
+}
+
+/** The packages whose version is `$(name)`: PackageVersion, GlobalPackageReference, PackageReference (Version or VersionOverride) */
+export function packagesUsingProperty(content: string, name: string): string[] {
+    const ids: string[] = [];
+    for (const tag of ['PackageVersion', 'GlobalPackageReference', 'PackageReference']) {
+        for (const element of findElements(content, tag)) {
+            const text = content.slice(element.start, element.end);
+            const versions = [...text.matchAll(/\s(?:Version|VersionOverride)\s*=\s*(?:"([^"]*)"|'([^']*)')|<(?:Version|VersionOverride)\s*>([^<]*)</g)]
+                .map(found => Xml.unescape(found[1] ?? found[2] ?? found[3]));
+            if (versions.some(version => propertyReference(version)?.toLowerCase() === name.toLowerCase())) {
+                ids.push(element.id);
+            }
+        }
+    }
+    return ids;
+}
+
+/** How often `$(name)` is used in the file, outside comments and targets */
+export function propertyUseCount(content: string, name: string): number {
+    const ignored = Xml.ignoredRanges(content);
+    return [...content.matchAll(new RegExp(`\\$\\(\\s*${escapeRe(name)}\\s*\\)`, 'gi'))].filter(match => !Xml.inRanges(ignored, match.index!)).length;
+}
+
 /** Applies one planned edit to the text of its file */
 export function applyEdit(content: string, edit: PackageEdit): string {
     switch (edit.kind) {
+        case 'setVersionProperty': return setVersionProperty(content, edit.property, edit.version);
         case 'setPackageVersion': return setPackageVersion(content, edit.id, edit.version);
         case 'addPackageVersion': return addPackageVersion(content, edit.id, edit.version);
         case 'setGlobalPackageVersion': return setGlobalPackageVersion(content, edit.id, edit.version);

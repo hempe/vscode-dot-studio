@@ -3,7 +3,7 @@ import { parseMsbuildJson, pathKey } from '../projectItems/projectItems';
 import { PackageVersionSource } from './types';
 
 /** Asked of MSBuild together with the project items: one evaluation per project answers both */
-export const PACKAGE_PROPERTIES = ['ManagePackageVersionsCentrally', 'DirectoryPackagesPropsPath', 'CentralPackageVersionOverrideEnabled'] as const;
+export const PACKAGE_PROPERTIES = ['ManagePackageVersionsCentrally', 'DirectoryPackagesPropsPath', 'CentralPackageVersionOverrideEnabled', 'DirectoryBuildPropsPath'] as const;
 export const PACKAGE_ITEM_TYPES = ['PackageReference', 'PackageVersion', 'GlobalPackageReference'] as const;
 
 /** A package the project references, with the version MSBuild gives it and where that version is written */
@@ -35,6 +35,8 @@ export interface ProjectPackages {
     readonly centrallyManaged: boolean;
     /** The `Directory.Packages.props` MSBuild picked (also set when the project turned CPM off) */
     readonly propsPath?: string;
+    /** The `Directory.Build.props` MSBuild imported, if any: properties used as versions may be defined there */
+    readonly buildPropsPath?: string;
     /** `CentralPackageVersionOverrideEnabled` is not false: "Set for this project only" may write a VersionOverride */
     readonly overridesEnabled: boolean;
     /**
@@ -113,6 +115,7 @@ export function parseMsbuildPackages(output: string, projectPath: string): Proje
         projectPath,
         centrallyManaged,
         propsPath: properties.DirectoryPackagesPropsPath ? path.normalize(properties.DirectoryPackagesPropsPath) : undefined,
+        ...(properties.DirectoryBuildPropsPath?.trim() ? { buildPropsPath: path.normalize(properties.DirectoryBuildPropsPath.trim()) } : {}),
         overridesEnabled: !isFalse(properties.CentralPackageVersionOverrideEnabled),
         multiTargeted: (properties.TargetFrameworks ?? '').split(';').filter(framework => framework.trim()).length > 1,
         references,

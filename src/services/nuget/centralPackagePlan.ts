@@ -65,7 +65,7 @@ export function planVersionChange(
     const shared = new Map<string, PackageEdit>();
     let overridable = true;
     const share = (edit: PackageEdit) => {
-        const key = `${edit.kind}|${fileKey(edit.file)}|${lower(edit.id)}`;
+        const key = `${edit.kind}|${fileKey(edit.file)}|${lower('id' in edit ? edit.id : edit.property)}`;
         if (!shared.has(key)) {
             shared.set(key, edit);
             edits.push(edit);

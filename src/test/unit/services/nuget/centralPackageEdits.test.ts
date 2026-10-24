@@ -1,6 +1,7 @@
 import {
-    addGlobalOptOut, addPackageReference, addPackageVersion, applyEdit, removeGlobalOptOut, removeGlobalPackageReference,
-    removePackageVersion, removeVersionOverride, setGlobalPackageVersion, setPackageVersion, setVersionOverride,
+    addGlobalOptOut, addPackageReference, addPackageVersion, applyEdit, packagesUsingProperty, propertyDefinitions, propertyReference,
+    propertyUseCount, removeGlobalOptOut, removeGlobalPackageReference, removePackageVersion, removeVersionOverride, setGlobalPackageVersion,
+    setPackageVersion, setVersionOverride, setVersionProperty, writtenVersion,
 } from '../../../../services/nuget/centralPackageEdits';
 
 const props = `<Project>
@@ -142,5 +143,65 @@ describe('central package edits: the project file', () => {
     test('applyEdit dispatches by kind', () => {
         expect(applyEdit(props, { kind: 'setPackageVersion', file: 'p', id: 'Serilog', version: '4.0.0' })).toContain('Include="Serilog" Version="4.0.0"');
         expect(applyEdit(project, { kind: 'addPackageReference', file: 'p', id: 'Polly' })).toContain('<PackageReference Include="Polly" />');
+    });
+});
+
+describe('versions written as MSBuild properties', () => {
+    const shared = `<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <SerilogVersion>3.1.1</SerilogVersion>
+    <!-- <SerilogVersion>2.0.0</SerilogVersion> -->
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PollyVersion>8.0.0</PollyVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Serilog" Version="$(SerilogVersion)" />
+    <PackageVersion Include="Serilog.Extensions.Logging">
+      <Version>$(serilogversion)</Version>
+    </PackageVersion>
+    <PackageVersion Include="Polly" Version="$(PollyVersion)" />
+    <PackageVersion Include="Humanizer" Version="$(SerilogVersion)-beta" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.1">
+      <SerilogVersion>not a property</SerilogVersion>
+    </PackageVersion>
+  </ItemGroup>
+</Project>
+`;
+
+    test('the version as written, and the property it is when it is nothing else', () => {
+        expect(writtenVersion(shared, 'PackageVersion', 'serilog')).toBe('$(SerilogVersion)');
+        expect(writtenVersion(shared, 'PackageVersion', 'Serilog.Extensions.Logging')).toBe('$(serilogversion)');
+        expect(writtenVersion(shared, 'PackageVersion', 'Missing')).toBeUndefined();
+        expect(propertyReference('$(SerilogVersion)')).toBe('SerilogVersion');
+        expect(propertyReference(' $( Serilog_Version.2 ) ')).toBe('Serilog_Version.2');
+        expect(propertyReference('$(SerilogVersion)-beta')).toBeUndefined();
+        expect(propertyReference('3.1.1')).toBeUndefined();
+        expect(propertyReference(undefined)).toBeUndefined();
+    });
+
+    test('definitions: in PropertyGroups only, outside comments, conditional when the group has a Condition', () => {
+        expect(propertyDefinitions(shared, 'serilogversion').map(definition => [definition.value, definition.conditional])).toEqual([['3.1.1', false]]);
+        expect(propertyDefinitions(shared, 'PollyVersion').map(definition => [definition.value, definition.conditional])).toEqual([['8.0.0', true]]);
+        const choose = '<Project>\n  <Choose>\n    <When Condition="true">\n      <PropertyGroup>\n        <V>1.0.0</V>\n      </PropertyGroup>\n    </When>\n  </Choose>\n</Project>\n';
+        expect(propertyDefinitions(choose, 'V').map(definition => definition.conditional)).toEqual([true]);
+    });
+
+    test('setVersionProperty changes the last unconditional definition and nothing else', () => {
+        const twice = shared.replace('</PropertyGroup>', '  <SerilogVersion>3.1.2</SerilogVersion>\n  </PropertyGroup>');
+        const edited = setVersionProperty(twice, 'SerilogVersion', '4.0.0');
+        expect(edited).toBe(twice.replace('<SerilogVersion>3.1.2</SerilogVersion>', '<SerilogVersion>4.0.0</SerilogVersion>'));
+        expect(() => setVersionProperty(shared, 'PollyVersion', '8.1.0')).toThrow('No <PollyVersion> in the file');
+        expect(applyEdit(shared, { kind: 'setVersionProperty', file: 'p', property: 'SerilogVersion', version: '4.0.0' }))
+            .toContain('<SerilogVersion>4.0.0</SerilogVersion>');
+    });
+
+    test('the packages whose version is just the property, and every use of it', () => {
+        expect(packagesUsingProperty(shared, 'SerilogVersion')).toEqual(['Serilog', 'Serilog.Extensions.Logging']);
+        const project = '<Project>\n  <ItemGroup>\n    <PackageReference Include="Serilog.Sinks.File" VersionOverride="$(SerilogVersion)" />\n  </ItemGroup>\n</Project>\n';
+        expect(packagesUsingProperty(project, 'SerilogVersion')).toEqual(['Serilog.Sinks.File']);
+        // Serilog, Serilog.Extensions.Logging and Humanizer's "$(SerilogVersion)-beta"; not the comment
+        expect(propertyUseCount(shared, 'SerilogVersion')).toBe(3);
     });
 });

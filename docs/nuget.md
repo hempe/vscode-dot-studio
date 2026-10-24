@@ -36,7 +36,11 @@ A project that turns CPM off (`<ManagePackageVersionsCentrally>false</ManagePack
 
 ### What Install, Update and Uninstall change
 
-The extension edits `Directory.Packages.props` itself (the `dotnet` CLI refuses imported props files and global packages), as text edits that keep your formatting and comments, in the file that defines the entry. New elements never go into an `ItemGroup` with a `Condition`. A `<PackageVersion Update="X" Version="..." />` in the same file gets the new version too, since MSBuild applies it over the `Include`. The files of one change are written together: when one cannot be written, the others get their old content back.
+The extension edits `Directory.Packages.props` itself (the `dotnet` CLI refuses imported props files and global packages), as text edits that keep your formatting and comments, in the file that defines the entry. New elements never go into an `ItemGroup` with a `Condition`. A `<PackageVersion Update="X" Version="..." />` in the same file gets the new version too, since MSBuild applies it over the `Include`.
+
+**Versions written as a property** (`<PackageVersion Include="Serilog" Version="$(SerilogVersion)" />`): the property's definition is changed, so the package keeps following it; it is looked for in `Directory.Build.props`, `Directory.Packages.props` and the files they import (the last one MSBuild reads wins). When other packages use the same property, you are asked first: **Change SerilogVersion** (named with the packages that change along and the projects that use them) or **Set Serilog Only**, which writes the version on Serilog alone (it no longer follows the property; what `dotnet add package` always does). When the definition cannot be changed (not found, under a `Condition`, set again in a project file, or other packages of the same change want another version) only Set Serilog Only is offered. Updating all packages of a property to the same version (Update Selected) changes the property once, without a question.
+
+The files of one change are written together: when one cannot be written, the others get their old content back.
 
 | Action | What is written |
 |---|---|

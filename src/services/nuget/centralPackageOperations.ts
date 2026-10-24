@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
 import { SolutionService } from '../solutionService';
@@ -7,6 +8,8 @@ import { PackageOperationsService } from './packageOperationsService';
 import { PackageOperationResult } from './types';
 import { centralFiles } from './centralPackages';
 import { applyPackageEdits, declaredGlobals, importChain } from './centralPackageFiles';
+import { PackageEdit } from './centralPackageEdits';
+import { changesOnlyItself, findVersionProperties, propertyEdit, propertyQuestion } from './versionProperties';
 import { pathKey } from '../projectItems/projectItems';
 import {
     ProjectState, VersionChangePlan, VersionScope, confirmationText, consolidationText, globalUninstallEdits, planConsolidate, planUninstall,
@@ -75,13 +78,65 @@ export const vscodeHost: OperationsHost = {
 
 const isProjectFile = (file: string) => /\.(cs|vb|fs)proj$/i.test(file);
 const same = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
+/** Whether a props file reaches the project: MSBuild finds Directory.*.props files in the project's folder and above */
+const reaches = (propsFile: string, projectPath: string) => {
+    const relative = path.relative(path.dirname(propsFile), path.dirname(projectPath));
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+};
+const propertyFiles = (edits: readonly PackageEdit[]) => edits.filter(edit => edit.kind === 'setVersionProperty').map(edit => edit.file);
+const readText = (file: string) => {
+    try {
+        return fs.readFileSync(file, 'utf8');
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Versions written as `$(Property)`: the property's definition is changed instead of writing a literal over the
+ * reference; asked first when other packages follow the property or it cannot be changed (then the package can get a
+ * literal version alone). One answer per property. Undefined: the user cancelled.
+ */
+async function resolveVersionProperties(edits: readonly PackageEdit[], states: readonly ProjectState[], host: OperationsHost): Promise<PackageEdit[] | undefined> {
+    const found = findVersionProperties(edits, states, readText, importChain);
+    const answers = new Map<string, boolean>();
+    const result: PackageEdit[] = [];
+    const add = (edit: PackageEdit) => {
+        const key = (candidate: PackageEdit) => `${candidate.kind}|${pathKey(path.normalize(candidate.file))}|${('id' in candidate ? candidate.id : candidate.property).toLowerCase()}`;
+        if (!result.some(other => key(other) === key(edit))) {
+            result.push(edit);
+        }
+    };
+    for (const edit of edits) {
+        const entry = found.find(candidate => candidate.edit === edit);
+        if (!entry) {
+            add(edit);
+            continue;
+        }
+        const answerKey = `${entry.definition ?? entry.edit.id}|${entry.property}`.toLowerCase();
+        let change = changesOnlyItself(entry) || answers.get(answerKey);
+        if (change === undefined) {
+            const question = propertyQuestion(entry);
+            const choice = await host.ask(question.message, question.detail, ...(question.change ? [question.change] : []), question.only);
+            if (!choice) {
+                return undefined;
+            }
+            change = choice === question.change;
+            answers.set(answerKey, change);
+        }
+        add(change ? propertyEdit(entry) : edit);
+    }
+    return result;
+}
 
 /**
  * After edits: restore (the whole solution when a props file changed, it reaches every project below it) and
- * evaluate the projects whose files or props files changed, and those the CLI updated (`cliUpdated`)
+ * evaluate the projects whose files or props files changed, those the CLI updated (`cliUpdated`) and those below a
+ * file whose version property changed (`propertyFiles`)
  */
 async function afterEdits(
     changed: readonly string[], states: readonly ProjectState[], host: OperationsHost, cliUpdated: readonly string[] = [],
+    propertyFiles: readonly string[] = [],
 ): Promise<PackageOperationResult[]> {
     if (changed.length === 0) {
         if (cliUpdated.length > 0) {
@@ -91,7 +146,9 @@ async function afterEdits(
     }
     const propsChanged = changed.filter(file => !isProjectFile(file));
     const affected = states.filter(state => changed.some(file => same(file, state.path))
-        || (!!state.packages && centralFiles(state.packages).some(file => propsChanged.some(changedFile => same(file, changedFile)))));
+        || (!!state.packages && centralFiles(state.packages).some(file => propsChanged.some(changedFile => same(file, changedFile))))
+        // A property used as a version is read by every project below its file (Directory.Build.props is no central file)
+        || propertyFiles.some(file => reaches(file, state.path)));
     const solutionPath = host.solutionPath();
     const targets = propsChanged.length > 0 && solutionPath ? [solutionPath] : affected.map(state => state.path);
     const results: PackageOperationResult[] = [];
@@ -140,10 +197,14 @@ export async function changePackageVersions(
         }
     }
 
+    const edits = await resolveVersionProperties(plans.flatMap(candidate => candidate.edits), states, host);
+    if (!edits) {
+        return { cancelled: true, results: [] };
+    }
     const results: PackageOperationResult[] = [];
     // Projects `dotnet add package` changed: evaluated again with the edited ones
     const cliUpdated: string[] = [];
-    const { changed, result } = await apply(plans.flatMap(candidate => candidate.edits));
+    const { changed, result } = await apply(edits);
     if (result) {
         return { cancelled: false, results: [result] };
     }
@@ -159,7 +220,7 @@ export async function changePackageVersions(
             }
         }
     }
-    results.push(...(await afterEdits(changed, states, host, cliUpdated)).filter(restore => !restore.success));
+    results.push(...(await afterEdits(changed, states, host, cliUpdated, propertyFiles(edits))).filter(restore => !restore.success));
     return { cancelled: false, results };
 }
 
@@ -231,7 +292,11 @@ export async function consolidatePackages(changes: readonly { id: string; versio
     if (question && await host.ask(question.message, question.detail, 'Consolidate') !== 'Consolidate') {
         return { cancelled: true, results: [] };
     }
-    const { changed, result } = await apply(plans.flatMap(plan => plan.edits));
+    const edits = await resolveVersionProperties(plans.flatMap(plan => plan.edits), states, host);
+    if (!edits) {
+        return { cancelled: true, results: [] };
+    }
+    const { changed, result } = await apply(edits);
     if (result) {
         return { cancelled: false, results: [result] };
     }
@@ -252,6 +317,6 @@ export async function consolidatePackages(changes: readonly { id: string; versio
             results.push({ success: true, message: `${plan.id} is already at ${plan.version} in all projects`, packageId: plan.id });
         }
     }
-    results.push(...(await afterEdits(changed, states, host, cliUpdated)).filter(restore => !restore.success));
+    results.push(...(await afterEdits(changed, states, host, cliUpdated, propertyFiles(edits))).filter(restore => !restore.success));
     return { cancelled: false, results };
 }
