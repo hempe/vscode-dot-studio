@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { excludeEdit, inNestedProject, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+import { parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
+import { NewItem } from '../../../../services/projectItems/defaultItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);
@@ -52,6 +53,18 @@ describe('includeEdit', () => {
         const edited = includeEdit(project, dir, at('Gen'), true, [at('Gen', 'a.cs'), at('Gen', 'deep', 'b.txt')]);
         expect(edited).toContain('<Compile Include="Gen\\a.cs" />');
         expect(edited).toContain('<None Include="Gen\\deep\\b.txt" />');
+    });
+
+    test('the item type and output metadata come from what MSBuild would give the file without the exclude', () => {
+        const newItems = new Map<string, NewItem>([
+            [pathKey(at('Views', 'Old.cshtml')), { itemType: 'Content', metadata: { CopyToPublishDirectory: 'PreserveNewest', ExcludeFromSingleFile: 'true' } }],
+            [pathKey(at('Views', 'data.json')), { itemType: 'Content', metadata: { CopyToOutputDirectory: 'PreserveNewest' } }],
+        ]);
+        const edited = includeEdit(project, dir, at('Views'), true, [at('Views', 'Old.cshtml'), at('Views', 'data.json'), at('Views', 'S.resx')], newItems);
+        expect(edited).toContain('<Content Include="Views\\Old.cshtml" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />');
+        expect(edited).toContain('<Content Include="Views\\data.json" CopyToOutputDirectory="PreserveNewest" />');
+        // A file MSBuild did not list goes by its extension
+        expect(edited).toContain('<EmbeddedResource Include="Views\\S.resx" />');
     });
 });
 

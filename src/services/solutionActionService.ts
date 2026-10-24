@@ -26,6 +26,7 @@ import { runSyncNamespaces } from './namespaceSync/runSyncNamespaces';
 import { projectForPath } from './templates/templateService';
 import { ProjectItemsService } from './projectItems/projectItemsService';
 import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
+import { itemsWithoutExcludes } from './projectItems/defaultItems';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -1377,9 +1378,11 @@ export class SolutionActionService {
                     return;
                 }
             }
+            // The item types MSBuild would give the files without the exclude (one more evaluation, only when Include adds items)
+            const newItems = adding > 0 ? await itemsWithoutExcludes(projectPath) : undefined;
             const edited = exclude
                 ? excludeEdit(content, projectDir, target, isFolder, items!)
-                : includeEdit(content, projectDir, target, isFolder, filesUnder);
+                : includeEdit(content, projectDir, target, isFolder, filesUnder, newItems);
             if (edited !== content) {
                 await fs.promises.writeFile(projectPath, edited, 'utf8');
             }

@@ -156,9 +156,9 @@ export class ProjectFileEditor {
         return this.addItemElement(content, itemType, 'Remove', relativePath);
     }
 
-    /** `<Compile Include="path" />`: puts a file the project does not contain into it */
-    static includeItem(content: string, itemType: string, relativePath: string): string {
-        return this.addItemElement(content, itemType, 'Include', relativePath);
+    /** `<Compile Include="path" />`: puts a file the project does not contain into it; `metadata` become attributes */
+    static includeItem(content: string, itemType: string, relativePath: string, metadata: Readonly<Record<string, string>> = {}): string {
+        return this.addItemElement(content, itemType, 'Include', relativePath, metadata);
     }
 
     /**
@@ -166,14 +166,17 @@ export class ProjectFileEditor {
      * `Include` before a later `Remove` of the same file (or the other way round) would change nothing.
      * Goes at the end of the last ItemGroup, or in a new ItemGroup at the end when that one has a Condition.
      */
-    private static addItemElement(content: string, itemType: string, attribute: 'Include' | 'Remove', value: string): string {
+    private static addItemElement(
+        content: string, itemType: string, attribute: 'Include' | 'Remove', value: string, metadata: Readonly<Record<string, string>> = {},
+    ): string {
         const same = this.findItemElements(content, attribute).filter(item => item.itemType === itemType && item.value === value);
         const lastSame = same[same.length - 1];
         // Already there, and no later item of the type undoes it
         if (lastSame && !new RegExp(`<${itemType}\\b`).test(this.blankIgnored(content).slice(lastSame.end))) {
             return content;
         }
-        return this.appendToLastItemGroup(content, indent => [`${indent}<${itemType} ${attribute}="${this.escape(value)}" />`]);
+        const attributes = Object.entries(metadata).map(([name, metadataValue]) => ` ${name}="${this.escape(metadataValue)}"`).join('');
+        return this.appendToLastItemGroup(content, indent => [`${indent}<${itemType} ${attribute}="${this.escape(value)}"${attributes} />`]);
     }
 
     /** Adds the elements at the end of the last ItemGroup, or in a new ItemGroup at the end when that one has a Condition */

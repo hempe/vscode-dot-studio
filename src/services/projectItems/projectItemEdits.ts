@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ProjectFileEditor } from '../../parsers/projectFileEditor';
 import { BUILD_OUTPUT_FOLDERS } from './folderLayout';
 import { ProjectItems } from './projectItems';
+import { NewItem, newItemFor } from './defaultItems';
 
 /** Whether `relative` (from path.relative) points below the folder it is relative to */
 const isBelow = (relative: string) =>
@@ -67,8 +68,6 @@ export function membershipApplied(items: ProjectItems, target: string, isFolder:
     return included !== exclude;
 }
 
-const itemTypeForNewItem = (file: string) => path.extname(file).toLowerCase() === '.cs' ? 'Compile' : 'None';
-
 /** Visual Studio's Exclude From Project for an SDK-style project: `Remove` items for the file, or for everything under the folder, per item type */
 export function excludeEdit(content: string, projectDir: string, target: string, isFolder: boolean, items: ProjectItems): string {
     const value = removeValue(projectDir, target, isFolder);
@@ -80,17 +79,24 @@ export function excludeEdit(content: string, projectDir: string, target: string,
 
 /**
  * Include In Project: deletes the `Remove` item that excluded the file or folder; when there is none (the
- * defaults leave it out, `DefaultItemExcludes`) adds `Include` items, one per file for a folder.
+ * defaults leave it out, `DefaultItemExcludes`) adds `Include` items, one per file for a folder, of the type (and
+ * with the output metadata) MSBuild would give the file without the exclude, like Visual Studio.
  * @param filesUnder the files on disk under the folder (only used for a folder)
+ * @param newItems itemsWithoutExcludes of the project; without it (or for a file it lacks) the type goes by the extension
  */
-export function includeEdit(content: string, projectDir: string, target: string, isFolder: boolean, filesUnder: readonly string[]): string {
+export function includeEdit(
+    content: string, projectDir: string, target: string, isFolder: boolean, filesUnder: readonly string[],
+    newItems?: ReadonlyMap<string, NewItem>,
+): string {
     const removed = ProjectFileEditor.removeRemoveItem(content, removeValue(projectDir, target, isFolder));
     if (removed.removed) {
         return removed.content;
     }
     const files = isFolder ? filesUnder : [target];
-    return files.reduce((edited, file) =>
-        ProjectFileEditor.includeItem(edited, itemTypeForNewItem(file), itemPath(projectDir, file)), content);
+    return files.reduce((edited, file) => {
+        const item = newItemFor(file, newItems);
+        return ProjectFileEditor.includeItem(edited, item.itemType, itemPath(projectDir, file), item.metadata);
+    }, content);
 }
 
 /** Include In Project asks first when it would add more `Include` items than this */
