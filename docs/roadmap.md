@@ -1,6 +1,6 @@
 # Roadmap
 
-Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 21, Part 5 is the limitations we want to fix, phase 22 quality and documentation, phase 23 the small limitations left until after the code review, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
+Ordered by what is needed to drop Visual Studio for daily work. Phases 1–21 are done (see [History](history.md)): web apps, SOAP clients, templates, tests, private feeds, the Visual Studio basics, publishing, readiness for others, solutions, projects and configurations, code cleanup and refactoring, and the second rounds for run & debug, for the Solution Explorer, for NuGet and for connected services. Phase 22 is quality and documentation, phase 23 the small limitations left until after the code review, phase 30 what may come later, phase 35 packages per target framework (last, only if it proves necessary). Everything else is under Not Planned: a change request on GitHub brings it back.
 
 What still needs a check in VS Code itself is listed in [manual-testing.md](manual-testing.md).
 
@@ -9,16 +9,7 @@ What still needs a check in VS Code itself is listed in [manual-testing.md](manu
 Bugs found later are listed here, to be fixed.
 
 - [ ] Startup profiles: a project with the action "Start without debugging" is attached to the debugger anyway with the C# extension of Open VSX (`muhammad-sammy.csharp`, netcoredbg) but gets no breakpoints: its `launch.json` entry has `noDebug: true`, `ps` showed a netcoredbg process for it, its own log said `Debugger.IsAttached` true, and its breakpoints never hit (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; explanation, unverified: netcoredbg ignores `noDebug` for the launch but VS Code sends no breakpoints to a `noDebug` session; Microsoft's debugger not tried). To try: start such projects through a `node-terminal` configuration (a command in a terminal, no .NET debugger) inside the compound, and make Stop and `stopAll` end them
-- [ ] Startup profiles: deleting the `.slnLaunch` file (or choosing the single project) when no single startup project was ever set before the profile removes the profile's `launch.json` entries and writes no `Startup` entry (`doRefreshStartup` in `startProfile.ts`, the branch without a remembered single project), so F5 asks "Select a debugger" until Set as Startup Project is used (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; read from the code and the user's result, not run); fall back to a default startup project (the first startable project, like Visual Studio) or say so
-- [ ] A project without packages, project references and assemblies has no Dependencies node (`Project.getRootChildren`: `if (this.dependencies.length > 0)`), so a bare console project shows nothing to right-click for Add Project Reference / Add Service Reference; Visual Studio always shows Dependencies (with Analyzers and Frameworks) and offers Add Connected Service on it. Show the node on every SDK-style project and put Add Service Reference... in its menu (seen 2026-10-23 with `SoapClient` in `/home/hempe/manual-test/3-soap-references`)
-
-## Phase 21, Part 5: Limitations we want to fix
-Valuable for the team's daily work; fixed before the code review of Phase 22.
-
-- [ ] Central packages: a `Version="$(Prop)"` shared by several packages is replaced by a literal version on the edited package only, so it no longer follows the property
-- [ ] Building a single project does not clear stale build errors that an earlier solution build reported for other projects
-- [ ] Include In Project adds C# files as Compile and everything else as None, so a Razor or web file left out by DefaultItemExcludes is not compiled or published until its item type is fixed by hand
-- [ ] Dropping a project onto another project's Dependencies does not add a project reference; use Add Project Reference...
+- [ ] Add Project Reference... runs `dotnet add reference` in a terminal without the checks of the drop onto Dependencies: a circular reference is written (the CLI allows it). Use `addProjectReferences` of `src/services/projectReferences.ts`
 
 ## Phase 22: Quality and documentation
 - [ ] Code review of the whole code base, once the nice-to-haves are in: plan in [the code review plan](superpowers/plans/2026-10-21-code-review.md)
@@ -33,6 +24,7 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 - [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
 - [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
 - [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)
+- [ ] Dependencies has no Frameworks node (`Microsoft.NETCore.App`, `Microsoft.AspNetCore.App`, as in Visual Studio): needs the `FrameworkReference` items from the evaluation (also the implicit ones) and a node without Remove; an explicit `<FrameworkReference>` in a project file is shown nowhere today
 
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
