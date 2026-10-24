@@ -220,7 +220,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     ],
     dependencies: [
         ['manageNuGetPackages'],
-        ['addProjectReference', 'addAssemblyReference'],
+        ['addProjectReference', 'addAssemblyReference', 'addServiceReference'],
         ['restoreDependencies'],
     ],
     dependency: [

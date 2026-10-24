@@ -504,4 +504,22 @@ describe('Project file tree with the item overlay', () => {
         expect((await project.getFolderChildren(inner)).map(child => child.name)).toEqual(['A.cs']);
         expect(load).not.toHaveBeenCalled();
     });
+
+    test('a project without packages, project references and assemblies still has its Dependencies node, first', async () => {
+        const project = await newProject();
+        expect(project.dependencies).toEqual([]);
+        const children = await project.getRootChildren();
+        expect(children[0]).toEqual(expect.objectContaining({ type: 'dependencies', name: 'Dependencies', nodeId: NodeIdService.generateDependenciesId(projectPath) }));
+        expect(project.getDependencies().map(category => category.name)).toEqual(['Analyzers', 'Packages', 'Projects', 'Assemblies']);
+    });
+
+    test('an old-style project without references has it too, and every project can be expanded', async () => {
+        fs.writeFileSync(projectPath, '<?xml version="1.0" encoding="utf-8"?>\n<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n'
+            + '  <ItemGroup>\n    <Compile Include="Program.cs" />\n  </ItemGroup>\n</Project>\n');
+        fs.rmSync(path.join(dir, 'Program.cs'));
+        fs.rmSync(path.join(dir, 'Old.cs'));
+        const project = await newProject();
+        expect((await project.getRootChildren()).map(child => child.type)).toEqual(['dependencies']);
+        expect(await project.hasAnyChildren()).toBe(true);
+    });
 });

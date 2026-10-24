@@ -104,7 +104,7 @@ The copy key is Ctrl on Windows and Linux; on macOS Ctrl, Cmd or Option. Hold it
 
 ## Dependencies
 
-Under each project:
+Every project has a Dependencies node, also one without packages or references (as in Visual Studio); right-click it for Manage NuGet Packages..., Add Project Reference..., Add Assembly Reference..., Add Service Reference... and Restore Dependencies. Under it:
 
 | Node | Shows |
 |---|---|

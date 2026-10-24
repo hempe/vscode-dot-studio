@@ -244,6 +244,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Manage NuGet Packages... |  | Opens the NuGet Package Manager for the project. |
 | Add Project Reference... |  | Adds a reference to another project of the solution. |
 | Add Assembly Reference... |  | Adds a reference to a `.dll` file (with its hint path). |
+| Add Service Reference... |  | Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds. |
 | Restore Dependencies |  | Restores the NuGet packages of the project (`dotnet restore`). |
 
 ## Analyzers, Packages, Projects, Assemblies (under Dependencies)

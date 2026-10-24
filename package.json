@@ -1316,6 +1316,11 @@
           "group": "02_group@2"
         },
         {
+          "command": "shinobi.solutionExplorer.addServiceReference",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
+          "group": "02_group@3"
+        },
+        {
           "command": "shinobi.solutionExplorer.restoreDependencies",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'dependencies'",
           "group": "03_group@1"

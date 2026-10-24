@@ -535,45 +535,9 @@ export class Project {
         return paths;
     }
 
-    /**
-     * Quick check if project has any children without loading them
-     */
+    /** Whether the project node can be expanded: always, every project shows its Dependencies node, as in Visual Studio */
     async hasAnyChildren(): Promise<boolean> {
-        try {
-            // Quick check for dependencies
-            if (this.dependencies.length > 0) {
-                return true;
-            }
-
-            // Quick check for root level files/folders
-            const projectDir = path.dirname(this._projectPath);
-
-            try {
-                const entries = await fs.promises.readdir(projectDir, { withFileTypes: true });
-
-                // Check if there are any non-project files or folders
-                for (const entry of entries) {
-                    if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
-                        return true; // Found a folder
-                    } else if (entry.isFile()) {
-                        // Skip project files
-                        if (!(entry.name.endsWith('.csproj') ||
-                            entry.name.endsWith('.vbproj') ||
-                            entry.name.endsWith('.fsproj'))) {
-                            return true; // Found a non-project file
-                        }
-                    }
-                }
-
-                return false; // No children found
-            } catch (error) {
-                log.error(`Error checking children for ${this.name}:`, error);
-                return true; // Assume it has children on error
-            }
-        } catch (error) {
-            log.error(`Error in hasAnyChildren for ${this.name}:`, error);
-            return true; // Safe fallback
-        }
+        return true;
     }
 
     /**
@@ -606,15 +570,13 @@ export class Project {
         const items: ProjectChild[] = [];
 
         try {
-            // Add Dependencies container if there are dependencies
-            if (this.dependencies.length > 0) {
-                items.push({
-                    type: 'dependencies',
-                    name: 'Dependencies',
-                    nodeId: NodeIdService.generateDependenciesId(this._projectPath),
-                    hasChildren: true
-                });
-            }
+            // Every project has Dependencies, also one without references (as in Visual Studio): its menu adds them
+            items.push({
+                type: 'dependencies',
+                name: 'Dependencies',
+                nodeId: NodeIdService.generateDependenciesId(this._projectPath),
+                hasChildren: true
+            });
 
             // Get root level files and folders
             const projectDir = path.dirname(this._projectPath);
