@@ -84,7 +84,7 @@ How it works: the profile is written to `.vscode/launch.json` as one configurati
 - Projects the solution does not have are skipped, with a warning. Adding or removing a project in the solution file updates the launches.
 - A failed build stops the start with VS Code's own prompt, as for a single startup project.
 - A profile that starts no project makes F5 fall back to the next entry of the Run and Debug view; Ctrl+F5 says so.
-- If the `.slnLaunch` file cannot be read (for example half edited), F5 keeps starting what it started before; if the file or the profile is gone, F5 starts the single startup project again.
+- If the `.slnLaunch` file cannot be read (for example half edited), F5 keeps starting what it started before; if the file or the profile is gone (or Single is chosen), F5 starts the single startup project again. When no startup project was set before the profile, the first project of the solution that can be started becomes the startup project, and a message says so (Visual Studio takes the first project of the solution file).
 
 ## Debug / Release
 

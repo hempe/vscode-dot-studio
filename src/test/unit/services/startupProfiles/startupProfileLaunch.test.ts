@@ -55,7 +55,7 @@ jest.mock('../../../../services/unloadedProjects', () => ({
 
 import { DebugConfigService } from '../../../../services/debugConfigService';
 import { StartupChoice } from '../../../../services/startupProfiles/startupChoice';
-import { refreshStartup, selectStartupProfile } from '../../../../services/startupProfiles/startProfile';
+import { defaultStartupProject, refreshStartup, selectStartupProfile } from '../../../../services/startupProfiles/startProfile';
 import { parseJsonc } from '../../../../core/jsonc';
 
 class Memento {
@@ -311,4 +311,52 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         expect(DebugConfigService.getStartupProject()).toBe(apiPath);
         expect(launchJson().configurations[0].launchSettingsProfile).toBe('http');
     }, 60000);
+    it('a profile that goes away when no startup project was set before it: the first project that can start becomes the startup project', async () => {
+        const libPath = path.join(env.workspacePath, 'Lib', 'Lib.csproj');
+        const workerPath = path.join(env.workspacePath, 'Worker', 'Worker.csproj');
+        env.solution = {
+            ...env.solution,
+            configurationProjects: [{ path: 'Lib/Lib.csproj' }, { path: 'Api/Api.csproj' }, { path: 'Worker/Worker.csproj' }],
+            projects: new Map([
+                [libPath, { isExecutable: false, isTestProject: false }],
+                [apiPath, { isExecutable: true, isTestProject: false }],
+                [workerPath, { isExecutable: true, isTestProject: false }],
+            ]),
+        };
+        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await refreshStartup();
+        expect(launchJson().compounds).toEqual([COMPOUND]);
+
+        fs.rmSync(path.join(env.workspacePath, 'Shop.slnLaunch'));
+        await refreshStartup();
+
+        expect(launchJson().compounds).toEqual([]);
+        expect(launchJson().configurations.map((config: any) => config.name)).toEqual(['Startup']);
+        expect(DebugConfigService.getStartupProject()).toBe(apiPath);
+        expect(env.messages).toEqual([expect.stringContaining('F5 starts Api, the first project of the solution that can be started')]);
+    }, 60000);
+
+    it('none of the projects can start: the profile entries go and it says F5 has nothing to start', async () => {
+        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await refreshStartup();
+        await StartupChoice.useSingle(solutionPath);
+        await refreshStartup();
+
+        expect(launchJson().compounds).toEqual([]);
+        expect(launchJson().configurations).toEqual([]);
+        expect(env.messages).toEqual([expect.stringContaining('F5 has nothing to start')]);
+    }, 60000);
+
+    it('defaultStartupProject skips libraries, test projects and unloaded projects, in the solution file\'s order', () => {
+        const project = (isExecutable: boolean, isTestProject = false) => ({ isExecutable, isTestProject });
+        const at = (name: string) => path.join(env.workspacePath, name, `${name}.csproj`);
+        const solution = {
+            solutionPath,
+            configurationProjects: ['Lib', 'Tests', 'Gone', 'Worker', 'Api'].map(name => ({ path: `${name}/${name}.csproj` })),
+            projects: new Map([[at('Lib'), project(false)], [at('Tests'), project(true, true)], [at('Gone'), project(true)], [at('Worker'), project(true)], [at('Api'), project(true)]]),
+        };
+        env.unloaded = [at('Gone')];
+        expect(defaultStartupProject(solution)).toBe(at('Worker'));
+        expect(defaultStartupProject({ ...solution, configurationProjects: [{ path: 'Lib/Lib.csproj' }] })).toBeUndefined();
+    });
 });

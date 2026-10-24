@@ -89,6 +89,34 @@ export function startupPickItems(
     return items;
 }
 
+/** What defaultStartupProject needs of the solution */
+export interface StartableProjects {
+    readonly solutionPath: string;
+    /** The projects in the solution file's order (paths relative to the solution, forward slashes) */
+    readonly configurationProjects: readonly { path: string }[];
+    readonly projects: ReadonlyMap<string, { readonly isExecutable: boolean; readonly isTestProject: boolean }>;
+}
+
+/**
+ * The startup project when none was ever set: the first project of the solution file that can be started (console,
+ * web, worker...; not a library, a test project or an unloaded project). Visual Studio takes the first project of the
+ * solution file, even a library that then cannot start; the first one that can start is what that is meant to be.
+ */
+export function defaultStartupProject(solution: StartableProjects): string | undefined {
+    const solutionDir = path.dirname(solution.solutionPath);
+    const same = (a: string, b: string) => process.platform === 'win32' || process.platform === 'darwin'
+        ? path.normalize(a).toLowerCase() === path.normalize(b).toLowerCase()
+        : path.normalize(a) === path.normalize(b);
+    for (const entry of solution.configurationProjects) {
+        const projectPath = path.resolve(solutionDir, entry.path);
+        const project = [...solution.projects].find(([candidate]) => same(candidate, projectPath))?.[1];
+        if (project?.isExecutable && !project.isTestProject && !UnloadedProjects.isUnloaded(solution.solutionPath, projectPath)) {
+            return projectPath;
+        }
+    }
+    return undefined;
+}
+
 let lastWarning = '';
 
 async function writeProfileStartup(profile: StartupProfile, solutionPath: string): Promise<void> {
@@ -137,8 +165,21 @@ async function doRefreshStartup(): Promise<void> {
         const single = solutionPath ? StartupChoice.rememberedSingle(solutionPath) : undefined;
         if (single && fs.existsSync(single.projectPath)) {
             await DebugConfigService.updateStartupConfiguration(single.projectPath, single.framework, false, single.launchProfile);
+            return;
+        }
+        // No startup project was set before the profile: without one F5 would ask "Select a debugger"
+        const solution = SolutionService.getActiveSolution();
+        const fallback = solution ? defaultStartupProject(solution) : undefined;
+        if (fallback && await DebugConfigService.updateStartupConfiguration(fallback)) {
+            const message = `F5 starts ${projectName(fallback)}, the first project of the solution that can be started: `
+                + 'no startup project was set before the startup profile. Set as Startup Project chooses another.';
+            log.info(message);
+            void vscode.window.showInformationMessage(message);
         } else {
             DebugConfigService.removeStartupProfileConfiguration();
+            const message = 'The startup profile is no longer used and the solution has no project that can be started: F5 has nothing to start.';
+            log.info(message);
+            void vscode.window.showInformationMessage(message);
         }
         return;
     }
