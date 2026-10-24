@@ -132,8 +132,22 @@ export function solutionDropNode(solution: Solution, nodeIdString: NodeIdString)
                 ancestors: [...folders, { nodeId: projectId(projectPath), type: 'project' }, ...chainFrom(parentGuidOf(projectEntry(projectPath)?.guid))],
             };
         }
+        case 'dependencies':
+        case 'dependencyCategory': {
+            // A target for project references: the project above it keeps a project from referencing itself
+            const entry = projectEntry(path.resolve(node.path));
+            if (!entry || UnloadedProjects.isUnloaded(solution.solutionPath, path.resolve(solutionDir, entry.path))) {
+                return undefined;
+            }
+            return {
+                nodeId: nodeIdString,
+                type: node.type,
+                ...(node.type === 'dependencyCategory' ? { contextValue: node.name } : {}),
+                ancestors: [{ nodeId: projectId(path.resolve(solutionDir, entry.path)), type: 'project' }, ...chainFrom(parentGuidOf(entry.guid))],
+            };
+        }
         default:
-            // Dependencies, analyzers, generated files and the like: no move and no target
+            // Analyzers, generated files and the like: no move and no target
             return { nodeId: nodeIdString, type: node.type, ancestors: [] };
     }
 }

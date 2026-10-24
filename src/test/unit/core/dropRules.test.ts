@@ -115,3 +115,35 @@ describe('dropRules', () => {
         expect(drop(['Libs'], 'App').nodes).toEqual([]);
     });
 });
+
+describe('projects onto Dependencies: a project reference', () => {
+    const refTree: ProjectNode[] = [node('solution', 'S', [
+        node('project', 'Web', [
+            node('dependencies', 'Web.Dependencies', [
+                node('dependencyCategory', 'Web.Projects', undefined, { contextValue: 'projects' }),
+                node('dependencyCategory', 'Web.Packages', undefined, { contextValue: 'packages' }),
+            ]),
+            node('file', 'Program.cs'),
+        ]),
+        node('project', 'Lib'),
+        node('project', 'Gone', undefined, { isUnloaded: true }),
+    ])];
+    const refs = dropNodeIndex(refTree);
+    const get = (name: string) => refs.get(name as NodeIdString)!;
+
+    test('another project onto Dependencies or onto its Projects category links, also with the copy key', () => {
+        expect(canDrop([get('Lib')], get('Web.Dependencies'))).toEqual({ nodes: [get('Lib')], container: get('Web.Dependencies'), effect: 'link' });
+        expect(canDrop([get('Lib')], get('Web.Projects'), true).effect).toBe('link');
+    });
+
+    test('not the project onto its own Dependencies, not onto Packages, not files, not an unloaded project', () => {
+        expect(canDrop([get('Web')], get('Web.Dependencies')).nodes).toEqual([]);
+        expect(canDrop([get('Lib')], get('Web.Packages')).nodes).toEqual([]);
+        expect(canDrop([get('Program.cs')], get('Web.Dependencies')).nodes).toEqual([]);
+        expect(canDrop([get('Gone')], get('Web.Dependencies')).nodes).toEqual([]);
+    });
+
+    test('with the project itself among several, only the others link', () => {
+        expect(canDrop([get('Web'), get('Lib')], get('Web.Dependencies')).nodes.map(n => n.nodeId)).toEqual(['Lib']);
+    });
+});

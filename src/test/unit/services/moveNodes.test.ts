@@ -279,4 +279,21 @@ describe('SolutionActionService.moveNodes (drag & drop)', () => {
             slnx.dispose();
         }
     });
+
+    (require('child_process').spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip)(
+        'a project dropped onto another project\'s Dependencies becomes a project reference; a circle is refused', async () => {
+            const webApi = at('src', 'WebApi', 'WebApi.csproj');
+            const deps = (...parts: string[]) => NodeIdService.generateDependenciesId(at(...parts));
+            expect(solutionDropNode(solution, deps('src', 'WebApi', 'WebApi.csproj'))!.ancestors[0]).toEqual({ nodeId: projectNode('src', 'WebApi', 'WebApi.csproj'), type: 'project' });
+
+            const before = parentName('Utils');
+            expect(await SolutionActionService.moveNodes([projectNode('lib', 'Utils', 'Utils.csproj')], deps('src', 'WebApi', 'WebApi.csproj'), false)).toBeUndefined();
+            expect(fs.readFileSync(webApi, 'utf8')).toMatch(/<ProjectReference Include="..[\\/]..[\\/]lib[\\/]Utils[\\/]Utils.csproj" \/>/);
+            // Not moved in the solution file
+            expect(parentName('Utils')).toBe(before);
+
+            await SolutionActionService.moveNodes([projectNode('src', 'WebApi', 'WebApi.csproj')], deps('lib', 'Utils', 'Utils.csproj'), false);
+            expect(ui.warnings).toEqual(['A reference from Utils to WebApi would cause a circular dependency.']);
+            expect(fs.readFileSync(at('lib', 'Utils', 'Utils.csproj'), 'utf8')).not.toContain('ProjectReference');
+        }, 150000);
 });

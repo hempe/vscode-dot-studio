@@ -27,6 +27,7 @@ import { projectForPath } from './templates/templateService';
 import { ProjectItemsService } from './projectItems/projectItemsService';
 import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
 import { itemsWithoutExcludes } from './projectItems/defaultItems';
+import { addProjectReferences } from './projectReferences';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -1532,6 +1533,10 @@ export class SolutionActionService {
             vscode.window.showWarningMessage('The items cannot be dropped there.');
             return undefined;
         }
+        if (verdict.effect === 'link') {
+            await this._addDroppedReferences(NodeIdService.parse(verdict.container.nodeId).path, verdict.nodes.map(node => NodeIdService.parse(node.nodeId).path));
+            return undefined;
+        }
         const dropped: DropResult['nodes'][number][] = [];
         try {
             const container = NodeIdService.parse(verdict.container.nodeId);
@@ -1571,6 +1576,24 @@ export class SolutionActionService {
         }
         // What went through before an error is shown too
         return dropped.length > 0 ? { container: verdict.container.nodeId, nodes: dropped } : undefined;
+    }
+
+    /**
+     * Projects dropped onto another project's Dependencies: project references, as in Visual Studio. Refused ones
+     * (itself, already referenced, a circle) are named in a warning; `dotnet add reference` refuses incompatible target
+     * frameworks, its message is shown. The project file watcher shows the new references.
+     */
+    private static async _addDroppedReferences(projectPath: string, references: readonly string[]): Promise<void> {
+        const result = await addProjectReferences(projectPath, references);
+        if (result.added.length > 0) {
+            log.info(`Added project references to ${path.basename(projectPath)}: ${result.added.map(reference => path.basename(reference)).join(', ')}`);
+        }
+        if (result.refused.length > 0) {
+            vscode.window.showWarningMessage(result.refused.join(' '));
+        }
+        if (result.error) {
+            vscode.window.showErrorMessage(`Could not add the project reference: ${result.error}`);
+        }
     }
 
     /** Copies or moves one file or folder into `pasteTargetPath`, asking before replacing; returns where it went (undefined: not done) */

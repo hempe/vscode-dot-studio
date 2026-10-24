@@ -222,7 +222,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
         hoverPaused.current = true;
         setHoveredNodeId(undefined);
         e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(ids));
-        e.dataTransfer.effectAllowed = 'copyMove';
+        // `link` too: a project dropped onto Dependencies becomes a reference (a dropEffect not allowed here cancels the drop)
+        e.dataTransfer.effectAllowed = 'all';
     };
 
     const handleNodeDragOver = (nodeId: NodeIdString, e: React.DragEvent) => {

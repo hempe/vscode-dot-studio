@@ -31,9 +31,9 @@ type Keys = { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean };
 describe('SolutionTree drag & drop', () => {
     beforeEach(() => { sent.length = 0; });
 
-    const setup = () => {
+    const setup = (tree: ProjectNode[] = projects) => {
         const onExpandNode = jest.fn();
-        const { container } = render(<SolutionTree projects={projects} onProjectAction={() => { }} onExpandNode={onExpandNode} />);
+        const { container } = render(<SolutionTree projects={tree} onProjectAction={() => { }} onExpandNode={onExpandNode} />);
         const row = (name: string) => [...container.querySelectorAll('.tree-node')].find(el => el.textContent === name)!;
         const data: Record<string, string> = {};
         const transfer = {
@@ -74,7 +74,7 @@ describe('SolutionTree drag & drop', () => {
         fireEvent.click(row('B.cs'), { ctrlKey: true });
 
         drag('dragStart', 'A.cs');
-        expect(transfer.effectAllowed).toBe('copyMove');
+        expect(transfer.effectAllowed).toBe('all');
         expect(JSON.parse(transfer.data[DRAG_DATA_TYPE])).toEqual(['A.cs', 'B.cs']);
         drag('dragOver', 'Controllers');
         drag('drop', 'Controllers');
@@ -243,5 +243,24 @@ describe('SolutionTree drag & drop', () => {
         const html = fs.readFileSync(path.join(__dirname, '../../../../../webview/providers/views/SolutionWebview.ts'), 'utf8');
         expect(html).not.toContain('.tree-node:hover');
         expect(html).toContain('.tree-node.hovered {');
+    });
+
+    it('a project over another project\'s Dependencies shows the link pointer and sends the drop; not over its own', () => {
+        const withLib = [node('solution', 'App', [
+            node('project', 'Api', [node('dependencies', 'Dependencies', undefined, { hasChildren: true }), node('file', 'A.cs')], { expanded: true }),
+            node('project', 'Lib'),
+        ], { expanded: true })];
+        const { drag, transfer, moves, highlighted } = setup(withLib);
+        drag('dragStart', 'Lib');
+        drag('dragOver', 'Dependencies');
+        expect(transfer.dropEffect).toBe('link');
+        expect(highlighted()).toEqual(['Dependencies']);
+        drag('drop', 'Dependencies');
+        expect(moves()).toEqual([{ nodeIds: ['Lib'], targetNodeId: 'Dependencies', copy: false }]);
+
+        transfer.dropEffect = 'none';
+        drag('dragStart', 'Api');
+        const over = drag('dragOver', 'Dependencies');
+        expect(over.defaultPrevented).toBe(false);
     });
 });

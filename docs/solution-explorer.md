@@ -90,6 +90,7 @@ Drag nodes to move them, as in Visual Studio. The row a drop would go into is hi
 | Projects | A solution folder, or the solution | Moves them in the solution file; the project stays where it is on disk | Moves |
 | Solution folders | Another solution folder, or the solution; not into themselves | Moves them with everything in them | Moves |
 | Solution items | Another solution folder | Moves the entry; the file stays where it is | Moves |
+| Projects | Another project's Dependencies (or Projects under it) | Adds a project reference (`dotnet add reference`); refused onto the project itself, for a reference it has, and when it would make a circle | Adds a reference |
 
 The copy key is Ctrl on Windows and Linux; on macOS Ctrl, Cmd or Option. Hold it while dropping.
 
@@ -98,7 +99,8 @@ The copy key is Ctrl on Windows and Linux; on macOS Ctrl, Cmd or Option. Hold it
 - A file or folder whose name is taken in the target asks before replacing it, as Paste does. A project or solution folder whose name is taken in the target solution folder is not moved; a message says why.
 - After moving C# files, one question offers to update their namespaces to the new folder: Update All, Review Each or Skip (a single file gets a question of its own). Files whose namespace already fits are not counted, and copies keep their namespaces. Cut and Paste and renaming a folder ask the same way.
 - In a `.sln` file a move changes the `NestedProjects` lines (and the `SolutionItems` sections); in a `.slnx` file the `Name` of the moved solution folders and where the `<Project>` and `<File>` elements are. The rest of the file stays as it is.
-- Files dropped from outside the tree (VS Code's Explorer, the file manager) are not taken, and dropping a project onto Dependencies adds no reference: use Add Project Reference...
+- Files dropped from outside the tree (VS Code's Explorer, the file manager) are not taken.
+- A project reference to a project with a target framework that does not fit is refused with the .NET SDK's message.
 
 ![Drag and drop in the Solution Explorer](images/drag-and-drop.gif)
 

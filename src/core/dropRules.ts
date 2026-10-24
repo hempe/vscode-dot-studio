@@ -17,22 +17,27 @@ export interface DropNode extends DropAncestor {
     readonly isUnloaded?: boolean;
     readonly isTemporary?: boolean;
     readonly itemState?: 'excluded' | 'linked';
+    /** The node's `contextValue`: tells the Projects category under Dependencies from the others */
+    readonly contextValue?: string;
 }
 
-export type DropEffect = 'move' | 'copy';
+/** `link`: projects dropped onto Dependencies get a project reference */
+export type DropEffect = 'move' | 'copy' | 'link';
 
 export interface DropVerdict {
     /** The dragged nodes that go to the target, in drag order; none: the drop is not allowed */
     readonly nodes: readonly DropNode[];
     /** Where they go: the target, or for a file target the folder or project it is in */
     readonly container?: DropAncestor;
-    /** `copy` only for files and folders with Ctrl (Cmd on macOS) held */
+    /** `copy` only for files and folders with Ctrl (Cmd on macOS) held; `link` for projects onto Dependencies */
     readonly effect: DropEffect;
 }
 
 const FILE_LIKE: readonly NodeType[] = ['file', 'folder'];
 const SOLUTION_LEVEL: readonly NodeType[] = ['project', 'solutionFolder', 'solutionItem'];
 const isContainer = (node: DropAncestor) => node.type === 'folder' || node.type === 'project';
+/** Dependencies, or Projects under it: a project dropped there becomes a project reference, as in Visual Studio */
+const isReferenceTarget = (node: DropNode) => node.type === 'dependencies' || (node.type === 'dependencyCategory' && node.contextValue === 'projects');
 
 /**
  * Files, folders, projects, solution folders and solution items have a move; not linked files, unloaded projects,
@@ -66,6 +71,8 @@ function containerFor(node: DropNode, target: DropNode): DropAncestor | undefine
             }
             return target.type === 'file' ? target.ancestors.find(isContainer) : undefined;
         case 'project':
+            // Onto another project's Dependencies: its own project is in the target's ancestors, so canDrop refuses that
+            return target.type === 'solution' || target.type === 'solutionFolder' || isReferenceTarget(target) ? target : undefined;
         case 'solutionFolder':
             return target.type === 'solution' || target.type === 'solutionFolder' ? target : undefined;
         case 'solutionItem':
@@ -96,7 +103,8 @@ export function canDrop(dragged: readonly DropNode[], target: DropNode, copyKey 
         return true;
     });
     const copy = copyKey && nodes.length > 0 && nodes.every(node => FILE_LIKE.includes(node.type));
-    return { nodes, container: nodes.length > 0 ? container : undefined, effect: copy ? 'copy' : 'move' };
+    const effect: DropEffect = nodes.length > 0 && isReferenceTarget(target) ? 'link' : copy ? 'copy' : 'move';
+    return { nodes, container: nodes.length > 0 ? container : undefined, effect };
 }
 
 /** The rule nodes of a tree the webview shows, by id (only what is loaded: collapsed folders have no children yet) */
@@ -111,6 +119,7 @@ export function dropNodeIndex(roots: readonly ProjectNode[]): Map<NodeIdString, 
                 isUnloaded: node.isUnloaded,
                 isTemporary: node.isTemporary,
                 itemState: node.itemState,
+                contextValue: node.contextValue,
             });
             if (node.children) {
                 walk(node.children, [{ nodeId: node.nodeId, type: node.type }, ...ancestors]);
