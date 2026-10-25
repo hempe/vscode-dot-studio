@@ -25,7 +25,7 @@ The Visual Studio workflow in VS Code and VSCodium: a Visual Studio-style Soluti
 ## Getting started
 
 ### What you need
-- **VS Code** 1.74 or later, or **VSCodium** / another Open VSX editor
+- **VS Code** 1.106 or later, or **VSCodium** / another Open VSX editor
 - The **.NET SDK** 8.0 or later; .slnx solutions need 9.0.200 or later
 - A **C# extension**: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. It provides C# editing (IntelliSense, live errors, navigation, refactorings) and the debugger; this extension provides the Visual Studio parts around them. C# Dev Kit is not needed.
 

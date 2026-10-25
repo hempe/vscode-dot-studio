@@ -134,7 +134,7 @@ Add, update and remove WCF/SOAP service references, compatible with the ones Vis
 
 ## Requirements
 
-- VS Code 1.74 or later, or VSCodium or another Open VSX editor
+- VS Code 1.106 or later, or VSCodium or another Open VSX editor
 - The .NET SDK 8.0 or later; `.slnx` solutions need 9.0.200 or later
 - Linux and Windows are tested (the test suite runs on both in CI); macOS should work but is not tested
 - A C# extension, for editing C# and debugging: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [its open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. C# Dev Kit isn't needed.
