@@ -193,3 +193,125 @@ Fix: use the same code action as Sync Namespaces ("Change namespace to '...'", w
 - Windows: not run; paths in this area use `path` consistently, `userSecretsPath` handles `%APPDATA%`, but `.cmd` shims and drive-letter case were not tested.
 - Sync Namespaces (`runSyncNamespaces.ts`) was read but not run against the server; on a project it walks the whole project folder, so C# files of a project nested in that folder are offered too (not verified with the server).
 - `templateCache.ts` with template packages installed by the user (`dotnet new install`) during the session: the cache is read once per session, by design.
+
+## Verification (second pass, 2026-10-24)
+
+Method: adversarial second pass at HEAD 0d067e4. Each finding's cited code reread; proofs re-run in a separate scratch copy (`/tmp/ver6/repo`, `node_modules` symlinked, own `TMPDIR`), real `dotnet` 8.0.130 / 10.0.111. No source file changed, VS Code/Electron not started.
+
+| Id | Verdict | Severity after verification | Note |
+|---|---|---|---|
+| A6-1 | CONFIRMED | bug | Re-proved with a realistic trigger (SDK 10 option under a `global.json` pinning SDK 8, see A6-7); same on SDK 8 (`.sln`) |
+| A6-2 | CONFIRMED | bug | Same-folder xsd, `../schemas` xsd and `wsdl:import` all fail through the generator, all work with svcutil directly and with an absolute input path; line numbers in the report are off (real `:40-51`, `:64-69`); URL references unaffected |
+| A6-3 | CONFIRMED | risk | Now proven with an svcutil stub that edits the project meanwhile: the edit is lost; real lines `:35`, `:55`, `:82` |
+| A6-4 | CONFIRMED | bug (minor) | Only Rename or a repository `.pubxml` with `;`/`,` triggers it; `%3B` escaping works |
+| A6-5 | CONFIRMED | bug | Two real MSBuild failures (missing SDK, half-edited `Directory.Build.props`) each write a new id that permanently shadows the shared one |
+| A6-6 | CONFIRMED | risk (low) | File created and opened outside `~/.microsoft/usersecrets`; needs a crafted project file |
+| A6-7 | CONFIRMED | bug | `readTemplates` result depends only on the process cwd (87 vs 61 templates, different mstest options); the real extension host cwd not checked |
+| A6-8 | CONFIRMED | bug | Exact trigger: IDE0130 severity >= Code Cleanup severity and one mismatching file in the set; SDK 8 and 10 alike; `--exclude-diagnostics IDE0130` fixes both; real line `cleanupSteps.ts:51` |
+| A6-9 | CONFIRMED | bug | Real code path against the real server: rename returns null, fallback edits only the declaration, build fails CS0246; the "Change namespace" code action needs no IDE0130; manual-testing entry 37 expected to fail |
+
+### A6-1: CONFIRMED (bug)
+
+Code at HEAD as cited (`templateService.ts:239-266`): no cleanup on any of the three failure returns after `mkdirSync`. Re-proved with a different, realistic trigger that ties it to A6-7: a scratch folder with `global.json` pinning 8.0.130 (`rollForward: disable`), the real `createSolutionWithProject` with an `mstest` template carrying SDK 10's `test-runner` option:
+
+```
+first: "Creating Shop.Tests failed:\nError: Invalid option(s):\n--test-runner\n   '--test-runner' is not a valid option ..." left: ["Shop.sln"]
+retry: {"error":"/tmp/ver6/tmp/a61-FygYnI/Shop exists and is not empty."}
+retry same dir: {"solutionPath":".../Shop.Tests/Shop.Tests.sln"}
+```
+
+So the trap holds on SDK 8 as well (there `--format slnx` fails and the fallback writes `Shop.sln`). The only way out inside the wizard is a different name or ticking "Place solution and project in the same directory" (another folder); otherwise delete the folder by hand. Severity stays bug (annoying, no data loss: the folder only holds what the wizard wrote). Affected: anyone creating a new solution whose project step fails; with A6-7 this is any team pinning SDK 8 by `global.json` above the chosen location while SDK 10 is installed.
+
+### A6-2: CONFIRMED (bug); line numbers in the report are wrong
+
+The file has 112 lines; the cited `:120-131`, `:144-149` are really `serviceReferenceGenerator.ts:40-51` (copy of each local input alone into `obj/shinobi-svcutil-<hex>/`), `:64-69` (copy of the input alone into the reference folder) and `:75` (inputs rewritten to the bare file name). Behaviour as described.
+
+Own fixtures in `/tmp/ver6/svc` (svcutil 8.0.0 from a scratch tool manifest): (a) `a/Calc.wsdl` with `<s:import schemaLocation="CalcTypes.xsd">` next to it, (b) `b/wsdl/Calc.wsdl` with `schemaLocation="../schemas/CalcTypes.xsd"`, (c) `c/Service.wsdl` that only has `<wsdl:import location="Calc.wsdl">` (WCF's split `?wsdl` shape). svcutil run directly on each: all three generate `Reference.cs`. The same files through the real `generateServiceReference` + `findSvcutil`/`runSvcutil`:
+
+```
+[same-folder xsd] success: false | Warning: Cannot import wsdl:portType / Error: Schema with target namespace 'http://calc.example' could not be found.
+[../schemas xsd]  success: false | (same)
+[wsdl:import]     success: false | Error: No code was generated.
+folder: none (all three)
+```
+
+The proposed minimal fix was tried: a params file in a temp folder under `obj/` whose `inputs` holds the absolute original path (nothing copied), `--update <tempdir>`: all three cases exit 0 with `Reference.cs`. So the comment at `:40` ("svcutil resolves them relative to it") is true only for relative inputs; absolute inputs work.
+
+What the tool itself (the engine behind Visual Studio's "WCF Web Service Reference" provider) records: `dotnet-svcutil ../b/wsdl/Calc.wsdl -d "Connected Services/Direct"` copies nothing into the reference folder and writes `"inputs": ["../../../b/wsdl/Calc.wsdl"]`, a path relative to the reference folder pointing at the original. Visual Studio's `ConnectedService.json` (`ExtendedData.inputs`) is the same shape; that VS also copies no metadata file was not checked on Windows here, but svcutil's own behaviour gives the model. Minimal fix therefore: keep the input where it is, pass `path.resolve(reference.folder, input)` (absolute) in the temp params file, store the input relative to the reference folder as svcutil does, and drop the copy into the reference folder (`:64-69`). Copying the WSDL's whole folder is not enough for case (b) and would drag unrelated files along.
+
+Affected: only references added from a local file (or VS-made references whose `inputs` is a local split WSDL, which also fail on Update because `:46-48` copies only that file). URL references (the usual VS-made case) are not affected. Severity stays bug.
+
+### A6-3: CONFIRMED (risk), now proven; line numbers wrong
+
+Real lines: snapshot `serviceReferenceGenerator.ts:35`, unconditional write-back `:55`, `WCFMetadata` write from the snapshot `:82`. `serviceReferenceService.ts` adds no guard (no dirty-editor check; the progress is not cancellable). Proof (scratch jest test, the real `generateServiceReference` with an svcutil stub that, while "running", adds `<PackageReference Include="Serilog" ...>` to the project file as a NuGet install would, then writes `Reference.cs`): result `success true`, and the project file afterwards contains only `TargetFramework` and the `WCFMetadata` item: the PackageReference is gone, no message. The window is the svcutil run time (a few seconds for a local WSDL, up to the 5-minute timeout for a slow URL), so it stays a risk, not a bug users will hit often. Affects the SOAP service reference users of the team.
+
+### A6-4: CONFIRMED (bug, minor)
+
+`PublishPanel.ts:149-152` refuses only `\ / : * ? " < > |`; `dotnetTaskProvider.ts:45` passes `-property:PublishProfile=${profile}` unescaped. Re-run in `/tmp/ver6/pub` (SDK 10): `'-property:PublishProfile=Test;1'` gives `MSB1006: Property is not valid. Switch: 1`; the escaped `'-property:PublishProfile=Test%3B1'` publishes with that profile (into its `PublishDir`), so MSBuild escaping in `dotnetTaskArgs` is a working fix. Narrower than it reads: new profiles get a generated name (`newProfileName`, "FolderProfile..."), so only a Rename to such a name, or a `.pubxml` with `;`/`,` in its name coming from the repository, triggers it. Severity: bug, minor.
+
+### A6-5: CONFIRMED (bug)
+
+Code as cited (`userSecrets.ts:21-31`, `:40-44`): every error of `dotnet msbuild -getProperty` is turned into "no id". Re-proved with the real `manageUserSecrets` and real MSBuild, two failure kinds, `Directory.Build.props` setting `shared-team-id` in both:
+
+```
+[gj]    (global.json pins 9.0.999, not installed; exit 155)        -> csproj gets 80e6b2b0-..., opens .../usersecrets/80e6b2b0-.../secrets.json
+[props] (Directory.Build.props mid-edit: unclosed <PropertyGroup>, MSB4024) -> csproj gets 17ce5360-..., opens .../usersecrets/17ce5360-.../secrets.json
+```
+
+After repairing `Directory.Build.props`, `dotnet msbuild -getProperty:UserSecretsId` on the project now returns `17ce5360-...`: the project's own property overrides the shared one permanently, and the app reads an empty secrets store at run time. No error is shown (only a log warning). The `global.json` case is less likely in practice (nothing else would work either); a props file open and half-edited, or the 60 s timeout on a cold machine, is the plausible trigger. Affects the team's ASP.NET Core web apps that share one id via `Directory.Build.props`; projects with the id in their own `.csproj` are not affected (`ProjectFileEditor.userSecretsId` finds it without MSBuild). Severity stays bug.
+
+### A6-6: CONFIRMED (risk, low)
+
+Same test: a project with `<UserSecretsId>../../../../tmp/ver6/us/evil</UserSecretsId>` and `HOME=/tmp/ver6/us/home`: `manageUserSecrets` created `/tmp/ver6/tmp/ver6/us/evil/secrets.json` (content `{}`) outside `~/.microsoft/usersecrets` and opened it. (The reviewer's `userSecretsPath` example is correct as a path computation.) ASP.NET Core rejects such an id (`PathHelper.GetSecretsPathFromSecretsId` checks `Path.GetInvalidFileNameChars()`, which contains `/` on Linux and `\`, `/` and more on Windows), so the project's secrets would never load anyway. Needs a crafted project file from a cloned repository; the realistic harm is that secrets typed by the user land in a file inside a working tree (e.g. an id pointing back into the repo) where they may get committed. Stays a low risk.
+
+### A6-7: CONFIRMED (bug), end to end except the real extension host's cwd
+
+Code as cited (`templateCache.ts:90-92`: `execFile` without `cwd`; `:100-113`: `templates ??=` once per session for all solutions). Proof by driving the real `readTemplates` from jest with `process.chdir` (the module re-loaded each time), `/tmp/ver6/g8/global.json` pinning 8.0.130:
+
+```
+cwd /tmp:             87 templates; mstest options: framework,no-restore,langVersion,sdk,test-runner,coverage-tool,extensions-profile,fixture
+cwd /tmp/ver6/g8/sol: 61 templates; mstest options: framework,enable-pack,no-restore
+```
+
+So what the wizard lists depends only on the process cwd. In the pinned folder `dotnet new mstest -n T -o T --test-runner MSTest` exits 127 ("'--test-runner' is not a valid option"), and the A6-1 proof above shows the same through the real `createSolutionWithProject` (which then also leaves the half-made folder). The mismatch also goes the other way: SDK 8's `enable-pack` is not offered, and 26 templates listed from SDK 10 do not exist under SDK 8 ("No templates found"). Not checked: the cwd of VS Code's extension host (VS Code was not started). It is usually not the solution folder (desktop launch: the home folder; Windows: VS Code's install folder); only a first `code .` from a terminal inside the repository would hide the bug, and then only for that one solution. Affected: the team when a repository pins SDK 8 by `global.json` and SDK 10 is installed (the .NET 8/10 mix); with no `global.json`, or the newest SDK pinned, nothing happens. Severity stays bug.
+
+### A6-8: CONFIRMED (bug), trigger narrowed
+
+Cited line is really `cleanupSteps.ts:51` (`['format', 'style', projectTarget, '--severity', severity, ...include]`); the default of `shinobi.codeCleanup.severity` is `warn`. Matrix with the exact arguments `cleanupSteps` builds (scratch jest test, steps run in the returned `cwd` with `spawnSync`, the message through the real `failureReason`), fixture `/tmp/ver6/fmt`: `Lib/L.cs` (`namespace Lib;`), `Lib/Sub/S.cs` (`namespace Wrong;` plus an unused `using`), SDK chosen by `global.json`:
+
+| `.editorconfig` | `--severity` | SDK 10.0.111 | SDK 8.0.130 |
+|---|---|---|---|
+| both lines from the docs (IDE0130 `warning`, `match_folder = true`) | warn (default) | exit 1, crash | exit 1, crash |
+| same | info | exit 1, crash | exit 1, crash |
+| same, plus `--exclude-diagnostics IDE0130` | warn | 0 | 0 |
+| same, file `Sub/S.cs` (`--include Sub/S.cs`) | warn | exit 1, crash | exit 1, crash |
+| same, file `L.cs` | warn | 0 | 0 |
+| only `dotnet_diagnostic.IDE0130.severity = warning` | warn | exit 1, crash | exit 1, crash |
+| IDE0130 `suggestion` + `match_folder` | warn | 0 | 0 |
+| same | info | exit 1, crash | exit 1, crash |
+| none | warn | 0 | 0 |
+
+The crash text both SDKs give is `Unhandled exception: System.NotSupportedException: Changing document properties is not supported`. So the exact trigger is: IDE0130's effective severity at or above Code Cleanup's `--severity` (the `match_folder` line is not needed, it defaults to true) and at least one file in the formatted set whose namespace does not match its folder. Steps 1 and 2 ran first and changed files (whitespace fixed, the unused `using` removed from `S.cs`) before step 3 failed. What the user sees: the error notification `Code Cleanup failed at "Applying code style fixes": Unhandled exception: System.NotSupportedException: Changing document properties is not supported` with "Show Output" (`codeCleanup.ts:118`); the other style fixes of step 3 are not applied, every time, until all namespaces match. `--exclude-diagnostics IDE0130` fixes it on both SDKs. Affects every team member who added the lines Sync Namespaces recommends, on .NET 8 and 10 alike. Severity stays bug.
+
+### A6-9: CONFIRMED (bug), and the proposed fix is simpler than stated
+
+Re-proved through the real code path: the real `NamespaceService.updateNamespaceViaRename` in a jest test whose `vscode` mock forwards `vscode.executeDocumentRenameProvider` to the Roslyn server of `muhammad-sammy.csharp` 2.160.9 over stdio (own client, the reviewer's probe adapted; fixture copied to `/tmp/ver6/ns/Shop`: `Api/Services/Moved.cs` with `namespace Shop.Services;`, `User.cs` using `Moved` and `Stays` via `using Shop.Services;`, `Services/Stays.cs`), and `applyEdit` applying LSP edits to disk:
+
+```
+vscode.executeDocumentRenameProvider at 0:10 newName=Shop.Api.Services -> null
+[WRN] NamespaceService: No workspace edit returned for namespace rename from Shop.Services to Shop.Api.Services
+updateNamespaceViaRename returned true
+tabs opened: 1   (showTextDocument with preview: false, once per file)
+Moved.cs now: "namespace Shop.Api.Services;" | User.cs line 1: "using Shop.Services;"
+dotnet build: exit 1, error CS0246: The type or namespace name 'Moved' could not be found
+```
+
+So the user gets "updated" and a project that no longer builds. Not broken when every file that uses the moved types moved along with them (they get the same new namespace); broken for users outside the moved folder, which is the normal case for a Cut/Paste of a `Services` folder in a web app.
+
+Correction to the fix: in the same session, `textDocument/codeAction` at the namespace declaration with **empty** `context.diagnostics` and **no `.editorconfig` anywhere above the project** returned `"Change namespace to 'Shop.Api.Services'"` (plus "Move file to 'Services'"), and its resolved edit touches `Api/Services/Moved.cs` and `User.cs`. It is Roslyn's sync-namespace refactoring, offered whatever IDE0130's severity is; the fix does not need IDE0130 reporting. (This also suggests that `docs/sync-namespaces.md`'s "IDE0130 must be reporting" may be stricter than needed, depending on how `runSyncNamespaces.ts` asks for the action; not followed up here.)
+
+`docs/manual-testing.md` entry "Namespaces after Cut/Paste" (line 37) is expected to **fail** on the current code at "the language server's rename, references in other files follow": the questions (Update All / Review Each / single file / none on Copy) should appear as described, but only the declarations change and references elsewhere stay on the old namespace. Affects the whole team (daily refactoring, C# web apps). Severity stays bug.
+
+### Result of the second pass
+
+No finding refuted; none downgraded except A6-4 (now "bug, minor": new profiles get generated names, so only Rename or a repository file triggers it). Corrections: the line numbers of A6-2, A6-3 (`serviceReferenceGenerator.ts` has 112 lines) and A6-8 (`cleanupSteps.ts:51`) are wrong in the report; A6-8 does not need the `match_folder` line and also fails at `--severity info` with IDE0130 at `suggestion`; the A6-9 fix can use the "Change namespace to '...'" refactoring without IDE0130 reporting. Scratch material of this pass: `/tmp/ver6` (repo copy with tests under `src/ver/`, fixtures `svc`, `us`, `g8`, `fmt`, `ns`, `pub`); the language server started by the A6-9 test was killed at its end (no process left).
