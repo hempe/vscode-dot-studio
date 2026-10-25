@@ -133,3 +133,124 @@ Fix: set the key from what was found (`SolutionDiscovery` / a `workspace.findFil
 - Licences: only the direct runtime dependencies and the main transitive ones of the host bundle were checked; no full SBOM of the webview bundles (`vscrui` pulls `styled-components` and others).
 - CI was read, not run; flaky tests and the Windows job's timing were not looked at (area 8).
 - Logging: the 409 `info`/`debug` calls were sampled by grep for objects, payloads, contents and credentials, not read one by one.
+
+## Verification (second pass, 2026-10-24)
+
+Adversarial second pass at HEAD `50536ff`: every finding re-read in the code and, where possible, re-proven in a scratch copy under `/tmp/v7` (node_modules symlinked, scratch `TMPDIR`); VS Code was not started. Result:
+
+| Id | Verdict | Severity after verification | Note |
+|---|---|---|---|
+| A7-1 | CONFIRMED | bug | Mechanism proven in the resolver; also swallows Ctrl+[ (ESC) in the integrated terminal; binding is deliberate VS parity ("also from the editor"), Shift+Tab still outdents; fix: `&& !terminalFocus` + document, or drop the editor use |
+| A7-2 | PARTIALLY CONFIRMED | risk (latent hardening) | No secrets/variables are set today, sole collaborator, fork PRs never reach `release.yml`; today's real exposure is the persisted `contents: write` token (missed); `ci.yml` default is `read` (refuted); master-check point moot for a single maintainer |
+| A7-3 | CONFIRMED | risk (licence) | Rebuilt, listed bundled packages per bundle from source maps; codicon.css keeps its MIT header, the font's CC-BY attribution is missing |
+| A7-4 | CONFIRMED | risk | Defaults confirmed; "silent" overstated: Extensions view shows "Disabled in Restricted Mode", only the reason text is missing |
+| A7-5 | UNVERIFIED | risk (suspected) | Needs Windows; mechanism plausible from the code; VS has the same key |
+| A7-6 | CONFIRMED | cleanup | Reproduced the log line from the production bundle |
+| A7-7 | CONFIRMED | cleanup | No style-loader runtime in any bundle |
+| A7-8 | CONFIRMED | cleanup | Cancelled commits are still covered by the next run cumulatively |
+| A7-9 | CONFIRMED | bug | 22 palette commands, `*.nuget`, and also Ctrl+K Ctrl+E in any `.cs` file (missed) activate it |
+| A7-10 | PARTIALLY CONFIRMED | risk (suspected) | `extensions.all` only lists the host's own extensions, so the theme is not found at all; the proposed `workspace.fs` fix would not help; document the fallback |
+| A7-11 (new) | CONFIRMED by reading | risk (compat/docs) | `engines ^1.74` too low in practice: `secondarySidebar` 1.106, readonly-in-session command 1.79, current C# extensions require ^1.106.0 |
+
+
+### A7-1: CONFIRMED (mechanism), severity bug kept, but it is a trade-off of a deliberate VS binding, not an oversight
+
+Re-read in Code - OSS 1.136.1 (`/usr/lib/code/out/vs/workbench/workbench.desktop.main.js`, not started):
+
+- `editor.action.outdentLines`: `kbOpts:{kbExpr:ye.editorTextFocus,primary:2140,weight:100}`; 2140 = `CtrlCmd (2048) | BracketLeft (92)`, so Ctrl+[ on Linux/Windows and Cmd+[ on macOS, matching the extension's `key`/`mac`.
+- Extension key bindings get `weight = 400 + index` (`t?f=300+i:f=400+i`, `t` = built-in extension); `getDefaultKeybindings()` concatenates core and extension entries and sorts by `weight1` ascending (`BCo`), so the extension entry is after the core one.
+- `resolve()`: for the first key, every entry whose first chord is Ctrl+[ is a candidate; `_findCommand` walks backwards and returns the first whose `when` matches. `shinobi.workspaceHasDotnetFiles` is a global context key (set once in `activate`, `src/extension.ts:86`), so it matches in the editor, the terminal, everywhere. The winner has two chords, so the result is "more chords needed": `_doDispatch` returns `n=!0` (the key event is consumed), `_expectAnotherChord` shows the status bar message "(Ctrl+[) was pressed. Waiting for second key of chord..." and `_scheduleLeaveChordMode` leaves chord mode after 5 s (checked every 500 ms) or when the window loses focus. There is no fallback to the shorter binding: VS Code does not remember the outdent candidate.
+
+What the user experiences in a C# file, all three OSes:
+- Ctrl+[ (Cmd+[) alone: nothing is outdented; the status bar shows the "waiting for second key" message for up to 5 s.
+- Then S: Sync with Active Document runs (intended). Then any other key: the status bar says "The key combination (Ctrl+[, X) is not a command." for 10 s and that key is swallowed too (`d(3063,...)`, `n=!0`).
+- Ctrl+[ twice (the usual way of outdenting by two levels): first one enters chord mode, second one is "(Ctrl+[, Ctrl+[) is not a command"; no outdent at all.
+- Ctrl+] (indent) still works, so the pair is asymmetric. Shift+Tab (`outdent`, VS Code's other default) still outdents the line or selection, which is what Visual Studio users press anyway (Ctrl+[ is not an outdent key in Visual Studio).
+- Addition the reviewer missed: in the integrated terminal, `attachCustomKeyEventHandler` sends the key to the workbench instead of the shell when `softDispatch(...).kind === 1` ("more chords") and `terminal.integrated.allowChords` (default true) and `key !== "Escape"`. Ctrl+[ is the terminal's ESC alternative (vi mode in bash/zsh, vim in the terminal); with this binding it is swallowed there too, in every .NET workspace (read from the code, not pressed).
+
+Intent: `docs/solution-explorer.md:72` says "Sync with Active Document (also from the editor)" and `docs/keyboard-shortcuts.md:10` "Anywhere": the binding is meant to work from the editor, because that is where Visual Studio's Ctrl+[, S is used. A `focusedView == 'shinobi-solution-webview' || focusedView == 'shinobi-solution-webview-secondary-sidebar'` condition would restore outdent but remove the main use (from the editor you are in the editor, not in the view). So the minimal fix is a decision, not a one-word `when`:
+1. Keep the binding (VS parity) and add `&& !terminalFocus` (gives Ctrl+[ back to the shell; no VS loss), and document in `docs/keyboard-shortcuts.md` that Ctrl+[ replaces VS Code's Outdent Line in .NET workspaces and Shift+Tab outdents. This is the cheapest correct fix.
+2. Or restrict it to `!editorTextFocus && !terminalFocus` (keeps the button and the palette command, loses the editor use).
+A context key `shinobi.solutionExplorer.focused` does not exist; `focusedView` is enough if option 2 is wanted.
+
+Severity: bug kept (a default editing key and the terminal's ESC are taken in every target workspace), but "Ctrl+[ no longer works in the editor" should say "Ctrl+[ starts a chord; outdent needs Shift+Tab", and the fix is a documented trade-off plus `!terminalFocus`.
+
+### A7-9: CONFIRMED, plus one more activation path
+
+- `src/extension.ts:86` sets `shinobi.workspaceHasDotnetFiles` to `true` unconditionally; nothing resets it (only setContext call for that key in `src/`).
+- Explicit activation events are only `workspaceContains:**/*.sln` and `workspaceContains:**/*.slnx`; with `engines.vscode ^1.74` VS Code adds `onCommand:` for every contributed command, `onView:` for the three views and `onCustomEditor:shinobi.nugetPackageManager`.
+- Reachable in a non-.NET workspace: 22 of the 83 commands are not hidden from the palette (`menus.commandPalette` hides the rest with `when: false`): Open NuGet Package Manager (and for Solution), Select Framework, Select Solution Configuration/Platform/Startup Profile, Configure Startup Projects, Attach to Process, Trust HTTPS Development Certificate, Start with Hot Reload, Configuration Manager, Start Debugging, Start Without Debugging, Sync with Active Document, Collapse All, Show All Files, Open Solution, Create New Project, Focus Solution Explorer, Show Error List, Show Log; Code Cleanup only for C# files. The views are hidden by the same key, so `onView` does not fire before activation; opening a `*.nuget` file does.
+- Missed by the reviewer: the key binding Ctrl+K Ctrl+E (`shinobi.codeCleanup.file`, `when: editorTextFocus && editorLangId == csharp`) is not gated by the workspace key, so pressing it in any `.cs` file (a loose C# file, a Unity or script folder without `.sln`) activates the extension and flips the key as well.
+- Afterwards: VS Code's `workbench.action.debug.run` (Ctrl+F5, core rule, weight 200) loses to the extension binding (`ctrl+f5`, `when: shinobi.workspaceHasDotnetFiles && !inDebugMode`, weight 400+), which runs `DebugConfigService.startStartupProject(true)` (`src/extension.ts:243`); without a solution there is no startup project, so it only shows "There is no startup project. Right-click a project in the Solution Explorer and choose \"Set as Startup Project\"." (`src/services/debugConfigService.ts:399-401`). The Solution Explorer container (activity bar or secondary side bar) and the Error List panel appear; Ctrl+[ (A7-1) and Ctrl+Alt+L (A7-5) are taken. Lasts until the window is reloaded (context keys are per window session, not persisted).
+- Fix as proposed; note that a folder with only a `.csproj` (no solution) is a legitimate target too, so the check should be "a solution or a project file was found", re-run when the `*.sln*` / project watchers see a create (Create New Project into the open folder).
+
+Severity: bug kept.
+
+### A7-2: PARTIALLY CONFIRMED, severity lowered to risk (latent hardening): no publishing credential exists today
+
+Checked with `gh` (read-only): the repository has **no** secrets (`gh secret list` empty) and **no** variables (so `OVSX_TRUSTED_PUBLISHING` is off), one collaborator (`hempe`), no branch protection on master, default workflow permissions `read` (`gh api .../actions/permissions/workflow` returns `"default_workflow_permissions":"read"`). Releases so far: v0.1.0 and v0.1.1 (pre-releases).
+
+What holds:
+- `release.yml:16-27`: `VSCE_PAT`/`OVSX_PAT` are job-level `env` and `id-token: write` is workflow-level, so once a token or trusted publishing is switched on (RELEASING.md plans trusted publishing), every step, including the install scripts of `npm ci`, the whole Jest run and webpack, can read the token or request the OIDC token (`ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN` are in every step's environment). Open VSX cannot tell a postinstall's OIDC token from the publish step's: same repository, same workflow file `release.yml`, and the registration has "no environment". The installed `ovsx` 1.3.0 even says trusted publishing is "Enabled automatically when a CI system provides an ID token and no access token is given" (`node_modules/ovsx/lib/main.js:65`).
+- Today's real exposure, missed by the reviewer: `contents: write` for the whole workflow, and `actions/checkout` persists the job's `GITHUB_TOKEN` for later git commands by default (`persist-credentials: true`), so a malicious dev dependency during `npm ci`/`npm test` of a release can push to master (unprotected) or replace the `.vsix` asset of the release, which is the file uploaded to the Marketplace by hand (RELEASING.md). This is the current-day risk, not the PATs.
+- `npx --yes ovsx@1.2.0` resolves its dependency tree outside the lock file, while the locked `ovsx` 1.3.0 (`package-lock.json`, `^1.3.0` dev dependency) already has `--trusted-publishing`: confirmed; the pin was a guess (RELEASING.md:55 says so).
+
+What does not hold or is overstated:
+- Who can trigger it: `release: published` needs write access to the repository (only `hempe`). Fork pull requests run only `ci.yml` (`pull_request`), get a read-only token and no secrets; `release.yml` never runs for them. A malicious PR can only matter after it is merged into master, and then its code would also be in the shipped bundle, so for code in this repository splitting jobs changes nothing; the split protects only against a compromised **dev-only** dependency (the ~900 packages that are not bundled) or test code.
+- "The master-only check lives in the tagged commit's own workflow": true (a `release` event runs the workflow of the tagged commit), but moot here: the only person who can publish a release can push to an unprotected master anyway. Only relevant once there are collaborators or branch protection.
+- "`ci.yml` has no `permissions`, so write for older repositories": refuted for this repository; the default is `read`. Adding `permissions: contents: read` is defence in depth (survives a change of the repository setting), not a fix.
+- Floating major tags of the four GitHub-owned actions: all four tags exist (`actions/checkout` v7, `setup-node` v7, `setup-dotnet` v6, `upload-artifact` v7: HTTP 200 from the GitHub API); pinning by SHA is good practice but the risk of a first-party action tag being moved is low compared to the npm one.
+- A build-time compromise can still poison the `.vsix` itself (webpack runs in the job that produces the artifact); splitting the job protects the credentials, not the artifact.
+
+Hardening worth doing (in this order, all small): `persist-credentials: false` on checkout; job `build` with `permissions: contents: read`, no secrets, running `npm ci`, typecheck, tests, `vsce package` and uploading the `.vsix` as an artifact; job `publish` (`needs: build`, `environment: release`, `permissions: contents: write, id-token: write`) that downloads the artifact and runs only `gh release upload` and the locked `npx ovsx publish` (no `npm ci` beyond `--ignore-scripts`, or `npx --yes ovsx@1.3.0` with the token as step-level `env`); register the trusted publisher with environment `release` (registration has to be recreated, RELEASING.md:53). SHA pins and `ci.yml` permissions are optional.
+
+
+### A7-3: CONFIRMED, risk (licence) kept
+
+Production build in `/tmp/v7/repo` (`npm run build`, exit 0), `npx vsce ls`: 23 files, the only notices are `out/extension.js.LICENSE.txt` (one line: `/*! http://mths.be/fromcodepoint v0.1.0 by @mathias */`) and the webviews' `bundle.js.LICENSE.txt` (React's five `@license` banners only); no `ThirdPartyNotices`. Packages in each bundle from the source maps (licence from their `package.json`):
+
+- `out/extension.js`: `balanced-match` (MIT), `brace-expansion` (MIT), `glob` (BlueOak-1.0.0), `jsonc-parser` (MIT), `minimatch` (BlueOak-1.0.0), `sax` (BlueOak-1.0.0), `semver` (ISC), `xml2js` (MIT), `xmlbuilder` (MIT); `path-scurry` & co. are in the bundle too (their classes `PathScurryPosix`/`Win`/`Darwin` are in `out/extension.js`) although concatenated modules are missing from the map.
+- Webviews: `react`, `react-dom`, `scheduler` (MIT, notices kept), `@iconify/react`, `markdown-to-jsx`, `vscrui` (which ships `styled-components` in its own `dist`) (MIT, no notice), `semver` (ISC).
+- `out/webview/codicons/codicon.css` keeps Microsoft's MIT header (copied, not minified); `codicon.ttf` is under CC-BY-4.0 (`@vscode/codicons/package.json` `"license": "CC-BY-4.0"`, `LICENSE` and `LICENSE-CODE` in the package): needs an attribution, none shipped.
+
+What the licences require: MIT and ISC: the copyright and permission notice "shall be included in all copies or substantial portions" (a minified bundle is a copy); BlueOak-1.0.0 (`node_modules/sax/LICENSE.md` "Notices"): everyone who gets a copy must also get the licence text or a link to it; CC-BY-4.0: credit, licence link, indication of changes. The terser default (`extractComments` keeps only `/*!`, `@license`, `@preserve`) drops all of them because these packages have no banner comments.
+
+Cheapest correct fix: `license-webpack-plugin` (not installed yet) in both webpack configs, writing e.g. `out/THIRD_PARTY_NOTICES.txt` per configuration (`outputFilename`, with `perChunkOutput: false` for the webviews), plus a hand-written codicons line ("Codicons, (c) Microsoft, CC BY 4.0, https://creativecommons.org/licenses/by/4.0/") appended via `additionalModules`/`licenseTextOverrides` or a static file, and add the file(s) to the `.vscodeignore` allow list; a unit test can check `vsce ls` contains it.
+
+### A7-4: CONFIRMED, wording corrected ("silent" is overstated), risk kept
+
+Re-read `getExtensionUntrustedWorkspaceSupportType` (returns `!0` when trust is off or the extension has no `main`, else configured > product override > `capabilities.untrustedWorkspaces.supported` > product default > `!1`) and `getExtensionVirtualWorkspaceSupportType` (configured > product override > `capabilities.virtualWorkspaces` > product default > `!0`) in 1.136.1: as the reviewer says. Correction: Restricted Mode is not silent: the window shows the Restricted Mode banner and status item, and the Extensions view lists the extension under "Disabled in Restricted Mode" (strings in `out/nls.messages.json`); only an extension-specific reason is missing (the `description` field). Declaring `untrustedWorkspaces.supported: false` changes nothing but that text. The virtual-workspace part holds (default supported); its effect stays suspected (not run with Remote Repositories). Proposed declaration is right; it can be one block of `package.json` with no code change.
+
+### A7-5: UNVERIFIED (needs Windows), plausible; risk kept as suspected
+
+VS Code turns AltGr into Ctrl+Alt only through the browser's modifier flags (`resolveKeyboardEvent`: `ctrlKey || _mapAltGrToCtrlAlt && altGraphKey`); on Windows, Chromium reports AltGr as `ctrlKey && altKey` (Windows synthesizes left Ctrl), so the event is Ctrl+Alt+L and the extension binding (`when: shinobi.workspaceHasDotnetFiles`, no focus condition) matches before the character is typed. Polish (Programmers) has `ł` on AltGr+L. Not pressed on Windows. Note that Visual Studio uses the same key, so the conflict exists there too; `!editorTextFocus` would cost the "from the editor" use, which is the main one, so a docs note is the more likely fix.
+
+### A7-6: CONFIRMED, cleanup
+
+Value import `sendToUi` from `src/webview/nuget-view/shared.ts` in `NuGetCustomEditorProvider.ts:8` and `SolutionWebviewProvider.ts:15` pulls the module into the host bundle (the `LocalNuGetPackage` imports in `types/commands/*.ts` and `nugetManagerService.ts:13` are types only and erased). Loading the production `out/extension.js` with a stubbed `vscode` under Node prints `C# 21:08:59.538 [INF] NuGetReact: Using fallback VSCodeAPI for development` (rerun in `/tmp/v7/load`). Root `tsconfig.json` has `lib: ["ES2020", "DOM"]`. As reported.
+
+### A7-7: CONFIRMED, cleanup
+
+`grep` over `src`, `scripts`, `webpack.config.js`, `jest.config.js`, `jest.setup.js`: no import of `uuid` (in `dependencies`), `sinon`, `@types/sinon`, `@vscode/test-electron`, `webpack-dev-server`; `style-loader`/`css-loader` only in the `.css` rule of `webpack.config.js:78-79`, no `.css` import in `src` (codicon.css is copied by `copy-webpack-plugin`), and no bundle contains style-loader's runtime (`styleTagTransform`/`insertStyleElement` absent). `uuid` is not bundled, so removing it changes nothing in the vsix (`--no-dependencies`), it is only noise in `dependencies`.
+
+### A7-8: CONFIRMED, cleanup
+
+`ci.yml:10-12` (`group: ci-${{ github.ref }}`, `cancel-in-progress: true`) and `scripts/screenshots/capture.sh:29` (exports `DISPLAY=:97`, no `unset WAYLAND_DISPLAY`), `test:coverage` exists (`package.json:1777`) but no workflow runs it and `jest.config.js` has no `coverageThreshold`. Nuance on the first point: the cancelled run's commit is still tested as part of the next push's run (cumulative), only that intermediate commit has no own result.
+
+### A7-10: PARTIALLY CONFIRMED, mechanism is "the theme is not listed", not "the path does not exist"; risk kept
+
+In the extension host (`/usr/lib/code/out/vs/workbench/api/node/extensionHostProcess.js`), `vscode.extensions.all` returns `va.mine.getAllExtensionDescriptions()`, i.e. `_myRegistry` = only the extensions running in **this** extension host (`myExtensions` from the init data); the extensions of other hosts are only in `allAcrossExtensionHosts`, which needs the proposed API `extensionsAny`. Icon theme extensions have no `main`; the `iconThemes` extension point declares no `defaultExtensionKind`, so they deduce `["ui","workspace","web"]` and, installed locally, run on the UI side. In Remote-SSH/WSL/Dev Containers the extension (deduced `["workspace"]`, it has `main`) therefore does not see the theme in `extensions.all` at all: `_load` (`src/services/iconThemeService.ts:160-183`) finds no contribution, `_theme` stays undefined and the Solution Explorer uses its own icons. The `fs.readFileSync` path is never reached, so the proposed fix (`vscode.workspace.fs` with the theme's `extensionUri`) would not help: the theme extension is not reachable from the remote host with stable API. Only works when the user also installs the theme on the remote. Fix: accept the fallback and document it in `docs/solution-explorer.md` ("with Remote, install the icon theme on the remote too, or the built-in icons are used"). Not tried on a remote host.
+
+### `engines.vscode` (^1.74.0, README.md:137 and docs/README.md:28 "VS Code 1.74 or later")
+
+`@types/vscode` is `1.74.0` and `npm run typecheck` passes, so every TypeScript-visible API (`LogOutputChannel` 1.74, `window.tabGroups`/`TabInputText`/`TabInputCustom` 1.67, the test API with `TestItem.description`, `TestRunProfile.isDefault`, `TestRunRequest` 1.59, `createFileSystemWatcher(glob | RelativePattern)` without the newer options overload) exists in 1.74. What the types cannot check:
+
+| Used | Where | First VS Code version | On older versions |
+|---|---|---|---|
+| `contributes.viewsContainers.secondarySidebar` | `package.json` | 1.106 (proposed `contribSecondarySideBar` in 1.104, finalized in 1.106: vscode-docs `release-notes/v1_104.md:639`, `v1_106.md:746`) | unknown key; the view `shinobi-solution-webview-secondary-sidebar` references an unknown container and VS Code puts such views into the Explorer; only visible when `shinobi.solutionExplorer.location` is `secondary-sidebar` |
+| `workbench.action.files.setActiveEditorReadonlyInSession` | `src/services/solutionActionService.ts:340` (generated files) | 1.79 (`release-notes/v1_79.md:79`) | "command not found" thrown, caught by the surrounding `try`, which logs it and shows the error message "Error opening file: Error: command ... not found" although the file did open (writable) |
+| `presentation.hidden` / `presentation.order` in launch.json | `debugConfigService.ts:197-202` | long before 1.74 | fine |
+| `menus.webview/context`, `webview` views, custom editors, `viewsWelcome` | `package.json` | before 1.74 (webview/context 1.70) | fine |
+| Required C# extension: `ms-dotnettools.csharp` (`dotnet/vscode-csharp` main) and `muhammad-sammy.csharp` 2.160.9 on Open VSX | `csharpExtensionCheck.ts` | both declare `engines.vscode ^1.106.0` | on 1.74-1.105 only old C# versions install |
+
+So the declared minimum is too low in practice: the secondary-sidebar location and the current C# extensions need 1.106, read-only generated files need 1.79. Options: raise `engines.vscode` (and README.md:137, docs/README.md:28) to `^1.106.0` and `@types/vscode` with it, or keep 1.74 and document that "Solution Explorer location: secondary side bar" needs 1.106. Nobody has run the extension on 1.74 (the reviewer's "Not reviewed" says so too). New finding, call it A7-11 (risk, docs/compat).
