@@ -48,6 +48,19 @@ export async function offerNamespaceUpdates(changes: readonly NamespaceChange[],
     if (changes.length === 0) {
         return;
     }
+    try {
+        await offerOrUpdate(changes, operation);
+    } finally {
+        const declarationOnly = NamespaceService.takeDeclarationOnly();
+        if (declarationOnly.length > 0) {
+            vscode.window.showWarningMessage(
+                `The namespace was changed in ${declarationOnly.length} file(s), but the files that use them were not updated: the C# language server's "Change namespace" action was not available `
+                + '(it needs the C# extension with the project loaded and IDE0130 reporting in .editorconfig, see Sync Namespaces). Build to find the references.');
+        }
+    }
+}
+
+async function offerOrUpdate(changes: readonly NamespaceChange[], operation: string): Promise<void> {
     if (changes.length === 1) {
         const [change] = changes;
         const choice = await vscode.window.showInformationMessage(fileQuestion(operation, change), { modal: true }, 'Update Namespace', 'Skip');

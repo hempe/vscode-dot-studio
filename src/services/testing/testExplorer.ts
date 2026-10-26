@@ -14,7 +14,7 @@ import { EMIT_GENERATED_FILES } from '../analyzers';
 import { Settings } from '../settings';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
-import { evaluateTestProject, isTestProjectCandidate, TestProject } from './testProjects';
+import { evaluateTestProject, isTestProjectCandidate, projectTextWithBuildProps, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
 import { testingPlatformRunSettings, vstestRunSettings } from './runSettings';
@@ -115,7 +115,7 @@ async function attachToTestHost(project: TestProject, processId: number): Promis
 
 const defaultDeps: TestExplorerDeps = {
     projects: () => [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])],
-    readProject: projectPath => fs.readFileSync(projectPath, 'utf8'),
+    readProject: projectPath => projectTextWithBuildProps(projectPath),
     evaluate: evaluateTestProject,
     selectedFramework: () => SolutionService.getActiveSolution()?.getActiveFramework() ?? undefined,
     platform: () => process.platform,

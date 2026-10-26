@@ -60,6 +60,33 @@ describe('generateServiceReference', () => {
         expect(fs.readdirSync(path.join(project, 'obj')).filter(f => f.startsWith('shinobi-svcutil-'))).toEqual([]);
     });
 
+    it('copies the schemas a local WSDL imports next to it, for svcutil and into the reference folder (review A6-2)', async () => {
+        const source = fs.mkdtempSync(path.join(os.tmpdir(), 'svcimports-'));
+        try {
+            fs.writeFileSync(path.join(source, 'Calc.wsdl'), '<wsdl:definitions xmlns:wsdl="w"><xsd:import xmlns:xsd="x" schemaLocation="schemas/CalcTypes.xsd"/></wsdl:definitions>');
+            fs.mkdirSync(path.join(source, 'schemas'));
+            fs.writeFileSync(path.join(source, 'schemas', 'CalcTypes.xsd'), '<xs:schema xmlns:xs="x"/>');
+            const folder = path.join(project, 'Connected Services', 'Calc');
+            const seen: string[] = [];
+            const svcutil: Svcutil = async (args, cwd) => {
+                const temp = path.join(cwd, args[1]);
+                seen.push(fs.existsSync(path.join(temp, 'schemas', 'CalcTypes.xsd')) ? 'imports present' : 'imports missing');
+                return fakeSvcutil([])(args, cwd);
+            };
+
+            const result = await generateServiceReference({
+                projectPath, reference: newServiceReference(folder, path.join(source, 'Calc.wsdl'), 'Calc', 'net10.0'), targetFramework: 'net10.0', svcutil, addPackage,
+            });
+
+            expect(result.success).toBe(true);
+            expect(seen).toEqual(['imports present']);
+            expect(fs.existsSync(path.join(folder, 'Calc.wsdl'))).toBe(true);
+            expect(fs.existsSync(path.join(folder, 'schemas', 'CalcTypes.xsd'))).toBe(true);
+        } finally {
+            fs.rmSync(source, { recursive: true, force: true });
+        }
+    });
+
     it('adds a new reference from a local WSDL file', async () => {
         const wsdl = path.join(project, 'Connected Services', 'CardOperations', 'CardOperations.wsdl');
         const folder = path.join(project, 'Connected Services', 'Cards');

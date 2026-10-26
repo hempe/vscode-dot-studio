@@ -7,6 +7,7 @@ const ui = {
     answers: [] as (string | undefined)[],
     questions: [] as string[],
     errors: [] as string[],
+    notices: [] as string[],
 };
 
 jest.mock('vscode', () => {
@@ -17,6 +18,7 @@ jest.mock('vscode', () => {
     // A message with buttons is a question (answered from ui.answers); one without is a notice
     const ask = async (message: string, ...rest: unknown[]) => {
         if (!rest.some(item => typeof item === 'string')) {
+            ui.notices.push(message);
             return undefined;
         }
         ui.questions.push(message);
@@ -76,6 +78,7 @@ describe('namespaces after a move', () => {
         ui.answers = [];
         ui.questions = [];
         ui.errors = [];
+        ui.notices = [];
         dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-ns-')));
         project = path.join(dir, 'App');
         write('App.csproj', '<Project Sdk="Microsoft.NET.Sdk" />');
@@ -110,6 +113,15 @@ describe('namespaces after a move', () => {
         expect(read('New/Old/A.cs')).toContain('namespace App.New.Old;');
         expect(read('New/Old/B.cs')).toContain('namespace App.New.Old\n{');
         expect(read('New/Old/Sub/C.cs')).toContain('namespace App.New.Old.Sub;');
+    });
+
+    test('without the language server action only the declarations change, and the user is told the references did not (review A6-9)', async () => {
+        const folder = movedFolder();
+        ui.answers = ['Update All'];
+
+        await updateNamespacesAfterMove([folder], 'Moved');
+
+        expect(ui.notices.filter(notice => notice.includes('were not updated'))).toEqual([expect.stringContaining('2 file(s)')]);
     });
 
     test('Review Each asks per file; Skip changes nothing', async () => {

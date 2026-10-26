@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 
@@ -5,10 +6,31 @@ const TEST_PACKAGES = ['xunit.v3', 'xunit', 'MSTest', 'MSTest.TestFramework', 'T
 
 /** Projects that look like test projects; MSBuild then tells whether they run on Microsoft.Testing.Platform */
 export function isTestProjectCandidate(projectXml: string): boolean {
-    const references = [...projectXml.matchAll(/<PackageReference\b[^>]*\bInclude\s*=\s*"([^"]+)"/gi)].map(match => match[1].toLowerCase());
+    const references = [...projectXml.matchAll(/<PackageReference\b[^>]*\bInclude\s*=\s*(?:"([^"]+)"|'([^']+)')/gi)].map(match => (match[1] ?? match[2]).toLowerCase());
     return TEST_PACKAGES.some(id => references.includes(id.toLowerCase()))
         || /<Project\b[^>]*\bSdk\s*=\s*"(MSTest\.Sdk|TUnit\.Sdk)\b/i.test(projectXml)
         || /<(IsTestProject|EnableMSTestRunner|IsTestingPlatformApplication)>\s*true\s*</i.test(projectXml);
+}
+
+/**
+ * The project file and the Directory.Build.props / Directory.Build.targets files above it, as one text: test packages are often
+ * referenced for a whole folder of test projects there (`tests/Directory.Build.props`), and the project file holds only its framework
+ */
+export function projectTextWithBuildProps(projectPath: string, readFile: (file: string) => string = file => fs.readFileSync(file, 'utf8')): string {
+    const texts = [readFile(projectPath)];
+    for (let dir = path.dirname(path.resolve(projectPath)); ; dir = path.dirname(dir)) {
+        for (const name of ['Directory.Build.props', 'Directory.Build.targets']) {
+            try {
+                texts.push(readFile(path.join(dir, name)));
+            } catch {
+                // not there
+            }
+        }
+        if (path.dirname(dir) === dir) {
+            break;
+        }
+    }
+    return texts.join('\n');
 }
 
 export interface TestProject {

@@ -96,7 +96,7 @@ describe('runCodeCleanup', () => {
         severitySetting = 'error';
         await runCodeCleanup({ kind: 'solution', path: '/w/App.sln' });
         const last = calls.filter(c => c.args[0] === 'format')[2];
-        expect(last.args.slice(3, 5)).toEqual(['--severity', 'error']);
+        expect(last.args.slice(3, 7)).toEqual(['--severity', 'error', '--exclude-diagnostics', 'IDE0130']);
     });
 
     it('says nothing had to change', async () => {

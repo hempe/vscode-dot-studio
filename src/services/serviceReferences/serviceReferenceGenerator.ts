@@ -7,6 +7,7 @@ import {
     SVCUTIL_PARAMS_FILE, toSvcutilParams,
 } from './connectedService';
 import { ProcessResult } from './svcutil';
+import { wsdlImports } from './wsdlImports';
 
 /** Runs dotnet-svcutil with `args` in `cwd` (the project directory) */
 export type Svcutil = (args: string[], cwd: string) => Promise<ProcessResult>;
@@ -47,6 +48,13 @@ export async function generateServiceReference(options: GenerateOptions): Promis
             const name = path.basename(source);
             fs.copyFileSync(source, path.join(tempDir, name));
             localInputs.set(name, source);
+            // The schemas and WSDLs it imports, next to it in the same layout: svcutil resolves them relative to the WSDL
+            for (const imported of wsdlImports(source)) {
+                const target = path.join(tempDir, imported);
+                fs.mkdirSync(path.dirname(target), { recursive: true });
+                fs.copyFileSync(path.join(path.dirname(source), imported), target);
+                localInputs.set(imported, path.join(path.dirname(source), imported));
+            }
             return name;
         });
         fs.writeFileSync(path.join(tempDir, SVCUTIL_PARAMS_FILE), toSvcutilParams({ ...reference.options, inputs }, targetFramework));
@@ -64,6 +72,7 @@ export async function generateServiceReference(options: GenerateOptions): Promis
         for (const [name, source] of localInputs) {
             const target = path.join(reference.folder, name);
             if (path.resolve(source) !== path.resolve(target)) {
+                fs.mkdirSync(path.dirname(target), { recursive: true });
                 fs.copyFileSync(source, target);
             }
         }

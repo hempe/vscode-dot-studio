@@ -31,6 +31,7 @@ import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
 import { NuGetV3Service } from './services/nuget/nugetV3Service';
+import { workspaceHasDotnetFiles } from './services/dotnetWorkspace';
 import { initializeMonoVsTest } from './services/testing/monoVsTest';
 import { workspaceFolderOf } from './services/workspaceFolders';
 import { attachToProcess } from './services/attach/attachToProcess';
@@ -80,12 +81,22 @@ export function activate(context: vscode.ExtensionContext) {
         // The **/*.sln* watcher also sees the startup profiles (.slnLaunch, .slnLaunch.user)
         void startupProfilesChanged(filePath).then(changed => changed && solutionWebviewProvider.refresh());
 
+        // A solution or project file that appears turns the .NET features on (a solution created into an open folder)
+        if (changeType === 'created') {
+            void updateDotnetContext();
+        }
+
         // Let the solution provider handle the specific file change
         solutionWebviewProvider.handleFileChange(filePath, changeType);
     };
 
-    // Set context for when workspace has .NET files
-    vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', true);
+    // Context for when the workspace has .NET files: this extension also activates for its commands in other workspaces
+    // (Create New Project... in a Node folder), where F5 and Ctrl+F5 have to stay VS Code's own
+    const updateDotnetContext = async () => {
+        const has = await workspaceHasDotnetFiles((vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath));
+        await vscode.commands.executeCommand('setContext', 'shinobi.workspaceHasDotnetFiles', has);
+    };
+    void updateDotnetContext();
 
     BuildConfiguration.initialize(context.workspaceState);
     StartupChoice.initialize(context.workspaceState);

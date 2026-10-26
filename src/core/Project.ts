@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
 import { isExecutableProject } from '../parsers/projectKind';
 import { parseTargetFrameworks } from '../parsers/targetFrameworks';
-import { isTestProjectCandidate } from '../services/testing/testProjects';
+import { isTestProjectCandidate, projectTextWithBuildProps } from '../services/testing/testProjects';
 import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceReferences/connectedService';
 import { grpcReferenceNodes } from '../services/grpc/grpcNodes';
 import { SolutionProject } from '../types/solution';
@@ -314,7 +314,7 @@ export class Project {
             const declared = await parseTargetFrameworks(projectXml).catch(() => []);
             this._frameworks = declared.length > 0 ? declared : this._solutionProject.targetFrameworks || [];
             this._isExecutable = isExecutableProject(projectXml);
-            this._isTestProject = isTestProjectCandidate(projectXml);
+            this._isTestProject = isTestProjectCandidate(projectTextWithBuildProps(this._projectPath));
             this._isSdkStyle = /<Project\b[^>]*\bSdk\s*=/.test(projectXml) || /<Sdk\s+Name\s*=/.test(projectXml);
 
             log.debug(`Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);

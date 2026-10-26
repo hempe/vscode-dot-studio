@@ -1,5 +1,7 @@
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, testProjectFrom } from '../../../../services/testing/testProjects';
+import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, projectTextWithBuildProps, testProjectFrom } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -115,5 +117,32 @@ describe('the run settings file of a test project', () => {
             projectPath: '/r/A.csproj', targetPath: '/r/bin/net472/A.dll', testingPlatform: false, vstestConsolePath: '/sdk/vstest.console.dll',
             targetFramework: 'net472', frameworkReason: 'the selected framework', netFramework: true,
         });
+    });
+});
+
+describe('test packages from Directory.Build.props (review A5-10)', () => {
+    let dir: string;
+    const write = (relative: string, content: string) => {
+        fs.mkdirSync(path.dirname(path.join(dir, relative)), { recursive: true });
+        fs.writeFileSync(path.join(dir, relative), content);
+        return path.join(dir, relative);
+    };
+    beforeEach(() => { dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-props-'))); });
+    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+    it('finds a project whose packages come from a Directory.Build.props above it', () => {
+        write('tests/Directory.Build.props', "<Project><ItemGroup><PackageReference Include='xunit' Version='2.9.0' /><PackageReference Include=\"Microsoft.NET.Test.Sdk\" Version=\"17\" /></ItemGroup></Project>");
+        const tests = write('tests/Shop.Tests/Shop.Tests.csproj', '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
+        expect(isTestProjectCandidate(projectTextWithBuildProps(tests))).toBe(true);
+    });
+
+    it('does not take a project that is not below that props file', () => {
+        write('tests/Directory.Build.props', "<Project><ItemGroup><PackageReference Include='xunit' Version='2.9.0' /></ItemGroup></Project>");
+        const app = write('src/App/App.csproj', '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+        expect(isTestProjectCandidate(projectTextWithBuildProps(app))).toBe(false);
+    });
+
+    it('reads single-quoted package references in the project itself', () => {
+        expect(isTestProjectCandidate("<Project><ItemGroup><PackageReference Include='NUnit' Version='4' /></ItemGroup></Project>")).toBe(true);
     });
 });

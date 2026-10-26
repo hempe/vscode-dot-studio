@@ -7,7 +7,7 @@ describe('cleanupSteps', () => {
         expect(steps.map(s => s.args)).toEqual([
             ['format', 'whitespace', '/work/App.sln'],
             ['format', 'style', '/work/App.sln', '--diagnostics', 'IDE0005', '--severity', 'hidden'],
-            ['format', 'style', '/work/App.sln', '--severity', 'warn'],
+            ['format', 'style', '/work/App.sln', '--severity', 'warn', '--exclude-diagnostics', 'IDE0130'],
         ]);
     });
 
@@ -15,7 +15,7 @@ describe('cleanupSteps', () => {
         const { cwd, steps } = cleanupSteps({ kind: 'project', path: '/work/Web/Web.csproj' }, 'error');
         expect(cwd).toBe('/work/Web');
         expect(steps[0].args).toEqual(['format', 'whitespace', '/work/Web/Web.csproj']);
-        expect(steps[2].args).toEqual(['format', 'style', '/work/Web/Web.csproj', '--severity', 'error']);
+        expect(steps[2].args).toEqual(['format', 'style', '/work/Web/Web.csproj', '--severity', 'error', '--exclude-diagnostics', 'IDE0130']);
     });
 
     it('labels the three steps in order', () => {
@@ -28,13 +28,13 @@ describe('cleanupSteps', () => {
         expect(cwd).toBe('/work/Web');
         expect(steps[0].args).toEqual(['format', 'whitespace', '/work/Web/Web.csproj', '--include', 'Controllers/Home.cs']);
         expect(steps[1].args).toEqual(['format', 'style', '/work/Web/Web.csproj', '--diagnostics', 'IDE0005', '--severity', 'hidden', '--include', 'Controllers/Home.cs']);
-        expect(steps[2].args).toEqual(['format', 'style', '/work/Web/Web.csproj', '--severity', 'warn', '--include', 'Controllers/Home.cs']);
+        expect(steps[2].args).toEqual(['format', 'style', '/work/Web/Web.csproj', '--severity', 'warn', '--exclude-diagnostics', 'IDE0130', '--include', 'Controllers/Home.cs']);
     });
 
     it('limits a folder with a trailing slash, also for nested folders and paths with spaces', () => {
         const { steps } = cleanupSteps({ kind: 'folder', path: '/work/My App/Some Folder/Sub', projectPath: '/work/My App/My App.csproj' }, 'info');
         expect(steps[0].args).toEqual(['format', 'whitespace', '/work/My App/My App.csproj', '--include', 'Some Folder/Sub/']);
-        expect(steps[2].args.slice(-4)).toEqual(['--severity', 'info', '--include', 'Some Folder/Sub/']);
+        expect(steps[2].args.slice(-6)).toEqual(['--severity', 'info', '--exclude-diagnostics', 'IDE0130', '--include', 'Some Folder/Sub/']);
     });
 
     it('uses forward slashes for Windows paths', () => {

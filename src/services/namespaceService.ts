@@ -230,8 +230,8 @@ export class NamespaceService {
     }
 
     /**
-     * Updates namespace using VS Code's rename provider (OmniSharp integration)
-     * Falls back to manual text replacement if OmniSharp fails
+     * Updates the namespace of a file (and the files that use it) through the language server; falls back to
+     * a text replacement of the declaration only, which `takeDeclarationOnly` reports
      */
     static async updateNamespaceViaRename(filePath: string, oldNamespace: string, newNamespace: string): Promise<boolean> {
         try {
@@ -242,8 +242,12 @@ export class NamespaceService {
             }
 
             // Fallback to manual namespace replacement
-            log.info(`OmniSharp rename failed, falling back to manual namespace update for ${filePath}`);
-            return await this._manualNamespaceUpdate(filePath, oldNamespace, newNamespace);
+            log.info(`The language server's Change namespace action is not available, falling back to a text replacement for ${filePath}`);
+            const updated = await this._manualNamespaceUpdate(filePath, oldNamespace, newNamespace);
+            if (updated) {
+                this.declarationOnly.push(filePath);
+            }
+            return updated;
 
         } catch (error) {
             log.error(`Error updating namespace in ${filePath}:`, error);
@@ -252,52 +256,29 @@ export class NamespaceService {
     }
 
     /**
-     * Attempts to update namespace using OmniSharp rename provider
+     * Updates the namespace with the C# language server's "Change namespace to ..." action, the one Sync Namespaces uses: it
+     * edits the declaration and the files that use the type, and saves them. (The rename provider does not rename to a dotted
+     * name, and renaming a namespace would rename it in every file that declares it.)
      */
     private static async _tryOmnisharpRename(filePath: string, oldNamespace: string, newNamespace: string): Promise<boolean> {
         try {
-            log.debug(`Attempting OmniSharp rename for ${filePath}: ${oldNamespace} -> ${newNamespace}`);
-
-            // Open the document in VS Code and show it in editor
-            const document = await vscode.workspace.openTextDocument(filePath);
-            await vscode.window.showTextDocument(document, { preview: false });
-
-            // Parse the file to find the namespace position
-            const namespaceInfo = this.parseNamespaceFromContent(document.getText());
-            if (!namespaceInfo || namespaceInfo.namespace !== oldNamespace) {
-                log.error(`Namespace mismatch in file ${filePath}. Expected: ${oldNamespace}, Found: ${namespaceInfo?.namespace}`);
-                return false;
-            }
-
-            log.debug(`Found namespace at position: line ${namespaceInfo.position.line}, character ${namespaceInfo.position.character}`);
-
-            // Execute the rename operation via OmniSharp
-            const workspaceEdit = await vscode.commands.executeCommand(
-                'vscode.executeDocumentRenameProvider',
-                document.uri,
-                namespaceInfo.position,
-                newNamespace
-            ) as vscode.WorkspaceEdit;
-
-            if (!workspaceEdit) {
-                log.warn(`No workspace edit returned for namespace rename from ${oldNamespace} to ${newNamespace}`);
-                return false;
-            }
-
-            // Apply the workspace edit
-            const success = await vscode.workspace.applyEdit(workspaceEdit);
-            if (success) {
-                log.info(`Successfully renamed namespace via OmniSharp from ${oldNamespace} to ${newNamespace} in ${filePath}`);
-                return true;
-            } else {
-                log.error(`Failed to apply workspace edit for namespace rename in ${filePath}`);
-                return false;
-            }
-
+            log.debug(`Changing the namespace of ${filePath} through the language server: ${oldNamespace} -> ${newNamespace}`);
+            const { syncFileNamespace } = await import('./namespaceSync/runSyncNamespaces');
+            return await syncFileNamespace(filePath);
         } catch (error) {
-            log.warn(`OmniSharp rename failed for ${filePath}:`, error);
+            log.warn(`Changing the namespace through the language server failed for ${filePath}:`, error);
             return false;
         }
+    }
+
+    /** Files whose declaration was changed by text replacement: the files that use them were not updated */
+    private static declarationOnly: string[] = [];
+
+    /** The files changed without their references since the last call (to tell the user once, after a batch) */
+    static takeDeclarationOnly(): string[] {
+        const files = this.declarationOnly;
+        this.declarationOnly = [];
+        return files;
     }
 
     /**

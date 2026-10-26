@@ -97,6 +97,19 @@ function createDeps(projectPath: string | undefined): SyncDeps {
 }
 
 /**
+ * The namespace of one file changed to the one its folder asks for, through the server's "Change namespace to ..." action
+ * (which also updates the files that use it, and saves them). False when the server offers no such action (no C# extension,
+ * IDE0130 not reported, project not loaded yet).
+ */
+export async function syncFileNamespace(file: string): Promise<boolean> {
+    if (!hasCSharpExtension()) {
+        return false;
+    }
+    const result = await syncNamespaces([file], createDeps(undefined));
+    return result.changed.includes(file);
+}
+
+/**
  * Sync Namespaces like Visual Studio's: every C# file of a project or folder gets the namespace its folder asks
  * for, by applying the C# language server's "Change namespace to ..." action (which also updates the files that use it)
  */
