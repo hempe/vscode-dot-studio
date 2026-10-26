@@ -1,8 +1,8 @@
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { TestProject } from './testProjects';
+import { privateTempDir, writableByOthers } from '../../core/privateTemp';
 
 // .NET Framework (net472 etc.) VSTest projects outside Windows. The .NET SDK's vstest.console.dll starts their
 // test host with Mono, but the SDK for Linux and macOS ships no .NET Framework test host ("Cannot open assembly
@@ -40,10 +40,29 @@ const run = (command: string, args: string[], cwd?: string) => new Promise<{ ok:
     execFile(command, args, { cwd, timeout: 300000 }, (error, stdout, stderr) => resolve({ ok: !error, output: `${stdout ?? ''}${stderr ?? ''}`.trim() || String(error ?? '') }));
 });
 
-/** Copies tools/net462 to a temp folder once, with TestHostNetFramework pointing at the folder itself */
-function copyLayout(tools: string): string {
-    const target = path.join(os.tmpdir(), `shinobi-dotnet-vstest-mono-${MONO_VSTEST_VERSION}`);
+let storageRoot: string | undefined;
+
+/** The extension's own storage folder: the runner and the download live there, not in the shared temp folder */
+export function initializeMonoVsTest(storagePath: string): void {
+    storageRoot = storagePath;
+}
+
+/** Where the runner copy and the download go: the extension's storage; without it a private folder of this user in the temp folder */
+function workRoot(): string {
+    if (storageRoot) {
+        fs.mkdirSync(storageRoot, { recursive: true });
+        return storageRoot;
+    }
+    return privateTempDir();
+}
+
+/** Copies tools/net462 to the work folder once, with TestHostNetFramework pointing at the folder itself */
+export function copyLayout(tools: string, root: string = workRoot()): string {
+    const target = path.join(root, `vstest-mono-${MONO_VSTEST_VERSION}`);
     const consolePath = path.join(target, 'vstest.console.exe');
+    if (fs.existsSync(target) && writableByOthers(target)) {
+        throw new Error(`${target} can be changed by other users; remove it and try again`);
+    }
     if (!fs.existsSync(path.join(target, 'TestHostNetFramework', 'vstest.console.exe'))) {
         // Copied next to it and renamed, so a half-done copy is never used
         const partial = `${target}-${process.pid}-${Date.now()}`;
@@ -64,13 +83,14 @@ const defaultDeps: MonoVsTestDeps = {
     exists: file => fs.existsSync(file),
     download: async () => {
         // A project that only downloads the package; the SDK's own newest framework needs no targeting pack
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-vstest-'));
+        const dir = fs.mkdtempSync(path.join(workRoot(), 'download-'));
         try {
             fs.writeFileSync(path.join(dir, 'download.csproj'), `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net$(NETCoreAppMaximumVersion)</TargetFramework></PropertyGroup>
   <ItemGroup><PackageDownload Include="${MONO_VSTEST_PACKAGE}" Version="[${MONO_VSTEST_VERSION}]" /></ItemGroup>
 </Project>`);
-            return await run('dotnet', ['restore', '-nologo'], dir);
+            // No Directory.Build.props/targets or Directory.Packages.props from a folder above the download project
+            return await run('dotnet', ['restore', '-nologo', '-p:ImportDirectoryBuildProps=false', '-p:ImportDirectoryBuildTargets=false', '-p:ImportDirectoryPackagesProps=false'], dir);
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }

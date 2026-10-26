@@ -1,9 +1,9 @@
 import type * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { logger } from '../core/logger';
+import { privateTempDir } from '../core/privateTemp';
 
 const log = logger('UnloadedProjects');
 
@@ -69,7 +69,7 @@ export class UnloadedProjects {
 
     static filterPath(solutionPath: string): string {
         const id = crypto.createHash('sha1').update(path.normalize(solutionPath)).digest('hex').slice(0, 12);
-        return path.join(os.tmpdir(), 'shinobi-dotnet', id, `${path.basename(solutionPath, path.extname(solutionPath))}.slnf`);
+        return path.join(privateTempDir('slnf', id), `${path.basename(solutionPath, path.extname(solutionPath))}.slnf`);
     }
 
     /**
@@ -78,11 +78,12 @@ export class UnloadedProjects {
      */
     static buildTarget(solutionPath: string, projectPaths: Iterable<string>): string {
         const unloaded = this.list(solutionPath);
-        const filterPath = this.filterPath(solutionPath);
         if (unloaded.length === 0) {
             return solutionPath;
         }
+        let filterPath = '';
         try {
+            filterPath = this.filterPath(solutionPath);
             const loaded = [...projectPaths].filter(project => !unloaded.includes(path.normalize(project)));
             const content = solutionFilterContent(solutionPath, loaded);
             if (!fs.existsSync(filterPath) || fs.readFileSync(filterPath, 'utf8') !== content) {
@@ -91,7 +92,7 @@ export class UnloadedProjects {
             }
             return filterPath;
         } catch (error) {
-            log.warn(`Could not write the solution filter ${filterPath}, building the whole solution:`, error);
+            log.warn(`Could not write the solution filter${filterPath ? ` ${filterPath}` : ''}, building the whole solution:`, error);
             return solutionPath;
         }
     }

@@ -31,6 +31,7 @@ import { TestExplorer } from './services/testing/testExplorer';
 import { setFeedSources } from './services/nuget/feedAuth';
 import { PackageBrowseService } from './services/nuget/packageBrowseService';
 import { NuGetV3Service } from './services/nuget/nugetV3Service';
+import { initializeMonoVsTest } from './services/testing/monoVsTest';
 import { workspaceFolderOf } from './services/workspaceFolders';
 import { attachToProcess } from './services/attach/attachToProcess';
 import { startWithHotReload } from './services/hotReload/startWithHotReload';
@@ -94,6 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
     ShowAllFiles.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
     NuGetV3Service.initializeCache(context.globalStorageUri.fsPath);
+    initializeMonoVsTest(context.globalStorageUri.fsPath);
     TemplateWizardPanel.extensionUri = context.extensionUri;
     PublishPanel.extensionUri = context.extensionUri;
     PublishPanel.state = context.workspaceState;

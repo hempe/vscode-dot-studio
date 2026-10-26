@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Markdown from "markdown-to-jsx";
+import { readmeElement } from "../readmeSafety";
 
 interface NugetReadmeProps {
     packageId: string;
@@ -74,6 +75,8 @@ export default function NugetReadme({ packageId, version, readmeUrl }: NugetRead
         }}>
             <Markdown
                 options={{
+                    // The README is written by the package author: no forms, no <base>, no positioning
+                    createElement: readmeElement as never,
                     overrides: {
                         // Style markdown elements to match VS Code theme
                         h1: {

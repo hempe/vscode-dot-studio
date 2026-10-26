@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
+import { privateTempDir } from '../../core/privateTemp';
 import { createHash } from 'crypto';
 import { spawn, execFile } from 'child_process';
 import { logger } from '../../core/logger';
@@ -146,7 +146,7 @@ const defaultDeps: TestExplorerDeps = {
     hasVsTestBridge: targetPath => fs.existsSync(path.join(path.dirname(targetPath), 'Microsoft.Testing.Extensions.VSTestBridge.dll')),
     writeRunSettings: content => {
         // One file per content: concurrent runs of projects with different settings don't overwrite each other
-        const file = path.join(os.tmpdir(), `shinobi-${createHash('sha256').update(content).digest('hex').slice(0, 16)}.runsettings`);
+        const file = path.join(privateTempDir('runsettings'), `${createHash('sha256').update(content).digest('hex').slice(0, 16)}.runsettings`);
         fs.writeFileSync(file, content, 'utf8');
         return file;
     },
