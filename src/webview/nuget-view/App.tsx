@@ -702,7 +702,6 @@ export const App: React.FC = () => {
                         width: '40%',
                         borderRight: '1px solid var(--vscode-panel-border)',
                         overflow: 'auto',
-                        overscrollBehavior: 'contain',
                         maxHeight: '100%'
                     }}
                     tabIndex={0}
@@ -835,7 +834,6 @@ export const App: React.FC = () => {
                         width: '40%',
                         borderRight: '1px solid var(--vscode-panel-border)',
                         overflow: 'auto',
-                        overscrollBehavior: 'contain',
                         maxHeight: '100%'
                     }}
                     tabIndex={0}
@@ -1005,7 +1003,6 @@ export const App: React.FC = () => {
                         width: '40%',
                         borderRight: '1px solid var(--vscode-panel-border)',
                         overflow: 'auto',
-                        overscrollBehavior: 'contain',
                         maxHeight: '100%'
                     }}
                     tabIndex={0}
@@ -1247,7 +1244,6 @@ export const App: React.FC = () => {
                         width: '40%',
                         borderRight: '1px solid var(--vscode-panel-border)',
                         overflow: 'auto',
-                        overscrollBehavior: 'contain',
                         maxHeight: '100%'
                     }}
                 >
