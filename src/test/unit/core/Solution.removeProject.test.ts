@@ -44,7 +44,8 @@ const hasDotnet = (() => { try { execFileSync('dotnet', ['--version'], { stdio: 
     it('does not run shell syntax in the path of the project', async () => {
         const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-removeproject-')));
         const marker = path.join(dir, 'injected');
-        const folder = `evil$(touch ${marker})`;
+        // Relative marker: the command runs in the solution folder; no ':' or '\\' so the name is valid on Windows too
+        const folder = 'evil$(touch injected)';
         try {
             fs.mkdirSync(path.join(dir, folder), { recursive: true });
             fs.writeFileSync(path.join(dir, folder, 'Evil.csproj'), '<Project Sdk="Microsoft.NET.Sdk"></Project>');
