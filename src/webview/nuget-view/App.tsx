@@ -692,6 +692,7 @@ export const App: React.FC = () => {
             {/* Two-Panel Layout */}
             <div style={{
                 display: 'flex',
+                minHeight: 0,
                 flex: 1,
                 border: '1px solid var(--vscode-panel-border)',
                 borderTop: 'none'
@@ -825,6 +826,7 @@ export const App: React.FC = () => {
             {/* Two-Panel Layout */}
             <div style={{
                 display: 'flex',
+                minHeight: 0,
                 flex: 1,
                 border: '1px solid var(--vscode-panel-border)',
                 borderTop: 'none'
@@ -995,6 +997,7 @@ export const App: React.FC = () => {
             {/* Two-Panel Layout */}
             <div style={{
                 display: 'flex',
+                minHeight: 0,
                 flex: 1,
                 border: '1px solid var(--vscode-panel-border)',
                 borderTop: 'none'
@@ -1237,6 +1240,7 @@ export const App: React.FC = () => {
             {/* Two-Panel Layout */}
             <div style={{
                 display: 'flex',
+                minHeight: 0,
                 flex: 1,
                 border: '1px solid var(--vscode-panel-border)',
                 borderTop: 'none'
