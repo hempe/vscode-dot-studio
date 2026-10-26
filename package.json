@@ -1,7 +1,7 @@
 {
   "name": "dotnet-studio",
   "displayName": "Shinobi .NET Studio",
-  "description": "The Visual Studio workflow in VS Code and VSCodium: Solution Explorer, NuGet, Test Explorer, Error List, Run & Debug, Configuration Manager, Publish.",
+  "description": "A Visual Studio-style workflow in VS Code and VSCodium: Solution Explorer, NuGet, Test Explorer, Error List, Run & Debug, Configuration Manager, Publish.",
   "version": "0.0.1",
   "publisher": "shinobi",
   "license": "MIT",
@@ -19,6 +19,16 @@
   "homepage": "https://github.com/hempe/vscode-dot-studio#readme",
   "bugs": {
     "url": "https://github.com/hempe/vscode-dot-studio/issues"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Shinobi .NET Studio builds and runs the .NET projects of the folder (dotnet, MSBuild, tests), which executes code from the workspace."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Shinobi .NET Studio needs the files of the solution on a disk where the dotnet CLI can read them."
+    }
   },
   "engines": {
     "vscode": "^1.106.0"
@@ -1692,7 +1702,7 @@
         "command": "shinobi.solution.syncWithActiveDocument",
         "key": "ctrl+[ s",
         "mac": "cmd+[ s",
-        "when": "shinobi.workspaceHasDotnetFiles"
+        "when": "shinobi.workspaceHasDotnetFiles && !editorTextFocus && !terminalFocus"
       },
       {
         "command": "shinobi.codeCleanup.file",

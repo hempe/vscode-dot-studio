@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import { cannotRun } from '../../testSupport/cannotRun';
 
 jest.mock('vscode', () => {
     class Collection {
@@ -194,7 +195,7 @@ describe('Test Explorer with dotnet', () => {
 
     it('builds, discovers and runs xUnit v3 and MSTest runner tests', async () => {
         if (!hasDotnet || spawnSync('dotnet', ['restore', path.join(dir, 'X3')]).status !== 0 || spawnSync('dotnet', ['restore', path.join(dir, 'MR')]).status !== 0) {
-            console.warn('dotnet or the test packages are not available, skipping');
+            cannotRun('dotnet or the test packages are not available');
             return;
         }
         const explorer = new TestExplorer({ projects: () => [path.join(dir, 'X3/X3.csproj'), path.join(dir, 'MR/MR.csproj')] });
@@ -214,7 +215,7 @@ describe('Test Explorer with dotnet', () => {
     it('Run all on restored but unbuilt projects builds, discovers, reports every result and fills the tree', async () => {
         const projectPaths = ['U3', 'U2', 'UN'].map(name => path.join(dir, 'Unbuilt', name, `${name}.csproj`));
         if (!hasDotnet || projectPaths.some(projectPath => spawnSync('dotnet', ['restore', projectPath]).status !== 0)) {
-            console.warn('dotnet or the test packages are not available, skipping');
+            cannotRun('dotnet or the test packages are not available');
             return;
         }
         const explorer = new TestExplorer({ projects: () => projectPaths });
@@ -241,7 +242,7 @@ describe('Test Explorer with dotnet', () => {
     it('discovers and runs a multi-targeted test project on the framework of an installed runtime', async () => {
         const projectPath = path.join(dir, 'MT/MT.csproj');
         if (!hasDotnet || spawnSync('dotnet', ['restore', projectPath]).status !== 0) {
-            console.warn('dotnet or the test packages are not available, skipping');
+            cannotRun('dotnet or the test packages are not available');
             return;
         }
         const project = await evaluateTestProject(projectPath, 'Debug');
@@ -263,11 +264,12 @@ describe('Test Explorer with dotnet', () => {
         explorer.dispose();
     });
 
-    it('runs the net472 tests of the selected framework under Mono outside Windows', async () => {
+    // CI has no Mono: shown as skipped there, not as passed
+    (process.platform !== 'win32' && hasMono ? it : it.skip)('runs the net472 tests of the selected framework under Mono outside Windows', async () => {
         const projectPath = path.join(dir, 'FX/FX.csproj');
-        // Mono behaviour only: on Windows net472 runs natively; CI has no Mono
-        if (process.platform === 'win32' || !hasDotnet || !hasMono || spawnSync('dotnet', ['restore', projectPath]).status !== 0) {
-            console.warn('Windows, or dotnet, mono or the test packages are not available, skipping');
+        // Mono behaviour only: on Windows net472 runs natively
+        if (!hasDotnet || spawnSync('dotnet', ['restore', projectPath]).status !== 0) {
+            cannotRun('dotnet or the test packages are not available');
             return;
         }
         const project = await evaluateTestProject(projectPath, 'Debug', 'net472');
@@ -277,8 +279,8 @@ describe('Test Explorer with dotnet', () => {
         await explorer.refresh(true);
         const item = mock.controller.items.get(projectPath);
         if (item.error?.includes('Could not download')) {
-            console.warn(`vstest.console.exe for Mono could not be downloaded, skipping: ${item.error}`);
             explorer.dispose();
+            cannotRun(`vstest.console.exe for Mono could not be downloaded: ${item.error}`);
             return;
         }
         expect(item.error).toBeUndefined();

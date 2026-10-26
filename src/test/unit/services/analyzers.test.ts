@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import { cannotRun } from '../testSupport/cannotRun';
 import { analyzerAssemblies, generatedFiles, parseAnalyzerQuery, queryAnalyzers, sourceGenerators } from '../../../services/analyzers';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
@@ -84,7 +85,12 @@ describe('analyzers', () => {
             project('Generators', '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>netstandard2.0</TargetFramework></PropertyGroup></Project>');
             const app = project('App', `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
                 <ItemGroup><ProjectReference Include="../Generators/Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" /></ItemGroup></Project>`);
-            expect(spawnSync('dotnet', ['restore', app], { cwd: root }).status).toBe(0);
+            const restore = spawnSync('dotnet', ['restore', app], { cwd: root, encoding: 'utf8' });
+            if (restore.status !== 0 && /NU1301|Unable to load the service index/.test(restore.stdout + restore.stderr)) {
+                cannotRun('nuget.org is not reachable and the packages are not in the NuGet cache');
+                return;
+            }
+            expect(restore.status).toBe(0);
 
             const { analyzers, generatedDir } = await queryAnalyzers(app, 'Debug');
 

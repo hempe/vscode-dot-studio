@@ -2,9 +2,9 @@
 
 ## 0.1.1
 
-Initial release. Visual Studio's tools for .NET in VS Code and VSCodium:
+Initial release. A Visual Studio-style workflow for .NET in VS Code and VSCodium:
 
-- **Solution Explorer** for `.sln` and `.slnx`: solution folders and items, Visual Studio's file nesting (Off / Default / Web), your file icon theme, error markers, Dependencies with transitive packages, analyzers and source-generated code, Sync with Active Document, Collapse All, Visual Studio's context menus and keys; offers to convert `.sln` to `.slnx`; Unload / Reload Project, Pack on class libraries; Show All Files with Exclude From Project / Include In Project and linked files; drag and drop of projects, solution folders and files (with the namespace update after a move)
+- **Solution Explorer** for `.sln` and `.slnx`: solution folders and items, Visual Studio's file nesting (Off / Default / Web), your file icon theme, error markers, Dependencies with transitive packages, analyzers and source-generated code, Sync with Active Document, Collapse All, Visual Studio-style context menus and keys; offers to convert `.sln` to `.slnx`; Unload / Reload Project, Pack on class libraries; Show All Files with Exclude From Project / Include In Project and linked files; drag and drop of projects, solution folders and files (with the namespace update after a move)
 - **Run & Debug:** Set as Startup Project with launch profiles, Open Launch Settings, Debug/Release, F5, Ctrl+F5, Debug > Start New Instance; SDK-style projects that target .NET Framework run and debug with Mono on Linux and macOS; several startup projects with Visual Studio's `.slnLaunch` profiles; Attach to Process with a picker of the running .NET programs (project, ports); offers to trust the HTTPS development certificate when an `https://` launch profile starts; Start with Hot Reload (`dotnet watch`, without the debugger)
 - **Configuration Manager:** solution configurations and platforms, and which configuration, platform and Build setting each project uses, written to `.sln` and `.slnx`
 - **Code Cleanup** on the solution, a project, a folder or a file (`dotnet format`: whitespace, unused usings, code style fixes)

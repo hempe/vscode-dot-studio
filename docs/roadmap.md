@@ -37,7 +37,7 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 ## Phase 35: Per-framework packages
 **Goal** (hard and error prone: the team hand-writes these project files for a reason, so this comes last and only if it proves necessary; the read-only display of each framework's packages is the safe part, editing around conditions the risky one): Projects that reference different packages per target framework (`net10.0` and `net8.0` in one `.csproj`, or conditions in `Directory.Build.props` and `Directory.Packages.props`), which the team writes by hand because Visual Studio's UI cannot express them, are shown and edited correctly instead of only for the first framework. To start with real examples of what the team writes.
 
-- [ ] Evaluate multi-targeted projects per target framework (today only the first one, see the Known bugs) and show each framework's packages in the tree, the NuGet manager and the update confirmation
+- [ ] Evaluate multi-targeted projects per target framework (today only the first one is evaluated) and show each framework's packages in the tree, the NuGet manager and the update confirmation
 - [ ] Edits respect conditions: update the `PackageVersion` or `PackageReference` that applies to the framework (or all of them, after a confirmation naming them) instead of the first match; a new conditional entry can be written for a chosen framework
 - [ ] Packages declared in an imported props file without Central Package Management (`Directory.Build.props` with a `PackageReference`, e.g. one analyzer for every project): update and remove edit that file after a confirmation naming the projects it reaches (the `dotnet` CLI refuses: "Cannot edit items in imported files"), also offering "Set for This Project Only"; the machinery for `Directory.Packages.props` exists
 - [ ] Consolidate and Updates ignore version differences that are on purpose between target frameworks or projects (e.g. `NeinLinq` 2.2.1 for `net471` and 7.4.0 for `net10.0`)
@@ -45,7 +45,7 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 - [ ] Docs, GIF and manual-testing entries for the conditional cases
 
 ## Not Planned
-- ASP.NET (IIS Express), tests and old-style project files on .NET Framework 4.x: SDK-style `net4x` projects load, build, use the NuGet manager and run and debug with Mono on Linux and macOS, see [Troubleshooting](troubleshooting.md#known-limitations)
+- ASP.NET (IIS Express) and old-style project files on .NET Framework 4.x: SDK-style `net4x` projects load, build, use the NuGet manager, run their tests and run and debug with Mono on Linux and macOS, see [Troubleshooting](troubleshooting.md#known-limitations)
 - `packages.config` and old-style project files
 - Code navigation features that the C# extension already provides (Go to Definition, Find References, symbol search)
 - Diagnostic Tools / profiler UI (the `dotnet-trace`, `dotnet-counters` and `dotnet-gcdump` CLI tools cover it)
@@ -53,7 +53,6 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 - Task List (`// TODO` comments)
 - Visual Studio's Git integration (also git status in the Solution Explorer): VS Code's Source Control view and Explorer cover it
 - The other publish targets of Visual Studio, with the `.pubxml` format it writes for each: Azure App Service (ZIP deploy through the Azure CLI), container registry (the SDK's container publish), FTP/FTPS, IIS Web Deploy (Windows only); folder publishing exists and profiles for the other targets are listed but publish from Visual Studio; to be built if someone opens an issue
-- Encrypted NuGet feed passwords (`Password`, Windows DPAPI) can't be used: store a `ClearTextPassword` (the NuGet manager's "Enter New Token..." does that) or use the Azure Artifacts Credential Provider, which covers restore and build
 - `dotnet-svcutil` limits, not ours to fix: updating a reference Visual Studio created changes the generator version in every type of `Reference.cs` (svcutil 8.0.0 instead of Visual Studio's 2.0.2), and it cannot read .NET Framework assembly references (`<Reference Include="System.ServiceModel" />`; remove them when porting before updating a reference)
 - Exclude From Project and Include In Project on old-style (non-SDK) projects, and Exclude for linked files: SDK-style projects only
 - Drag & drop from VS Code's Explorer or the file manager into the Solution Explorer: a webview gets no file paths from such drops

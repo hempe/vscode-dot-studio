@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { itemsWithoutExcludes, newItemFor } from '../../../../services/projectItems/defaultItems';
 import { includeEdit, listFilesUnder } from '../../../../services/projectItems/projectItemEdits';
+import { cannotRun } from '../../testSupport/cannotRun';
 
 /** Include In Project against the real SDK: the item types MSBuild gives, and that the build and publish then use the files */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
@@ -70,6 +71,10 @@ describe('Include In Project with the item types of the SDK (real MSBuild)', () 
         fs.writeFileSync(projectPath, content);
         const publishDir = path.join(root, 'publish');
         const result = spawnSync('dotnet', ['publish', projectPath, '-o', publishDir, '-nologo'], { cwd: dir, encoding: 'utf8' });
+        if (result.status !== 0 && /NU1301|Unable to load the service index/.test(result.stdout + result.stderr)) {
+            cannotRun('nuget.org is not reachable and the packages are not in the NuGet cache');
+            return;
+        }
         expect(result.stdout + result.stderr).not.toMatch(/error/i);
         const dll = fs.readFileSync(path.join(publishDir, 'Web.dll'));
         // The page's HTML is a UTF-16 string literal of the compiled view; the resource is embedded by name

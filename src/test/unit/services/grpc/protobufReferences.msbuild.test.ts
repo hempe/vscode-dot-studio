@@ -1,4 +1,5 @@
 import { spawnSync } from 'child_process';
+import { cannotRun } from '../../testSupport/cannotRun';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -55,7 +56,7 @@ describe('gRPC references with real MSBuild', () => {
 
         const restore = spawnSync('dotnet', ['restore', projectPath], { encoding: 'utf8' });
         if (restore.status !== 0 && /NU1301|Unable to load the service index/.test(restore.stdout + restore.stderr)) {
-            console.warn('Skipped: nuget.org is not reachable and the packages are not in the NuGet cache');
+            cannotRun('nuget.org is not reachable and the packages are not in the NuGet cache');
             return;
         }
         expect(restore.status).toBe(0);

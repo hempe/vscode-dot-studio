@@ -1,6 +1,10 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const { ThirdPartyNoticesPlugin } = require('./scripts/thirdPartyNotices');
+
+const CODICONS = 'Codicons (the icon font in webview/codicons), Copyright (c) Microsoft Corporation, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), the CSS under MIT: https://github.com/microsoft/vscode-codicons';
+
 
 module.exports = [
     // Extension host configuration
@@ -36,6 +40,7 @@ module.exports = [
                 }
             ]
         },
+        plugins: [new ThirdPartyNoticesPlugin()],
         devtool: 'nosources-source-map'
     },
     // Webview configuration for React components
@@ -81,6 +86,7 @@ module.exports = [
             ]
         },
         plugins: [
+            new ThirdPartyNoticesPlugin({ extra: CODICONS }),
             new HtmlWebpackPlugin({
                 template: './src/webview/solution-view/template.html',
                 filename: 'solution-view/index.html',

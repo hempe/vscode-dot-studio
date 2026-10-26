@@ -5,21 +5,24 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 import { generateServiceReference } from '../../../../services/serviceReferences/serviceReferenceGenerator';
 import { readServiceReference } from '../../../../services/serviceReferences/connectedService';
-import { findSvcutil, runSvcutil } from '../../../../services/serviceReferences/svcutil';
+import { findSvcutil, listsSvcutil, runSvcutil } from '../../../../services/serviceReferences/svcutil';
 
 const fixtureProject = path.join(__dirname, '../../../../__fixtures__/service-references/PayLoop');
 const hasDotnet = spawnSync('dotnet', ['--version']).status === 0;
+// CI has no dotnet-svcutil: the test shows as skipped there instead of passing without running
+const svcutilInstalled = hasDotnet && (
+    listsSvcutil(spawnSync('dotnet', ['tool', 'list'], { cwd: fixtureProject, encoding: 'utf8' }).stdout ?? '')
+    || fs.existsSync(path.join(os.homedir(), '.dotnet', 'tools', process.platform === 'win32' ? 'dotnet-svcutil.exe' : 'dotnet-svcutil')));
 
 describe('dotnet-svcutil integration', () => {
     jest.setTimeout(120000);
 
-    it('regenerates the PayLoop reference for net10.0 like Visual Studio would', async () => {
+    (svcutilInstalled ? it : it.skip)('regenerates the PayLoop reference for net10.0 like Visual Studio would', async () => {
         const project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcint-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
         const install = hasDotnet ? await findSvcutil(project) : undefined;
         if (!install) {
-            console.warn('dotnet-svcutil not installed, skipping');
-            return;
+            throw new Error('dotnet-svcutil was found at load time but not in the copy of the project');
         }
         const projectPath = path.join(project, 'PayLoop.csproj');
         // Ported like the real project: modern framework, the GAC System.ServiceModel reference gone

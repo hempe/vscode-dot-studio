@@ -6,8 +6,8 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 
 ## Every release
 
-1. Make sure what should go out is on `master` and the CI badge/run of that commit is green (Actions > CI; the Windows job is informational until it has been green once).
-2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0` (a date after it is fine) followed by what changed for users since the last release. The first release (`0.1.0`) is just "Initial release" with a short summary of the features, not a history. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
+1. Make sure what should go out is on `master` and the CI badge/run of that commit is green (Actions > CI; Linux and Windows are both gates).
+2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0` (a date after it is fine) followed by what changed for users since the last release. A section is a short summary of what changed for users, not the commit history. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
 3. Commit and push that to `master`.
 4. GitHub > Releases > **Draft a new release**: choose "Create new tag" and type `v0.2.0` (the tag is the version, `v` + `major.minor.patch`, nothing else), target `master`. Tick **Set as a pre-release** for a first or risky release. Leave the notes empty to use the changelog section, or write them. Click **Publish release**.
 5. Watch Actions > Release. The `build` job (no secrets, read-only token) runs typecheck and tests and builds one `.vsix` with the tag's version; the `publish` job (the tokens, the OIDC identity, no project code) publishes it to Open VSX (VSCodium) when `OVSX_PAT` is set or trusted publishing is switched on (`OVSX_TRUSTED_PUBLISHING`), and attaches it to the release. The run's summary says which stores got it.
@@ -57,4 +57,4 @@ No long-lived token is needed in the end: Open VSX supports *trusted publishing*
 
 **First release**
 
-- [ ] Until a secret exists, the workflow skips that store and still makes the GitHub release. Publish `0.1.0` as a **pre-release** first (odd minor = pre-release channel), upload the `.vsix` to the Marketplace by hand, look at both listings, then publish `0.2.0` as the first stable release.
+- [ ] Until a secret exists, the workflow skips that store and still makes the GitHub release. The first releases (`0.1.0`, `0.1.1`) were pre-releases; upload the `.vsix` to the Marketplace by hand, look at both listings, and publish the first stable release when you are happy.

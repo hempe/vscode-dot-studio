@@ -77,7 +77,7 @@ jobs:
         run: |
           flags=()
           if [[ "$PRERELEASE" == "true" ]]; then flags+=(--pre-release); fi
-          npx vsce package "${{ steps.version.outputs.version }}" --no-git-tag-version --no-update-package-json --no-dependencies "${flags[@]}" --out shinobi-dotnet.vsix
+          npx vsce package "${{ steps.version.outputs.version }}" --no-git-tag-version --no-update-package-json --no-dependencies --baseContentUrl "https://github.com/hempe/vscode-dot-studio/blob/$TAG" --baseImagesUrl "https://github.com/hempe/vscode-dot-studio/raw/$TAG" "${flags[@]}" --out shinobi-dotnet.vsix
 
       - uses: actions/upload-artifact@v7
         with:

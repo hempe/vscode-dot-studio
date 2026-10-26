@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import { cannotRun } from '../../testSupport/cannotRun';
 
 jest.mock('vscode', () => {
     class Collection {
@@ -137,7 +138,7 @@ describe('Test Explorer with a run settings file and dotnet', () => {
 
     it('TestRunParameters and environment variables reach VSTest (NUnit) and MSTest runner tests', async () => {
         if (!hasDotnet || ['A', 'B', 'MR'].some(project => spawnSync('dotnet', ['restore', path.join(dir, project)]).status !== 0)) {
-            console.warn('dotnet or the test packages are not available, skipping');
+            cannotRun('dotnet or the test packages are not available');
             return;
         }
         const projects = ['A', 'B', 'MR'].map(name => path.join(dir, name, `${name}.csproj`));

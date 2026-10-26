@@ -2,7 +2,7 @@
 
 # Shinobi .NET Studio
 
-**The Visual Studio workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, the same keys.
+**A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, and Visual Studio's keys where they do not clash with VS Code's.
 
 **Why:** free and MIT licensed, no C# Dev Kit needed, and it runs in VS Code and VSCodium (any Open VSX editor that has a C# extension).
 
@@ -162,7 +162,7 @@ File nesting, Track Active Item, where the Solution Explorer sits, which diagnos
 
 ## Privacy
 
-The extension sends no telemetry. Its only network use is the NuGet Package Manager, which talks to the package sources in your `NuGet.Config` (nuget.org by default, and private feeds with the credentials you configured there) to search, show details and update packages. Everything else runs the `dotnet` command on your machine; the .NET SDK has its own telemetry settings (`DOTNET_CLI_TELEMETRY_OPTOUT`).
+The extension sends no telemetry. Its network use is the NuGet Package Manager, which talks to the package sources in your `NuGet.Config` (nuget.org by default, and private feeds with the credentials you configured there) to search, show details and update packages, and the gRPC references, which download `.proto` files from the URL you enter and look up package versions in the same sources. The first .NET Framework test run under Mono downloads Microsoft's test platform package through `dotnet restore`. Everything else runs the `dotnet` command on your machine; the .NET SDK has its own telemetry settings (`DOTNET_CLI_TELEMETRY_OPTOUT`).
 
 ## Issues and development
 

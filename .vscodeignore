@@ -3,6 +3,8 @@
 **
 !out/extension.js
 !out/extension.js.LICENSE.txt
+!out/THIRD_PARTY_NOTICES.txt
+!out/webview/THIRD_PARTY_NOTICES.txt
 !out/webview/*/bundle.js
 !out/webview/*/bundle.js.LICENSE.txt
 !out/webview/codicons/**

@@ -60,7 +60,7 @@ Keys of a profile that this extension does not know stay as they are when you ap
 
 | | |
 |---|---|
-| **F5** | Builds the solution once, then starts every project of the profile: **Start** ones in the debugger, **Start without debugging** ones without it |
+| **F5** | Builds the solution once, then starts every project of the profile: **Start** ones in the debugger, **Start without debugging** ones without it (known limitation: with the Open VSX C# extension, `muhammad-sammy.csharp`, a project set to Start without debugging is still attached to the debugger, but gets no breakpoints) |
 | **Ctrl+F5** | The same, every project without the debugger |
 | **Stop** (Shift+F5, the toolbar) | Stops every project of the profile. A project that ends on its own leaves the others running |
 
@@ -100,7 +100,7 @@ The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the art
 
 SDK-style projects that target .NET Framework (`net48`, `net472`, ...) run and debug with Mono: install Mono (the `mono` command must work) and Microsoft's [Mono Debug](https://marketplace.visualstudio.com/items?itemName=ms-vscode.mono-debug) extension (`ms-vscode.mono-debug`). The `Startup` configuration then has the type `mono` and points at the `.exe`; the launch profile's `commandLineArgs` and `environmentVariables` go into its `args` and `env` (Mono Debug does not read `launchSettings.json`, and has no `applicationUrl` or browser launch). Ctrl+F5, Start New Instance and Start Without Debugging tell what is missing before they start; with plain F5, VS Code reports the missing debug type. In a multi-targeted project (`net48;net10.0`) F5 picks the newest framework, Select Framework switches to `net48`.
 
-It is meant for console, worker and desktop-style programs. ASP.NET on .NET Framework (IIS Express), test projects, and old-style project files are not supported; on Windows, use Visual Studio for .NET Framework.
+It is meant for console, worker and desktop-style programs. ASP.NET on .NET Framework (IIS Express) and old-style project files are not supported; on Windows, use Visual Studio for .NET Framework. Test projects of .NET Framework do run in the Test Explorer, see [Tests](tests.md).
 
 ## Attach to Process
 

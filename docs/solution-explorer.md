@@ -69,7 +69,7 @@ Click a node or use the arrow keys: Up/Down move, Right expands, Left collapses 
 | F2 | Rename |
 | Delete (macOS: Cmd+Backspace) | Delete or remove the node |
 | Ctrl+C / Ctrl+X / Ctrl+V | Copy, cut and paste files and folders |
-| Ctrl+[, S | Sync with Active Document (also from the editor) |
+| Ctrl+[, S | Sync with Active Document (not while the cursor is in a text editor or the terminal, where Ctrl+[ is VS Code's Outdent Line and Escape; use the ⇄ button or the command palette there) |
 | Ctrl+K, Ctrl+E | [Code Cleanup](code-cleanup.md) of the open C# file (in the editor; the tree menu has it on solution, project, folder and file) |
 | Ctrl+Shift+B | Build the solution |
 | F5 / Ctrl+F5 | Start with / without debugging |
