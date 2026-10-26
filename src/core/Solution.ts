@@ -17,6 +17,7 @@ import { SimpleDebounceManager } from '../services/debounceManager';
 import { SolutionFolderNodeId } from '../services/nodeIdService';
 import { workspaceFolderOf } from '../services/workspaceFolders';
 import { UnloadedProjects } from '../services/unloadedProjects';
+import { pathKey } from '../services/projectItems/projectItems';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -335,6 +336,16 @@ export class Solution {
         }
     }
 
+    /** The length of `dir` when `target` is `dir` or inside it (compared whole path segments, case-insensitive where the file system is), else undefined */
+    private static containedIn(target: string, dir: string): number | undefined {
+        const targetKey = pathKey(path.normalize(target));
+        const dirKey = pathKey(path.normalize(dir)).replace(/[\\/]+$/, '');
+        if (targetKey === dirKey) {
+            return dirKey.length;
+        }
+        return targetKey.startsWith(dirKey) && /[\\/]/.test(targetKey.charAt(dirKey.length)) ? dirKey.length : undefined;
+    }
+
     /**
      * Gets a project by its file path
      */
@@ -352,14 +363,20 @@ export class Solution {
                 }
             }
 
+            // A folder or file inside a project's folder: the innermost project folder that contains it. The name
+            // alone is not enough: the folder of "Foo.Tests" starts with the folder of "Foo" without being inside it
+            let best: { project: Project; length: number } | undefined;
             for (const [storedPath, proj] of this._projects) {
-                if (
-                    projectPath.startsWith(path.dirname(storedPath)) ||
-                    projectPath.startsWith(path.dirname(proj.projectPath))
-                ) {
-                    log.debug(`Found project by parent matching: ${proj.name}`);
-                    return proj;
+                for (const dir of new Set([path.dirname(storedPath), path.dirname(proj.projectPath)])) {
+                    const length = Solution.containedIn(projectPath, dir);
+                    if (length !== undefined && (!best || length > best.length)) {
+                        best = { project: proj, length };
+                    }
                 }
+            }
+            if (best) {
+                log.debug(`Found project by parent matching: ${best.project.name}`);
+                return best.project;
             }
             log.debug(`No project found for path: ${projectPath}`);
         } else {
