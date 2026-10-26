@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.2
+
+Fixes, security hardening and the first results of the code review.
+
+- **Data safety:** Delete Project no longer trashes the whole solution folder when the project sits next to the `.sln` (or another project, or a git repository): only the project file goes, and the question says so. Add File and Add Folder refuse an existing name instead of emptying the file. Names with `/`, `\`, `..`, `:`, `*` and the like are refused when creating or renaming. Dependencies > Remove edits the project file as text (comments and formatting stay) and removes only the exact reference (`Core` no longer removes `MyCore`), strong-named assemblies included; packages are removed the way the NuGet manager does it.
+- **No shell:** `dotnet` commands for solution edits, NuGet install/uninstall/restore, builds, tests and Add Project Reference run without a shell, so paths with `&`, `;`, `$(`, `(` or `'` work and cannot run anything. Add Project Reference checks for circles like the drop onto Dependencies. A successful command whose output says "error" is no longer reported as failed.
+- **NuGet:** the cache of feed responses lives in the extension's storage with hashed file names (credentials were in the file names in `/tmp`), is private to the user, and does not serve old entries; a token with `&`, `<` or `"` is read back as typed; commented-out credentials in `NuGet.Config` are ignored. The package rows no longer get wider than the list for long descriptions, and the package lists scroll with the mouse wheel again.
+- **Package READMEs** can no longer show forms or cover the NuGet manager; the webviews forbid form submissions and `<base>`.
+- **Solution Explorer:** the folders of `Foo.Tests` expand again when a project `Foo` exists (they were looked up in `Foo`).
+- **Keys:** `Ctrl+[`, `S` (Sync with Active Document) no longer swallows `Ctrl+[` (Outdent Line) in editors and `Escape` in the terminal.
+- **Packaging and release:** the bundles carry their third-party licence notices; the extension declares that it needs a trusted, real-disk workspace; the release workflow builds without secrets and publishes from a separate job; runner and temp files of the Test Explorer and unloaded projects live in private folders.
+- **Docs:** corrected claims about .NET Framework tests, Hot Reload, Attach to Process, privacy and keys.
+
 ## 0.1.1
 
 Initial release. A Visual Studio-style workflow for .NET in VS Code and VSCodium:
