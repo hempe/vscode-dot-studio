@@ -2,6 +2,7 @@ import { logger } from '../../core/logger';
 import { NuGetPackage, PackageDependency, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import * as https from 'https';
 import { VersionUtils } from '../versionUtils';
+import { pickRegistrationUrl, responseText } from './httpBody';
 import { PersistentCache } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
@@ -339,12 +340,7 @@ export class NuGetV3Service {
      */
     private static findRegistrationService(serviceIndex: any): string | null {
         try {
-            const resources = serviceIndex.resources || [];
-            const registrationResource = resources.find((resource: any) =>
-                resource['@type']?.includes('RegistrationsBaseUrl')
-            );
-
-            return registrationResource?.['@id'] || null;
+            return pickRegistrationUrl(serviceIndex.resources || []);
         } catch (error) {
             log.error('Error finding registration service:', error);
             return null;
@@ -358,6 +354,8 @@ export class NuGetV3Service {
         const url = new URL(baseUrl);
         url.searchParams.set('q', options.query);
         url.searchParams.set('take', (options.take || 20).toString());
+        // Also the packages with SemVer 2.0.0 versions (dotted prerelease labels, build metadata)
+        url.searchParams.set('semVerLevel', '2.0.0');
 
         if (options.skip) {
             url.searchParams.set('skip', options.skip.toString());
@@ -458,6 +456,7 @@ export class NuGetV3Service {
             const urlObj = new URL(url);
             const headers: Record<string, string> = {
                 'Accept': 'application/json',
+                'Accept-Encoding': 'gzip',
                 'User-Agent': 'DotNet-Extension-VSCode/1.0'
             };
 
@@ -480,15 +479,19 @@ export class NuGetV3Service {
             };
 
             const req = https.request(options, (res: any) => {
-                let data = '';
-                res.on('data', (chunk: any) => data += chunk);
+                const chunks: Buffer[] = [];
+                res.on('data', (chunk: Buffer) => chunks.push(chunk));
                 res.on('end', () => {
                     const responseETag = res.headers['etag'];
-                    resolve({
-                        statusCode: res.statusCode,
-                        body: data,
-                        etag: responseETag
-                    });
+                    try {
+                        resolve({
+                            statusCode: res.statusCode,
+                            body: responseText(chunks, res.headers['content-encoding']),
+                            etag: responseETag
+                        });
+                    } catch (error) {
+                        reject(error);
+                    }
                 });
             });
 

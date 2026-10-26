@@ -80,28 +80,15 @@ export class VersionUtils {
      * @returns true if it's a prerelease version
      */
     static isPrerelease(version: string): boolean {
-        if (!version) return false;
-
-        // If it's a valid semver, use semver parsing
-        if (semver.valid(version)) {
-            try {
-                const parsed = semver.parse(version);
-                return parsed !== null && parsed.prerelease.length > 0;
-            } catch {
-                return false;
-            }
-        }
-
-        // Fallback: check for common prerelease identifiers
-        const prereleasePatterns = ['-alpha', '-beta', '-rc', '-preview', '-pre', '-dev'];
-        return prereleasePatterns.some(pattern => version.toLowerCase().includes(pattern));
+        // NuGet: any `-label` makes a version a prerelease (4.6.0.1-ci0042 as well as 1.0.0-beta.2)
+        return !!version && labelOf(version.trim()) !== undefined;
     }
 }
 
 /**
- * Compare two version strings, handling both semver and non-semver formats
- * @param a First version string
- * @param b Second version string
+ * Compare two NuGet versions the way NuGet does: any number of numeric parts (1.2.3.4), missing ones count as 0; with equal
+ * numbers a version without a `-label` is newer than one with; labels compare by their dot-separated identifiers (numbers
+ * numerically and below words, words case-insensitively, fewer identifiers below more); `+metadata` is ignored.
  * @returns 1 if a > b, -1 if a < b, 0 if equal
  */
 function comp(a: string, b: string): number {
@@ -110,22 +97,46 @@ function comp(a: string, b: string): number {
     if (!a) return -1;
     if (!b) return 1;
 
-    // Check if both versions are valid semver
-    const aValid = semver.valid(a);
-    const bValid = semver.valid(b);
-
-    if (aValid && bValid) {
-        // Both are valid semver, use semver comparison
-        return semver.compare(a, b);
+    const numbers = compareNonSemver(a, b);
+    if (numbers !== 0) {
+        return numbers;
     }
+    return comparePrerelease(labelOf(a), labelOf(b));
+}
 
-    // At least one is not valid semver, use custom comparison
-    return compareNonSemver(a, b);
+/** The prerelease label of a version (`beta.2` of `1.0.0-beta.2+build`), or undefined */
+function labelOf(version: string): string | undefined {
+    const withoutMetadata = version.split('+')[0];
+    const dash = withoutMetadata.indexOf('-');
+    return dash < 0 ? undefined : withoutMetadata.slice(dash + 1);
+}
+
+function comparePrerelease(a: string | undefined, b: string | undefined): number {
+    if (a === undefined && b === undefined) return 0;
+    if (a === undefined) return 1; // a release is newer than its prereleases
+    if (b === undefined) return -1;
+    const left = a.split('.');
+    const right = b.split('.');
+    for (let i = 0; i < Math.max(left.length, right.length); i++) {
+        if (left[i] === undefined) return -1;
+        if (right[i] === undefined) return 1;
+        const leftNumeric = /^\d+$/.test(left[i]);
+        const rightNumeric = /^\d+$/.test(right[i]);
+        if (leftNumeric && rightNumeric) {
+            const difference = Number(left[i]) - Number(right[i]);
+            if (difference !== 0) return difference > 0 ? 1 : -1;
+        } else if (leftNumeric !== rightNumeric) {
+            return leftNumeric ? -1 : 1; // numbers are below words
+        } else {
+            const order = left[i].toLowerCase().localeCompare(right[i].toLowerCase(), 'en', { sensitivity: 'base' });
+            if (order !== 0) return order > 0 ? 1 : -1;
+        }
+    }
+    return 0;
 }
 
 /**
- * Custom version comparison for non-semver formats (like 4-part .NET versions)
- * Handles versions like "1.2.3.4", "1.0.0.1540", etc.
+ * Compare the numeric parts of two versions (any number of them)
  */
 function compareNonSemver(a: string, b: string): number {
     // Split versions into parts and convert to numbers

@@ -6,10 +6,55 @@ import { NuGetV3Service } from './nugetV3Service';
 import { VersionUtils } from '../versionUtils';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 import { Mutable } from '../../types';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { execDotnet } from './dotnetCli';
+import { configStartDir } from './feedAuth';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
+
+/** The sources in the output of `dotnet nuget list source --format detailed` (English) */
+export function parseSourceList(stdout: string): PackageSource[] {
+    const sources: PackageSource[] = [];
+    const lines = stdout.split('\n').filter(line => line.trim());
+
+    let currentSource: Mutable<Partial<PackageSource>> = {};
+    const flush = () => {
+        if (currentSource.name && currentSource.url) {
+            sources.push({
+                name: currentSource.name,
+                url: currentSource.url,
+                enabled: currentSource.enabled ?? true,
+                isLocal: currentSource.isLocal ?? false
+            });
+        }
+    };
+
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+
+        // Source number and name (e.g., "1.  CIRRUS [Enabled]" or "2.  nuget.org [Disabled]")
+        const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)\s+\[(Enabled|Disabled)\]$/);
+        if (sourceMatch) {
+            flush();
+            currentSource = { name: sourceMatch[2], enabled: sourceMatch[3] === 'Enabled' };
+            continue;
+        }
+
+        if (trimmedLine.startsWith('http')) {
+            currentSource.url = trimmedLine;
+            currentSource.isLocal = false;
+            continue;
+        }
+
+        // A local path
+        if (trimmedLine.match(/^[A-Za-z]:\\|^\/|^\./)) {
+            currentSource.url = trimmedLine;
+            currentSource.isLocal = true;
+        }
+    }
+    flush();
+    return sources;
+}
 
 /**
  * Service for browsing and searching NuGet packages using NuGet V3 API
@@ -105,66 +150,15 @@ export class PackageBrowseService {
      */
     private static async _getSourcesFromDotnetCli(): Promise<PackageSource[]> {
         try {
-            const workspaceFolder = solutionWorkspaceFolder()?.uri.fsPath;
-            const { stdout } = await execAsync('dotnet nuget list source --format detailed', {
+            // From the folder NuGet reads its configs from for the solution (where the credentials are read too), and in English:
+            // the parser reads `[Enabled]`, the CLI otherwise follows the language of the system
+            const { stdout } = await execDotnet(['nuget', 'list', 'source', '--format', 'detailed'], {
                 timeout: 10000,
-                cwd: workspaceFolder
+                cwd: configStartDir(),
+                env: { ...process.env, DOTNET_CLI_UI_LANGUAGE: 'en' },
             });
 
-            const sources: PackageSource[] = [];
-            const lines = stdout.split('\n').filter(line => line.trim());
-
-            let currentSource: Mutable<Partial<PackageSource>> = {};
-
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-
-                // Match source number and name (e.g., "1.  CIRRUS [Enabled]" or "2.  nuget.org [Disabled]")
-                const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)\s+\[(Enabled|Disabled)\]$/);
-                if (sourceMatch) {
-                    // Save previous source if complete
-                    if (currentSource.name && currentSource.url) {
-                        sources.push({
-                            name: currentSource.name,
-                            url: currentSource.url,
-                            enabled: currentSource.enabled ?? true,
-                            isLocal: currentSource.isLocal ?? false
-                        });
-                    }
-
-                    // Start new source
-                    currentSource = {
-                        name: sourceMatch[2],
-                        enabled: sourceMatch[3] === 'Enabled'
-                    };
-                    continue;
-                }
-
-                // Match URL
-                if (trimmedLine.startsWith('http')) {
-                    currentSource.url = trimmedLine;
-                    currentSource.isLocal = false;
-                    continue;
-                }
-
-                // Match local path
-                if (trimmedLine.match(/^[A-Za-z]:\\|^\/|^\./)) {
-                    currentSource.url = trimmedLine;
-                    currentSource.isLocal = true;
-                    continue;
-                }
-            }
-
-            // Add the last source
-            if (currentSource.name && currentSource.url) {
-                sources.push({
-                    name: currentSource.name,
-                    url: currentSource.url,
-                    enabled: currentSource.enabled ?? true,
-                    isLocal: currentSource.isLocal ?? false
-                });
-            }
-
+            const sources = parseSourceList(stdout);
             log.info(`Found ${sources.length} package sources from dotnet CLI`);
             return sources;
 
