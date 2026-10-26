@@ -94,7 +94,7 @@ export const menuCommands = {
     removeLink: { title: 'Remove Link', description: 'Takes a linked file out of the project: deletes the item that links it (the one with `Link`) from the project file. The file itself stays where it is.' },
     excludeFromProject: { title: 'Exclude From Project', description: 'Takes the file or folder out of the project (a `Remove` item in the project file) and leaves it on disk. It stays visible with Show All Files, greyed out.' },
     includeInProject: { title: 'Include In Project', description: 'Puts a file or folder the project does not contain back into it: deletes the `Remove` item that excluded it, or adds `Include` items. Shown with Show All Files.' },
-    deleteProject: { title: 'Delete', description: 'Removes the project from the solution and moves its folder to the trash, after asking.' },
+    deleteProject: { title: 'Delete', description: 'Removes the project from the solution and moves its folder to the trash, after asking; when the folder also holds the solution, another project of the solution or a git repository, only the project file goes to the trash and the question says so.' },
     removeProject: { title: 'Remove from Solution', description: 'Removes the project from the solution; its files stay on disk.' },
     removeSolutionFolder: { title: 'Remove', description: 'Removes the solution folder from the solution, with the projects and folders in it; files on disk stay.', key: 'delete', mac: 'cmd+backspace' },
     removeSolutionItem: { title: 'Remove from Solution', description: 'Removes the file from the solution; it stays on disk.', key: 'delete', mac: 'cmd+backspace' },

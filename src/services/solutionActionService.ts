@@ -28,6 +28,10 @@ import { ProjectItemsService } from './projectItems/projectItemsService';
 import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from './projectItems/projectItemEdits';
 import { itemsWithoutExcludes } from './projectItems/defaultItems';
 import { addProjectReferences } from './projectReferences';
+import { removeDependencyEdit } from './dependencyRemoval';
+import { itemNameProblem } from './itemNames';
+import { deleteProjectPlan } from './deleteProject';
+import { uninstallPackages } from './nuget/centralPackageOperations';
 import { DebugConfigService } from './debugConfigService';
 import { startWithHotReload } from './hotReload/startWithHotReload';
 import { dependentRenames } from './templates/dependentRenames';
@@ -381,6 +385,13 @@ export class SolutionActionService {
         log.info(`Renaming ${itemType || 'item'} from '${oldName}' to '${newName}' for nodeId: ${nodeId}`);
 
         try {
+            if (nodeId.type === 'file' || nodeId.type === 'folder' || nodeId.type === 'project' || nodeId.type === 'solutionItem') {
+                const problem = itemNameProblem(newName);
+                if (problem) {
+                    vscode.window.showErrorMessage(`Cannot rename to "${newName}": ${problem}`);
+                    return;
+                }
+            }
             if (nodeId.type === 'solutionFolder') {
                 const solution = SolutionService.getActiveSolution();
                 if (solution) {
@@ -859,8 +870,12 @@ export class SolutionActionService {
             }
 
             const projectName = path.basename(projectPath, path.extname(projectPath));
+            const plan = deleteProjectPlan(projectPath, solution.solutionPath, [...solution.projects.values()].map(project => project.projectPath));
+            const what = plan.kind === 'folder'
+                ? 'its folder is moved to the trash'
+                : `only the project file is moved to the trash, because ${plan.reason}`;
             const answer = await vscode.window.showWarningMessage(
-                `Delete project '${projectName}'? It is removed from the solution and its folder is moved to the trash.`,
+                `Delete project '${projectName}'? It is removed from the solution and ${what}.`,
                 { modal: true },
                 'Delete'
             );
@@ -869,10 +884,7 @@ export class SolutionActionService {
                 // First remove from solution
                 await solution.removeProject(projectPath);
 
-                // Then delete the project directory
-                const projectDir = path.dirname(projectPath);
-                const uri = vscode.Uri.file(projectDir);
-                await vscode.workspace.fs.delete(uri, { recursive: true, useTrash: true });
+                await vscode.workspace.fs.delete(vscode.Uri.file(plan.path), { recursive: plan.kind === 'folder', useTrash: true });
 
                 log.info(`Project deleted: ${projectPath}`);
             }
@@ -1093,169 +1105,26 @@ export class SolutionActionService {
     }
 
     /**
-     * Removes a dependency from a .csproj file by directly editing the XML
+     * Removes a dependency from a project: packages the way the NuGet manager does (Central Package Management, global
+     * packages), the other references as a text edit of the project file that keeps comments and formatting
      */
     private static async _removeDependencyFromCsproj(projectPath: string, category: string, dependencyName: string): Promise<boolean> {
         try {
-            const fs = require('fs').promises;
-            const { parseStringPromise } = require('xml2js');
-            const xml2js = require('xml2js');
-
-            // Read the project file
-            const projectContent = await fs.readFile(projectPath, 'utf8');
-
-            // Check if the original file has an XML declaration
-            const hasXmlDeclaration = projectContent.trimStart().startsWith('<?xml');
-            log.info(`Original file has XML declaration: ${hasXmlDeclaration}`);
-
-            const parsedXml = await parseStringPromise(projectContent);
-
-            if (!parsedXml.Project) {
-                log.error('Invalid project file format - no Project element');
-                return false;
+            if (category === 'packages') {
+                const { cancelled, results } = await uninstallPackages(dependencyName, [projectPath]);
+                return !cancelled && results.length > 0 && results.every(result => result.success);
             }
-
-            const project = parsedXml.Project;
-            let removed = false;
-
-            // Determine the XML element to look for based on category
-            let elementName = '';
-            switch (category) {
-                case 'packages':
-                    elementName = 'PackageReference';
-                    break;
-                case 'projects':
-                    elementName = 'ProjectReference';
-                    break;
-                case 'assemblies':
-                    elementName = 'Reference';
-                    break;
-                case 'frameworks':
-                    elementName = 'FrameworkReference';
-                    break;
-                default:
-                    log.error(`Unknown dependency category: ${category}`);
-                    return false;
-            }
-
-            // Find and remove the dependency from ItemGroup elements
-            if (project.ItemGroup) {
-                for (let i = 0; i < project.ItemGroup.length; i++) {
-                    const itemGroup = project.ItemGroup[i];
-
-                    if (itemGroup[elementName]) {
-                        const dependencies = itemGroup[elementName];
-
-                        // Debug: Log all dependencies of this type
-                        log.info(`Found ${dependencies.length} ${elementName} items in project:`);
-                        dependencies.forEach((dep: any, index: number) => {
-                            const include = dep.$ && dep.$.Include;
-                            log.info(`  [${index}] Include: "${include}"`);
-                        });
-
-                        // Filter out the dependency to remove
-                        const filtered = dependencies.filter((dep: any) => {
-                            const include = dep.$ && dep.$.Include;
-
-                            if (category === 'packages') {
-                                // For packages, match by package name exactly
-                                return include !== dependencyName;
-                            } else if (category === 'projects') {
-                                // For project references, try multiple matching strategies
-                                if (!include) return true; // Keep if no Include attribute
-
-                                log.debug(`Checking project reference: "${include}" against "${dependencyName}"`);
-
-                                // Extract project name from various possible formats
-                                const projectFileName = require('path').basename(include); // e.g., "Shinobi.WebSockets.csproj"
-                                const projectNameFromFile = require('path').basename(include, '.csproj'); // e.g., "Shinobi.WebSockets"
-                                const projectNameFromPath = include.split('/').pop()?.replace('.csproj', '') || ''; // Handle forward slashes
-
-                                // Check if any of these match the dependency name
-                                const matches = include === dependencyName ||
-                                    projectFileName === dependencyName ||
-                                    projectNameFromFile === dependencyName ||
-                                    projectNameFromPath === dependencyName ||
-                                    include.includes(dependencyName + '.csproj') ||
-                                    include.endsWith('/' + dependencyName + '.csproj') ||
-                                    include.endsWith('\\' + dependencyName + '.csproj');
-
-                                log.debug(`Project reference match check: ${matches ? 'MATCH' : 'NO MATCH'}`);
-                                log.debug(`  - include: "${include}"`);
-                                log.debug(`  - projectFileName: "${projectFileName}"`);
-                                log.debug(`  - projectNameFromFile: "${projectNameFromFile}"`);
-                                log.debug(`  - projectNameFromPath: "${projectNameFromPath}"`);
-
-                                return !matches; // Return false (remove) if it matches
-                            } else {
-                                // For assemblies and frameworks, match by name
-                                return include !== dependencyName;
-                            }
-                        });
-
-                        if (filtered.length < dependencies.length) {
-                            removed = true;
-                            log.info(`Removed ${elementName} '${dependencyName}' from project`);
-
-                            if (filtered.length === 0) {
-                                // Remove the entire element array if empty
-                                delete itemGroup[elementName];
-
-                                // Remove the entire ItemGroup if it's now empty
-                                const remainingKeys = Object.keys(itemGroup).filter(key => key !== '$');
-                                if (remainingKeys.length === 0) {
-                                    project.ItemGroup.splice(i, 1);
-                                    i--; // Adjust index after removal
-                                }
-                            } else {
-                                // Update with filtered dependencies
-                                itemGroup[elementName] = filtered;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!removed) {
+            const content = await fs.promises.readFile(projectPath, 'utf8');
+            const edited = removeDependencyEdit(content, category, dependencyName);
+            if (edited === undefined) {
                 log.warn(`Dependency '${dependencyName}' not found in project file`);
                 return false;
             }
-
-            // Build the XML back to string
-            const builderOptions: any = {
-                renderOpts: { pretty: true, indent: '  ' }
-            };
-
-            // Only include XML declaration if the original file had one
-            if (hasXmlDeclaration) {
-                builderOptions.xmldec = { version: '1.0', encoding: 'utf-8' };
-                log.info('Including XML declaration in output');
-            } else {
-                // Explicitly disable XML declaration - use headless option for xml2js
-                builderOptions.headless = true;
-                log.info('Excluding XML declaration from output (using headless mode)');
-            }
-
-            log.debug('Builder options:', JSON.stringify(builderOptions));
-            const builder = new xml2js.Builder(builderOptions);
-            let xmlString = builder.buildObject(parsedXml);
-
-            // Additional safety check - remove XML declaration if it shouldn't be there
-            if (!hasXmlDeclaration && xmlString.startsWith('<?xml')) {
-                xmlString = xmlString.replace(/^<\?xml[^>]*>\s*/, '');
-                log.info('Removed XML declaration from output as safety measure');
-            }
-
-            log.debug('Final XML starts with:', xmlString.substring(0, 100));
-
-            // Write the modified content back to the file
-            await fs.writeFile(projectPath, xmlString, 'utf8');
-
-            log.info(`Successfully updated project file: ${projectPath}`);
+            await fs.promises.writeFile(projectPath, edited, 'utf8');
+            log.info(`Removed ${category} '${dependencyName}' from ${projectPath}`);
             return true;
-
         } catch (error) {
-            log.error('Error editing .csproj file:', error);
+            log.error('Error editing the project file:', error);
             return false;
         }
     }
@@ -1293,24 +1162,19 @@ export class SolutionActionService {
     }
 
     /**
-     * Creates a new file at the specified path
+     * Creates a new, empty file at the specified path; an existing file is never touched
      */
     static async createFile(filePath: string): Promise<void> {
         try {
             log.info(`Creating file: ${filePath}`);
-
-            const fs = require('fs').promises;
-            const pathModule = require('path');
-
-            // Ensure the directory exists
-            const dirPath = pathModule.dirname(filePath);
-            await fs.mkdir(dirPath, { recursive: true });
-
-            // Create the file with empty content
-            await fs.writeFile(filePath, '', 'utf8');
-
+            await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+            // `wx`: fails when the file exists instead of emptying it
+            await fs.promises.writeFile(filePath, '', { encoding: 'utf8', flag: 'wx' });
             log.info(`File created successfully: ${filePath}`);
         } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+                throw new Error(`${path.basename(filePath)} already exists`);
+            }
             log.error('Error creating file:', error);
             throw error;
         }
@@ -1322,12 +1186,10 @@ export class SolutionActionService {
     static async createFolder(folderPath: string): Promise<void> {
         try {
             log.info(`Creating folder: ${folderPath}`);
-
-            const fs = require('fs').promises;
-
-            // Create the directory recursively
-            await fs.mkdir(folderPath, { recursive: true });
-
+            if (fs.existsSync(folderPath)) {
+                throw new Error(`${path.basename(folderPath)} already exists`);
+            }
+            await fs.promises.mkdir(folderPath, { recursive: true });
             log.info(`Folder created successfully: ${folderPath}`);
         } catch (error) {
             log.error('Error creating folder:', error);

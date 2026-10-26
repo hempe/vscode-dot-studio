@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ShowAllFiles } from '../../services/showAllFiles';
 import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
+import { itemNameProblem } from '../../services/itemNames';
 import { SolutionActionService } from '../../services/solutionActionService';
 import { DropResult, SolutionExpansionService } from '../../services/solutionExpansionService';
 import { FrameworkDropdownService } from '../../services/frameworkDropdownService';
@@ -674,6 +675,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            const problem = itemNameProblem(fileName);
+            if (problem) {
+                vscode.window.showErrorMessage(`Cannot create "${fileName}": ${problem}`);
+                return;
+            }
+
             log.info(`Creating actual file: ${fileName} in ${parentPath}`);
             const fullPath = path.join(parentPath, fileName);
             await SolutionActionService.createFile(fullPath);
@@ -715,6 +722,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             if (!parentPath) {
                 log.error('Invalid node ID, cannot extract parent path:', nodeId);
                 vscode.window.showErrorMessage(`Error creating folder: invalid parent path`);
+                return;
+            }
+
+            const problem = itemNameProblem(folderName);
+            if (problem) {
+                vscode.window.showErrorMessage(`Cannot create "${folderName}": ${problem}`);
                 return;
             }
 

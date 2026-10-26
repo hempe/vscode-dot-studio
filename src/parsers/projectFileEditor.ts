@@ -230,6 +230,17 @@ export class ProjectFileEditor {
         return { content: result, removed: matching.length > 0 };
     }
 
+    /** Deletes the `itemType` items whose `Include` the predicate accepts (comments and targets are left alone) */
+    static removeItems(content: string, itemType: string, matches: (include: string) => boolean): { content: string; removed: boolean } {
+        const found = this.findItemElements(content, 'Include').filter(item => item.itemType === itemType && matches(item.value));
+        let result = content;
+        // From the end, so the offsets of the earlier items stay valid
+        for (const item of found.reverse()) {
+            result = this.deleteElement(result, item.start, item.end);
+        }
+        return { content: result, removed: found.length > 0 };
+    }
+
     /** Deletes the element and, when it was alone on its line, the line; an ItemGroup left empty goes too */
     static deleteElement(content: string, start: number, end: number): string {
         const lineStart = content.lastIndexOf('\n', start - 1) + 1;

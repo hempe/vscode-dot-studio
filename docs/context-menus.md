@@ -63,7 +63,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Manage User Secrets |  | Opens the project's `secrets.json` in your user profile (outside the repository); adds a `UserSecretsId` to the project first if it has none. |
 | Rename | F2 | Renames inline in the tree. Renaming a C# file offers to rename the type of the same name; nested files (Designer, code-behind) are renamed with their parent. |
 | Remove from Solution |  | Removes the project from the solution; its files stay on disk. |
-| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking. |
+| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking; when the folder also holds the solution, another project of the solution or a git repository, only the project file goes to the trash and the question says so. |
 | Build |  | Builds the solution or project as a task (`dotnet build`); errors go to the Error List. |
 | Rebuild |  | Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`). |
 | Clean |  | Deletes the build output (`dotnet clean`). |
@@ -116,7 +116,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Reload Project |  | Takes the unloaded project back into solution builds and shows its files again. |
 | Edit Project File |  | Opens the project file (`.csproj`) in the editor, like double-clicking the project. |
 | Remove from Solution |  | Removes the project from the solution; its files stay on disk. |
-| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking. |
+| Delete |  | Removes the project from the solution and moves its folder to the trash, after asking; when the folder also holds the solution, another project of the solution or a git repository, only the project file goes to the trash and the question says so. |
 | Copy Full Path |  | Copies the full path of the item to the clipboard. |
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
