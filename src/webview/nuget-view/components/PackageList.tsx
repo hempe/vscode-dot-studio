@@ -158,7 +158,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                             </div>
 
                             {/* Package Details */}
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'row' }}>
+                            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'row' }}>
                                 {/* Top row: Package name with authors and version */}
                                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                                     <div style={{
@@ -235,7 +235,8 @@ export const PackageList: React.FC<PackageListProps> = ({
                                             display: '-webkit-box',
                                             WebkitLineClamp: 2,
                                             WebkitBoxOrient: 'vertical',
-                                            overflow: 'hidden'
+                                            overflow: 'hidden',
+                                            overflowWrap: 'anywhere'
                                         }}>
                                             {pkg.description}
                                         </div>
