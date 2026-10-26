@@ -186,6 +186,8 @@ const log = logger('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
+    // Why the solution could not be loaded (the host's message), until data arrives
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
     const [markers, setMarkers] = useState<DiagnosticMarkers>({} as DiagnosticMarkers);
@@ -209,12 +211,14 @@ export const useVsCodeApi = () => {
                     console.error('📥 Received full solution data:', message.payload);
                     console.error('📥 Projects count:', message.payload?.projects?.length);
                     setSolutionData(prev => mergeTreeData(prev, message.payload));
+                    setLoadError(null);
                     console.error('📥 Setting loading=false, refreshing=false');
                     setLoading(false);
                     setRefreshing(false);
                     break;
                 case 'error':
                     log.info('Received error:', message.payload.message);
+                    setLoadError(message.payload.message);
                     setLoading(false);
                     break;
                 case 'addTemporaryNode':
@@ -298,6 +302,7 @@ export const useVsCodeApi = () => {
 
     return {
         solutionData,
+        loadError,
         loading,
         refreshing,
         activeFilePath,

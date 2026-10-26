@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TemplateOption, WizardInit, WizardMessage, WizardRequest, WizardTemplate } from '../../types/templateWizard';
 import { Select } from '../shared/Select';
 
@@ -123,6 +123,8 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
     const [sameDirectory, setSameDirectory] = useState(false);
     const [error, setError] = useState<string>();
     const [busy, setBusy] = useState(false);
+    // Set when a create request is sent, before the host's `busy` message arrives: Enter and the button can fire again until then
+    const submitted = useRef(false);
 
     useEffect(() => {
         const listener = (event: MessageEvent<WizardMessage>) => {
@@ -133,9 +135,13 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
                     break;
                 case 'busy':
                     setBusy(message.busy);
+                    if (!message.busy) {
+                        submitted.current = false;
+                    }
                     break;
                 case 'error':
                     setError(message.message);
+                    submitted.current = false;
                     break;
                 case 'folderPicked':
                     setLocation(message.path);
@@ -177,9 +183,10 @@ export const App: React.FC<{ api: WizardApi }> = ({ api }) => {
     const isProject = init.kind === 'project';
     const nameMissing = selected?.needsName !== false && !name.trim();
     const create = () => {
-        if (!selected || nameMissing || busy) {
+        if (!selected || nameMissing || busy || submitted.current) {
             return;
         }
+        submitted.current = true;
         setError(undefined);
         api.postMessage({
             type: 'create', templateId: selected.id, name: name.trim(), values,

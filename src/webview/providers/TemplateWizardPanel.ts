@@ -27,6 +27,7 @@ export class TemplateWizardPanel {
         panel.webview.html = TemplateWizardWebview.getHtmlForWebview(this.extensionUri, panel.webview, title);
         const post = (message: WizardMessage) => panel.webview.postMessage(message);
 
+        let creating = false;
         panel.webview.onDidReceiveMessage(async (request: WizardRequest) => {
             switch (request.type) {
                 case 'ready':
@@ -38,6 +39,10 @@ export class TemplateWizardPanel {
                     }
                     break;
                 case 'create': {
+                    if (creating) {
+                        break; // a second request while one runs (Enter twice) would run `dotnet new` into the same folder again
+                    }
+                    creating = true;
                     await post({ type: 'busy', busy: true });
                     let error: string | undefined;
                     try {
@@ -49,6 +54,7 @@ export class TemplateWizardPanel {
                     if (error) {
                         await post({ type: 'error', message: error });
                         await post({ type: 'busy', busy: false });
+                        creating = false;
                     } else {
                         panel.dispose();
                     }

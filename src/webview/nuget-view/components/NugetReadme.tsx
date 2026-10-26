@@ -14,15 +14,20 @@ export default function NugetReadme({ packageId, version, readmeUrl }: NugetRead
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // The answer of an earlier package must not replace the README of the one selected since
+        let current = true;
+        const controller = new AbortController();
+
+        setError(null);
         if (!readmeUrl) {
+            setLoading(false);
             setText("No README available for this package.");
-            return;
+            return () => controller.abort();
         }
 
         setLoading(true);
-        setError(null);
 
-        fetch(readmeUrl)
+        fetch(readmeUrl, { signal: controller.signal })
             .then(res => {
                 if (res.ok) {
                     return res.text();
@@ -33,14 +38,23 @@ export default function NugetReadme({ packageId, version, readmeUrl }: NugetRead
                 }
             })
             .then((content) => {
-                setText(content);
-                setLoading(false);
+                if (current) {
+                    setText(content);
+                    setLoading(false);
+                }
             })
             .catch((err) => {
-                setError(err.message);
-                setText("Failed to load README.");
-                setLoading(false);
+                if (current) {
+                    setError(err.message);
+                    setText("Failed to load README.");
+                    setLoading(false);
+                }
             });
+
+        return () => {
+            current = false;
+            controller.abort();
+        };
     }, [packageId, version, readmeUrl]);
 
     if (loading) {

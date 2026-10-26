@@ -2,19 +2,18 @@ import React from 'react';
 import { SolutionTree } from './components/SolutionTree';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
-import { sendToBackend } from '../nuget-view/shared';
+import { blocksVsCodeMenu } from '../shared/altKey';
 import { IconThemeContext, IconThemeFonts } from './components/TreeNode/IconThemeContext';
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loading, refreshing, activeFilePath, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loadError, loading, refreshing, activeFilePath, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
         const preventKeyboardBubbling = (e: KeyboardEvent) => {
-            // Only block specific keys that would trigger VS Code's menus
-            // Alt key alone or with other keys triggers VS Code menus (File, Edit, etc.)
-            if (e.altKey || e.key === 'Alt') {
+            // Alt triggers VS Code's menus (File, Edit, etc.); AltGr/Option characters and anything typed into an input stay
+            if (blocksVsCodeMenu(e)) {
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -30,12 +29,6 @@ export const App: React.FC = React.memo(() => {
         };
     }, []);
 
-    // Debug logging to find the issue
-    console.error('🔄 APP RENDERING with loading:', loading, 'refreshing:', refreshing, 'hasData:', !!solutionData, 'projects:', solutionData?.projects?.length);
-    if (!solutionData)
-        // Show loading bar in webview
-        sendToBackend({ type: 'getSolutionData' });
-
     if (loading) {
         return (
             <div className="solution-explorer" style={{ position: 'relative', height: '100vh' }}>
@@ -45,7 +38,8 @@ export const App: React.FC = React.memo(() => {
     }
 
     if (!solutionData) {
-        return <div className="error">No solution found</div>;
+        // The host asked for the data when the view opened; a failed load says why instead of "No solution found"
+        return <div className="error" role="alert">{loadError ? `Could not load the solution: ${loadError}` : 'No solution found'}</div>;
     }
 
     return (

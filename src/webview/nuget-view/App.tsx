@@ -25,6 +25,8 @@ export const App: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [hasSearched, setHasSearched] = useState(false);
     const [loading, setLoading] = useState(false);
+    // What the host reported as failed (a search, or anything it could not do); shown above the tabs until dismissed
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [initializing, setInitializing] = useState(true);
     // Starts as the setting shinobi.nuget.includePrerelease says (passed on the root element)
     const [includePrerelease, setIncludePrerelease] = useState(() => document.getElementById('root')?.dataset.includePrerelease === 'true');
@@ -115,7 +117,12 @@ export const App: React.FC = () => {
                     log.debug('NuGet React: Processed installed packages:', safeData.installedPackages);
                     log.debug('NuGet React: Processed consolidate packages:', safeData.consolidatePackages);
 
-                    setData(safeData);
+                    // The host sends no search results and no consolidate list with a refresh (after an install, a restore): keep what is shown
+                    setData(prev => ({
+                        ...safeData,
+                        searchResults: safeData.searchResults?.length ? safeData.searchResults : prev.searchResults,
+                        consolidatePackages: safeData.consolidatePackages?.length ? safeData.consolidatePackages : prev.consolidatePackages,
+                    }));
 
                     // Try to preserve selected package after data refresh, or auto-select first package
                     if (selectedPackageRef.current) {
@@ -165,6 +172,15 @@ export const App: React.FC = () => {
                     setData(prev => ({ ...prev, searchResults: ensureArray(searchResults) }));
                     setLoading(false);
                     setHasSearched(true);
+                    // A failed search arrives as an empty list with the reason: say so instead of "No results found"
+                    setErrorMessage(message.payload?.error ? `Search failed: ${message.payload.error}` : null);
+                    break;
+                case 'error':
+                    // Nothing is waiting any more: the loading bar stops and the buttons work again
+                    setLoading(false);
+                    setConsolidateLoading(false);
+                    setInitializing(false);
+                    setErrorMessage(message.payload.message);
                     break;
                 case 'packageIcon':
                     if (message.payload.packageId && message.payload.version) {
@@ -296,6 +312,7 @@ export const App: React.FC = () => {
         if (searchTerm.trim()) {
             log.info('Frontend: Starting search for:', searchTerm);
             setLoading(true);
+            setErrorMessage(null);
             sendToBackend({
                 type: 'searchPackages',
                 payload: {
@@ -601,7 +618,8 @@ export const App: React.FC = () => {
     const getCurrentPackageList = () => {
         switch (activeTab) {
             case 'browse':
-                return filterPackages(enhancedSearchResults, searchTerm);
+                // The list that is shown (the keys walk what the rows highlight)
+                return enhancedSearchResults;
             case 'installed':
                 return [...filteredPackages, ...(transitiveExpanded ? filteredTransitive : [])];
             case 'updates':
@@ -1306,6 +1324,16 @@ export const App: React.FC = () => {
                 }
             `}</style>
             <LoadingBar visible={shouldShowLoadingBar} />
+            {errorMessage && (
+                <div role="alert" style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', fontSize: '12px',
+                    background: 'var(--vscode-inputValidation-errorBackground)', border: '1px solid var(--vscode-inputValidation-errorBorder)',
+                    color: 'var(--vscode-foreground)'
+                }}>
+                    <span style={{ flex: 1 }}>{errorMessage}</span>
+                    <Button onClick={() => setErrorMessage(null)} appearance="secondary">Dismiss</Button>
+                </div>
+            )}
             <Panels
                 className="nuget-panels"
                 tabs={tabs}

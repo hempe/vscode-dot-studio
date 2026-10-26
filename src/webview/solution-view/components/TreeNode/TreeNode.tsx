@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
+import '../../icons';
 import { TreeNodeProps } from '../../types';
 import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
