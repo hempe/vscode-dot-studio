@@ -137,6 +137,12 @@ export class DebugConfigService {
             const { config: startupConfig, framework: selectedFramework, configuration, platform } =
                 await this.launchConfiguration(absoluteProjectPath, workspacePath, framework, profile, 'Startup', 'StartupPreBuild');
 
+            // A launch.json with syntax errors is not changed: switching only tasks.json would make F5 build one project and run another
+            if (this.launchJsonHasSyntaxErrors(launchJsonPath)) {
+                vscode.window.showWarningMessage('.vscode/launch.json has syntax errors and was not updated. Fix them and select the startup project again.');
+                return false;
+            }
+
             // tasks.json first: it names the startup project, which is read back when launch.json changes
             await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined, platform);
 
@@ -205,10 +211,6 @@ export class DebugConfigService {
             if (!fs.existsSync(vscodeFolder)) {
                 fs.mkdirSync(vscodeFolder, { recursive: true });
             }
-            const relativeTarget = path.relative(workspacePath, buildTarget);
-            await this.updateTasksJson(path.join(vscodeFolder, 'tasks.json'), relativeTarget.startsWith('..') ? buildTarget : relativeTarget,
-                BuildConfiguration.active, undefined, BuildConfiguration.activePlatform);
-
             const original = fs.existsSync(launchJsonPath)
                 ? fs.readFileSync(launchJsonPath, 'utf8')
                 : JSON.stringify({ version: '0.2.0', configurations: [] }, null, 4) + '\n';
@@ -218,10 +220,16 @@ export class DebugConfigService {
                 vscode.window.showWarningMessage('.vscode/launch.json has syntax errors and was not updated. Fix them and select the startup profile again.');
                 return;
             }
+
+            // After the check: tasks.json names the build, and must not move on while launch.json stays
+            const relativeTarget = path.relative(workspacePath, buildTarget);
+            await this.updateTasksJson(path.join(vscodeFolder, 'tasks.json'), relativeTarget.startsWith('..') ? buildTarget : relativeTarget,
+                BuildConfiguration.active, undefined, BuildConfiguration.activePlatform);
             const names = configs.map(config => config.name);
             const previous = this.compoundConfigurationNames(value);
+            // A configuration named Startup clashes with the compound; the entries the previous compound listed go only when we wrote them (hidden)
             let text = removeArrayItems(original, 'configurations', (config: any) =>
-                config?.name === 'Startup' || (previous.includes(config?.name) && !names.includes(config?.name)));
+                config?.name === 'Startup' || (previous.includes(config?.name) && !names.includes(config?.name) && config?.presentation?.hidden === true));
             // Inserted from the last, so new entries end up first and in the profile's order
             for (const config of [...configs].reverse()) {
                 text = upsertArrayItem(text, 'configurations', (item: any) => item?.name === config.name, config, 'first');
@@ -237,6 +245,11 @@ export class DebugConfigService {
         }
     }
 
+    /** Whether launch.json exists and cannot be parsed (VS Code reads it tolerantly, we do not edit it then) */
+    private static launchJsonHasSyntaxErrors(launchJsonPath: string): boolean {
+        return fs.existsSync(launchJsonPath) && parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).errors.length > 0;
+    }
+
     /** Whether launch.json starts a multi-project profile (the "Startup" compound) */
     static hasStartupProfileConfiguration(): boolean {
         const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
@@ -250,9 +263,11 @@ export class DebugConfigService {
         }
         const original = fs.readFileSync(launchJsonPath, 'utf8');
         const names = this.compoundConfigurationNames(parseJsonc(original).value);
+        // Only the configurations we wrote (hidden entries of the compound): a user's own "Startup" compound lists the
+        // user's own configurations, which stay
         const text = removeArrayItems(
             removeArrayItems(original, 'compounds', (item: any) => item?.name === 'Startup'),
-            'configurations', (config: any) => names.includes(config?.name));
+            'configurations', (config: any) => names.includes(config?.name) && config?.presentation?.hidden === true);
         log.info(`Removing the startup profile from ${launchJsonPath}`);
         fs.writeFileSync(launchJsonPath, text, 'utf8');
     }

@@ -202,6 +202,7 @@ export async function createProject(
         return `${location} exists and is not empty.`;
     }
 
+    const projectDirExisted = fs.existsSync(projectDir);
     const args = ['new', template.shortName, '-n', name, '-o', projectDir, ...optionArgs(template.options, values)];
     if (template.language) {
         args.push('--language', template.language);
@@ -209,6 +210,7 @@ export async function createProject(
     const result = await dotnet(args, solutionDir);
     const projectFile = findProjectFile(projectDir);
     if (result.code !== 0 || !projectFile) {
+        removeCreated(projectDir, projectDirExisted);
         return failure(`Creating ${name}`, result);
     }
 
@@ -221,6 +223,21 @@ export async function createProject(
         return `${name} was created in ${location} but could not be added to the solution: ${error}`;
     }
     return undefined;
+}
+
+/** Takes back what a failed creation wrote into a folder that was missing or empty before, so the retry is not refused */
+function removeCreated(dir: string, existedEmpty: boolean): void {
+    try {
+        if (existedEmpty) {
+            for (const entry of fs.readdirSync(dir)) {
+                fs.rmSync(path.join(dir, entry), { recursive: true, force: true });
+            }
+        } else {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    } catch (error) {
+        log.warn(`Could not clean up ${dir}:`, error);
+    }
 }
 
 /**
@@ -240,7 +257,10 @@ export async function createSolutionWithProject(
     if (fs.existsSync(solutionDir) && fs.readdirSync(solutionDir).length > 0) {
         return { error: `${solutionDir} exists and is not empty.` };
     }
+    const solutionDirExisted = fs.existsSync(solutionDir);
     fs.mkdirSync(solutionDir, { recursive: true });
+    // A failure below takes back what was written: the retry would be refused ("exists and is not empty")
+    const undo = () => removeCreated(solutionDir, solutionDirExisted);
 
     const slnName = sameDirectory ? name : solutionName.trim();
     let created = await dotnet(['new', 'sln', '-n', slnName, '-o', solutionDir, '--format', 'slnx'], solutionDir);
@@ -249,6 +269,7 @@ export async function createSolutionWithProject(
     }
     const solutionPath = [`${slnName}.slnx`, `${slnName}.sln`].map(file => path.join(solutionDir, file)).find(file => fs.existsSync(file));
     if (created.code !== 0 || !solutionPath) {
+        undo();
         return { error: failure('Creating the solution', created) };
     }
 
@@ -259,10 +280,12 @@ export async function createSolutionWithProject(
     const result = await dotnet(args, solutionDir);
     const projectFile = findProjectFile(projectDir);
     if (result.code !== 0 || !projectFile) {
+        undo();
         return { error: failure(`Creating ${name}`, result) };
     }
     const added = await dotnet(['sln', solutionPath, 'add', projectFile], solutionDir);
     if (added.code !== 0) {
+        undo();
         return { error: failure(`Adding ${name} to ${path.basename(solutionPath)}`, added) };
     }
     return { solutionPath };

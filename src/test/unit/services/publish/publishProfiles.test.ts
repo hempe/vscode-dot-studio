@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, parseProfile, publishDirOf,
+    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, parseProfile, profileNameProblem, publishDirOf,
 } from '../../../../services/publish/publishProfiles';
 
 // A Folder profile as Visual Studio 2022 writes it
@@ -120,5 +120,23 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
         } finally {
             fs.rmSync(root, { recursive: true, force: true });
         }
+    });
+});
+
+describe('profileNameProblem (review A6-4)', () => {
+    it('accepts a normal name and keeping the current one (any case)', () => {
+        expect(profileNameProblem('Staging EU', 'FolderProfile', ['folderprofile'])).toBeUndefined();
+        expect(profileNameProblem('FOLDERPROFILE', 'FolderProfile', ['folderprofile'])).toBeUndefined();
+    });
+
+    it('refuses what MSBuild splits on and what file names cannot hold', () => {
+        for (const bad of ['Test;1', 'A,B', 'a/b', 'a\\b', 'a:b', 'a*b', 'a?b', 'a"b', 'a<b', 'a|b']) {
+            expect(profileNameProblem(bad, 'Old', [])).toEqual(expect.any(String));
+        }
+        expect(profileNameProblem('   ', 'Old', [])).toBe('Enter a name');
+    });
+
+    it('refuses a name another profile has', () => {
+        expect(profileNameProblem('Prod', 'Old', ['old', 'prod'])).toBe('A profile with that name exists');
     });
 });

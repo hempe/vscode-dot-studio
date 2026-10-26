@@ -121,7 +121,8 @@ const defaultDeps: TestExplorerDeps = {
     platform: () => process.platform,
     build: (projectPath, configuration, output, targetFramework) => new Promise(resolve => {
         execFile('dotnet', ['build', projectPath, '--configuration', configuration, ...(targetFramework ? ['--framework', targetFramework] : []), '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
-            { cwd: path.dirname(projectPath), timeout: 600000 }, (error, stdout, stderr) => {
+            // maxBuffer: thousands of warnings are more than the 1 MiB default, which would kill the build and report it as failed
+            { cwd: path.dirname(projectPath), timeout: 600000, maxBuffer: 256 * 1024 * 1024 }, (error, stdout, stderr) => {
                 output(`${stdout}${stderr}`);
                 resolve(!error);
             });
@@ -279,6 +280,10 @@ export class TestExplorer implements vscode.Disposable {
         });
 
         for (const projectPath of [...this.states.keys()].filter(p => !candidates.includes(p))) {
+            const gone = this.controller.items.get(projectPath);
+            if (gone) {
+                this.forgetChildren(gone);
+            }
             this.controller.items.delete(projectPath);
             this.states.delete(projectPath);
         }
@@ -355,8 +360,22 @@ export class TestExplorer implements vscode.Disposable {
         }
         state.item.error = undefined;
         state.item.description = undefined;
+        // The old tree goes: its items and their nodes would otherwise stay in the maps for good (one tree per discovery)
+        this.forgetChildren(state.item);
         state.item.children.replace(buildTestTree(discovered).map(entry => this.toItem(entry)));
         return true;
+    }
+
+    /** Drops the nodes (and the VSTest cases) of the items below `item` from the maps */
+    private forgetChildren(item: vscode.TestItem): void {
+        item.children.forEach(child => {
+            this.forgetChildren(child);
+            const node = this.nodes.get(child);
+            if (node) {
+                this.vstestCases.delete(node.uid);
+            }
+            this.nodes.delete(child);
+        });
     }
 
     private toItem(entry: TreeEntry): vscode.TestItem {

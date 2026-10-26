@@ -9,6 +9,8 @@ export class DebounceManager<T = void> {
     private _timer?: NodeJS.Timeout;
     private _queue: T[] = [];
     private _isProcessing = false;
+    // A trigger fired while the callback was still running: run again afterwards (the data it read may be older than the change)
+    private _rerun = false;
     private _callback: (items: T[]) => Promise<void> | void;
     private _debounceMs: number;
     private _deduplicateKey?: (item: T) => string;
@@ -83,6 +85,7 @@ export class DebounceManager<T = void> {
             this._timer = undefined;
         }
         this._queue = [];
+        this._rerun = false;
     }
 
     /**
@@ -118,7 +121,9 @@ export class DebounceManager<T = void> {
 
     private async _process(): Promise<void> {
         if (this._isProcessing) {
-            log.debug('Already processing, skipping');
+            log.debug('Already processing, running again afterwards');
+            this._rerun = true;
+            this._timer = undefined; // the timer that brought us here has fired
             return;
         }
 
@@ -140,6 +145,14 @@ export class DebounceManager<T = void> {
             log.error('Error processing debounced items:', error);
         } finally {
             this._isProcessing = false;
+            if (this._rerun) {
+                this._rerun = false;
+                if (!this._timer) {
+                    this._timer = setTimeout(() => {
+                        this._process();
+                    }, this._debounceMs);
+                }
+            }
         }
     }
 }

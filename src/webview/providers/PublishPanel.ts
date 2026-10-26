@@ -5,7 +5,7 @@ import { logger } from '../../core/logger';
 import { PublishInit, PublishMessage, PublishRequest } from '../../types/publish';
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 import {
-    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, profilesFolder, PublishProfile, publishDirOf,
+    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, profileNameProblem, profilesFolder, PublishProfile, publishDirOf,
 } from '../../services/publish/publishProfiles';
 import { BuildConfiguration } from '../../services/buildConfiguration';
 import { DebugConfigService } from '../../services/debugConfigService';
@@ -146,10 +146,7 @@ export class PublishPanel {
                 const name = await vscode.window.showInputBox({
                     title: 'Rename publish profile',
                     value: profile.name,
-                    validateInput: value => !value.trim() ? 'Enter a name'
-                        : /[\\/:*?"<>|]/.test(value) ? 'The name can\'t contain \\ / : * ? " < > |'
-                            : value.trim().toLowerCase() !== profile.name.toLowerCase() && taken.includes(value.trim().toLowerCase()) ? 'A profile with that name exists'
-                                : undefined,
+                    validateInput: value => profileNameProblem(value, profile.name, taken),
                 });
                 if (!name || name.trim() === profile.name) {
                     break;

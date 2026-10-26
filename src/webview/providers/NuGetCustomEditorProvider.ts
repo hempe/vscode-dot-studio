@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { nugetEditorQuery, parseNuGetEditorQuery } from './nugetEditorUri';
 import { Settings } from '../../services/settings';
 import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
@@ -246,7 +247,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 ? `NuGet Package Manager - ${path.basename(projectPath, path.extname(projectPath))}.nuget`
                 : 'NuGet Package Manager.nuget';
 
-            const uri = vscode.Uri.parse(`untitled:${fileName}?context=project&target=${encodeURIComponent(projectPath || '')}`);
+            const uri = vscode.Uri.from({ scheme: 'untitled', path: fileName, query: nugetEditorQuery({ type: 'project', target: projectPath || '' }) });
 
             // Open the document with our custom editor
             await vscode.commands.executeCommand('vscode.openWith', uri, NuGetCustomEditorProvider.viewType);
@@ -295,7 +296,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                 ? `NuGet Package Manager - ${path.basename(solutionPath, path.extname(solutionPath))} Solution.nuget`
                 : 'NuGet Package Manager - Solution.nuget';
 
-            const uri = vscode.Uri.parse(`untitled:${fileName}?context=solution&target=${encodeURIComponent(solutionPath || '')}`);
+            const uri = vscode.Uri.from({ scheme: 'untitled', path: fileName, query: nugetEditorQuery({ type: 'solution', target: solutionPath || '' }) });
 
             // Open the document with our custom editor
             await vscode.commands.executeCommand('vscode.openWith', uri, NuGetCustomEditorProvider.viewType);
@@ -309,14 +310,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
      * Parse context information from the document URI
      */
     private _getContextFromUri(uri: vscode.Uri): { type: 'project' | 'solution', target: string } {
-        const query = new URLSearchParams(uri.query);
-        const contextType = query.get('context') as 'project' | 'solution' || 'project';
-        const target = decodeURIComponent(query.get('target') || '');
-
-        return {
-            type: contextType,
-            target
-        };
+        return parseNuGetEditorQuery(uri.query);
     }
 
     /**

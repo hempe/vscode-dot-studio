@@ -2,7 +2,7 @@ jest.mock('vscode', () => ({}), { virtual: true });
 
 import * as path from 'path';
 import { ProjectFileEditor } from '../../../parsers/projectFileEditor';
-import { userSecretsPath } from '../../../services/userSecrets';
+import { userSecretsIdProblem, userSecretsPath } from '../../../services/userSecrets';
 
 describe('user secrets', () => {
     describe('ProjectFileEditor.userSecretsId / addUserSecretsId', () => {
@@ -56,5 +56,19 @@ describe('user secrets', () => {
             expect(userSecretsPath('abc', 'win32', { APPDATA: 'C:\\Users\\me\\AppData\\Roaming' }))
                 .toBe(path.join('C:\\Users\\me\\AppData\\Roaming', 'Microsoft', 'UserSecrets', 'abc', 'secrets.json'));
         });
+    });
+});
+
+describe('userSecretsIdProblem (review A6-6)', () => {
+    it('accepts ids that are valid folder names', () => {
+        for (const id of ['aspnet-App-1a2b3c', '1b3c1b3c-1b3c-1b3c-1b3c-1b3c1b3c1b3c', 'shared-team-id', 'My.Id']) {
+            expect(userSecretsIdProblem(id)).toBeUndefined();
+        }
+    });
+
+    it('refuses ids that leave the secrets folder or are not folder names', () => {
+        for (const id of ['../x', '..', 'a/b', 'a\\b', 'a:b', 'a*b', '.']) {
+            expect(userSecretsIdProblem(id)).toEqual(expect.any(String));
+        }
     });
 });

@@ -161,3 +161,21 @@ export function listProfiles(projectPath: string): PublishProfile[] {
         .map(file => parseProfile(fs.readFileSync(path.join(folder, file), 'utf8'), path.join(folder, file)))
         .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/**
+ * Why `value` cannot be the new name of a publish profile, or undefined. `;` and `,` split `-property:PublishProfile=<name>`
+ * (MSB1006), the others cannot be in a file name.
+ */
+export function profileNameProblem(value: string, currentName: string, takenNames: readonly string[]): string | undefined {
+    const name = value.trim();
+    if (!name) {
+        return 'Enter a name';
+    }
+    if (/[\\/:*?"<>|;,]/.test(name)) {
+        return 'The name can\'t contain \\ / : * ? " < > | ; ,';
+    }
+    if (name.toLowerCase() !== currentName.toLowerCase() && takenNames.map(taken => taken.toLowerCase()).includes(name.toLowerCase())) {
+        return 'A profile with that name exists';
+    }
+    return undefined;
+}

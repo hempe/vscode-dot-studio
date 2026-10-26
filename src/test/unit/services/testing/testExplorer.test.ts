@@ -141,6 +141,21 @@ describe('TestExplorer', () => {
         ]);
     });
 
+    it('does not keep the test items of earlier discoveries (review A5-1)', async () => {
+        let time = 1;
+        const testExplorer = explorer({ modified: () => time++ });
+        await testExplorer.refresh(false);
+        const size = () => (testExplorer as any).nodes.size;
+        const afterFirst = size();
+        expect(afterFirst).toBeGreaterThan(0);
+
+        for (let i = 0; i < 5; i++) {
+            await testExplorer.refresh(false);
+        }
+
+        expect(size()).toBe(afterFirst);
+    });
+
     it('runs tests and reports results with messages and locations', async () => {
         await explorer().refresh(false);
         const project = mock.controller.items.get(projectPath);

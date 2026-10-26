@@ -33,6 +33,18 @@ describe('createSolutionWithProject (Visual Studio\'s "Create a new project")', 
         expect(fs.existsSync(path.join(root, 'Tool', 'Tool.csproj'))).toBe(true);
     }, 120000);
 
+    withDotnet('a failing project step takes back the solution folder, so Create can be pressed again (review A6-1)', async () => {
+        const failing = { ...consoleTemplate, options: [{ name: 'framework', type: 'choice', description: '', defaultValue: 'net10.0', choices: [{ value: 'net10.0', description: '' }] }] };
+        const first = await createSolutionWithProject(failing as never, 'Shop.Cli', root, 'Shop', false, { framework: 'net99.0' });
+
+        expect(first.error).toBeDefined();
+        expect(fs.existsSync(path.join(root, 'Shop'))).toBe(false);
+
+        const second = await createSolutionWithProject(consoleTemplate, 'Shop.Cli', root, 'Shop', false, {});
+        expect(second.error).toBeUndefined();
+        expect(fs.existsSync(path.join(root, 'Shop', 'Shop.Cli', 'Shop.Cli.csproj'))).toBe(true);
+    }, 180000);
+
     it('refuses a folder that is not empty and invalid names', async () => {
         fs.mkdirSync(path.join(root, 'Shop'));
         fs.writeFileSync(path.join(root, 'Shop', 'x.txt'), '');

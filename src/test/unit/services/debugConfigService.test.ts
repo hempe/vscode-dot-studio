@@ -287,3 +287,52 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         });
     });
 });
+
+describe('DebugConfigService: launch.json that is not ours (review A5-5, A5-6)', () => {
+    let launchJsonPath: string;
+    let tasksJsonPath: string;
+    let projectPath: string;
+
+    beforeEach(() => {
+        env.workspacePath = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'debugconfig-')));
+        env.warnings = [];
+        fs.mkdirSync(path.join(env.workspacePath, '.vscode'));
+        fs.mkdirSync(path.join(env.workspacePath, 'App'));
+        projectPath = path.join(env.workspacePath, 'App', 'App.csproj');
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
+        launchJsonPath = path.join(env.workspacePath, '.vscode', 'launch.json');
+        tasksJsonPath = path.join(env.workspacePath, '.vscode', 'tasks.json');
+    });
+    afterEach(() => fs.rmSync(env.workspacePath, { recursive: true, force: true }));
+
+    it("Set as Startup Project keeps the configurations a user's own Startup compound lists", async () => {
+        fs.writeFileSync(launchJsonPath, JSON.stringify({
+            version: '0.2.0',
+            configurations: [
+                { name: 'Frontend', type: 'node', request: 'launch', program: 'server.js' },
+                { name: 'Backend', type: 'coreclr', request: 'launch', program: 'x.dll' },
+            ],
+            compounds: [{ name: 'Startup', configurations: ['Frontend', 'Backend'] }],
+        }));
+
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+
+        const names = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations.map((config: any) => config.name);
+        expect(names).toEqual(expect.arrayContaining(['Startup', 'Frontend', 'Backend']));
+    });
+
+    it('with a syntax error in launch.json the startup project is not switched in tasks.json either', async () => {
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+        const tasksBefore = fs.readFileSync(tasksJsonPath, 'utf8');
+        const other = path.join(env.workspacePath, 'Other', 'Other.csproj');
+        fs.mkdirSync(path.dirname(other));
+        fs.writeFileSync(other, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
+        fs.writeFileSync(launchJsonPath, '{ "configurations": [ { "name": "Startup" } { "name": "x" } ] }');
+
+        const result = await DebugConfigService.updateStartupConfiguration(other);
+
+        expect(result).toBe(false);
+        expect(fs.readFileSync(tasksJsonPath, 'utf8')).toBe(tasksBefore);
+        expect(env.warnings).toEqual([expect.stringContaining('launch.json has syntax errors')]);
+    });
+});
