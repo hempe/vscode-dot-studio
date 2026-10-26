@@ -8,7 +8,7 @@ import { isTestProjectCandidate } from '../services/testing/testProjects';
 import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceReferences/connectedService';
 import { grpcReferenceNodes } from '../services/grpc/grpcNodes';
 import { SolutionProject } from '../types/solution';
-import { shouldSkipDirectory, isExcluded } from '../core/constants';
+import { shouldSkipDirectory, isExcluded, HARD_SKIP_DIRECTORIES } from '../core/constants';
 import { FileNestingService, NestedFile } from '../services/fileNesting';
 import { Settings } from '../services/settings';
 import { NodeId, NodeIdService } from '../services/nodeIdService';
@@ -359,8 +359,11 @@ export class Project {
                 }
             }
 
+            // A folder with a skipped name (build, packages, coverage...) still shows when the project includes files from it
+            const knownItems = ProjectItemsService.instance.get(this._projectPath);
+            const holdsItems = (name: string) => !HARD_SKIP_DIRECTORIES.includes(name) && !!knownItems?.hasIncludedUnder(path.join(folderPath, name));
             const disk = entries
-                .filter(entry => entry.isFile() || (entry.isDirectory() && (!shouldSkipDirectory(entry.name) || (showAll && BUILD_OUTPUT_FOLDERS.includes(entry.name)))))
+                .filter(entry => entry.isFile() || (entry.isDirectory() && (!shouldSkipDirectory(entry.name) || (showAll && BUILD_OUTPUT_FOLDERS.includes(entry.name)) || holdsItems(entry.name))))
                 .map(entry => ({ name: entry.name, isDirectory: entry.isDirectory() }));
             const nonEmptyFolders = new Set<string>();
             for (const entry of disk.filter(entry => entry.isDirectory)) {

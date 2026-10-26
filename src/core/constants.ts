@@ -12,6 +12,9 @@ export const SKIP_DIRECTORIES = [
     'packages', '.nuget', 'TestResults', 'coverage', 'build'
 ];
 
+/** Skipped folders that never show, whatever the project includes: tooling output and metadata (build, packages... can hold real project files) */
+export const HARD_SKIP_DIRECTORIES = ['bin', 'obj', 'node_modules', '.git', '.vs', '.vscode'];
+
 /**
  * File extensions that should be ignored for file change events
  */

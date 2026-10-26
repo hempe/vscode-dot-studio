@@ -219,6 +219,7 @@ export class Solution {
 
         try {
             await this.parseSolutionFile();
+            await this.initializeProjects(true);
 
             // Notify UI that solution has changed
             this._changeEmitter.fire();
@@ -277,14 +278,27 @@ export class Solution {
         }
     }
 
-    private async initializeProjects(): Promise<void> {
+    /**
+     * Creates the projects of the parsed solution file. `keepExisting`: after the solution file changed on disk (git pull,
+     * `dotnet sln add` in a terminal) only the projects that were added or removed (or renamed) are created or disposed;
+     * the others keep their items, watchers and expansion state.
+     */
+    private async initializeProjects(keepExisting = false): Promise<void> {
         if (!this._solutionFile) return;
 
-        // Clear existing projects
-        for (const project of this._projects.values()) {
-            project.dispose();
+        const wanted = new Map<string, string>();
+        for (const solutionProject of this._solutionFile.projects) {
+            if (SolutionFileParser.isDotNetProject(solutionProject)) {
+                wanted.set(path.resolve(path.dirname(this._solutionPath), solutionProject.path), solutionProject.name);
+            }
         }
-        this._projects.clear();
+        for (const [projectPath, project] of [...this._projects]) {
+            if (keepExisting && wanted.get(projectPath) === project.name) {
+                continue;
+            }
+            project.dispose();
+            this._projects.delete(projectPath);
+        }
 
         // Initialize new projects and wait for them to be ready
         const projectPromises: Promise<void>[] = [];
@@ -292,6 +306,9 @@ export class Solution {
         for (const solutionProject of this._solutionFile.projects) {
             if (SolutionFileParser.isDotNetProject(solutionProject)) {
                 const absolutePath = path.resolve(path.dirname(this._solutionPath), solutionProject.path);
+                if (this._projects.has(absolutePath)) {
+                    continue; // kept
+                }
 
                 try {
                     const project = new Project(absolutePath, solutionProject, () => UnloadedProjects.isUnloaded(this._solutionPath, absolutePath),
@@ -1221,8 +1238,10 @@ export class Solution {
         // Find and remove the specific solution item line
         for (let i = 0; i < newLines.length; i++) {
             const line = newLines[i].trim();
-            // Look for the item line in format: "\t\trelativePath = relativePath"
-            if (line === `${relativePath} = ${relativePath}`) {
+            // The item line is `path = path` and Visual Studio writes the path with backslashes
+            const key = (text: string) => text.replace(/\\/g, '/').toLowerCase();
+            const [left, right] = line.split(' = ');
+            if (right !== undefined && key(left) === key(relativePath) && key(right) === key(relativePath)) {
                 removedItemIndex = i;
                 newLines.splice(i, 1);
                 break;

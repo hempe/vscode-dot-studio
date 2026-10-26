@@ -97,3 +97,42 @@ describe('Solution.getProject', () => {
         expect(nameOf('Elsewhere/Sub')).toBeUndefined();
     });
 });
+
+describe('Solution: the solution file changes outside the extension (review A1-02)', () => {
+    let dir: string;
+    let solution: Solution;
+    const write = (projects: string[]) => fs.writeFileSync(path.join(dir, 'App.slnx'),
+        `<Solution>\n${projects.map(project => `  <Project Path="${project}" />`).join('\n')}\n</Solution>\n`);
+    const project = (relative: string) => {
+        fs.mkdirSync(path.dirname(path.join(dir, relative)), { recursive: true });
+        fs.writeFileSync(path.join(dir, relative), '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+    };
+    const changed = () => (solution as unknown as { handleSolutionFileChanged(): Promise<void> }).handleSolutionFileChanged();
+
+    beforeEach(async () => {
+        dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-external-')));
+        project('Foo/Foo.csproj');
+        project('Bar/Bar.csproj');
+        write(['Foo/Foo.csproj']);
+        solution = new Solution(path.join(dir, 'App.slnx'));
+        await solution.ready;
+    });
+    afterEach(() => { solution.dispose(); fs.rmSync(dir, { recursive: true, force: true }); });
+
+    it('a project added outside gets its own Project and the others are kept', async () => {
+        const foo = solution.getProject(path.join(dir, 'Foo', 'Foo.csproj'));
+        write(['Foo/Foo.csproj', 'Bar/Bar.csproj']);
+        await changed();
+        expect([...solution.projects.keys()].sort()).toEqual([path.join(dir, 'Bar', 'Bar.csproj'), path.join(dir, 'Foo', 'Foo.csproj')]);
+        expect(solution.getProject(path.join(dir, 'Foo', 'Foo.csproj'))).toBe(foo);
+        expect(solution.getProject(path.join(dir, 'Bar', 'Bar.csproj'))?.name).toBe('Bar');
+    });
+
+    it('a project removed outside is dropped from the model', async () => {
+        write(['Foo/Foo.csproj', 'Bar/Bar.csproj']);
+        await changed();
+        write(['Bar/Bar.csproj']);
+        await changed();
+        expect([...solution.projects.keys()]).toEqual([path.join(dir, 'Bar', 'Bar.csproj')]);
+    });
+});

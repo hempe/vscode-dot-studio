@@ -361,7 +361,8 @@ export class SolutionFileParser {
             return [];
         }
 
-        return Object.keys(solutionItemsSection.items);
+        // Visual Studio writes `docs\readme.md`: forward slashes, so basename and resolve work on every system
+        return Object.keys(solutionItemsSection.items).map(item => item.replace(/\\/g, '/'));
     }
 
     public static buildProjectHierarchy(solution: SolutionFile): Map<string, SolutionProject[]> {

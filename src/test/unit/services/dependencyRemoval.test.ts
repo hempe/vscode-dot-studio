@@ -68,3 +68,19 @@ describe('removeDependencyEdit', () => {
         expect(removeDependencyEdit(project(['<ProjectReference Include="..\\Core\\Core.csproj" />']), 'projects', 'Missing')).toBeUndefined();
     });
 });
+
+describe('ignored ranges: a self-closing Target hides nothing else (review A1-07)', () => {
+    it('still sees the references after <Target ... />', () => {
+        const content = project([
+            '<ProjectReference Include="..\\Core\\Core.csproj" />',
+        ]).replace('<ItemGroup>', '<Target Name="CI" DependsOnTargets="Build;Test" />\n  <ItemGroup>')
+            + '\n<Target Name="After"><Message Text="x" /></Target>\n';
+        const withClose = content.replace('</Project>\n', '') + '</Project>\n';
+        expect(removeDependencyEdit(withClose, 'projects', 'Core')).toBeDefined();
+    });
+
+    it('still hides items inside a real target', () => {
+        const content = project([]).replace('</Project>', '<Target Name="T"><ItemGroup><ProjectReference Include="..\\Core\\Core.csproj" /></ItemGroup></Target></Project>');
+        expect(removeDependencyEdit(content, 'projects', 'Core')).toBeUndefined();
+    });
+});

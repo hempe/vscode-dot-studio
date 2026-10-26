@@ -522,4 +522,19 @@ describe('Project file tree with the item overlay', () => {
         expect((await project.getRootChildren()).map(child => child.type)).toEqual(['dependencies']);
         expect(await project.hasAnyChildren()).toBe(true);
     });
+
+    test('a folder named build, packages or coverage shows when the project includes files from it (review A1-09)', async () => {
+        for (const name of ['build', 'packages', 'coverage', 'obj']) {
+            fs.mkdirSync(path.join(dir, name));
+            fs.writeFileSync(path.join(dir, name, 'File.cs'), '');
+        }
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: { Compile: ['build', 'packages', 'obj'].map(name => ({ Identity: `${name}/File.cs`, FullPath: path.join(dir, name, 'File.cs') })) },
+        }), dir));
+        const names = (await (await newProject()).loadFolderChildren(dir)).map(node => node.name);
+        expect(names).toEqual(expect.arrayContaining(['build', 'packages']));
+        // no included files: stays hidden; obj never shows
+        expect(names).not.toContain('coverage');
+        expect(names).not.toContain('obj');
+    });
 });

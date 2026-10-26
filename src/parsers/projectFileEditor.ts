@@ -73,9 +73,9 @@ export class ProjectFileEditor {
     // Opening tag of an item: `<Compile Remove="x" />` (group 3 is the slash) or `<Compile Remove="x">`; attribute values may contain '>'
     private static readonly ITEM_OPEN_TAG_RE = /<([A-Za-z][\w-]*)\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
 
-    /** Comments and targets: their items are not part of the evaluation (targets add items when they run) */
+    /** Comments and targets (also a self-closing `<Target ... />`, which has no end tag): their items are not part of the evaluation (targets add items when they run) */
     static ignoredRanges(content: string): [number, number][] {
-        return [...content.matchAll(/<!--[\s\S]*?-->|<Target\b[\s\S]*?<\/Target\s*>/g)]
+        return [...content.matchAll(/<!--[\s\S]*?-->|<Target\b(?:[^>"']|"[^"]*"|'[^']*')*?\/>|<Target\b[\s\S]*?<\/Target\s*>/g)]
             .map(match => [match.index!, match.index! + match[0].length]);
     }
 
