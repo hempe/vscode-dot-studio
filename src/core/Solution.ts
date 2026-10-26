@@ -1328,7 +1328,7 @@ export class Solution {
 
             const { execFile } = require('child_process');
             const { promisify } = require('util');
-            await promisify(execFile)('dotnet', args, { cwd: solutionDir });
+            await promisify(execFile)('dotnet', args, { cwd: solutionDir, timeout: 60000 });
 
             log.info(`Successfully added project to solution: ${projectPath}`);
 
@@ -1391,18 +1391,14 @@ export class Solution {
         log.info(`Removing project from solution: ${projectPath}`);
 
         try {
-            // Use the dotnet CLI command to remove the project
-            const relativePath = path.relative(path.dirname(this._solutionPath), projectPath);
-            const command = `dotnet sln "${this._solutionPath}" remove "${relativePath}"`;
-
-            log.debug(`Executing: ${command}`);
-
-            const { exec } = require('child_process');
-            const { promisify } = require('util');
-            const execAsync = promisify(exec);
+            // Use the dotnet CLI command to remove the project; no shell, so `$(...)` in the path is just text
             const solutionDir = path.dirname(this._solutionPath);
+            const args = ['sln', this._solutionPath, 'remove', path.relative(solutionDir, projectPath)];
+            log.debug(`Executing: dotnet ${args.join(' ')}`);
 
-            await execAsync(command, { cwd: solutionDir });
+            const { execFile } = require('child_process');
+            const { promisify } = require('util');
+            await promisify(execFile)('dotnet', args, { cwd: solutionDir, timeout: 60000 });
 
             log.info(`Successfully removed project from solution: ${projectPath}`);
 

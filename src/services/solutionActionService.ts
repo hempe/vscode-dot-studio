@@ -966,16 +966,10 @@ export class SolutionActionService {
 
             if (projectUri && projectUri[0]) {
                 const referencePath = projectUri[0].fsPath;
-                const projectName = path.basename(projectPath, path.extname(projectPath));
-                const referenceName = path.basename(referencePath, path.extname(referencePath));
+                log.info(`Adding reference from ${path.basename(projectPath)} to ${path.basename(referencePath)}`);
 
-                log.info(`Adding reference from ${projectName} to ${referenceName}`);
-
-                // Use dotnet CLI to add the project reference
-                const terminal = vscode.window.createTerminal(`Add Project Reference: ${projectName}`);
-                terminal.show();
-                terminal.sendText(`dotnet add "${projectPath}" reference "${referencePath}"`);
-
+                // The same checks as the drop onto Dependencies (itself, already referenced, a circle), no shell
+                await this._addDroppedReferences(projectPath, [referencePath]);
             }
         } catch (error) {
             log.error('Error adding project reference:', error);

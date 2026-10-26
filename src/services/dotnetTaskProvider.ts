@@ -64,7 +64,7 @@ export function createDotnetTask(
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ShellExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform), { cwd: path.dirname(target) }),
+        new vscode.ProcessExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish' && action !== 'pack') {

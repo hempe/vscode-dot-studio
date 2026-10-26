@@ -1,6 +1,5 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import * as path from 'path';
+import { execDotnet } from './dotnetCli';
 import * as fs from 'fs';
 import { logger } from '../../core/logger';
 import { BasicInstalledPackage, InstalledPackage, ProjectInfo, NuGetPackage } from './types';
@@ -9,7 +8,6 @@ import { SolutionService } from '../solutionService';
 import { ProjectItemsService } from '../projectItems/projectItemsService';
 import { ProjectPackages } from './centralPackages';
 
-const execAsync = promisify(exec);
 const log = logger('PackageInstalledService');
 
 /** Marks the packages `dotnet list` reports with where their versions come from (central, override, global) */
@@ -57,14 +55,10 @@ export class PackageInstalledService {
             // Use relative path if the project is in the working directory, otherwise use absolute path
             const projectArg = path.relative(workingDir, absoluteProjectPath) || absoluteProjectPath;
 
-            const command = `dotnet list "${projectArg}" package --format json`;
-            log.info(`Getting packages for project: ${command} (cwd: ${workingDir})`);
+            const args = ['list', projectArg, 'package', '--format', 'json'];
+            log.info(`Getting packages for project: dotnet ${args.join(' ')} (cwd: ${workingDir})`);
 
-            const { stdout, stderr } = await execAsync(command, {
-                cwd: workingDir,
-                timeout: 15000,
-                encoding: 'utf8'
-            });
+            const { stdout, stderr } = await execDotnet(args, { cwd: workingDir, timeout: 15000 });
 
             if (stderr && !stderr.includes('warn')) {
                 log.warn('dotnet list package stderr:', stderr);
@@ -305,9 +299,13 @@ export class PackageInstalledService {
         try {
             // Read the project file to get target framework
             // For now, use a simple approach
-            const command = `dotnet list "${projectPath}" package --framework net8.0 --format json 2>/dev/null || dotnet list "${projectPath}" package --format json`;
-
-            const { stdout } = await execAsync(command, { timeout: 10000 });
+            let stdout: string;
+            try {
+                ({ stdout } = await execDotnet(['list', projectPath, 'package', '--framework', 'net8.0', '--format', 'json'], { timeout: 10000 }));
+            } catch {
+                // A project without net8.0: all frameworks
+                ({ stdout } = await execDotnet(['list', projectPath, 'package', '--format', 'json'], { timeout: 10000 }));
+            }
             const data = JSON.parse(stdout);
 
             if (data.projects && data.projects.length > 0 && data.projects[0].frameworks) {

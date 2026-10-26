@@ -1,11 +1,9 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import * as path from 'path';
 import { logger } from '../../core/logger';
 import { PackageInstallOptions, PackageOperationResult } from './types';
 
-const execAsync = promisify(exec);
 import { reportRejectedInOutput } from './feedAuth';
+import { execDotnet } from './dotnetCli';
 const log = logger('PackageOperationsService');
 
 /**
@@ -19,7 +17,7 @@ export class PackageOperationsService {
      */
     static async installPackage(options: PackageInstallOptions): Promise<PackageOperationResult> {
         try {
-            const args = ['add', `"${options.projectPath}"`, 'package', options.packageId];
+            const args = ['add', options.projectPath, 'package', options.packageId];
 
             if (options.version) {
                 args.push('--version', options.version);
@@ -37,16 +35,15 @@ export class PackageOperationsService {
                 args.push('--no-restore');
             }
 
-            const command = `dotnet ${args.join(' ')}`;
-            log.info(`Installing package: ${command}`);
+            log.info(`Installing package: dotnet ${args.join(' ')}`);
 
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execDotnet(args, {
                 timeout: 120000, // 2 minutes for package installation
-                encoding: 'utf8'
             });
 
-            // Check if the command was successful
-            const success = !stderr.includes('error') && !stdout.includes('error');
+            // dotnet exits with an error code when it fails (that lands in the catch below); the word "error" in the output of a
+            // successful run (a folder `error-pages`, a package named so) does not make it fail
+            const success = true;
 
             if (success) {
                 log.info(`Successfully installed ${options.packageId} in ${path.basename(options.projectPath)}`);
@@ -88,16 +85,16 @@ export class PackageOperationsService {
      */
     static async uninstallPackage(projectPath: string, packageId: string): Promise<PackageOperationResult> {
         try {
-            const command = `dotnet remove "${projectPath}" package ${packageId}`;
-            log.info(`Uninstalling package: ${command}`);
+            const args = ['remove', projectPath, 'package', packageId];
+            log.info(`Uninstalling package: dotnet ${args.join(' ')}`);
 
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execDotnet(args, {
                 timeout: 60000,
-                encoding: 'utf8'
             });
 
-            // Check if the command was successful
-            const success = !stderr.includes('error') && !stdout.includes('error');
+            // dotnet exits with an error code when it fails (that lands in the catch below); the word "error" in the output of a
+            // successful run (a folder `error-pages`, a package named so) does not make it fail
+            const success = true;
 
             if (success) {
                 log.info(`Successfully uninstalled ${packageId} from ${path.basename(projectPath)}`);
@@ -135,12 +132,11 @@ export class PackageOperationsService {
      */
     static async restorePackages(targetPath: string): Promise<PackageOperationResult> {
         try {
-            const command = `dotnet restore "${targetPath}"`;
-            log.info(`Restoring packages: ${command}`);
+            const args = ['restore', targetPath];
+            log.info(`Restoring packages: dotnet ${args.join(' ')}`);
 
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execDotnet(args, {
                 timeout: 180000, // 3 minutes for restore operation
-                encoding: 'utf8'
             });
 
             // Check if the command was successful
@@ -186,7 +182,7 @@ export class PackageOperationsService {
         framework?: string
     ): Promise<PackageOperationResult> {
         try {
-            const args = ['add', `"${projectPath}"`, 'package', packageId];
+            const args = ['add', projectPath, 'package', packageId];
 
             if (version) {
                 args.push('--version', version);
@@ -196,15 +192,13 @@ export class PackageOperationsService {
                 args.push('--framework', framework);
             }
 
-            const command = `dotnet ${args.join(' ')}`;
-            log.info(`Adding package reference: ${command}`);
+            log.info(`Adding package reference: dotnet ${args.join(' ')}`);
 
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execDotnet(args, {
                 timeout: 90000,
-                encoding: 'utf8'
             });
 
-            const success = !stderr.includes('error') && !stdout.includes('error');
+            const success = true; // see above: a failing command lands in the catch
 
             if (success) {
                 return {
@@ -241,12 +235,11 @@ export class PackageOperationsService {
      */
     static async clearCache(): Promise<PackageOperationResult> {
         try {
-            const command = 'dotnet nuget locals all --clear';
-            log.info(`Clearing package cache: ${command}`);
+            const args = ['nuget', 'locals', 'all', '--clear'];
+            log.info(`Clearing package cache: dotnet ${args.join(' ')}`);
 
-            const { stdout, stderr } = await execAsync(command, {
+            const { stdout, stderr } = await execDotnet(args, {
                 timeout: 60000,
-                encoding: 'utf8'
             });
 
             const success = stdout.includes('Clearing') ||
@@ -282,8 +275,7 @@ export class PackageOperationsService {
      */
     static async verifyPackageInstalled(projectPath: string, packageId: string): Promise<boolean> {
         try {
-            const command = `dotnet list "${projectPath}" package`;
-            const { stdout } = await execAsync(command, { timeout: 15000 });
+            const { stdout } = await execDotnet(['list', projectPath, 'package'], { timeout: 15000 });
 
             return stdout.includes(packageId);
 
@@ -302,8 +294,7 @@ export class PackageOperationsService {
         isTransitive?: boolean;
     }> {
         try {
-            const command = `dotnet list "${projectPath}" package --format json`;
-            const { stdout } = await execAsync(command, { timeout: 15000 });
+            const { stdout } = await execDotnet(['list', projectPath, 'package', '--format', 'json'], { timeout: 15000 });
 
             const data = JSON.parse(stdout);
 

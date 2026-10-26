@@ -16,12 +16,12 @@ jest.mock('vscode', () => {
             public problemMatchers: string[]
         ) { }
     }
-    class ShellExecution {
+    class ProcessExecution {
         constructor(public command: string, public args: string[], public options: any) { }
     }
     return {
         Task,
-        ShellExecution,
+        ProcessExecution,
         TaskGroup: { Build: { id: 'build' } },
         TaskScope: { Workspace: 2 },
         workspace: { workspaceFolders: [{ name: 'repo', uri: { fsPath: '/repo' } }], getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }) },
@@ -109,6 +109,8 @@ describe('createDotnetTask', () => {
         const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/Api/Api.csproj' }) as any;
         expect(task.name).toBe('build Api');
         expect(task.source).toBe(DOTNET_TASK_TYPE);
+        // A process, not a shell command line: `&`, `;`, `$(` or an apostrophe in a path are just characters (review A5-8)
+        expect(task.execution.constructor.name).toBe('ProcessExecution');
         expect(task.execution.command).toBe('dotnet');
         expect(task.execution.options).toEqual({ cwd: '/repo/Api' });
         expect(task.problemMatchers).toEqual(['$msCompile']);
