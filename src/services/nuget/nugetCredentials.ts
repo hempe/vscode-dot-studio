@@ -52,13 +52,25 @@ export function encodeSourceName(name: string): string {
     }).join('');
 }
 
-const attribute = (element: string, name: string) => new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`, 'i').exec(element)?.[1];
+const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const decodeXml = (value: string) => value.replace(/&(?:#(\d+)|#x([0-9a-f]+)|(amp|lt|gt|quot|apos));/gi, (_all, dec, hex, name) =>
+    name ? XML_ENTITIES[name.toLowerCase()] : String.fromCodePoint(dec ? Number(dec) : parseInt(hex, 16)));
+
+/** The value of an attribute, in double or single quotes, with XML entities decoded as NuGet reads it */
+const attribute = (element: string, name: string) => {
+    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(element);
+    return match ? decodeXml(match[1] ?? match[2]) : undefined;
+};
+
+/** The text with every comment replaced by spaces (line breaks stay), so offsets and line numbers still fit the file */
+const withoutComments = (content: string) => content.replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '));
 
 /** The credentials for `sourceName` in the first file that has any, as NuGet takes them */
 export function findCredential(files: { path: string; content: string }[], sourceName: string): SourceCredential {
     const element = encodeSourceName(sourceName).replace(/[.]/g, '\\.');
     for (const file of files) {
-        const section = /<packageSourceCredentials\b[^>]*>([\s\S]*?)<\/packageSourceCredentials>/i.exec(file.content);
+        const content = withoutComments(file.content);
+        const section = /<packageSourceCredentials\b[^>]*>([\s\S]*?)<\/packageSourceCredentials>/i.exec(content);
         if (!section) {
             continue;
         }
@@ -84,7 +96,7 @@ export function findCredential(files: { path: string; content: string }[], sourc
         if (!password) {
             continue;
         }
-        const line = file.content.slice(0, password.offset).split('\n').length;
+        const line = content.slice(0, password.offset).split('\n').length;
         return password.kind === 'clearText'
             ? { kind: 'clearText', file: file.path, line, ...(username !== undefined ? { username } : {}), password: password.value }
             : { kind: 'encrypted', file: file.path, line, ...(username !== undefined ? { username } : {}) };

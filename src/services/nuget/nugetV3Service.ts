@@ -53,15 +53,17 @@ export class NuGetV3Service {
     /**
      * Initialize the caching system
      */
-    static initializeCache(extensionPath?: string): void {
+    static initializeCache(storagePath?: string): void {
         if (this.persistentCache) return; // Already initialized
 
-        const cacheDir = extensionPath
-            ? path.join(extensionPath, '.cache', 'nuget-requests')
-            : path.join(os.tmpdir(), 'vscode-dotnet-extension', 'cache', 'nuget-requests');
+        // The extension's own storage folder (activate passes it); the shared temp folder only when nothing was passed
+        // (tests): the cache holds responses of private feeds and must not be readable or writable by other users
+        const cacheDir = storagePath
+            ? path.join(storagePath, 'nuget-requests')
+            : path.join(os.tmpdir(), `vscode-dotnet-extension-${os.userInfo().username}`, 'cache', 'nuget-requests');
 
         this.persistentCache = new PersistentCache(cacheDir, {
-            maxAge: 30 * 60 * 1000, // 30 minutes for fresh cache
+            maxAge: 24 * 60 * 60 * 1000, // older entries are never used; entries older than 5 minutes are refreshed in the background
             maxEntries: 5000
         });
 
@@ -413,7 +415,7 @@ export class NuGetV3Service {
         }
 
         // 3. No cache available - make fresh request
-        log.error(`Making fresh request to ${url}`);
+        log.debug(`Making fresh request to ${url}`);
         const promise = this._makeHttpRequestWithETag(url, accessToken);
 
         this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });

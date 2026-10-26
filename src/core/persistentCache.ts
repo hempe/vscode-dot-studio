@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from './logger';
@@ -12,7 +13,7 @@ export interface CacheEntry<T> {
 }
 
 export interface CacheOptions {
-    maxAge?: number; // Maximum age in milliseconds before considering stale
+    maxAge?: number; // Entries older than this (milliseconds) are not returned
     maxEntries?: number; // Maximum number of entries to keep
 }
 
@@ -44,14 +45,21 @@ export class PersistentCache<T> {
                 return null;
             }
 
-            const content = await fs.promises.readFile(filePath, 'utf8');
-            const entry: CacheEntry<T> = JSON.parse(content);
+            const entry = await this.readEntry(filePath);
+            if (!entry) {
+                return null;
+            }
+            const age = Date.now() - entry.timestamp;
+            if (age > this.options.maxAge) {
+                log.debug(`Cache entry ${this.id(key)} is ${age}ms old: not used`);
+                return null;
+            }
 
-            log.debug(`Retrieved cache entry for ${key}, age: ${Date.now() - entry.timestamp}ms`);
+            log.debug(`Retrieved cache entry ${this.id(key)}, age: ${age}ms`);
             return entry;
 
         } catch (error) {
-            log.warn(`Failed to read cache entry ${key}:`, error);
+            log.warn(`Failed to read cache entry ${this.id(key)}:`, error);
             return null;
         }
     }
@@ -69,15 +77,15 @@ export class PersistentCache<T> {
             };
 
             const filePath = this.getFilePath(key);
-            await fs.promises.writeFile(filePath, JSON.stringify(entry, null, 2), 'utf8');
+            await fs.promises.writeFile(filePath, JSON.stringify(entry), { encoding: 'utf8', mode: 0o600 });
 
-            log.debug(`Cached entry for ${key}`);
+            log.debug(`Cached entry ${this.id(key)}`);
 
             // Clean up old entries if we exceed maxEntries
             await this.cleanup();
 
         } catch (error) {
-            log.error(`Failed to write cache entry ${key}:`, error);
+            log.error(`Failed to write cache entry ${this.id(key)}:`, error);
         }
     }
 
@@ -89,10 +97,10 @@ export class PersistentCache<T> {
             const filePath = this.getFilePath(key);
             if (fs.existsSync(filePath)) {
                 await fs.promises.unlink(filePath);
-                log.debug(`Deleted cache entry ${key}`);
+                log.debug(`Deleted cache entry ${this.id(key)}`);
             }
         } catch (error) {
-            log.warn(`Failed to delete cache entry ${key}:`, error);
+            log.warn(`Failed to delete cache entry ${this.id(key)}:`, error);
         }
     }
 
@@ -131,7 +139,7 @@ export class PersistentCache<T> {
     private ensureCacheDirectory(): void {
         try {
             if (!fs.existsSync(this.cacheDir)) {
-                fs.mkdirSync(this.cacheDir, { recursive: true });
+                fs.mkdirSync(this.cacheDir, { recursive: true, mode: 0o700 });
                 log.info(`Created cache directory: ${this.cacheDir}`);
             }
         } catch (error) {
@@ -139,32 +147,45 @@ export class PersistentCache<T> {
         }
     }
 
+    /** Short, non-reversible name of a key for log lines (keys can hold feed credentials) */
+    private id(key: string): string {
+        return this.hash(key).slice(0, 12);
+    }
+
+    private hash(key: string): string {
+        return crypto.createHash('sha256').update(key).digest('hex');
+    }
+
+    /** One file per key, named by the hash of the key: no credentials in file names, no collisions, no length limit */
     private getFilePath(key: string): string {
-        // Sanitize key for filename
-        const sanitizedKey = key.replace(/[^a-zA-Z0-9-_.]/g, '_');
-        return path.join(this.cacheDir, `${sanitizedKey}.json`);
+        return path.join(this.cacheDir, `${this.hash(key)}.json`);
+    }
+
+    private async readEntry(filePath: string): Promise<CacheEntry<T> | null> {
+        const entry = JSON.parse(await fs.promises.readFile(filePath, 'utf8')) as Partial<CacheEntry<T>>;
+        // A file that is not an entry (damaged, or put there by someone else) is not trusted
+        if (!entry || typeof entry !== 'object' || typeof entry.timestamp !== 'number' || !('data' in entry) || typeof entry.url !== 'string') {
+            return null;
+        }
+        return entry as CacheEntry<T>;
     }
 
     private async cleanup(): Promise<void> {
         try {
-            const keys = await this.getAllKeys();
-            if (keys.length <= this.options.maxEntries) {
+            const files = (await fs.promises.readdir(this.cacheDir)).filter(file => file.endsWith('.json'));
+            if (files.length <= this.options.maxEntries) {
                 return;
             }
 
-            // Get entries with timestamps
-            const entries = await Promise.all(
-                keys.map(async key => {
-                    const entry = await this.get(key);
-                    return { key, timestamp: entry?.timestamp || 0 };
-                })
-            );
+            const entries = await Promise.all(files.map(async file => {
+                const entry = await this.readEntry(path.join(this.cacheDir, file)).catch(() => null);
+                return { file, timestamp: entry?.timestamp ?? 0 };
+            }));
 
-            // Sort by timestamp (oldest first) and delete excess entries
+            // Oldest first (damaged files too), delete the excess
             entries.sort((a, b) => a.timestamp - b.timestamp);
             const toDelete = entries.slice(0, entries.length - this.options.maxEntries);
-
-            await Promise.all(toDelete.map(({ key }) => this.delete(key)));
+            await Promise.all(toDelete.map(({ file }) => fs.promises.unlink(path.join(this.cacheDir, file)).catch(() => undefined)));
 
             if (toDelete.length > 0) {
                 log.info(`Cleaned up ${toDelete.length} old cache entries`);

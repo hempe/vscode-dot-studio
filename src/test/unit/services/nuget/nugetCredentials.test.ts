@@ -143,3 +143,36 @@ describe('matchSource', () => {
         expect(matchSource('https://example.com/feed', sources)).toBeUndefined();
     });
 });
+
+describe('findCredential: what NuGet reads (review A4-10)', () => {
+    const config = (inner: string) => `<configuration>\n  <packageSourceCredentials>\n    <Feed>\n${inner}\n    </Feed>\n  </packageSourceCredentials>\n</configuration>\n`;
+    const read = (content: string) => findCredential([{ path: 'NuGet.Config', content }], 'Feed');
+
+    it('decodes XML entities: a token with & < > " is read back as typed', () => {
+        const stored = setClearTextPassword('<configuration>\n</configuration>\n', 'Feed', 'me', 'pa&ss<w>o"rd');
+        expect(read(stored)).toMatchObject({ kind: 'clearText', username: 'me', password: 'pa&ss<w>o"rd' });
+    });
+
+    it('reads a hand-written &amp; as &', () => {
+        expect(read(config('      <add key="ClearTextPassword" value="a&amp;b" />'))).toMatchObject({ password: 'a&b' });
+    });
+
+    it('skips credentials in XML comments', () => {
+        const content = config([
+            '      <!-- <add key="ClearTextPassword" value="OLD-EXPIRED-TOKEN" /> -->',
+            '      <add key="ClearTextPassword" value="NEW-TOKEN" />',
+        ].join('\n'));
+        expect(read(content)).toMatchObject({ password: 'NEW-TOKEN' });
+        // a commented-out section is not a section
+        expect(read(`<configuration>\n<!--\n${config('      <add key="ClearTextPassword" value="OLD" />')}-->\n</configuration>\n`)).toEqual({ kind: 'none' });
+    });
+
+    it('reads single-quoted attributes', () => {
+        expect(read(config("      <add key='Username' value='me' />\n      <add key='ClearTextPassword' value='tok' />"))).toMatchObject({ username: 'me', password: 'tok' });
+    });
+
+    it('reports the line of the password after blanking comments', () => {
+        const content = config('      <!-- one\n two -->\n      <add key="ClearTextPassword" value="x" />');
+        expect(read(content)).toMatchObject({ line: 6 });
+    });
+});
