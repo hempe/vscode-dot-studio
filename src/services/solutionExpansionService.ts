@@ -384,6 +384,63 @@ export class SolutionExpansionService {
         return drop.nodes.map(node => below.get(`${node.type}|${node.key}`)).filter((id): id is NodeIdString => !!id);
     }
 
+    /** The names of the solution folders from the top down to the node (itself included for a solution folder); undefined when it is not in the tree */
+    static solutionFolderPath(nodeId: NodeIdString, nodes: ProjectNode[], parents: string[] = []): string[] | undefined {
+        for (const node of nodes) {
+            const here = node.type === 'solutionFolder' ? [...parents, node.name] : parents;
+            if (node.nodeId === nodeId) {
+                return here;
+            }
+            const found = node.children && this.solutionFolderPath(nodeId, node.children, here);
+            if (found) {
+                return found;
+            }
+        }
+        return undefined;
+    }
+
+    /** The name paths of the open solution folders */
+    static openSolutionFolderPaths(nodes: ProjectNode[], parents: string[] = []): string[][] {
+        return nodes.flatMap(node => {
+            const here = node.type === 'solutionFolder' ? [...parents, node.name] : parents;
+            const below = this.openSolutionFolderPaths(node.children ?? [], here);
+            return node.type === 'solutionFolder' && node.expanded ? [here, ...below] : below;
+        });
+    }
+
+    /**
+     * The folders of `open` after moving the folder `from` into `into` (a path, `[]`: the solution): a `.slnx` folder
+     * without an Id has an id made from its path, so a moved folder and the folders in it have new ids and would show
+     * collapsed; these are the paths to open again
+     */
+    static pathsAfterMove(open: readonly string[][], from: readonly string[], into: readonly string[]): string[][] {
+        return open
+            .filter(folder => from.every((name, i) => folder[i] === name))
+            .map(folder => [...into, from[from.length - 1], ...folder.slice(from.length)]);
+    }
+
+    /** Opens the solution folders with these name paths (and remembers them as expanded); true when all were found */
+    static openSolutionFolders(paths: readonly string[][], nodes: ProjectNode[], context: vscode.ExtensionContext): boolean {
+        const expanded = this.getExpansionState(context);
+        let all = true;
+        for (const folderPath of paths) {
+            let list: ProjectNode[] | undefined = nodes[0]?.type === 'solution' ? nodes[0].children : nodes;
+            let node: ProjectNode | undefined;
+            for (const name of folderPath) {
+                node = list?.find(child => child.type === 'solutionFolder' && child.name === name);
+                list = node?.children;
+            }
+            if (node) {
+                node.expanded = true;
+                expanded.add(node.nodeId);
+            } else {
+                all = false;
+            }
+        }
+        this.saveExpansionState(expanded, context);
+        return all;
+    }
+
     /** Loads the children of a project or folder for revealing a file, with the watcher expanding by hand creates */
     private static async _loadChildren(node: ProjectNode): Promise<ProjectNode[]> {
         const nodePath = NodeIdService.parse(node.nodeId).path;

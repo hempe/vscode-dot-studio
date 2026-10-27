@@ -62,6 +62,8 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     private _cachedSolutionData?: ProjectNode[];
     private readonly _updateViewDebouncer: SimpleDebounceManager;
     /** A drop whose target opens and whose moved nodes are selected once the tree is rebuilt (and shows them) */
+    /** Solution folders to open again once the tree is rebuilt after a drop moved them (their ids changed with their path) */
+    private _reopenFolders?: { readonly paths: string[][]; readonly until: number };
     private _dropToReveal?: { readonly drop: DropResult; readonly until: number; opened: boolean };
     private get webview(): vscode.Webview | undefined {
         return this._view?.webview;
@@ -86,6 +88,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 const solutionData = await this._getSolutionData();
 
                 await SolutionExpansionService.restoreExpansionStates(solutionData, this._context);
+                if (this._reopenFolders) {
+                    const done = SolutionExpansionService.openSolutionFolders(this._reopenFolders.paths, solutionData, this._context);
+                    if (done || Date.now() > this._reopenFolders.until) {
+                        this._reopenFolders = undefined;
+                    }
+                }
                 const dropped = await this._revealDrop(solutionData);
                 await this._sendSolutionData(solutionData);
 
@@ -142,7 +150,16 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        // Track active editor changes to highlight the active file in the tree
+        // Track active editor changes to highlight the active file in the tree (a view that is resolved again, after it
+        // was disposed, must not leave the listener of the old one behind)
+        this._activeEditorListener?.dispose();
+        webviewView.onDidDispose(() => {
+            this._activeEditorListener?.dispose();
+            this._activeEditorListener = undefined;
+            if (this._view === webviewView) {
+                this._view = undefined;
+            }
+        });
         this._activeEditorListener = vscode.window.onDidChangeActiveTextEditor(editor => {
             if (editor && this._view?.visible && Settings.trackActiveItem()) {
                 void this.syncWithActiveDocument({ track: true });
@@ -330,7 +347,17 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                     log.warn('moveNodes without nodes or target ignored');
                     break;
                 }
+                const tree = this._cachedSolutionData ?? [];
+                const open = SolutionExpansionService.openSolutionFolderPaths(tree);
+                const into = SolutionExpansionService.solutionFolderPath(targetNodeId, tree) ?? [];
+                const reopen = copy === true ? [] : nodeIds.flatMap(id => {
+                    const from = SolutionTreeService.findNodeById(id, tree)?.type === 'solutionFolder' ? SolutionExpansionService.solutionFolderPath(id, tree) : undefined;
+                    return from ? SolutionExpansionService.pathsAfterMove(open, from, into) : [];
+                });
                 const drop = await SolutionActionService.moveNodes(nodeIds, targetNodeId, copy === true);
+                if (drop && reopen.length > 0) {
+                    this._reopenFolders = { paths: reopen, until: Date.now() + DROP_REVEAL_MS };
+                }
                 if (drop) {
                     this._dropToReveal = { drop, until: Date.now() + DROP_REVEAL_MS, opened: false };
                 }
