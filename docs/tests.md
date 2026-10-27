@@ -11,7 +11,7 @@ Test projects of the solution show in VS Code's **Testing** view (the flask icon
 
 Which kind a project is, MSBuild decides (`IsTestingPlatformApplication`).
 
-A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the one picked with **Select Framework** in the title bar (the same choice F5 uses, see [Run and debug](run-and-debug.md)) when the project targets it, `net472` included. Otherwise (Auto, or a framework the project doesn't target) the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`). A new choice takes effect with the next run or refresh. The **Shinobi .NET Studio** output says which framework each test project runs on and why.
+A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the one picked with **Select Framework** in the Solution Explorer's toolbar (the same choice F5 uses, see [Run and debug](run-and-debug.md)) when the project targets it, `net472` included. Otherwise (Auto, or a framework the project doesn't target) the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`). A new choice takes effect with the next run or refresh. The **Shinobi .NET Studio** output says which framework each test project runs on and why.
 
 ## .NET Framework test projects (net472, net48, ...)
 

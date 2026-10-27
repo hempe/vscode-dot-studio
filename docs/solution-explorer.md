@@ -19,7 +19,9 @@ The solution as Visual Studio shows it: solution folders, projects, their files 
 
 The tree follows changes on disk: new, deleted and renamed files, edited project and solution files.
 
-## Title bar
+## Toolbar
+
+The buttons are a row above the tree, like Visual Studio's Solution Explorer toolbar. They wrap when the view is narrow (the secondary side bar, for example), where VS Code would hide the icons of a title bar. The title bar keeps ▷ Start Debugging and the `...` menu (Open Solution..., Create New Project..., Attach to Process...). Every button is also a command in the command palette.
 
 | Button | What it does |
 |---|---|
@@ -33,7 +35,7 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 ## Show All Files and linked files
 
-The title bar's Show All Files button works like Visual Studio's. It is off by default and remembered for each solution.
+The toolbar's Show All Files button works like Visual Studio's. It is off by default and remembered for each solution.
 
 - Off: the tree shows only what the project contains. Files hidden by `<Compile Remove>`, `DefaultItemExcludes` and the like are not listed.
 - On: the files the project does not contain, and the `bin` and `obj` folders, appear greyed out.

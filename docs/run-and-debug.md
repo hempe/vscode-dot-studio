@@ -26,7 +26,7 @@ IIS Express, Docker and similar profiles don't apply.
 | | |
 |---|---|
 | **F5** | Debugs the configuration selected in VS Code's Run and Debug view, the `Startup` configuration by default. Also ▷ in the Solution Explorer's title bar |
-| **Ctrl+F5** | Runs the startup project without the debugger. Also in the title bar |
+| **Ctrl+F5** | Runs the startup project without the debugger. Also in the Solution Explorer's toolbar |
 | **Debug > Start New Instance** | On any project that can be started: builds it and starts it in the debugger next to what already runs, without making it the startup project |
 | **Debug > Start Without Debugging** | The same without the debugger |
 | **Debug > Start with Hot Reload** | Runs the project with `dotnet watch`: code changes apply while it runs, see [Hot Reload](#hot-reload) |
@@ -43,7 +43,7 @@ Profiles use Visual Studio's own file (Visual Studio 2022 17.11 and later): `<So
 
 ### Configure Startup Projects
 
-Right-click the solution > **Configure Startup Projects...** (also in the title bar's ⚙ menu and the command palette) opens the tab, like Visual Studio's Solution Properties > Configure Startup Projects:
+Right-click the solution > **Configure Startup Projects...** (also in the toolbar's ⚙ menu and the command palette) opens the tab, like Visual Studio's Solution Properties > Configure Startup Projects:
 
 - **Single startup project** and a dropdown of the projects that can be started: the same as **Set as Startup Project**, applied when you pick one. Choosing the radio goes back to the single startup project.
 - **Multiple startup projects** shows the profiles of the solution above a table with every project of the solution (default action None):
@@ -56,7 +56,7 @@ Right-click the solution > **Configure Startup Projects...** (also in the title 
 
 Keys of a profile that this extension does not know stay as they are when you apply.
 
-**Select Startup Profile...** in the title bar's ⚙ menu (shown once a `.slnLaunch` file exists) or the command palette chooses what F5 starts: `Single: <project>` (the startup project) or a profile; profiles of the `.user` file are marked "user file". The active profile's name shows next to the view title instead of the framework (`Debug · Feature Profile`). **Set as Startup Project** on a project goes back to a single startup project. The choice is kept per workspace.
+**Select Startup Profile...** in the toolbar's ⚙ menu (shown once a `.slnLaunch` file exists) or the command palette chooses what F5 starts: `Single: <project>` (the startup project) or a profile; profiles of the `.user` file are marked "user file". The active profile's name shows next to the view title instead of the framework (`Debug · Feature Profile`). **Set as Startup Project** on a project goes back to a single startup project. The choice is kept per workspace.
 
 | | |
 |---|---|
@@ -88,11 +88,11 @@ How it works: the profile is written to `.vscode/launch.json` as one configurati
 
 ## Debug / Release
 
-The ⚙ button in the Solution Explorer's title bar switches the solution configuration for builds, F5 and tests, with the configurations the solution file defines. The active configuration (and framework, or the [startup profile](#startup-profiles-several-startup-projects)) shows next to the view title and is kept per workspace.
+The ⚙ button in the Solution Explorer's toolbar switches the solution configuration for builds, F5 and tests, with the configurations the solution file defines. The active configuration (and framework, or the [startup profile](#startup-profiles-several-startup-projects)) shows next to the view title and is kept per workspace.
 
 Solutions with several platforms (Any CPU, x64) add **Select Solution Platform...** to that menu, and the view title shows both (`Debug | x64`). Which configuration and platform each project builds in, and whether it builds, is set in the [Configuration Manager](configuration-manager.md); F5 and the build before it use the project's mapped values.
 
-**Select Framework** in the title bar picks the target framework of multi-targeted startup projects.
+**Select Framework** in the toolbar picks the target framework of multi-targeted startup projects.
 
 The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work.
 

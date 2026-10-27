@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ShowAllFiles } from '../../services/showAllFiles';
+import { TOOLBAR_ACTIONS, TOOLBAR_COMMANDS, ToolbarState } from '../../types/toolbar';
 import { SolutionService } from '../../services/solutionService';
 import { SolutionTreeService } from '../../services/solutionTreeService';
 import { itemNameProblem } from '../../services/itemNames';
@@ -248,6 +249,13 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         log.info('Received message:', message);
 
         switch (message.type) {
+            case 'toolbarAction':
+                // Only the commands of the toolbar buttons, whatever the webview sends
+                if (message.payload?.action && TOOLBAR_ACTIONS.includes(message.payload.action)) {
+                    await vscode.commands.executeCommand(TOOLBAR_COMMANDS[message.payload.action]);
+                }
+                break;
+
             case 'getSolutionData':
                 log.info('Handling getSolutionData request');
                 await this._sendCachedData();
@@ -436,6 +444,21 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             const platform = BuildConfiguration.availablePlatforms.length > 1 ? BuildConfiguration.activePlatform : undefined;
             const startup = StartupChoice.activeProfileName(solution.solutionPath) ?? solution.getActiveFramework();
             this._view.description = [[BuildConfiguration.active, platform].filter(Boolean).join(' | '), startup].filter(Boolean).join(' · ');
+            this._toolbarState = {
+                configuration: [BuildConfiguration.active, platform].filter(Boolean).join(' | '),
+                ...(startup ? { startup } : {}),
+                showAllFiles: ShowAllFiles.isOn(),
+            };
+            this._sendToolbarState();
+        }
+    }
+
+    private _toolbarState: ToolbarState | undefined;
+
+    /** The state of the toolbar above the tree (configuration, framework or startup profile, Show All Files) */
+    private _sendToolbarState(): void {
+        if (this._view && this._toolbarState) {
+            sendToUi(this.webview, { type: 'toolbarState', payload: this._toolbarState });
         }
     }
 
@@ -530,6 +553,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             payload: data
         });
         this._sendDiagnostics(projects);
+        this._sendToolbarState();
         if (!this._iconThemeSent) {
             this._sendIconTheme();
         }

@@ -242,6 +242,31 @@ export function activate(context: vscode.ExtensionContext) {
                 await BuildConfiguration.setPlatform(picked.label);
             }
         }),
+        // The toolbar's configuration button: one menu for what the title bar's configuration menu offers
+        vscode.commands.registerCommand('shinobi.solution.configurationMenu', async () => {
+            const active = BuildConfiguration.active;
+            const items: Array<vscode.QuickPickItem & { run?: string }> = [
+                { label: 'Solution configuration', kind: vscode.QuickPickItemKind.Separator },
+                ...BuildConfiguration.available.map(name => ({ label: name, description: name === active ? '(current)' : undefined, run: `configuration:${name}` })),
+            ];
+            if (BuildConfiguration.availablePlatforms.length > 1) {
+                items.push({ label: 'Platform', kind: vscode.QuickPickItemKind.Separator },
+                    ...BuildConfiguration.availablePlatforms.map(name => ({ label: name, description: name === BuildConfiguration.activePlatform ? '(current)' : undefined, run: `platform:${name}` })));
+            }
+            items.push({ label: '', kind: vscode.QuickPickItemKind.Separator },
+                { label: '$(symbol-event) Startup Profile...', run: 'command:shinobi.solution.selectStartupProfile' },
+                { label: '$(settings-gear) Configuration Manager...', run: 'command:shinobi.configurationManager.open' });
+            const picked = await vscode.window.showQuickPick(items, { placeHolder: `Solution configuration: ${active}` });
+            const [kind, ...rest] = (picked?.run ?? '').split(':');
+            const value = rest.join(':');
+            if (kind === 'configuration') {
+                await BuildConfiguration.set(value);
+            } else if (kind === 'platform') {
+                await BuildConfiguration.setPlatform(value);
+            } else if (kind === 'command') {
+                await vscode.commands.executeCommand(value);
+            }
+        }),
         BuildConfiguration.onDidChange(async () => {
             await refreshStartup();
             solutionWebviewProvider.refresh();

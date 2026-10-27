@@ -1,5 +1,6 @@
 import React from 'react';
 import { SolutionTree } from './components/SolutionTree';
+import { Toolbar } from './components/Toolbar';
 import { useVsCodeApi } from './hooks/useVsCodeApi';
 import { LoadingBar } from '../shared/LoadingBar';
 import { blocksVsCodeMenu } from '../shared/altKey';
@@ -7,7 +8,7 @@ import { IconThemeContext, IconThemeFonts } from './components/TreeNode/IconThem
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loadError, loading, refreshing, activeFilePath, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loadError, toolbar, toolbarAction, loading, refreshing, activeFilePath, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
@@ -47,6 +48,7 @@ export const App: React.FC = React.memo(() => {
             <div className="solution-explorer" style={{ position: 'relative' }}>
                 <IconThemeFonts theme={iconTheme} />
                 <LoadingBar visible={refreshing} />
+                <Toolbar state={toolbar} onAction={toolbarAction} />
                 <div className="content">
                     <SolutionTree
                         projects={solutionData.projects}

@@ -340,6 +340,11 @@
         "title": "✓ Release"
       },
       {
+        "command": "shinobi.solution.configurationMenu",
+        "title": "Solution Configuration...",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solution.selectConfiguration",
         "title": "Select Solution Configuration...",
         "category": ".NET"
@@ -732,11 +737,6 @@
     ],
     "submenus": [
       {
-        "id": "shinobi.solution.configurations",
-        "label": "Solution Configuration",
-        "icon": "$(settings-gear)"
-      },
-      {
         "id": "shinobi.solutionExplorer.debug",
         "label": "Debug"
       }
@@ -744,39 +744,9 @@
     "menus": {
       "view/title": [
         {
-          "submenu": "shinobi.solution.configurations",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@0"
-        },
-        {
-          "command": "shinobi.solution.selectFramework",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@1"
-        },
-        {
           "command": "shinobi.solution.debug",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "navigation@2"
-        },
-        {
-          "command": "shinobi.solution.startWithoutDebugging",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@3"
-        },
-        {
-          "command": "shinobi.solution.syncWithActiveDocument",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@4"
-        },
-        {
-          "command": "shinobi.solution.showAllFiles",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@5"
-        },
-        {
-          "command": "shinobi.solution.collapseAll",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@6"
         },
         {
           "command": "shinobi.debug.attachToProcess",
@@ -792,51 +762,6 @@
           "command": "shinobi.solution.new",
           "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
           "group": "1_solution@2"
-        }
-      ],
-      "shinobi.solution.configurations": [
-        {
-          "command": "shinobi.solution.configuration.debug",
-          "when": "'Debug' in shinobi.solution.availableConfigurations && shinobi.solution.configuration != 'Debug'",
-          "group": "1_configurations@1"
-        },
-        {
-          "command": "shinobi.solution.configuration.debug.active",
-          "when": "shinobi.solution.configuration == 'Debug'",
-          "group": "1_configurations@1"
-        },
-        {
-          "command": "shinobi.solution.configuration.release",
-          "when": "'Release' in shinobi.solution.availableConfigurations && shinobi.solution.configuration != 'Release'",
-          "group": "1_configurations@2"
-        },
-        {
-          "command": "shinobi.solution.configuration.release.active",
-          "when": "shinobi.solution.configuration == 'Release'",
-          "group": "1_configurations@2"
-        },
-        {
-          "command": "shinobi.solution.selectConfiguration",
-          "when": "shinobi.solution.hasOtherConfigurations",
-          "group": "2_other@1"
-        },
-        {
-          "command": "shinobi.solution.selectPlatform",
-          "when": "shinobi.solution.hasSeveralPlatforms",
-          "group": "3_platform@1"
-        },
-        {
-          "command": "shinobi.solution.selectStartupProfile",
-          "when": "shinobi.solution.hasStartupProfiles",
-          "group": "4_startup@1"
-        },
-        {
-          "command": "shinobi.startupProjects.open",
-          "group": "4_startup@2"
-        },
-        {
-          "command": "shinobi.configurationManager.open",
-          "group": "9_manager@1"
         }
       ],
       "webview/context": [

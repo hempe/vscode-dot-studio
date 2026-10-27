@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { ToolbarAction, ToolbarState } from '../../../types/toolbar';
 import { logger } from '../../shared/logger';
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
@@ -186,6 +187,7 @@ const log = logger('useVsCodeApi');
 export const useVsCodeApi = () => {
     const [solutionData, setSolutionData] = useState<SolutionData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [toolbar, setToolbar] = useState<ToolbarState | null>(null);
     // Why the solution could not be loaded (the host's message), until data arrives
     const [loadError, setLoadError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -203,6 +205,9 @@ export const useVsCodeApi = () => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data as UICmd;
             switch (message.type) {
+                case 'toolbarState':
+                    setToolbar(message.payload);
+                    break;
                 case 'hideLoading':
                     setLoading(false);
                     setRefreshing(false);
@@ -300,9 +305,15 @@ export const useVsCodeApi = () => {
         sendToBackend({ type: 'collapseNode', payload: { nodeId: nodeId } });
     }, []);
 
+    const toolbarAction = useCallback((action: ToolbarAction) => {
+        sendToBackend({ type: 'toolbarAction', payload: { action } });
+    }, []);
+
     return {
         solutionData,
         loadError,
+        toolbar,
+        toolbarAction,
         loading,
         refreshing,
         activeFilePath,

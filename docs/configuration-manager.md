@@ -5,14 +5,14 @@
 ## Opening it
 
 - Right-click the solution > **Configuration Manager...**
-- The configuration submenu in the Solution Explorer's title bar (the ⚙ button) > **Configuration Manager...**
+- The ⚙ button in the Solution Explorer's toolbar > **Configuration Manager...**
 - The command palette: **.NET: Configuration Manager...**
 
 ## Active configuration and platform
 
 The two dropdowns at the top set the active solution configuration and platform. The platform dropdown is hidden while the solution has only **Any CPU**.
 
-The same choices are in the title bar: **Select Solution Configuration...** and **Select Solution Platform...** (the latter only when the solution has several platforms). The view title shows the active pair, for example `Debug | x64 · net9.0`. The choice is kept per workspace.
+The same choices are in the toolbar's ⚙ menu and in the command palette: **Select Solution Configuration...** and **Select Solution Platform...** (the latter only when the solution has several platforms). The view title shows the active pair, for example `Debug | x64 · net9.0`. The choice is kept per workspace.
 
 ## Editing the lists
 

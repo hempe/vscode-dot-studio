@@ -1,3 +1,4 @@
+import { ToolbarState } from "../toolbar"
 import { DiagnosticMarkers, NodeType, ProjectNode } from ".."
 import { NuGetPackage, ProjectInfo } from "../../services/nuget/types"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
@@ -166,6 +167,12 @@ export declare type IconThemeCmd = {
     }
 }
 
+/** What the toolbar above the tree shows: configuration, framework or startup profile, Show All Files */
+export declare type ToolbarStateCmd = {
+    readonly type: 'toolbarState',
+    readonly payload: ToolbarState
+}
+
 export declare type UICmd =
     ErrorCmd |
     SearchResultsCmd |
@@ -186,4 +193,5 @@ export declare type UICmd =
     StartRenameCmd |
     SelectNodeCmd |
     DiagnosticsCmd |
-    IconThemeCmd;
+    IconThemeCmd |
+    ToolbarStateCmd;

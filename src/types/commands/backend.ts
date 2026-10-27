@@ -2,6 +2,7 @@ import { NodeType } from "..";
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared";
 import { NodeIdString } from "../nodeId";
 import { ProjectActionCmd } from "./project-action";
+import { ToolbarAction } from "../toolbar";
 
 export declare type GetPackageReadmeCmd = {
     readonly type: 'getPackageReadme',
@@ -138,6 +139,14 @@ export declare type MoveNodesCmd = {
     }
 }
 
+/** A button of the toolbar above the tree */
+export declare type ToolbarActionCmd = {
+    readonly type: 'toolbarAction',
+    readonly payload: {
+        readonly action: ToolbarAction
+    }
+}
+
 export declare type BackendCmd =
     GetPackageReadmeCmd |
     GetPackageIconCmd |
@@ -155,4 +164,5 @@ export declare type BackendCmd =
     CollapseNodeCmd |
     TreeFocusChangedCmd |
     TreeSelectionChangedCmd |
-    MoveNodesCmd;
+    MoveNodesCmd |
+    ToolbarActionCmd;
