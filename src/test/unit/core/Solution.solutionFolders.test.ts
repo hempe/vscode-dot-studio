@@ -283,6 +283,36 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
         expect(await outline()).toEqual([]);
     });
 
+    test('refuses a solution folder name a sibling has, on add and on rename (review A1-05)', async () => {
+        ui.inputBox = 'libs';
+        await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+        expect(ui.errors).toEqual([expect.stringContaining('already')]);
+
+        ui.errors = [];
+        ui.inputBox = 'Inner';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+        await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Libs')).nodeId });
+        expect(ui.errors).toEqual([expect.stringContaining('already')]);
+
+        // Another parent may have the same name, and a folder may keep its own name in another case
+        ui.errors = [];
+        ui.inputBox = 'Docs';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
+        ui.inputBox = 'Inner';
+        await run({ action: 'addSolutionFolder', nodeId: (await find('solutionFolder', 'Docs')).nodeId });
+        await run({ action: 'rename', nodeId: (await find('solutionFolder', 'Docs')).nodeId, data: { newName: 'DOCS', oldName: 'Docs', type: 'solutionFolder' } });
+
+        await SolutionActionService.handleProjectAction({ action: 'rename', nodeId: (await find('solutionFolder', 'DOCS')).nodeId, data: { newName: 'libs', oldName: 'DOCS', type: 'solutionFolder' } });
+        expect(ui.errors).toEqual([expect.stringContaining('already')]);
+        expect(await outline()).toEqual([
+            'solutionFolder: DOCS',
+            '  solutionFolder: Inner',
+            'solutionFolder: Libs',
+            '  solutionFolder: Inner',
+            '  project: Lib',
+        ]);
+    });
+
     test('keeps the line endings of the file', async () => {
         ui.inputBox = 'Docs';
         await run({ action: 'addSolutionFolder', nodeId: (await find('solution')).nodeId });
@@ -370,5 +400,55 @@ describe.each(variants)('solution folders and items (%s)', (_, fileName, initial
 
         expect(names(await project.getRootChildren())).toEqual(expect.arrayContaining(['appsettings.json', '  appsettings.Development.json']));
         expect(names(await project.getFolderChildren(path.join(libDir, 'Pages')))).toEqual(['Index.cshtml', '  Index.cshtml.cs']);
+    });
+});
+
+describe('removing a .sln solution folder (review A1-06)', () => {
+    // GUIDs in lower case, as some tools write them; a SQL project (not a C#, VB or F# one) inside the folder
+    const content = `
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Data", "Data", "{6C4D298B-81FB-2B6B-5AB6-46205EDDC72C}"
+EndProject
+Project("{fae04ec0-301f-11d3-bf4b-00c04f79efbc}") = "Lib", "src\\Lib\\Lib.csproj", "{142f4fe7-2814-4e67-a7ef-97a50f8a2890}"
+EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Db", "src\\Db\\Db.sqlproj", "{AAAAAAAA-2814-4E67-A7EF-97A50F8A2890}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "App", "src\\App\\App.csproj", "{BBBBBBBB-2814-4E67-A7EF-97A50F8A2890}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{142f4fe7-2814-4e67-a7ef-97a50f8a2890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{142f4fe7-2814-4e67-a7ef-97a50f8a2890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAAAAAAA-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BBBBBBBB-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BBBBBBBB-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{142f4fe7-2814-4e67-a7ef-97a50f8a2890} = {6c4d298b-81fb-2b6b-5ab6-46205eddc72c}
+		{AAAAAAAA-2814-4E67-A7EF-97A50F8A2890} = {6C4D298B-81FB-2B6B-5AB6-46205EDDC72C}
+	EndGlobalSection
+EndGlobal
+`;
+
+    test('takes every project in it, whatever its type or the case of the GUIDs, and their configuration lines', async () => {
+        const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-rm-')));
+        const file = path.join(dir, 'App.sln');
+        fs.writeFileSync(file, content);
+        const solution = new Solution(file);
+        try {
+            for (let i = 0; i < 100 && !solution.isInitialized; i++) await new Promise(r => setTimeout(r, 10));
+            await solution.removeSolutionFolder('{6C4D298B-81FB-2B6B-5AB6-46205EDDC72C}');
+
+            const after = fs.readFileSync(file, 'utf8');
+            expect(after).toContain('"App"');
+            expect(after).not.toMatch(/Data|Lib|Db|sqlproj|6c4d298b|142f4fe7|AAAAAAAA/i);
+            expect(after).toContain('{BBBBBBBB-2814-4E67-A7EF-97A50F8A2890}.Debug|Any CPU.Build.0');
+        } finally {
+            solution.dispose();
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
     });
 });

@@ -43,6 +43,42 @@ Global
 	EndGlobalSection
 EndGlobal`;
 
+  describe('what real solution files hold (review A1-06, A1-11)', () => {
+    const header = 'Microsoft Visual Studio Solution File, Format Version 12.00\n';
+
+    it('keeps GUIDs in one case, so a lower-case NestedProjects entry still finds its folder', async () => {
+      const content = header
+        + 'Project("{2150e333-8fdc-42a3-9474-1a3956d46de8}") = "src", "src", "{aaaaaaaa-0000-0000-0000-000000000001}"\nEndProject\n'
+        + 'Project("{fae04ec0-301f-11d3-bf4b-00c04f79efbc}") = "Lib", "Lib\\Lib.csproj", "{bbbbbbbb-0000-0000-0000-000000000002}"\nEndProject\n'
+        + 'Global\n\tGlobalSection(NestedProjects) = preSolution\n\t\t{bbbbbbbb-0000-0000-0000-000000000002} = {aaaaaaaa-0000-0000-0000-000000000001}\n\tEndGlobalSection\nEndGlobal\n';
+      const result = await SolutionFileParser.parse(content, '/test/path');
+      const hierarchy = SolutionFileParser.buildProjectHierarchy(result);
+
+      expect(SolutionFileParser.isSolutionFolder(result.projects[0])).toBe(true);
+      expect(result.projects[0].guid).toBe('{AAAAAAAA-0000-0000-0000-000000000001}');
+      expect(hierarchy.get('{AAAAAAAA-0000-0000-0000-000000000001}')?.map(p => p.name)).toEqual(['Lib']);
+      expect(hierarchy.get('ROOT')?.map(p => p.name)).toEqual(['src']);
+    });
+
+    it('loads a project with an absolute path outside the solution folder', async () => {
+      const outside = path.resolve('/elsewhere', 'Lib', 'Lib.csproj');
+      const content = header + `Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lib", "${outside}", "{BBBBBBBB-0000-0000-0000-000000000002}"\nEndProject\n`;
+      const result = await SolutionFileParser.parse(content, path.resolve('/test/path'));
+
+      expect(result.projects.map(p => p.path)).toEqual([outside]);
+    });
+
+    it('skips a project it cannot read instead of failing the whole solution', async () => {
+      const bad = process.platform === 'win32' ? 'C:\\Windows\\System32\\Bad.csproj' : '/etc/Bad/Bad.csproj';
+      const content = header
+        + `Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bad", "${bad.replace(/\\/g, '\\\\')}", "{BBBBBBBB-0000-0000-0000-000000000002}"\nEndProject\n`
+        + 'Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Good", "Good\\Good.csproj", "{CCCCCCCC-0000-0000-0000-000000000003}"\nEndProject\n';
+      const result = await SolutionFileParser.parse(content, path.resolve('/test/path'));
+
+      expect(result.projects.map(p => p.name)).toEqual(['Good']);
+    });
+  });
+
   describe('parse', () => {
     it('should parse basic solution file', async () => {
       const result = await SolutionFileParser.parse(sampleSolutionContent, '/test/path');

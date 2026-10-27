@@ -39,6 +39,7 @@ export interface SolutionFileItem {
 
 /** Line ending used by the file, so line-based edits don't mix CRLF and LF */
 const eolOf = (content: string) => content.includes('\r\n') ? '\r\n' : '\n';
+const sameGuid = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 const log = logger('Solution');
 
@@ -523,6 +524,7 @@ export class Solution {
             if (!folderName.trim() || /["\/\\]/.test(folderName)) {
                 throw new Error(`Invalid solution folder name "${folderName}"`);
             }
+            this.assertFolderNameFree(folderName, parentNode?.guid);
 
             if (this.isSlnx) {
                 const parentSegments = parentNode ? this.getSolutionFolderSegments(parentNode.guid) : [];
@@ -605,6 +607,22 @@ export class Solution {
             p => p.name === folderName && SolutionFileParser.isSolutionFolder(p)
         );
         return folder ? folder.guid : null;
+    }
+
+    /**
+     * Throws when a sibling already has the name (MSBuild refuses a solution with two folders of one name in one
+     * folder, MSB5004); `ownGuid` is the folder being renamed, which may change the case of its own name
+     */
+    private assertFolderNameFree(name: string, parentGuid: string | undefined, ownGuid?: string): void {
+        const parent = parentGuid?.toUpperCase();
+        const taken = (this._solutionFile?.projects ?? []).some(project =>
+            SolutionFileParser.isSolutionFolder(project)
+            && project.guid.toUpperCase() !== ownGuid?.toUpperCase()
+            && project.name.toLowerCase() === name.toLowerCase()
+            && this._solutionFile!.nestedProjects.find(n => n.childGuid.toUpperCase() === project.guid.toUpperCase())?.parentGuid.toUpperCase() === parent);
+        if (taken) {
+            throw new Error(`A solution folder named "${name}" already exists here`);
+        }
     }
 
     /**
@@ -706,18 +724,17 @@ export class Solution {
             const allItemsToRemove = this.findAllChildItemsRecursively(folderGuid);
             log.info(`Found ${allItemsToRemove.length} child items to remove recursively`);
 
-            // Remove all child projects and folders recursively
+            // Remove all child projects and folders recursively, of any project type (a SQL project is not a .NET one)
             let newLines = lines;
             for (const itemGuid of allItemsToRemove) {
-                const itemProject = this._solutionFile?.projects.find(p => p.guid === itemGuid);
+                const itemProject = this._solutionFile?.projects.find(p => sameGuid(p.guid, itemGuid));
                 if (itemProject) {
                     if (SolutionFileParser.isSolutionFolder(itemProject)) {
-                        // Remove child solution folder
                         newLines = this.removeSolutionFolderProject(newLines, itemProject.name, itemGuid);
                         log.info(`Removed child solution folder: ${itemProject.name}`);
-                    } else if (SolutionFileParser.isDotNetProject(itemProject)) {
-                        // Remove child project
+                    } else {
                         newLines = this.removeProjectByGuid(newLines, itemGuid);
+                        newLines = this.removeProjectConfigurationLines(newLines, itemGuid);
                         log.info(`Removed child project: ${itemProject.name}`);
                     }
                 }
@@ -760,6 +777,7 @@ export class Solution {
             if (!newName.trim() || /["\/\\]/.test(newName)) {
                 throw new Error(`Invalid solution folder name "${newName}"`);
             }
+            this.assertFolderNameFree(newName, this._solutionFile?.nestedProjects.find(n => n.childGuid === folderGuid)?.parentGuid, folderGuid);
 
             if (this.isSlnx) {
                 const segments = this.getSolutionFolderSegments(folderGuid);
@@ -1045,7 +1063,7 @@ export class Solution {
             // Look for the Project line for this solution folder
             if (line.includes(`Project("${solutionFolderTypeGuid}")`) &&
                 line.includes(`"${folderName}"`) &&
-                line.includes(folderGuid)) {
+                line.toLowerCase().includes(folderGuid.toLowerCase())) {
                 startIndex = i;
             }
 
@@ -1103,7 +1121,7 @@ export class Solution {
             const line = lines[i].trim();
 
             // Look for the Project line that contains this GUID
-            if (line.startsWith('Project(') && line.includes(projectGuid)) {
+            if (line.startsWith('Project(') && line.toLowerCase().includes(projectGuid.toLowerCase())) {
                 startIndex = i;
             }
 
@@ -1123,6 +1141,25 @@ export class Solution {
         }
 
         return lines;
+    }
+
+    /**
+     * Removes the project's lines of the ProjectConfigurationPlatforms section
+     */
+    private removeProjectConfigurationLines(lines: string[], projectGuid: string): string[] {
+        const prefix = `${projectGuid.toLowerCase()}.`;
+        let inSection = false;
+        return lines.filter(line => {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('GlobalSection(ProjectConfigurationPlatforms)')) {
+                inSection = true;
+            } else if (trimmed === 'EndGlobalSection') {
+                inSection = false;
+            } else if (inSection && trimmed.toLowerCase().startsWith(prefix)) {
+                return false;
+            }
+            return true;
+        });
     }
 
     /**
@@ -1154,7 +1191,7 @@ export class Solution {
 
         for (let i = nestedProjectsStartIndex + 1; i < nestedProjectsEndIndex; i++) {
             const line = lines[i];
-            if (line.includes(folderGuid)) {
+            if (line.toLowerCase().includes(folderGuid.toLowerCase())) {
                 entriesToRemove.push(i);
             }
         }

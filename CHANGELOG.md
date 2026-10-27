@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Solution files:** Add and Rename Solution Folder refuse a name that a folder next to it has; Remove Solution Folder removes projects of every type (SQL projects too) and their configuration lines, also when the file has lower-case GUIDs; `.slnx` edits ignore XML comments; a `.sln` with an absolute project path outside its folder loads, and a project that cannot be read is skipped instead of failing the solution.
+
 ## 0.1.2
 
 Fixes, security hardening and the first results of the code review.

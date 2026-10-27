@@ -55,9 +55,19 @@ export class SolutionFileParser {
 
         // Parse projects
         while (i < lines.length && lines[i].startsWith('Project(')) {
-            const projectResult = this.parseProject(lines, i, solutionDir);
-            solution.projects.push(projectResult.project);
-            i = projectResult.nextIndex;
+            try {
+                const projectResult = this.parseProject(lines, i, solutionDir);
+                solution.projects.push(projectResult.project);
+                i = projectResult.nextIndex;
+            } catch (error) {
+                // One project that cannot be read does not take the solution with it
+                log.error(`Skipping a project of the solution: ${lines[i]}`, error);
+                i++;
+                while (i < lines.length && !lines[i].startsWith('EndProject')) {
+                    i++;
+                }
+                i++;
+            }
         }
 
         // Parse global sections
@@ -76,8 +86,8 @@ export class SolutionFileParser {
                         if (sectionResult.section.name === 'NestedProjects') {
                             for (const [childGuid, parentGuid] of Object.entries(sectionResult.section.items)) {
                                 solution.nestedProjects.push({
-                                    childGuid: childGuid.trim(),
-                                    parentGuid: parentGuid.trim()
+                                    childGuid: childGuid.trim().toUpperCase(),
+                                    parentGuid: parentGuid.trim().toUpperCase()
                                 });
                             }
                         }
@@ -116,12 +126,6 @@ export class SolutionFileParser {
             try {
                 // CRITICAL: Normalize and validate before resolving paths
                 let projectPath = project.path;
-
-                // Remove erroneous leading slash
-                if (projectPath.startsWith('/') && !projectPath.startsWith('//')) {
-                    log.info(`Framework enhancement - removing erroneous leading slash from: ${projectPath}`);
-                    projectPath = projectPath.substring(1);
-                }
 
                 // Normalize path separators
                 projectPath = projectPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
@@ -179,7 +183,10 @@ export class SolutionFileParser {
             throw new Error(`Invalid project line: ${projectLine}`);
         }
 
-        const [, typeGuid, name, projectPathRaw, guid] = projectMatch;
+        // GUIDs are case-insensitive and tools write both: one case in the model
+        const [, rawTypeGuid, name, projectPathRaw, rawGuid] = projectMatch;
+        const typeGuid = rawTypeGuid.toUpperCase();
+        const guid = rawGuid.toUpperCase();
 
         // CRITICAL: Normalize and validate project path
         log.info(`Parsing project: ${name} with raw path: "${projectPathRaw}"`);
@@ -187,22 +194,6 @@ export class SolutionFileParser {
 
         // Fix common path issues from solution files
         let projectPath = projectPathRaw;
-
-        // Solution files should contain relative paths, not absolute paths
-        // If we see a leading slash, it might be an error in parsing or file format
-        if (projectPath.startsWith('/') && !projectPath.startsWith('//')) {
-            log.warn(`WARNING: Project path starts with '/': "${projectPath}"`);
-            log.warn(`This suggests an issue with solution file parsing or format`);
-
-            // Only remove if it looks like an erroneous absolute path that should be relative
-            if (!projectPath.startsWith('/home/') && !projectPath.startsWith('/usr/') && !projectPath.startsWith('/opt/')) {
-                log.info(`Removing likely erroneous leading slash from: ${projectPath}`);
-                projectPath = projectPath.substring(1);
-            } else {
-                log.error(`UNEXPECTED: Project path appears to be a real absolute path: ${projectPath}`);
-                log.error(`Solution files should not contain absolute paths!`);
-            }
-        }
 
         // Normalize path separators to current platform
         projectPath = projectPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
@@ -213,18 +204,6 @@ export class SolutionFileParser {
         if (isSystemPath(projectPath)) {
             log.error(`BLOCKED: Normalized project path is a system path: ${projectPath}`);
             throw new Error(`Invalid project path: ${projectPath} (system path)`);
-        }
-
-        // Check for absolute paths that might be problematic
-        if (path.isAbsolute(projectPath)) {
-            // Only allow absolute paths that are within the solution directory
-            const normalizedSolutionDir = path.normalize(solutionDir);
-            const normalizedProjectPath = path.normalize(projectPath);
-
-            if (!normalizedProjectPath.startsWith(normalizedSolutionDir)) {
-                log.error(`BLOCKED: Absolute project path outside solution directory: ${projectPath}`);
-                throw new Error(`Invalid project path: ${projectPath} (absolute path outside solution)`);
-            }
         }
 
         // Resolve and validate the full path

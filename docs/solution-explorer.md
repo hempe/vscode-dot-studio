@@ -13,6 +13,8 @@ The solution as Visual Studio shows it: solution folders, projects, their files 
 | Folder, file | What is in the project's folder. SDK-style projects include files by location, and so does the tree (`bin`, `obj` and similar are left out) |
 | Dependencies | The project's references, see below |
 
+Solution folders next to each other cannot share a name (upper and lower case count as the same, as MSBuild requires): Add and Rename Solution Folder say so. Remove Solution Folder removes everything in it, projects of every type included.
+
 **File nesting** works like Visual Studio's: `Index.cshtml.cs` sits under `Index.cshtml`, `Form1.Designer.cs` under `Form1.cs`, `appsettings.Development.json` under `appsettings.json`. Renaming the parent renames the nested files with it. The setting `shinobi.solutionExplorer.fileNesting` switches it off or adds Visual Studio's web rules (`site.min.js` under `site.js` under `site.ts`), like Visual Studio's File Nesting button.
 
 **Icons** come from your file icon theme (`workbench.iconTheme`: Seti, Material Icon Theme, vscode-icons, ...). Dependencies, and solutions and projects the theme has no icon for, use built-in icons.

@@ -224,20 +224,20 @@ export class SolutionXFileEditor {
         }
 
         // No folders yet: before the first project, or at the end of the solution
-        const firstProject = content.search(/<Project\b/);
+        const firstProject = this.mask(content).search(/<Project\b/);
         if (firstProject !== -1) {
             const insertAt = this.lineStart(content, firstProject);
             return content.slice(0, insertAt) + `${this.lineIndent(content, firstProject)}${element}${nl}` + content.slice(insertAt);
         }
 
         const unit = this.indentUnit(content);
-        const selfClosing = /<Solution\b[^>]*\/>/.exec(content);
+        const selfClosing = /<Solution\b[^>]*\/>/.exec(this.mask(content));
         if (selfClosing) {
             const expanded = selfClosing[0].replace(/\s*\/>$/, '>') + `${nl}${unit}${element}${nl}</Solution>`;
             return content.slice(0, selfClosing.index) + expanded + content.slice(selfClosing.index + selfClosing[0].length);
         }
 
-        const close = content.lastIndexOf('</Solution');
+        const close = this.mask(content).lastIndexOf('</Solution');
         if (close === -1) {
             throw new Error('Invalid .slnx file: missing <Solution> root element');
         }
@@ -260,10 +260,11 @@ export class SolutionXFileEditor {
 
     private static findFolders(content: string): FolderElement[] {
         const folders: FolderElement[] = [];
+        const text = this.mask(content);
         const re = FOLDER_RE();
         let match: RegExpExecArray | null;
 
-        while ((match = re.exec(content)) !== null) {
+        while ((match = re.exec(text)) !== null) {
             const name = this.getAttribute(match[1], 'Name');
             if (!name) {
                 continue;
@@ -291,7 +292,7 @@ export class SolutionXFileEditor {
             return [];
         }
 
-        const body = content.slice(folder.bodyStart, folder.bodyEnd);
+        const body = this.mask(content).slice(folder.bodyStart, folder.bodyEnd);
         const files: { start: number; end: number; path: string }[] = [];
         const re = FILE_RE();
         let match: RegExpExecArray | null;
@@ -334,9 +335,10 @@ export class SolutionXFileEditor {
     private static findProjects(content: string): { start: number; end: number; path: string; folder?: FolderElement }[] {
         const folders = this.findFolders(content);
         const projects: { start: number; end: number; path: string; folder?: FolderElement }[] = [];
+        const text = this.mask(content);
         const re = PROJECT_RE();
         let match: RegExpExecArray | null;
-        while ((match = re.exec(content)) !== null) {
+        while ((match = re.exec(text)) !== null) {
             const projectPath = this.getAttribute(match[1], 'Path');
             if (projectPath) {
                 const start = match.index;
@@ -383,7 +385,7 @@ export class SolutionXFileEditor {
             const insertAt = last.end + lineBreak[0].length;
             return content.slice(0, insertAt) + `${indent}${moved}${nl}` + content.slice(insertAt);
         }
-        const close = content.lastIndexOf('</Solution');
+        const close = this.mask(content).lastIndexOf('</Solution');
         if (close === -1) {
             throw new Error('Invalid .slnx file: missing <Solution> root element');
         }
@@ -429,6 +431,11 @@ export class SolutionXFileEditor {
             return content.slice(0, lineStart) + content.slice(end + after[0].length);
         }
         return content.slice(0, start) + content.slice(end);
+    }
+
+    /** The text with XML comments blanked out (same length, line breaks kept), so that nothing inside one is matched */
+    private static mask(content: string): string {
+        return content.replace(/<!--[\s\S]*?(?:-->|$)/g, comment => comment.replace(/[^\r\n]/g, ' '));
     }
 
     private static lineStart(content: string, index: number): number {

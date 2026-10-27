@@ -291,6 +291,43 @@ describe('SolutionXFileEditor', () => {
         });
     });
 
+    describe('XML comments (review A1-08)', () => {
+        const commented = `<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lib/Lib.csproj" />
+  </Folder>
+  <Project Path="App/App.csproj" />
+  <!-- <Project Path="Old/Old.csproj" /> -->
+</Solution>
+`;
+
+        it('puts a project moved to the root after the last project, not inside a trailing comment', () => {
+            const result = SolutionXFileEditor.moveProject(commented, 'src/Lib/Lib.csproj', []);
+            expect(result).toBe(`<Solution>
+  <Folder Name="/src/" />
+  <Project Path="App/App.csproj" />
+  <Project Path="src/Lib/Lib.csproj" />
+  <!-- <Project Path="Old/Old.csproj" /> -->
+</Solution>
+`);
+        });
+
+        it('does not find a project or a folder that is commented out', () => {
+            expect(() => SolutionXFileEditor.moveProject(commented, 'Old/Old.csproj', [])).toThrow('not found');
+            const folderComment = '<Solution>\n  <!-- <Folder Name="/x/" /> -->\n</Solution>\n';
+            expect(() => SolutionXFileEditor.removeFolder(folderComment, ['x'])).toThrow('not found');
+            const added = SolutionXFileEditor.addFolder(folderComment, ['x']);
+            expect(added).toContain('\n  <Folder Name="/x/" />\n');
+            expect(added).toContain('<!-- <Folder Name="/x/" /> -->');
+        });
+
+        it('inserts a first folder before the first real project, not before a commented one', () => {
+            const content = '<Solution>\n  <!-- <Project Path="Old/Old.csproj" /> -->\n  <Project Path="App/App.csproj" />\n</Solution>\n';
+            expect(SolutionXFileEditor.addFolder(content, ['docs'])).toBe(
+                '<Solution>\n  <!-- <Project Path="Old/Old.csproj" /> -->\n  <Folder Name="/docs/" />\n  <Project Path="App/App.csproj" />\n</Solution>\n');
+        });
+    });
+
     describe('moveFolder', () => {
         test('renames the folder and its descendants under the target; elements stay in place', async () => {
             const result = SolutionXFileEditor.moveFolder(sample, ['Deep'], ['src']);
