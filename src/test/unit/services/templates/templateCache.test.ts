@@ -60,3 +60,27 @@ describe('optionArgs', () => {
         expect(optionArgs(options, { flag: false })).toEqual(['--flag', 'false']);
     });
 });
+
+describe('readTemplates (review A6-7)', () => {
+    it('runs dotnet in the solution folder, where global.json picks the SDK', async () => {
+        const calls: { args: string[]; cwd?: string }[] = [];
+        jest.resetModules();
+        jest.doMock('child_process', () => ({
+            execFile: (_file: string, args: string[], options: { cwd?: string }, callback: (error: null, stdout: string) => void) => {
+                calls.push({ args, cwd: options.cwd });
+                callback(null, '');
+            },
+        }));
+        const { readTemplates } = require('../../../../services/templates/templateCache');
+        try {
+            await readTemplates('/repo/sdk8');
+            await readTemplates('/repo/sdk8');
+            await readTemplates('/repo/sdk10');
+        } finally {
+            jest.dontMock('child_process');
+        }
+
+        // Every call runs in its folder (no cache file exists here, so nothing is kept between calls)
+        expect(calls.map(call => call.cwd)).toEqual(['/repo/sdk8', '/repo/sdk8', '/repo/sdk8', '/repo/sdk8', '/repo/sdk10', '/repo/sdk10']);
+    });
+});

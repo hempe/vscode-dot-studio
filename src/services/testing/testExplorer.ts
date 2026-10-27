@@ -32,8 +32,8 @@ export interface TestExplorerDeps {
     /** The solution's framework from Select Framework (the Startup launch configuration); undefined for Auto */
     selectedFramework(): string | undefined;
     platform(): NodeJS.Platform;
-    /** Builds the project (for one framework of a multi-targeted project); false when the build failed */
-    build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string): Promise<boolean>;
+    /** Builds the project (for one framework of a multi-targeted project); false when the build failed or `signal` stopped it */
+    build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string, signal?: AbortSignal): Promise<boolean>;
     /** Starts the test app with the server arguments, in the debugger for debug runs, with extra environment variables */
     start(project: TestProject, args: string[], debug: boolean, environment: Readonly<Record<string, string>>): Promise<TestApp>;
     /** Starts vstest.console in design mode, connecting to the port (VSTest projects) */
@@ -119,10 +119,10 @@ const defaultDeps: TestExplorerDeps = {
     evaluate: evaluateTestProject,
     selectedFramework: () => SolutionService.getActiveSolution()?.getActiveFramework() ?? undefined,
     platform: () => process.platform,
-    build: (projectPath, configuration, output, targetFramework) => new Promise(resolve => {
+    build: (projectPath, configuration, output, targetFramework, signal) => new Promise(resolve => {
         execFile('dotnet', ['build', projectPath, '--configuration', configuration, ...(targetFramework ? ['--framework', targetFramework] : []), '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
             // maxBuffer: thousands of warnings are more than the 1 MiB default, which would kill the build and report it as failed
-            { cwd: path.dirname(projectPath), timeout: 600000, maxBuffer: 256 * 1024 * 1024 }, (error, stdout, stderr) => {
+            { cwd: path.dirname(projectPath), timeout: 600000, maxBuffer: 256 * 1024 * 1024, signal }, (error, stdout, stderr) => {
                 output(`${stdout}${stderr}`);
                 resolve(!error);
             });
@@ -155,6 +155,12 @@ const defaultDeps: TestExplorerDeps = {
 
 /** Test projects processed at once when refreshing, so a solution with many doesn't start dozens of dotnet processes */
 const dotnetQueue = new RequestQueue(4);
+
+/** The first error lines of a build's output ("Build failed: x.cs(1,1): error CS1002: ; expected"), which no Problems panel shows for MSBuild and NuGet errors */
+export function buildFailure(output: string): string {
+    const errors = output.split(/\r?\n/).filter(line => /:\s*error\s+\w+:/i.test(line)).map(line => line.trim());
+    return errors.length > 0 ? `Build failed:\n${[...new Set(errors)].slice(0, 3).join('\n')}` : 'Build failed';
+}
 
 const terminal = (text: string) => text.replace(/\r?\n/g, '\r\n');
 
@@ -308,9 +314,13 @@ export class TestExplorer implements vscode.Disposable {
                 state = { project, item };
                 this.states.set(projectPath, state);
             }
-            if (build && !await this.deps.build(projectPath, configuration, text => log.debug(text), project.targetFramework)) {
-                state.item.error = 'Build failed, see the Problems panel';
-                return;
+            if (build) {
+                let output = '';
+                if (!await this.deps.build(projectPath, configuration, text => { output += text; }, project.targetFramework)) {
+                    state.item.error = buildFailure(output);
+                    log.info(`${path.basename(projectPath)}: ${buildFailure(output)}`);
+                    return;
+                }
             }
             await this.discoverIfChanged(state);
         })));
@@ -445,14 +455,22 @@ export class TestExplorer implements vscode.Disposable {
         // that is where the run settings' MaxCpuCount runs test assemblies in parallel. Projects that run through
         // Mono's vstest.console (.NET Framework outside Windows) are a group of their own.
         const vstestGroups = new Map<string, ProjectRun[]>();
+        // Cancel stops the build that is running, not only the ones that follow
+        const cancelled = new AbortController();
+        const cancelListener = token.onCancellationRequested(() => cancelled.abort());
         try {
             for (const [state, { items, all }] of byProject) {
                 if (token.isCancellationRequested) {
                     break;
                 }
                 items.forEach(item => run.enqueued(item));
-                if (!await this.deps.build(state.project.projectPath, configuration, text => run.appendOutput(terminal(text)), state.project.targetFramework)) {
-                    items.forEach(item => run.errored(item, new vscode.TestMessage('Build failed, see the Problems panel')));
+                let output = '';
+                const built = await this.deps.build(state.project.projectPath, configuration, text => { output += text; run.appendOutput(terminal(text)); }, state.project.targetFramework, cancelled.signal);
+                if (token.isCancellationRequested) {
+                    break;
+                }
+                if (!built) {
+                    items.forEach(item => run.errored(item, new vscode.TestMessage(buildFailure(output))));
                     continue;
                 }
                 // Not discovered for this build yet (never built, or a framework not built before): discover first,
@@ -477,6 +495,7 @@ export class TestExplorer implements vscode.Disposable {
                 await this.runProjects(group, run, token, debug);
             }
         } finally {
+            cancelListener.dispose();
             run.end();
         }
     }

@@ -510,7 +510,10 @@ export class SolutionExpansionService {
 
                     // Check if the node actually exists in the tree
                     const nodeType = node.type;
-                    if (nodeType) {
+                    if (nodeType === 'temporary') {
+                        // The node of a file or folder being created: it never exists again
+                        brokenNodeIds.push(expandedId);
+                    } else if (nodeType) {
                         validExpansionPaths.add(expandedId);
                     } else {
                         log.debug(`Removing nodeId not found in tree: ${expandedId}`);

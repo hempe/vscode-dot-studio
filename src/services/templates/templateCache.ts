@@ -87,27 +87,33 @@ export function optionArgs(options: TemplateOption[], values: Record<string, str
     });
 }
 
-function run(args: string[]): Promise<string> {
-    return new Promise(resolve => execFile('dotnet', args, { timeout: 60000 }, (_error, stdout) => resolve(stdout ?? '')));
+function run(args: string[], cwd: string | undefined): Promise<string> {
+    return new Promise(resolve => execFile('dotnet', args, { timeout: 60000, cwd }, (_error, stdout) => resolve(stdout ?? '')));
 }
 
-let templates: Promise<TemplateInfo[]> | undefined;
+const templatesByFolder = new Map<string, Promise<TemplateInfo[]>>();
 
 /**
- * All installed templates. `dotnet new list` brings the cache of the current SDK up to date, then the cache
- * is read; once per session.
+ * All installed templates, as the SDK that `dotnet new` runs in `cwd` (the solution's folder, where `global.json` may
+ * pick an older SDK than the newest one) knows them. `dotnet new list` brings the cache of that SDK up to date, then
+ * the cache is read; once per session and folder.
  */
-export function readTemplates(): Promise<TemplateInfo[]> {
-    templates ??= (async () => {
-        const version = (await run(['--version'])).trim();
-        await run(['new', 'list']);
-        const cacheFile = path.join(os.homedir(), '.templateengine', 'dotnetcli', version, 'templatecache.json');
-        try {
-            return parseTemplateCache(await fs.promises.readFile(cacheFile, 'utf8'));
-        } catch {
-            templates = undefined;
-            return [];
-        }
-    })();
+export function readTemplates(cwd?: string): Promise<TemplateInfo[]> {
+    const key = cwd ?? '';
+    let templates = templatesByFolder.get(key);
+    if (!templates) {
+        templates = (async () => {
+            const version = (await run(['--version'], cwd)).trim();
+            await run(['new', 'list'], cwd);
+            const cacheFile = path.join(os.homedir(), '.templateengine', 'dotnetcli', version, 'templatecache.json');
+            try {
+                return parseTemplateCache(await fs.promises.readFile(cacheFile, 'utf8'));
+            } catch {
+                templatesByFolder.delete(key);
+                return [];
+            }
+        })();
+        templatesByFolder.set(key, templates);
+    }
     return templates;
 }

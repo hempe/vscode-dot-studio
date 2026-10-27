@@ -177,7 +177,27 @@ describe('TestExplorer', () => {
         const [run] = mock.controller.profiles;
         await run.handler({ include: undefined, exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
         expect(mock.runs[0].events).toContain('errored Adds');
-        expect(mock.runs[0].messages.get('Adds').message).toBe('Build failed, see the Problems panel');
+        expect(mock.runs[0].messages.get('Adds').message).toBe('Build failed');
+    });
+
+    it('puts the errors of a failed build into the message, since no Problems panel has them (review A5-11)', async () => {
+        const tests = explorer({ build: async (_p: string, _c: string, output: (text: string) => void) => { output('Restoring...\n/w/X.csproj : error NU1301: Unable to load the service index [/w/X.csproj]\n'); return false; } });
+        await tests.refresh(false);
+        const [run] = mock.controller.profiles;
+        await run.handler({ include: undefined, exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+        expect(mock.runs[0].messages.get('Adds').message).toBe('Build failed:\n/w/X.csproj : error NU1301: Unable to load the service index [/w/X.csproj]');
+    });
+
+    it('hands the build a signal that Cancel triggers, and runs nothing after it (review A5-11)', async () => {
+        let signal: AbortSignal | undefined;
+        let cancel = () => { };
+        const token = { isCancellationRequested: false, onCancellationRequested: (listener: () => void) => { cancel = listener; return { dispose: () => { } }; } };
+        const tests = explorer({ build: async (_p: string, _c: string, _o: unknown, _f: unknown, s: AbortSignal) => { signal = s; token.isCancellationRequested = true; cancel(); return false; } });
+        await tests.refresh(false);
+        const [run] = mock.controller.profiles;
+        await run.handler({ include: undefined, exclude: [] }, token);
+        expect(signal?.aborted).toBe(true);
+        expect(mock.runs[0].events.filter((event: string) => event.startsWith('errored'))).toEqual([]);
     });
 
     it('leaves VSTest projects out', async () => {

@@ -8,6 +8,21 @@ jest.mock('vscode', () => ({}), { virtual: true });
 describe('SolutionExpansionService Dependencies Persistence Fix', () => {
 
     describe('restoreExpansionStates conservative approach', () => {
+        it('drops the id of a node that was being created (review A2-7), keeping the others', async () => {
+            const projectId = NodeIdService.generateProjectId('/workspace/ProjectA.csproj');
+            const temporaryId = NodeIdService.generateTemporaryId('file', '/workspace');
+            const saved: string[][] = [];
+            const context = {
+                workspaceState: { get: () => [projectId, temporaryId], update: (_key: string, value: string[]) => { saved.push(value); return Promise.resolve(); } },
+            } as any;
+            const tree: ProjectNode[] = [{ type: 'solution', name: 'S', nodeId: NodeIdService.generateSolutionId('/workspace/S.sln'), expanded: true,
+                children: [{ type: 'project', name: 'ProjectA', nodeId: projectId, expanded: false }] }];
+
+            await SolutionExpansionService.restoreExpansionStates(tree, context);
+
+            expect(saved).toEqual([[projectId]]);
+        });
+
         it('should preserve Dependencies expansion state even when nodes dont exist in current tree', async () => {
             // Mock context with saved expansion state including Dependencies nodes
             const mockContext = {

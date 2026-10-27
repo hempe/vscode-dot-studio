@@ -47,11 +47,14 @@ export async function applyPackageEdits(edits: readonly PackageEdit[]): Promise<
 function importedPath(file: string, project: string): string | undefined {
     const dir = path.dirname(file);
     const thisDir = (value: string) => value.replace(/\$\(MSBuildThisFileDirectory\)/gi, dir + path.sep);
-    const above = /^\$\(\[MSBuild\]::GetPathOfFileAbove\(\s*'([^']+)'\s*(?:,\s*'([^']*)'\s*)?\)\)$/i.exec(project.trim());
+    const above = /^\$\(\[MSBuild\]::GetPathOfFileAbove\(([\s\S]*)\)\)$/i.exec(project.trim());
     if (above) {
-        const name = above[1];
-        let current = path.resolve(dir, thisDir(above[2] ?? dir));
-        if (/[$*?]/.test(name) || current.includes('$(')) {
+        // Quoted or not (the documentation shows both): the file name, then where to start looking
+        const comma = above[1].indexOf(',');
+        const unquote = (value: string) => value.trim().replace(/^'([\s\S]*)'$/, '$1');
+        const name = unquote(comma === -1 ? above[1] : above[1].slice(0, comma));
+        let current = path.resolve(dir, thisDir(comma === -1 ? dir : unquote(above[1].slice(comma + 1))));
+        if (!name || /[$*?]/.test(name) || current.includes('$(')) {
             return undefined;
         }
         for (; ;) {

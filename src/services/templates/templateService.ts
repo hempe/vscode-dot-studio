@@ -87,7 +87,8 @@ function preferLanguage(templates: TemplateInfo[], language: string): TemplateIn
 let cachedTemplates: TemplateInfo[] = [];
 
 async function templates(): Promise<TemplateInfo[]> {
-    cachedTemplates = await readTemplates();
+    const solutionPath = SolutionService.getActiveSolution()?.solutionPath;
+    cachedTemplates = await readTemplates(solutionPath ? path.dirname(solutionPath) : undefined);
     return cachedTemplates;
 }
 

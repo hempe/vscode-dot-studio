@@ -43,6 +43,8 @@ Features that unit and integration tests cover, but that still need a run in VS 
 - [ ] Drag & drop of solution nodes on a `.slnx` (the screenshot sample or a converted BasicsTestProject): the same moves; `git diff` keeps the rest of the file's formatting; `dotnet build` of the solution still works and Visual Studio 2022 17.13+ opens it with the same tree (moved `<Folder>` elements are not re-sorted: check that Visual Studio does not mind)
 
 ## Bug fixes to confirm
+- [ ] Test Explorer: a test project that does not build (a syntax error, or a feed that rejects the token) marks its tests errored with the first error lines in the message; Cancel during a long build of a run stops the `dotnet build` process (check with `ps`) and starts no tests
+- [ ] New Project / Add New Item with a `global.json` pinning an older SDK than the newest installed one: the wizard shows that SDK's templates and options, and Create works (no "Invalid option(s)")
 - [ ] Solution folders (as .sln and .slnx): Add Solution Folder with a name the folder next to it has (also in another case) shows an error and leaves the file alone; Rename to a taken name does the same; the same name under another parent works
 - [ ] Fix all occurrences (Phase 17 counts it as covered by the C# extension): Ctrl+. on a code style diagnostic such as IDE0090 offers to fix all occurrences in the document, project and solution; if a scope is missing, the roadmap item goes back to open
 - [x] .NET Framework with Mono on Linux: the extension offers to install Mono Debug and F5 on a `net48` project debugs it (confirmed 2026-10-20)

@@ -54,6 +54,13 @@ describe('central package files', () => {
         expect(importChain(nested)).toEqual([nested, ...importChain(root)]);
     });
 
+    test('importChain follows GetPathOfFileAbove without quotes, the form the Central Package Management docs show (review A4-15)', () => {
+        const root = write('Directory.Packages.props', '<Project />');
+        const nested = write('src/Directory.Packages.props',
+            '<Project>\n  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Packages.props, $(MSBuildThisFileDirectory)..))" />\n</Project>');
+        expect(importChain(nested)).toEqual([nested, root]);
+    });
+
     test('declaredGlobals: the GlobalPackageReference entries written in the files, missing files skipped', () => {
         const file = write('Directory.Packages.props',
             '<Project>\n  <ItemGroup>\n    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />\n  </ItemGroup>\n</Project>');
