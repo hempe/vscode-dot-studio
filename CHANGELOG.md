@@ -1,19 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
-- **Solution files:** Add and Rename Solution Folder refuse a name that a folder next to it has; Remove Solution Folder removes projects of every type (SQL projects too) and their configuration lines, also when the file has lower-case GUIDs; `.slnx` edits ignore XML comments; a `.sln` with an absolute project path outside its folder loads, and a project that cannot be read is skipped instead of failing the solution.
-- **Test Explorer:** a failed build shows its first errors in the test message (it pointed to the Problems panel, which never had NuGet or MSBuild errors), and Cancel stops the build that is running.
-- **Templates:** the New Project and Add New Item wizards list the templates and options of the SDK that `global.json` picks for the solution, as `dotnet new` will use.
-- **NuGet:** `http://` feeds work, redirects are followed without passing credentials to another host, answers have a size and time limit, folder sources no longer slow package lookups down, and package icons and READMEs are looked up on nuget.org only when it is a source.
-- **Startup project:** choosing a startup project, a framework or a profile in quick succession ends with the last choice (the writes of launch.json and tasks.json wait for each other). The NuGet manager opens faster (one `dotnet list package` per project).
-- **Package sources (opt-in setting `shinobi.nuget.packageSources`):** a Sources tab to add, remove, enable and disable feeds, and Package Source Mapping in the package details and in Browse. Browse showed the lowest version of a package several sources have; it shows the highest now.
-- **Entity Framework:** projects that reference Entity Framework Core have Add Migration, Update Database and Remove Last Migration in their context menu (`dotnet ef`, with startup project and DbContext choice).
-- **NuGet manager:** installed versions with known vulnerabilities (with severity and advisory links) or that are deprecated (with the replacement) are labelled, and the Installed tab can filter for them.
-- **Test Explorer:** a test host that crashes on start is reported at once with its output, not after 30 seconds.
-- **Service references:** Add and Update Service Reference no longer throw away edits made to the project file while svcutil runs.
-- **NuGet cache:** stale feed answers are refreshed in the background after 5 seconds (not a minute that restarted on every read), private feeds' entries are really replaced, and Refresh is not undone by an answer that was still on its way.
-- **Fixes:** a moved `.slnx` solution folder stays open; a file moved into a collapsed folder shows (it kept its old timestamps); version properties of a parent `Directory.Packages.props` imported with unquoted `GetPathOfFileAbove` are found; creating files no longer leaves entries in the stored expansion state.
+New features, the rest of the code review and a Solution Explorer toolbar.
+
+**New**
+- **Entity Framework:** projects that reference Entity Framework Core have Add Migration, Update Database and Remove Last Migration in their context menu (`dotnet ef`, with startup project and DbContext choice, and an offer to install `dotnet-ef`).
+- **NuGet manager:** installed versions with known vulnerabilities (severity, advisory links) or that are deprecated (with the replacement) are labelled, and the Installed tab can filter for them. Browse has a **Package source** dropdown (All, or one source) and every tab a **Refresh** button.
+- **Package sources like Visual Studio (opt-in setting `shinobi.nuget.packageSources`):** a Sources tab to add, remove, enable and disable feeds, and Package Source Mapping in the package details and in Browse.
+- **Solution Explorer toolbar** above the tree (configuration, framework or startup profile, Start, Sync, Show All Files, Collapse All) instead of title icons that VS Code hides in a narrow view. Built-in icons are VS Code's codicons (nothing is fetched from the internet any more); your file icon theme is still honored. New **Dependencies > Frameworks** node (`Microsoft.NETCore.App`, `Microsoft.AspNetCore.App`), and files a project links from outside its folder count in the error markers.
+- **`.nuget/NuGet.Config`:** Visual Studio's solution-level config is read by the NuGet manager, and the extension offers to move or copy it to `nuget.config` (where `dotnet restore` reads it) when a solution opens or a restore fails.
+
+**Fixes**
+- **Solution files:** Add and Rename Solution Folder refuse a name a folder next to it has; Remove Solution Folder removes projects of every type and their configuration lines, also with lower-case GUIDs; `.slnx` edits ignore XML comments; a `.sln` with an absolute project path loads, and a project that cannot be read is skipped instead of failing the solution; a moved `.slnx` solution folder stays open.
+- **NuGet:** `http://` feeds work; redirects are followed without passing credentials to another host; answers have a size and time limit; folder sources no longer slow package lookups down; icons and READMEs are looked up on nuget.org only when it is a source; Browse showed the lowest version of a package several sources have, now the highest; the cache refreshes stale answers after 5 seconds, replaces private feeds' entries and is not undone by Refresh; one `dotnet list package` per project; package rows no longer get wider than the list and the lists scroll.
+- **Test Explorer:** a failed build shows its first errors in the test message and Cancel stops it; a test host that crashes on start is reported at once.
+- **Startup project:** choosing a startup project, framework or profile in quick succession ends with the last choice.
+- **Templates:** the wizards use the SDK that `global.json` picks, as `dotnet new` will.
+- **Service references:** Add and Update Service Reference keep edits made to the project file meanwhile.
+- **Solution Explorer:** a file moved into a collapsed folder shows; hovering and switching editors no longer render every row; version properties of a parent `Directory.Packages.props` imported with unquoted `GetPathOfFileAbove` are found; the Configuration Manager and startup tabs follow Open Solution; the webviews no longer allow `unsafe-eval`.
 
 ## 0.1.2
 

@@ -74,7 +74,7 @@ describe('TreeNode Focus and Selection States', () => {
       // Wait for debounced click
       await waitFor(() => {
         expect(mockOnNodeClick).toHaveBeenCalledWith('file:/test/Program.cs');
-      }, { timeout: 300 });
+      }, { timeout: 2000 }); // the click waits 250 ms for a double click; 300 ms was too tight on a busy CI runner
     });
 
     test('should focus the node and leave the right-click to the native menu', async () => {
