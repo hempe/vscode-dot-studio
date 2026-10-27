@@ -127,6 +127,14 @@ export declare type GrpcReferenceNodeId = {
     readonly project: string;
 }
 
+/** A shared framework the project uses (`Microsoft.NETCore.App`, `Microsoft.AspNetCore.App`), under Dependencies > Frameworks */
+export declare type FrameworkReferenceNodeId = {
+    readonly type: 'frameworkReference';
+    /** The project */
+    readonly path: string;
+    readonly name: string;
+}
+
 export declare type NodeId =
     SolutionNodeId |
     SolutionItemNodeId |
@@ -143,7 +151,8 @@ export declare type NodeId =
     GeneratedFileNodeId |
     TransitivePackageNodeId |
     ConnectedServicesNodeId |
-    GrpcReferenceNodeId;
+    GrpcReferenceNodeId |
+    FrameworkReferenceNodeId;
 
 /**
  * Service for generating and reading structured node IDs
@@ -288,6 +297,10 @@ export class NodeIdService {
 
     static generateTransitivePackageId(projectPath: string, parents: string[], name: string, version: string): NodeIdString {
         return this.encode({ type: 'transitivePackage', path: projectPath, parents, name, version });
+    }
+
+    static generateFrameworkReferenceId(projectPath: string, name: string): NodeIdString {
+        return this.encode({ type: 'frameworkReference', path: projectPath, name });
     }
 
     static generateGeneratedFileId(filePath: string): NodeIdString {

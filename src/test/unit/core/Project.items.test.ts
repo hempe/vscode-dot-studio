@@ -510,7 +510,7 @@ describe('Project file tree with the item overlay', () => {
         expect(project.dependencies).toEqual([]);
         const children = await project.getRootChildren();
         expect(children[0]).toEqual(expect.objectContaining({ type: 'dependencies', name: 'Dependencies', nodeId: NodeIdService.generateDependenciesId(projectPath) }));
-        expect(project.getDependencies().map(category => category.name)).toEqual(['Analyzers', 'Packages', 'Projects', 'Assemblies']);
+        expect(project.getDependencies().map(category => category.name)).toEqual(['Analyzers', 'Frameworks', 'Packages', 'Projects', 'Assemblies']);
     });
 
     test('an old-style project without references has it too, and every project can be expanded', async () => {
@@ -536,5 +536,36 @@ describe('Project file tree with the item overlay', () => {
         // no included files: stays hidden; obj never shows
         expect(names).not.toContain('coverage');
         expect(names).not.toContain('obj');
+    });
+
+    test('Dependencies > Frameworks lists the shared frameworks MSBuild evaluates, implicit ones included', async () => {
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(parseMsbuildItems(JSON.stringify({
+            Items: {
+                Compile: [{ Identity: 'Program.cs', FullPath: path.join(dir, 'Program.cs') }],
+                FrameworkReference: [
+                    { Identity: 'Microsoft.NETCore.App', IsImplicitlyDefined: 'true' },
+                    { Identity: 'Microsoft.AspNetCore.App', IsImplicitlyDefined: 'true' },
+                ],
+            },
+        }), dir));
+        const project = await newProject();
+
+        const categories = project.getDependencies();
+        const frameworks = categories.find(category => category.name === 'Frameworks')!;
+        expect(frameworks.hasChildren).toBe(true);
+        const children = project.getDependenciesByCategory(NodeIdService.parse(frameworks.nodeId));
+        expect(children.map(child => [child.type, child.name])).toEqual([
+            ['frameworkReference', 'Microsoft.AspNetCore.App'],
+            ['frameworkReference', 'Microsoft.NETCore.App'],
+        ]);
+    });
+
+    test('Frameworks shows the FrameworkReference written in the project file while MSBuild has not answered', async () => {
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup></Project>');
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(undefined);
+        const project = await newProject();
+
+        const frameworks = project.getDependencies().find(category => category.name === 'Frameworks')!;
+        expect(project.getDependenciesByCategory(NodeIdService.parse(frameworks.nodeId)).map(child => child.name)).toEqual(['Microsoft.AspNetCore.App']);
     });
 });

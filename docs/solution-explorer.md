@@ -113,6 +113,7 @@ Every project has a Dependencies node, also one without packages or references (
 | Node | Shows |
 |---|---|
 | **Analyzers** | The project's analyzers and source generators: from .NET, from NuGet packages and from projects referenced as analyzers. Generators expand to the files they generated in the last build; those open read-only |
+| **Frameworks** | The shared frameworks the project uses, as MSBuild evaluates them: `Microsoft.NETCore.App`, and `Microsoft.AspNetCore.App` for web projects (the SDK adds them, they are not in the project file), plus any `<FrameworkReference>` you wrote. They have no menu: change them in the project file |
 | **Packages** | The NuGet packages the project references, with their versions. With [Central Package Management](nuget.md#central-package-management) the version is the one MSBuild uses: from `Directory.Packages.props`, marked `override` when the project sets its own (`VersionOverride`), and packages every project gets (`GlobalPackageReference`) are listed too, marked `global`. Each package expands to the packages it depends on, as many levels deep as they go, with the versions the last restore resolved |
 | **Projects** | Project references |
 | **Assemblies** | References to `.dll` files |

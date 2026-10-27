@@ -648,6 +648,13 @@ export class Project {
         }
     }
 
+    /** The shared frameworks of the project: MSBuild's `FrameworkReference` items, else the ones written in the project file */
+    private frameworkNames(): string[] {
+        const evaluated = ProjectItemsService.instance.get(this._projectPath)?.frameworks;
+        const names = evaluated?.length ? evaluated.map(framework => framework.name) : this.dependencies.filter(dep => dep.type === 'FrameworkReference').map(dep => dep.name);
+        return [...new Set(names)].sort((a, b) => a.localeCompare(b));
+    }
+
     /**
      * Gets dependency categories for this project (used when Dependencies node is expanded)
      */
@@ -659,6 +666,7 @@ export class Project {
         const packageCount = all.filter(dep => dep.type === 'PackageReference').length;
         const projectCount = all.filter(dep => dep.type === 'ProjectReference').length;
         const assemblyCount = all.filter(dep => dep.type === 'Reference').length;
+        const frameworkCount = this.frameworkNames().length;
 
         // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
         const items: ProjectChild[] = [
@@ -669,6 +677,14 @@ export class Project {
                 nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'analyzers'),
                 contextValue: 'analyzers',
                 hasChildren: true
+            },
+            {
+                // The shared frameworks, implicit ones included (from MSBuild; the explicit ones of the project file until it answers)
+                type: 'dependencyCategory',
+                name: 'Frameworks',
+                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'frameworks'),
+                contextValue: 'frameworks',
+                hasChildren: frameworkCount > 0
             },
             {
                 type: 'dependencyCategory',
@@ -721,9 +737,13 @@ export class Project {
                 // Assemblies: binary/assembly references
                 dependencies = all.filter(dep => dep.type === 'Reference');
                 categoryName = 'assemblies';
-            } else if (nodeId.name == 'frameworks') {            // Frameworks: framework references
-                dependencies = all.filter(dep => dep.type === 'FrameworkReference');
-                categoryName = 'frameworks';
+            } else if (nodeId.name == 'frameworks') {
+                return this.frameworkNames().map(name => ({
+                    type: 'frameworkReference' as const,
+                    name,
+                    nodeId: NodeIdService.generateFrameworkReferenceId(this._projectPath, name),
+                    hasChildren: false
+                }));
             }
         }
 

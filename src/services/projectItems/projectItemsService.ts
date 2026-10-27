@@ -4,7 +4,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { ConcurrencyLimit, SingleFlight } from '../singleFlight';
-import { ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
+import { FRAMEWORK_ITEM_TYPE, ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
 import { PACKAGE_ITEM_TYPES, PACKAGE_PROPERTIES, ProjectPackages, packagesEqual, parseMsbuildPackages } from '../nuget/centralPackages';
 
 const execFileAsync = promisify(execFile);
@@ -18,7 +18,7 @@ export type RunMsbuild = (projectPath: string) => Promise<string>;
  */
 export const runMsbuild: RunMsbuild = async projectPath => {
     const run = async (...extra: string[]) => (await execFileAsync('dotnet',
-        ['msbuild', projectPath, '-nologo', `-getItem:${[...ITEM_TYPES, ...PACKAGE_ITEM_TYPES].join(',')}`,
+        ['msbuild', projectPath, '-nologo', `-getItem:${[...ITEM_TYPES, ...PACKAGE_ITEM_TYPES, FRAMEWORK_ITEM_TYPE].join(',')}`,
             `-getProperty:${['TargetFramework', 'TargetFrameworks', ...PACKAGE_PROPERTIES].join(',')}`, ...extra],
         { cwd: path.dirname(projectPath), timeout: 120000, maxBuffer: 64 * 1024 * 1024 })).stdout;
     const stdout = await run();

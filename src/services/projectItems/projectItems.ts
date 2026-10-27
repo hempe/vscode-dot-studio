@@ -11,6 +11,9 @@ import * as path from 'path';
  * Not listed on purpose: Watch (dotnet watch only), Folder (folders, shown from disk), EditorConfigFiles and
  * Analyzer (their files are also None, or lie outside the project).
  */
+/** Asked of MSBuild with the file items: the project's shared frameworks (Dependencies > Frameworks) */
+export const FRAMEWORK_ITEM_TYPE = 'FrameworkReference';
+
 export const ITEM_TYPES = [
     'Compile', 'None', 'Content', 'EmbeddedResource', 'Page', 'Resource', 'ApplicationDefinition', 'SplashScreen',
     'AdditionalFiles', 'RazorComponent', 'RazorGenerate', 'Protobuf',
@@ -43,6 +46,13 @@ export interface ProtobufItem {
     readonly definedIn?: string;
 }
 
+/** A `FrameworkReference` item as MSBuild evaluates it: `Microsoft.NETCore.App` and `Microsoft.AspNetCore.App` are implicit */
+export interface FrameworkReferenceItem {
+    readonly name: string;
+    /** Added by the SDK, not written in the project file */
+    readonly implicit: boolean;
+}
+
 interface Entry {
     readonly fullPath: string;
     readonly virtualPath: string;
@@ -73,9 +83,13 @@ export class ProjectItems {
     /** The project's `Protobuf` items in document order (the evaluation lists them once each) */
     readonly protobuf: readonly ProtobufItem[];
 
-    constructor(readonly projectDir: string, entries: readonly Entry[], protobuf: readonly ProtobufItem[] = []) {
+    /** The project's `FrameworkReference` items (the shared frameworks it uses), implicit ones included */
+    readonly frameworks: readonly FrameworkReferenceItem[];
+
+    constructor(readonly projectDir: string, entries: readonly Entry[], protobuf: readonly ProtobufItem[] = [], frameworks: readonly FrameworkReferenceItem[] = []) {
         this.entries = entries;
         this.protobuf = protobuf;
+        this.frameworks = frameworks;
         this.fullKeys = entries.map(entry => key(entry.fullPath));
         this.virtualKeys = entries.map(entry => key(entry.virtualPath));
         entries.forEach((entry, index) => {
@@ -99,6 +113,8 @@ export class ProjectItems {
                 return entry.fullPath === theirs.fullPath && entry.virtualPath === theirs.virtualPath
                     && entry.itemType === theirs.itemType && entry.linked === theirs.linked;
             })
+            && this.frameworks.length === other.frameworks.length
+            && this.frameworks.every((framework, index) => framework.name === other.frameworks[index].name && framework.implicit === other.frameworks[index].implicit)
             && this.protobuf.length === other.protobuf.length
             && this.protobuf.every((item, index) => {
                 const theirs = other.protobuf[index];
@@ -186,6 +202,7 @@ interface MsbuildItem {
     GrpcServices?: string;
     SourceUrl?: string;
     DefiningProjectFullPath?: string;
+    IsImplicitlyDefined?: string;
 }
 
 export interface MsbuildResult { Items?: Record<string, MsbuildItem[]>; Properties?: Record<string, string> }
@@ -224,6 +241,9 @@ export function parseMsbuildItems(output: string, projectDir: string): ProjectIt
     }
     const entries: Entry[] = [];
     const protobuf: ProtobufItem[] = [];
+    const frameworks: FrameworkReferenceItem[] = (parsed.Items?.[FRAMEWORK_ITEM_TYPE] ?? [])
+        .filter(item => item.Identity)
+        .map(item => ({ name: item.Identity!, implicit: String(item.IsImplicitlyDefined).toLowerCase() === 'true' }));
     for (const [itemType, items] of Object.entries(parsed.Items ?? {})) {
         // The same evaluation lists packages (PackageReference has a FullPath too): only files count
         if (!(ITEM_TYPES as readonly string[]).includes(itemType)) {
@@ -253,5 +273,5 @@ export function parseMsbuildItems(output: string, projectDir: string): ProjectIt
             }
         }
     }
-    return new ProjectItems(projectDir, entries, protobuf);
+    return new ProjectItems(projectDir, entries, protobuf, frameworks);
 }

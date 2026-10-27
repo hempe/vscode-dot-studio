@@ -289,6 +289,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             case 'analyzer': return { icon: 'search', color: '#dcdcdc' };
             case 'sourceGenerator': return { icon: 'gear', color: '#dcdcdc' };
             case 'connectedServices': return { icon: 'plug', color: '#dcdcdc' };
+            case 'frameworkReference': return { icon: 'server-environment', color: '#dcdcdc' };
             case 'grpcReference': return { icon: 'radio-tower', color: '#dcdcdc' };
             default: return { icon: 'file', color: '#dcdcdc' };
         }

@@ -247,7 +247,7 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Add Service Reference... |  | Asks for the kind of service. WCF Web Service: a SOAP client from a WSDL URL or file, generated with `dotnet-svcutil` into `Connected Services/<Name>/`. gRPC: a `.proto` file or URL becomes a `<Protobuf>` item with the gRPC packages; Grpc.Tools generates the code when the project builds. |
 | Restore Dependencies |  | Restores the NuGet packages of the project (`dotnet restore`). |
 
-## Analyzers, Packages, Projects, Assemblies (under Dependencies)
+## Analyzers, Frameworks, Packages, Projects, Assemblies (under Dependencies)
 
 **On Packages**
 
@@ -275,6 +275,10 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Remove | Delete (macOS: Cmd+Backspace) | Removes the package, project or assembly reference from the project file, after asking. |
 
 ## Package a package depends on
+
+No context menu.
+
+## Shared framework (under Dependencies > Frameworks)
 
 No context menu.
 

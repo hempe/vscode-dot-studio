@@ -245,6 +245,8 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     analyzer: [],
     // Packages a package depends on can't be removed, only the package that brings them in
     transitivePackage: [],
+    // A shared framework: implicit ones come from the SDK, explicit ones are written in the project file
+    frameworkReference: [],
     sourceGenerator: [],
     // Opens read-only: the next build overwrites it
     generatedFile: [
@@ -272,9 +274,10 @@ const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
     connectedServices: 'Connected Services (of a project with gRPC references and no such folder on disk)',
     grpcReference: 'gRPC reference (in Connected Services)',
     dependencies: 'Dependencies',
-    dependencyCategory: 'Analyzers, Packages, Projects, Assemblies (under Dependencies)',
+    dependencyCategory: 'Analyzers, Frameworks, Packages, Projects, Assemblies (under Dependencies)',
     dependency: 'Package, project or assembly reference',
     transitivePackage: 'Package a package depends on',
+    frameworkReference: 'Shared framework (under Dependencies > Frameworks)',
     analyzer: 'Analyzer',
     sourceGenerator: 'Source generator',
     generatedFile: 'Generated file',
