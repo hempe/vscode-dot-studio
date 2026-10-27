@@ -20,20 +20,25 @@ export function normalizePath(filePath: string, platform: NodeJS.Platform = proc
  * directory (so collapsed, unloaded nodes are covered), solution folders and the solution
  * sum their children.
  */
-export function computeMarkers(nodes: readonly ProjectNode[], fileCounts: FileCounts): DiagnosticMarkers {
+export function computeMarkers(nodes: readonly ProjectNode[], fileCounts: FileCounts, linkedOf: LinkedFilesOf = () => []): DiagnosticMarkers {
     const markers: Record<NodeIdString, NodeMarker> = {};
     for (const node of nodes) {
-        visit(node, fileCounts, markers);
+        visit(node, fileCounts, markers, linkedOf, undefined);
     }
     return markers;
 }
 
-function visit(node: ProjectNode, fileCounts: FileCounts, markers: Record<NodeIdString, NodeMarker>): DiagnosticCounts {
+/** The files a project links from outside its folder: where they are on disk and where the tree shows them */
+export type LinkedFilesOf = (projectPath: string) => readonly { fullPath: string; virtualPath: string }[];
+
+function visit(node: ProjectNode, fileCounts: FileCounts, markers: Record<NodeIdString, NodeMarker>, linkedOf: LinkedFilesOf, projectPath: string | undefined): DiagnosticCounts {
+    const nodeId = parseNodeId(node.nodeId);
+    const owner = nodeId?.type === 'project' ? nodeId.path : projectPath;
     const childSum = (node.children ?? [])
-        .map(child => visit(child, fileCounts, markers))
+        .map(child => visit(child, fileCounts, markers, linkedOf, owner))
         .reduce(add, ZERO);
 
-    const counts = countsFor(parseNodeId(node.nodeId), childSum, fileCounts);
+    const counts = countsFor(nodeId, childSum, fileCounts, owner ? linkedOf(owner) : []);
     const marker = toMarker(counts);
     if (marker) {
         markers[node.nodeId] = marker;
@@ -41,15 +46,15 @@ function visit(node: ProjectNode, fileCounts: FileCounts, markers: Record<NodeId
     return counts;
 }
 
-function countsFor(nodeId: NodeId | undefined, childSum: DiagnosticCounts, fileCounts: FileCounts): DiagnosticCounts {
+function countsFor(nodeId: NodeId | undefined, childSum: DiagnosticCounts, fileCounts: FileCounts, linked: readonly { fullPath: string; virtualPath: string }[]): DiagnosticCounts {
     switch (nodeId?.type) {
         case 'file':
         case 'solutionItem':
             return add(fileCounts.get(normalizePath(nodeId.path)) ?? ZERO, childSum);
         case 'folder':
-            return sumUnder(nodeId.path, fileCounts);
+            return add(sumUnder(nodeId.path, fileCounts), sumLinked(nodeId.path, linked, fileCounts));
         case 'project':
-            return sumUnder(path.dirname(nodeId.path), fileCounts);
+            return add(sumUnder(path.dirname(nodeId.path), fileCounts), sumLinked(path.dirname(nodeId.path), linked, fileCounts));
         case 'solutionFolder':
         case 'solution':
             return childSum;
@@ -64,6 +69,19 @@ function parseNodeId(nodeId: NodeIdString): NodeId | undefined {
     } catch {
         return undefined;
     }
+}
+
+/** The files linked into the folder from elsewhere: their counts belong to the folder (and its project) that shows them */
+function sumLinked(directory: string, linked: readonly { fullPath: string; virtualPath: string }[], fileCounts: FileCounts): DiagnosticCounts {
+    const prefix = normalizePath(directory + path.sep);
+    let sum = ZERO;
+    for (const item of linked) {
+        // A link to a file inside the project's own folder is counted by the folder sum already
+        if (normalizePath(item.virtualPath).startsWith(prefix) && !normalizePath(item.fullPath).startsWith(prefix)) {
+            sum = add(sum, fileCounts.get(normalizePath(item.fullPath)) ?? ZERO);
+        }
+    }
+    return sum;
 }
 
 function sumUnder(directory: string, fileCounts: FileCounts): DiagnosticCounts {

@@ -21,6 +21,7 @@ import { sln } from '../../core/utils';
 import { FOCUSED_NODE_TYPE_CONTEXT, MenuCommandAction, menuCommands, nodeTypesWithAction } from '../../core/contextMenus';
 import { DiagnosticsService } from '../../services/diagnosticsService';
 import { computeMarkers } from '../../services/diagnosticsRollup';
+import { ProjectItemsService } from '../../services/projectItems/projectItemsService';
 import { IconThemeService } from '../../services/iconThemeService';
 import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../services/buildConfiguration';
 import { StartupChoice } from '../../services/startupProfiles/startupChoice';
@@ -596,7 +597,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         }
         sendToUi(this.webview, {
             type: 'diagnostics',
-            payload: { markers: computeMarkers(projects, this._diagnostics.counts) }
+            payload: { markers: computeMarkers(projects, this._diagnostics.counts, projectPath => ProjectItemsService.instance.get(projectPath)?.linkedEntries() ?? []) }
         });
     }
 

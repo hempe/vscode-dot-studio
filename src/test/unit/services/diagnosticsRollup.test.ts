@@ -103,4 +103,26 @@ describe('normalizePath', () => {
         expect(normalizePath('C:\\Repo\\A.cs', 'win32')).toBe(path.normalize('C:\\Repo\\A.cs').toLowerCase());
         expect(normalizePath('/Repo/A.cs', 'linux')).toBe(path.normalize('/Repo/A.cs'));
     });
+
+    test('a file linked from outside the project counts for the project and the folder that shows it (review limitation)', () => {
+        const shared = p('Shared', 'Util.cs');
+        const linked = [{ fullPath: shared, virtualPath: p('App', 'Helpers', 'Util.cs') }];
+        const markers = computeMarkers(
+            [project(p('App', 'App.csproj'), [folder(p('App', 'Helpers')), folder(p('App', 'Other'))])],
+            fileCounts({ [shared]: counts(2, 1), [p('App', 'Own.cs')]: counts(0, 1) }),
+            projectPath => projectPath === p('App', 'App.csproj') ? linked : []);
+
+        expect(markers[NodeIdService.generateProjectId(p('App', 'App.csproj'))]).toMatchObject({ severity: 'error', errors: 2, warnings: 2 });
+        expect(markers[NodeIdService.generateFolderId(p('App', 'Helpers'))]).toMatchObject({ severity: 'error', errors: 2, warnings: 1 });
+        expect(markers[NodeIdService.generateFolderId(p('App', 'Other'))]).toBeUndefined();
+    });
+
+    test('a link to a file inside the project folder is not counted twice', () => {
+        const inside = p('App', 'Real', 'A.cs');
+        const markers = computeMarkers(
+            [project(p('App', 'App.csproj'))],
+            fileCounts({ [inside]: counts(1, 0) }),
+            () => [{ fullPath: inside, virtualPath: p('App', 'Alias', 'A.cs') }]);
+        expect(markers[NodeIdService.generateProjectId(p('App', 'App.csproj'))]).toMatchObject({ errors: 1 });
+    });
 });

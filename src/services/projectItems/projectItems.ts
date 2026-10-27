@@ -161,6 +161,19 @@ export class ProjectItems {
         return [...types].sort((a, b) => typeRank(a) - typeRank(b));
     }
 
+    /** Every linked file: the file on disk (outside the project folder) and where the tree shows it */
+    linkedEntries(): LinkedItem[] {
+        const seen = new Set<string>();
+        const result: LinkedItem[] = [];
+        this.entries.forEach((entry, index) => {
+            if (entry.linked && !seen.has(this.virtualKeys[index])) {
+                seen.add(this.virtualKeys[index]);
+                result.push({ fullPath: entry.fullPath, virtualPath: entry.virtualPath, itemType: entry.itemType });
+            }
+        });
+        return result;
+    }
+
     /** Linked files shown directly in the folder */
     linkedFilesIn(folder: string): LinkedItem[] {
         const normalized = key(folder);
