@@ -62,4 +62,20 @@ describe('the request cache of the NuGet V3 client', () => {
         expect((await service.makeRequest('https://feed/y')).body).toBe('fresh');
         expect(http).toHaveBeenCalledTimes(2);
     });
+
+    it('callers that ask for the same URL within moments share one request, also while the disk cache is still being read', async () => {
+        const http = jest.spyOn(service, '_makeHttpRequestWithETag').mockResolvedValue({ body: 'one', statusCode: 200 });
+
+        const answers = await Promise.all([service.makeRequest('https://feed/z', 't'), service.makeRequest('https://feed/z', 't'), service.makeRequest('https://feed/z', 't')]);
+
+        expect(answers.map(answer => answer.body)).toEqual(['one', 'one', 'one']);
+        expect(http).toHaveBeenCalledTimes(1);
+    });
+
+    it('a failed shared request is not remembered', async () => {
+        const http = jest.spyOn(service, '_makeHttpRequestWithETag').mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ body: 'back', statusCode: 200 });
+        await expect(service.makeRequest('https://feed/w')).rejects.toThrow('offline');
+        expect((await service.makeRequest('https://feed/w')).body).toBe('back');
+        expect(http).toHaveBeenCalledTimes(2);
+    });
 });

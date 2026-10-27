@@ -398,6 +398,19 @@ export class NuGetV3Service {
             return memoryCache.promise;
         }
 
+        // Callers that ask for the same URL within moments share one lookup and one request: the entry is stored
+        // before anything is awaited, not after the disk cache answered (two callers would both find nothing)
+        const entry: { timestamp: number; promise: Promise<{ body: string, statusCode: number }> } = { timestamp: Date.now(), promise: undefined as never };
+        entry.promise = this.loadRequest(url, accessToken, cacheKey, entry);
+        this.requestCache.set(cacheKey, entry);
+        return entry.promise;
+    }
+
+    /** Answers a request from the disk cache (refreshing a stale entry in the background) or from the feed */
+    private static async loadRequest(url: string, accessToken: string | undefined, cacheKey: string,
+        entry: { timestamp: number; promise: Promise<{ body: string, statusCode: number }> }): Promise<{ body: string, statusCode: number }> {
+        const allowedCacheTime = 5 * 60 * 1000;
+
         // 2. Check persistent cache
         const persistentEntry = await this.persistentCache?.get(cacheKey);
         if (persistentEntry) {
@@ -430,9 +443,8 @@ export class NuGetV3Service {
         const generation = this.cacheGeneration;
         const promise = this._makeHttpRequestWithETag(url, accessToken);
 
-        this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
         // Forgets this request's entry, not that of a newer request for the same URL made after the caches were cleared
-        const forget = () => { if (this.requestCache.get(cacheKey)?.promise === promise) { this.requestCache.delete(cacheKey); } };
+        const forget = () => { if (this.requestCache.get(cacheKey) === entry) { this.requestCache.delete(cacheKey); } };
 
         return promise
             .then(async (result) => {
