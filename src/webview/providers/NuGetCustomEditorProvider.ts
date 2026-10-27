@@ -202,7 +202,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         try {
             // Get NuGet data based on context (project vs solution)
             const nugetData = await this._getNuGetData(context, includePrerelease);
-            const sources = await NuGetManagerService.getEnabledSources().catch(() => []);
+            // The dropdown of Browse; a feed that cannot be listed must not keep the lists away
+            const sources = await Promise.resolve().then(() => NuGetManagerService.getEnabledSources()).catch(() => []);
 
             sendToUi(webview, {
                 type: 'nugetData',
