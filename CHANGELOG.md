@@ -7,6 +7,7 @@
 - **Templates:** the New Project and Add New Item wizards list the templates and options of the SDK that `global.json` picks for the solution, as `dotnet new` will use.
 - **NuGet:** `http://` feeds work, redirects are followed without passing credentials to another host, answers have a size and time limit, folder sources no longer slow package lookups down, and package icons and READMEs are looked up on nuget.org only when it is a source.
 - **Startup project:** choosing a startup project, a framework or a profile in quick succession ends with the last choice (the writes of launch.json and tasks.json wait for each other). The NuGet manager opens faster (one `dotnet list package` per project).
+- **NuGet manager:** installed versions with known vulnerabilities (with severity and advisory links) or that are deprecated (with the replacement) are labelled, and the Installed tab can filter for them.
 - **Test Explorer:** a test host that crashes on start is reported at once with its output, not after 30 seconds.
 - **Service references:** Add and Update Service Reference no longer throw away edits made to the project file while svcutil runs.
 - **NuGet cache:** stale feed answers are refreshed in the background after 5 seconds (not a minute that restarted on every read), private feeds' entries are really replaced, and Refresh is not undone by an answer that was still on its way.

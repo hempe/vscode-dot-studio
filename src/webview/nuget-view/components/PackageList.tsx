@@ -4,6 +4,8 @@ import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { Checkbox } from 'vscrui';
 import { VersionUtils } from '../../../services/versionUtils';
 import { isGlobal, versionLabel } from '../versionLabels';
+import { advisoryBadges } from '../advisoryView';
+import { PackageAdvisory } from '../../../services/nuget/types';
 
 
 
@@ -25,6 +27,8 @@ interface PackageListProps {
     title: string;
     showCheckboxes?: boolean; // For Updates tab to show checkboxes
     onPackageToggle?: (pkg: LocalNuGetPackage, checked: boolean) => void;
+    /** What is known about the installed version (vulnerabilities, deprecation): shown as labels after the name */
+    getAdvisory?: (pkg: LocalNuGetPackage) => PackageAdvisory | undefined;
     /** Small note under the name, e.g. what brings in a transitive package */
     getNote?: (pkg: LocalNuGetPackage) => string | undefined;
     /** Collapsible section: only the title shows while collapsed */
@@ -53,6 +57,7 @@ export const PackageList: React.FC<PackageListProps> = ({
     getVersionChangeText,
     title,
     getNote,
+    getAdvisory,
     collapsed,
     onToggleCollapsed,
     indexOffset = 0
@@ -190,6 +195,22 @@ export const PackageList: React.FC<PackageListProps> = ({
                                                     global
                                                 </span>
                                             )}
+                                            {advisoryBadges(getAdvisory?.(pkg)).map(badge => (
+                                                <span
+                                                    key={badge.kind}
+                                                    title={badge.title}
+                                                    style={{
+                                                        marginLeft: '6px',
+                                                        padding: '0 4px',
+                                                        borderRadius: '2px',
+                                                        fontSize: '10px',
+                                                        background: badge.kind === 'vulnerable' ? 'var(--vscode-errorForeground)' : 'var(--vscode-editorWarning-foreground)',
+                                                        color: 'var(--vscode-editor-background)'
+                                                    }}
+                                                >
+                                                    {badge.text}
+                                                </span>
+                                            ))}
                                             {!!pkg.authors?.length && (
                                                 <span style={{
                                                     fontWeight: 'normal',

@@ -18,6 +18,12 @@ Visual Studio's NuGet Package Manager, in an editor tab.
 
 **Transitive packages:** Install makes one a direct reference, e.g. to pin a newer version with a security fix; they have no Uninstall, since only the package that brings them in can be removed. Solution Explorer: [Dependencies > Packages](solution-explorer.md#dependencies) shows the same tree under each package.
 
+## Vulnerable and deprecated packages
+
+The Installed and Updates lists label the versions you use that have a known vulnerability (**vulnerable: high**, with the worst severity: critical, high, moderate or low) or that the author deprecated (**deprecated**). The details pane names each advisory with its link (GitHub Advisory Database), and for a deprecated package the reasons and the package to use instead. In **Installed**, the **Vulnerable** and **Deprecated** checkboxes show only those packages (both checked: either). Transitive packages are checked too, so a vulnerable package you only get through another one shows in its section, and **Install** on it pins a newer version.
+
+The labels come from `dotnet list package --vulnerable` and `--deprecated`, which ask your feeds (private feeds that publish vulnerability data included, as NuGet Audit does on restore), so they appear a few seconds after the lists, once per refresh. They need a restored project and the feeds; without them the labels are missing, the lists work as before.
+
 ## Central Package Management
 
 Solutions that keep their package versions in `Directory.Packages.props` (`ManagePackageVersionsCentrally`) work like the others: Installed, Updates and the Dependencies tree show the version MSBuild uses for each project, and where it comes from:

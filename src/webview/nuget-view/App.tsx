@@ -9,7 +9,8 @@ import NugetHeader from './components/NugetHeader';
 import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
-import { ProjectInfo } from '../../services/nuget/types';
+import { advisoryKey, PackageAdvisories, PackageAdvisory, ProjectInfo } from '../../services/nuget/types';
+import { passesAdvisoryFilter } from './advisoryView';
 import { VersionUtils } from '../../services/versionUtils';
 import { NuGetViewData, UICmd } from '../../types/commands/ui';
 import { canSetForProjectOnly, centralNote } from './versionLabels';
@@ -34,6 +35,12 @@ export const App: React.FC = () => {
     // Starts as the setting shinobi.nuget.includePrerelease says (passed on the root element)
     const [includePrerelease, setIncludePrerelease] = useState(() => document.getElementById('root')?.dataset.includePrerelease === 'true');
     const [activeTab, setActiveTab] = useState('installed');
+    // Vulnerabilities and deprecations of the installed versions: read apart from the lists, since asking the feeds takes a while
+    const [advisories, setAdvisories] = useState<PackageAdvisories>({});
+    const [advisoryFilter, setAdvisoryFilter] = useState({ vulnerable: false, deprecated: false });
+    const advisoryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const advisoryOf = (pkg: LocalNuGetPackage | null | undefined): PackageAdvisory | undefined =>
+        pkg ? advisories[advisoryKey(pkg.id, (pkg as { version?: string }).version ?? pkg.currentVersion)] : undefined;
     // Visual Studio's "Transitive packages" section starts collapsed
     const [transitiveExpanded, setTransitiveExpanded] = useState(false);
     const [consolidateLoading, setConsolidateLoading] = useState(false);
@@ -96,7 +103,7 @@ export const App: React.FC = () => {
     };
 
     // Compute filtered package lists
-    const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm);
+    const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm).filter(pkg => passesAdvisoryFilter(advisoryOf(pkg), advisoryFilter));
     const filteredTransitive = filterPackages(ensureArray(data.transitivePackages), filterTerm);
     const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
 
@@ -114,6 +121,9 @@ export const App: React.FC = () => {
             switch (message.type) {
                 case 'nugetData':
                     log.info('NuGet React: Setting data to:', message.payload);
+                    // One request for a burst of data messages (an install sends several)
+                    clearTimeout(advisoryTimer.current);
+                    advisoryTimer.current = setTimeout(() => sendToBackend({ type: 'getPackageAdvisories' }), 800);
                     // Backend now sends properly grouped data
                     const safeData = message.payload;
 
@@ -185,6 +195,9 @@ export const App: React.FC = () => {
                     setConsolidateLoading(false);
                     setInitializing(false);
                     setErrorMessage(message.payload.message);
+                    break;
+                case 'packageAdvisories':
+                    setAdvisories(message.payload.advisories);
                     break;
                 case 'packageIcon':
                     if (message.payload.packageId && message.payload.version) {
@@ -756,6 +769,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        getAdvisory={advisoryOf}
                         includePrerelease={includePrerelease}
                         packages={enhancedSearchResults}
                         loading={loading}
@@ -817,6 +831,7 @@ export const App: React.FC = () => {
                             <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
+                                advisory={advisoryOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -866,6 +881,24 @@ export const App: React.FC = () => {
                     }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
+                    <Checkbox
+                        checked={advisoryFilter.vulnerable}
+                        onChange={vulnerable => setAdvisoryFilter(prev => ({ ...prev, vulnerable }))}
+                        disabled={initializing}
+                    />
+                    <label style={{ fontSize: '13px', color: 'var(--vscode-foreground)', cursor: 'pointer' }}
+                        onClick={() => setAdvisoryFilter(prev => ({ ...prev, vulnerable: !prev.vulnerable }))}>
+                        Vulnerable
+                    </label>
+                    <Checkbox
+                        checked={advisoryFilter.deprecated}
+                        onChange={deprecated => setAdvisoryFilter(prev => ({ ...prev, deprecated }))}
+                        disabled={initializing}
+                    />
+                    <label style={{ fontSize: '13px', color: 'var(--vscode-foreground)', cursor: 'pointer' }}
+                        onClick={() => setAdvisoryFilter(prev => ({ ...prev, deprecated: !prev.deprecated }))}>
+                        Deprecated
+                    </label>
                     {refreshButton}
                 </div>
             </div>
@@ -891,6 +924,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        getAdvisory={advisoryOf}
                         includePrerelease={includePrerelease}
                         packages={filteredPackages}
                         loading={loading}
@@ -905,6 +939,7 @@ export const App: React.FC = () => {
                     />
                     {filteredTransitive.length > 0 && (
                         <PackageList
+                            getAdvisory={advisoryOf}
                             includePrerelease={includePrerelease}
                             packages={filteredTransitive}
                             emptyMessage=""
@@ -962,6 +997,7 @@ export const App: React.FC = () => {
                             <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
+                                advisory={advisoryOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -1063,6 +1099,7 @@ export const App: React.FC = () => {
                     onKeyDown={handleKeyDown}
                 >
                     <PackageList
+                        getAdvisory={advisoryOf}
                         includePrerelease={includePrerelease}
                         packages={filteredUpdates}
                         loading={loading}
@@ -1128,6 +1165,7 @@ export const App: React.FC = () => {
                             <NugetDetails
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
+                                advisory={advisoryOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -1221,6 +1259,7 @@ export const App: React.FC = () => {
                     <NugetDetails
                         selectedPackage={selectedPackage}
                         packageReadmes={packageReadmes}
+                        advisory={advisoryOf(selectedPackage)}
                     />
                 </div>
             ) : (
@@ -1305,6 +1344,7 @@ export const App: React.FC = () => {
                     }}
                 >
                     <PackageList
+                        getAdvisory={advisoryOf}
                         includePrerelease={includePrerelease}
                         packages={filteredConsolidate}
                         loading={consolidateLoading}

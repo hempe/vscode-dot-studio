@@ -143,6 +143,16 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._updateWebview(webview, context, message.payload.includePrerelease);
                     break;
 
+                case 'getPackageAdvisories': {
+                    // After the lists: asking the feeds takes a while; a project or solution without a restore reports nothing
+                    const advisories = context ? await NuGetManagerService.getAdvisories(context).catch(error => {
+                        log.warn('Could not read the vulnerabilities and deprecations:', error);
+                        return {};
+                    }) : {};
+                    sendToUi(webview, { type: 'packageAdvisories', payload: { advisories } });
+                    break;
+                }
+
                 case 'getConsolidatePackages':
                     await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
                     break;

@@ -1,14 +1,38 @@
 // import React, { useEffect, useState } from "react";
 import { formatAuthors, LocalNuGetPackage } from "../shared";
+import { PackageAdvisory } from "../../../services/nuget/types";
 
 interface NugetDetailProps {
     selectedPackage: LocalNuGetPackage;
+    advisory?: PackageAdvisory;
 }
 
-export default function NugetDetail({ selectedPackage }: NugetDetailProps) {
+export default function NugetDetail({ selectedPackage, advisory }: NugetDetailProps) {
 
     return (
         <div style={{ fontSize: '12px' }}>
+            {!!advisory?.vulnerabilities?.length && (
+                <div role="alert" style={{ marginBottom: '16px', padding: '8px 12px', border: '1px solid var(--vscode-errorForeground)', borderRadius: '4px' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--vscode-errorForeground)', marginBottom: '4px' }}>
+                        This version has known vulnerabilities
+                    </div>
+                    {advisory.vulnerabilities.map(vulnerability => (
+                        <div key={vulnerability.url}>
+                            {vulnerability.severity}: <a href={vulnerability.url}>{vulnerability.url}</a>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {advisory?.deprecation && (
+                <div role="alert" style={{ marginBottom: '16px', padding: '8px 12px', border: '1px solid var(--vscode-editorWarning-foreground)', borderRadius: '4px' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--vscode-editorWarning-foreground)', marginBottom: '4px' }}>
+                        This package is deprecated ({advisory.deprecation.reasons.join(', ')})
+                    </div>
+                    {advisory.deprecation.alternative && (
+                        <div>Use {advisory.deprecation.alternative.id}{advisory.deprecation.alternative.range ? ` ${advisory.deprecation.alternative.range}` : ''} instead.</div>
+                    )}
+                </div>
+            )}
             {/* Description Section - Special placement at top */}
             {selectedPackage.description && (
                 <div style={{ marginBottom: '20px' }}>

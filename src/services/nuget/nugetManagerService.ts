@@ -9,8 +9,12 @@ import {
     BasicInstalledPackage,
     InstalledPackage,
     UpdateablePackage,
+    PackageAdvisories,
     isNuGetOrgUrl
 } from './types';
+import { mergeAdvisories, readProjectAdvisories } from './packageAdvisories';
+import { SolutionService } from '../solutionService';
+import { UnloadedProjects } from '../unloadedProjects';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
 import { sln } from '../../core/utils';
 import { collectTransitivePackages, readPackageGraph } from './packageGraph';
@@ -285,6 +289,20 @@ export class NuGetManagerService {
      * Whether nuget.org is one of the enabled sources. Icons and READMEs are read from nuget.org by package id, so
      * without it a private package's id is not sent there (and a public package of the same id shows nothing of it)
      */
+    /** The vulnerabilities and deprecations of the packages of a project, or of every loaded project of the solution */
+    static async getAdvisories(context: { type: 'project' | 'solution'; target: string }): Promise<PackageAdvisories> {
+        const solution = SolutionService.getActiveSolution();
+        const projects = context.type === 'project'
+            ? [context.target]
+            : [...(solution?.projects.keys() ?? [])].filter(project => !UnloadedProjects.isUnloaded(solution!.solutionPath, project));
+        const all: PackageAdvisories[] = [];
+        // A few at a time: each is two dotnet processes that ask the feeds
+        for (let i = 0; i < projects.length; i += 3) {
+            all.push(...await Promise.all(projects.slice(i, i + 3).map(project => readProjectAdvisories(project))));
+        }
+        return mergeAdvisories(all);
+    }
+
     static async usesNuGetOrg(): Promise<boolean> {
         return (await PackageBrowseService.getPackageSources()).some(source => source.enabled && isNuGetOrgUrl(source.url));
     }

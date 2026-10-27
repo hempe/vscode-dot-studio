@@ -36,6 +36,11 @@ export declare type SearchPackagesCmd = {
     }
 }
 
+/** Asks for the vulnerabilities and deprecations of the installed packages (the answer takes a while: it asks the feeds) */
+export declare type GetPackageAdvisoriesCmd = {
+    readonly type: 'getPackageAdvisories'
+}
+
 /** The refresh button: the caches of the feeds are dropped and everything is read again */
 export declare type RefreshNuGetCmd = {
     readonly type: 'refreshNuGet',
@@ -176,4 +181,5 @@ export declare type BackendCmd =
     TreeSelectionChangedCmd |
     MoveNodesCmd |
     ToolbarActionCmd |
-    RefreshNuGetCmd;
+    RefreshNuGetCmd |
+    GetPackageAdvisoriesCmd;

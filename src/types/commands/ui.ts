@@ -1,6 +1,6 @@
 import { ToolbarState } from "../toolbar"
 import { DiagnosticMarkers, NodeType, ProjectNode } from ".."
-import { NuGetPackage, ProjectInfo } from "../../services/nuget/types"
+import { NuGetPackage, PackageAdvisories, ProjectInfo } from "../../services/nuget/types"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
 import { NodeIdString } from "../nodeId"
 import { IconThemePayload } from "../iconTheme"
@@ -31,6 +31,13 @@ export interface NuGetViewData {
     readonly projectPath?: string | null;
     /** The enabled package sources, for the source dropdown of Browse */
     readonly sources?: readonly { readonly name: string }[];
+}
+
+export declare type PackageAdvisoriesCmd = {
+    readonly type: 'packageAdvisories',
+    readonly payload: {
+        readonly advisories: PackageAdvisories
+    }
 }
 
 export declare type NugetDataCmd = {
@@ -196,4 +203,5 @@ export declare type UICmd =
     SelectNodeCmd |
     DiagnosticsCmd |
     IconThemeCmd |
-    ToolbarStateCmd;
+    ToolbarStateCmd |
+    PackageAdvisoriesCmd;

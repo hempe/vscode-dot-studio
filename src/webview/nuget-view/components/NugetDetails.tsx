@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { LocalNuGetPackage } from "../shared";
+import { PackageAdvisory } from "../../../services/nuget/types";
 import NugetReadme from "./NugetReadme";
 import NugetDetail from "./NugetDetail";
 
 interface NugetDetailProps {
     selectedPackage: LocalNuGetPackage;
     packageReadmes: Map<string, string>;
+    advisory?: PackageAdvisory;
 }
-export default function NugetDetails({ selectedPackage, packageReadmes }: NugetDetailProps) {
+export default function NugetDetails({ selectedPackage, packageReadmes, advisory }: NugetDetailProps) {
     const [detailsTab, setDetailsTab] = useState<'details' | 'readme'>('details');
 
     return (
@@ -64,7 +66,7 @@ export default function NugetDetails({ selectedPackage, packageReadmes }: NugetD
             </div>
 
             {detailsTab === 'details' && (
-                <NugetDetail selectedPackage={selectedPackage} />
+                <NugetDetail selectedPackage={selectedPackage} advisory={advisory} />
             )}
 
             {detailsTab === 'readme' && (

@@ -268,3 +268,17 @@ export interface PackageOperationResult {
     /** Project path where the operation occurred (optional) */
     readonly projectPath?: string;
 }
+
+/** What `dotnet list package --vulnerable` and `--deprecated` report about one version of a package */
+export interface PackageAdvisory {
+    readonly vulnerabilities?: readonly { readonly severity: string; readonly url: string }[];
+    readonly deprecation?: { readonly reasons: readonly string[]; readonly alternative?: { readonly id: string; readonly range?: string } };
+}
+
+/** By `advisoryKey` */
+export type PackageAdvisories = Readonly<Record<string, PackageAdvisory>>;
+
+/** The key of a package version in `PackageAdvisories` */
+export function advisoryKey(id: string, version: string): string {
+    return `${id.toLowerCase()}|${version}`;
+}

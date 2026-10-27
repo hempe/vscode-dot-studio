@@ -149,4 +149,56 @@ describe('NuGet manager: refresh and package source', () => {
 
         expect(sent.map(message => message.type)).toEqual(expect.arrayContaining(['refreshNuGet', 'searchPackages']));
     });
+
+    describe('vulnerable and deprecated packages', () => {
+        const installed = (id: string, version: string) => ({ ...pkg(id), currentVersion: version, version });
+        const open = () => {
+            jest.useFakeTimers();
+            mockSent.length = 0;
+            const view = render(<App />);
+            post({ type: 'nugetData', payload: { installedPackages: [installed('Newtonsoft.Json', '12.0.1'), installed('Serilog', '4.0.0'), installed('WindowsAzure.Storage', '9.3.3')], projects: [project], searchResults: [] } });
+            return view;
+        };
+        afterEach(() => jest.useRealTimers());
+
+        it('asks the host once for the advisories after the data, and labels the flagged packages', () => {
+            open();
+            expect(mockSent.filter(m => m.type === 'getPackageAdvisories')).toEqual([]);
+            act(() => { jest.advanceTimersByTime(1000); });
+            expect(mockSent.filter(m => m.type === 'getPackageAdvisories')).toHaveLength(1);
+
+            post({ type: 'packageAdvisories', payload: { advisories: {
+                'newtonsoft.json|12.0.1': { vulnerabilities: [{ severity: 'High', url: 'https://github.com/advisories/GHSA-5crp-9r3c-p9vr' }] },
+                'windowsazure.storage|9.3.3': { deprecation: { reasons: ['Legacy'], alternative: { id: 'Azure.Storage.Common' } } },
+            } } });
+
+            expect(screen.getByText('vulnerable: high')).toBeTruthy();
+            expect(screen.getByText('deprecated')).toBeTruthy();
+            expect(screen.getAllByText(/^vulnerable|^deprecated$/)).toHaveLength(2);
+        });
+
+        it('the Vulnerable and Deprecated checkboxes narrow the Installed list', () => {
+            const { container } = open();
+            post({ type: 'packageAdvisories', payload: { advisories: {
+                'newtonsoft.json|12.0.1': { vulnerabilities: [{ severity: 'High', url: 'https://github.com/advisories/x' }] },
+                'windowsazure.storage|9.3.3': { deprecation: { reasons: ['Legacy'] } },
+            } } });
+            const names = () => [...container.querySelectorAll('div[style*="cursor: pointer"] span')].map(span => span.textContent).filter(text => ['Newtonsoft.Json', 'Serilog', 'WindowsAzure.Storage'].includes(text ?? ''));
+            expect(names()).toEqual(['Newtonsoft.Json', 'Serilog', 'WindowsAzure.Storage']);
+
+            fireEvent.click(screen.getByText('Vulnerable'));
+            expect(names()).toEqual(['Newtonsoft.Json']);
+            fireEvent.click(screen.getByText('Deprecated'));
+            expect(names()).toEqual(['Newtonsoft.Json', 'WindowsAzure.Storage']);
+        });
+
+        it('the details of a vulnerable package link the advisory', () => {
+            const { container } = open();
+            post({ type: 'packageAdvisories', payload: { advisories: { 'newtonsoft.json|12.0.1': { vulnerabilities: [{ severity: 'High', url: 'https://github.com/advisories/GHSA-5crp-9r3c-p9vr' }] } } } });
+            fireEvent.click(screen.getAllByText('Newtonsoft.Json')[0]);
+
+            expect(container.textContent).toContain('This version has known vulnerabilities');
+            expect(container.querySelector('a[href="https://github.com/advisories/GHSA-5crp-9r3c-p9vr"]')).not.toBeNull();
+        });
+    });
 });
