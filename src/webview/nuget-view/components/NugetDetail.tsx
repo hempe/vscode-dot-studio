@@ -5,9 +5,10 @@ import { PackageAdvisory } from "../../../services/nuget/types";
 interface NugetDetailProps {
     selectedPackage: LocalNuGetPackage;
     advisory?: PackageAdvisory;
+    mappedSources?: string[];
 }
 
-export default function NugetDetail({ selectedPackage, advisory }: NugetDetailProps) {
+export default function NugetDetail({ selectedPackage, advisory, mappedSources }: NugetDetailProps) {
 
     return (
         <div style={{ fontSize: '12px' }}>
@@ -31,6 +32,13 @@ export default function NugetDetail({ selectedPackage, advisory }: NugetDetailPr
                     {advisory.deprecation.alternative && (
                         <div>Use {advisory.deprecation.alternative.id}{advisory.deprecation.alternative.range ? ` ${advisory.deprecation.alternative.range}` : ''} instead.</div>
                     )}
+                </div>
+            )}
+            {mappedSources && (
+                <div style={{ marginBottom: '16px', color: mappedSources.length === 0 ? 'var(--vscode-editorWarning-foreground)' : 'var(--vscode-descriptionForeground)' }}>
+                    {mappedSources.length === 0
+                        ? 'Package source mapping: no source is mapped for this package, so restore cannot find it (NU1100). Add a pattern for it to a packageSource in NuGet.Config.'
+                        : `Package source mapping: ${mappedSources.join(', ')}`}
                 </div>
             )}
             {/* Description Section - Special placement at top */}

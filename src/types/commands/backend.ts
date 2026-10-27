@@ -41,6 +41,15 @@ export declare type GetPackageAdvisoriesCmd = {
     readonly type: 'getPackageAdvisories'
 }
 
+/** The Sources tab (setting `shinobi.nuget.packageSources`): list, add, remove, enable and disable package sources */
+export declare type GetSourcesCmd = { readonly type: 'getSources' }
+export declare type AddSourceCmd = {
+    readonly type: 'addSource',
+    readonly payload: { readonly name: string, readonly url: string, readonly location: 'user' | 'solution' }
+}
+export declare type RemoveSourceCmd = { readonly type: 'removeSource', readonly payload: { readonly name: string } }
+export declare type SetSourceEnabledCmd = { readonly type: 'setSourceEnabled', readonly payload: { readonly name: string, readonly enabled: boolean } }
+
 /** The refresh button: the caches of the feeds are dropped and everything is read again */
 export declare type RefreshNuGetCmd = {
     readonly type: 'refreshNuGet',
@@ -182,4 +191,8 @@ export declare type BackendCmd =
     MoveNodesCmd |
     ToolbarActionCmd |
     RefreshNuGetCmd |
-    GetPackageAdvisoriesCmd;
+    GetPackageAdvisoriesCmd |
+    GetSourcesCmd |
+    AddSourceCmd |
+    RemoveSourceCmd |
+    SetSourceEnabledCmd;

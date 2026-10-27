@@ -1,6 +1,7 @@
 import { ToolbarState } from "../toolbar"
 import { DiagnosticMarkers, NodeType, ProjectNode } from ".."
-import { NuGetPackage, PackageAdvisories, ProjectInfo } from "../../services/nuget/types"
+import { ManagedSource, NuGetPackage, PackageAdvisories, ProjectInfo } from "../../services/nuget/types"
+import { SourceMapping } from "../../services/nuget/packageSourceMapping"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
 import { NodeIdString } from "../nodeId"
 import { IconThemePayload } from "../iconTheme"
@@ -31,12 +32,25 @@ export interface NuGetViewData {
     readonly projectPath?: string | null;
     /** The enabled package sources, for the source dropdown of Browse */
     readonly sources?: readonly { readonly name: string }[];
+    /** With the setting `shinobi.nuget.packageSources`: Package Source Mapping (patterns by source name), empty without one */
+    readonly sourceMapping?: SourceMapping;
+    /** The setting `shinobi.nuget.packageSources` is on: the Sources tab shows */
+    readonly manageSources?: boolean;
 }
 
 export declare type PackageAdvisoriesCmd = {
     readonly type: 'packageAdvisories',
     readonly payload: {
         readonly advisories: PackageAdvisories
+    }
+}
+
+export declare type PackageSourcesCmd = {
+    readonly type: 'packageSources',
+    readonly payload: {
+        readonly sources: readonly ManagedSource[],
+        /** What went wrong with the last add, remove or change */
+        readonly error?: string
     }
 }
 
@@ -204,4 +218,5 @@ export declare type UICmd =
     DiagnosticsCmd |
     IconThemeCmd |
     ToolbarStateCmd |
-    PackageAdvisoriesCmd;
+    PackageAdvisoriesCmd |
+    PackageSourcesCmd;

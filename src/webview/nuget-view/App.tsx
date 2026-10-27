@@ -9,8 +9,10 @@ import NugetHeader from './components/NugetHeader';
 import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
-import { advisoryKey, PackageAdvisories, PackageAdvisory, ProjectInfo } from '../../services/nuget/types';
+import { SourcesView } from './components/SourcesView';
+import { advisoryKey, ManagedSource, PackageAdvisories, PackageAdvisory, ProjectInfo } from '../../services/nuget/types';
 import { passesAdvisoryFilter } from './advisoryView';
+import { mappedSources } from '../../services/nuget/packageSourceMapping';
 import { VersionUtils } from '../../services/versionUtils';
 import { NuGetViewData, UICmd } from '../../types/commands/ui';
 import { canSetForProjectOnly, centralNote } from './versionLabels';
@@ -37,8 +39,13 @@ export const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState('installed');
     // Vulnerabilities and deprecations of the installed versions: read apart from the lists, since asking the feeds takes a while
     const [advisories, setAdvisories] = useState<PackageAdvisories>({});
+    // The Sources tab (setting shinobi.nuget.packageSources)
+    const [managedSources, setManagedSources] = useState<readonly ManagedSource[] | undefined>(undefined);
+    const [sourcesError, setSourcesError] = useState<string | undefined>(undefined);
     const [advisoryFilter, setAdvisoryFilter] = useState({ vulnerable: false, deprecated: false });
     const advisoryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const mappedSourcesOf = (pkg: LocalNuGetPackage | null | undefined): string[] | undefined =>
+        pkg && data.sourceMapping ? mappedSources(data.sourceMapping, pkg.id) : undefined;
     const advisoryOf = (pkg: LocalNuGetPackage | null | undefined): PackageAdvisory | undefined =>
         pkg ? advisories[advisoryKey(pkg.id, (pkg as { version?: string }).version ?? pkg.currentVersion)] : undefined;
     // Visual Studio's "Transitive packages" section starts collapsed
@@ -136,6 +143,8 @@ export const App: React.FC = () => {
                         searchResults: safeData.searchResults?.length ? safeData.searchResults : prev.searchResults,
                         consolidatePackages: safeData.consolidatePackages?.length ? safeData.consolidatePackages : prev.consolidatePackages,
                         sources: safeData.sources ?? prev.sources,
+                        sourceMapping: safeData.sourceMapping ?? prev.sourceMapping,
+                        manageSources: safeData.manageSources ?? prev.manageSources,
                     }));
 
                     // Try to preserve selected package after data refresh, or auto-select first package
@@ -195,6 +204,12 @@ export const App: React.FC = () => {
                     setConsolidateLoading(false);
                     setInitializing(false);
                     setErrorMessage(message.payload.message);
+                    break;
+                case 'packageSources':
+                    setManagedSources(message.payload.sources);
+                    setSourcesError(message.payload.error);
+                    // The dropdown of Browse follows
+                    setData(prev => ({ ...prev, sources: message.payload.sources.filter(source => source.enabled).map(source => ({ name: source.name })) }));
                     break;
                 case 'packageAdvisories':
                     setAdvisories(message.payload.advisories);
@@ -832,6 +847,7 @@ export const App: React.FC = () => {
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
                                 advisory={advisoryOf(selectedPackage)}
+                                mappedSources={mappedSourcesOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -998,6 +1014,7 @@ export const App: React.FC = () => {
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
                                 advisory={advisoryOf(selectedPackage)}
+                                mappedSources={mappedSourcesOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -1166,6 +1183,7 @@ export const App: React.FC = () => {
                                 selectedPackage={selectedPackage}
                                 packageReadmes={packageReadmes}
                                 advisory={advisoryOf(selectedPackage)}
+                                mappedSources={mappedSourcesOf(selectedPackage)}
                             />
                         </div>
                     ) : (
@@ -1192,7 +1210,8 @@ export const App: React.FC = () => {
         { id: 'browse', label: 'Browse' },
         { id: 'installed', label: 'Installed' },
         { id: 'updates', label: 'Updates' },
-        ...(shouldShowConsolidate ? [{ id: 'consolidate', label: 'Consolidate' }] : [])
+        ...(shouldShowConsolidate ? [{ id: 'consolidate', label: 'Consolidate' }] : []),
+        ...(data.manageSources ? [{ id: 'sources', label: 'Sources' }] : [])
     ];
 
     // Switch to installed tab if currently on consolidate but it's hidden
@@ -1260,6 +1279,7 @@ export const App: React.FC = () => {
                         selectedPackage={selectedPackage}
                         packageReadmes={packageReadmes}
                         advisory={advisoryOf(selectedPackage)}
+                                mappedSources={mappedSourcesOf(selectedPackage)}
                     />
                 </div>
             ) : (
@@ -1369,11 +1389,29 @@ export const App: React.FC = () => {
         </div>
     );
 
+    const sourcesView = (
+        <SourcesView
+            sources={managedSources}
+            error={sourcesError}
+            onAdd={(name, url, location) => sendToBackend({ type: 'addSource', payload: { name, url, location } })}
+            onRemove={name => sendToBackend({ type: 'removeSource', payload: { name } })}
+            onSetEnabled={(name, enabled) => sendToBackend({ type: 'setSourceEnabled', payload: { name, enabled } })}
+        />
+    );
+
+    // Read the sources when the tab opens
+    useEffect(() => {
+        if (activeTab === 'sources' && data.manageSources) {
+            sendToBackend({ type: 'getSources' });
+        }
+    }, [activeTab, data.manageSources]);
+
     const views = [
         { id: 'browse', content: browseView },
         { id: 'installed', content: installedView },
         { id: 'updates', content: updatesView },
-        { id: 'consolidate', content: consolidateView }
+        { id: 'consolidate', content: consolidateView },
+        { id: 'sources', content: sourcesView }
     ];
 
     const shouldShowLoadingBar = loading || initializing || consolidateLoading;

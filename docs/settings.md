@@ -51,6 +51,7 @@ Settings > Extensions > Shinobi .NET Studio, grouped as below.
 | Setting | Default | |
 |---|---|---|
 | `shinobi.nuget.includePrerelease` | `false` | Open the NuGet Package Manager with "Include prerelease" checked |
+| `shinobi.nuget.packageSources` | `false` | Manage package sources in the NuGet manager like Visual Studio: a Sources tab to add, remove, enable and disable feeds, and Package Source Mapping in the package details and Browse, see [NuGet](nuget.md#package-sources-and-package-source-mapping) |
 
 ## C# extension defaults this extension changes
 

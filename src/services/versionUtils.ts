@@ -10,7 +10,7 @@ export class VersionUtils {
      * Compare two version strings, handling both semver and non-semver formats
      * @param a First version string
      * @param b Second version string
-     * @returns 1 if a > b, -1 if a < b, 0 if equal
+     * @returns Descending order, for sorting the newest first: -1 if a is the higher version, 1 if b is, 0 if equal
      */
     static compare(a: string, b: string): number {
         return comp(a, b) * -1;

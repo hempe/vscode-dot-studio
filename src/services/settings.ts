@@ -16,5 +16,7 @@ export const Settings = {
     /** Discover tests again after every build */
     discoverTestsAfterBuild: () => vscode.workspace.getConfiguration('shinobi.tests').get<boolean>('discoverAfterBuild', true),
     /** The NuGet manager starts with "Include prerelease" checked */
+    /** The NuGet manager manages package sources like Visual Studio (Sources tab) and follows Package Source Mapping */
+    nugetPackageSources: () => vscode.workspace.getConfiguration('shinobi.nuget').get<boolean>('packageSources', false),
     nugetIncludePrerelease: () => vscode.workspace.getConfiguration('shinobi.nuget').get<boolean>('includePrerelease', false),
 };

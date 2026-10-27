@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { nugetEditorQuery, parseNuGetEditorQuery } from './nugetEditorUri';
 import { Settings } from '../../services/settings';
+import { readSourceMapping } from '../../services/nuget/packageSourceMappingFiles';
+import { configStartDir } from '../../services/nuget/feedAuth';
+import { addSource, listManagedSources, removeSource, setSourceEnabled, sourceProblem } from '../../services/nuget/sourceManagement';
 import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
 import { NuGetV3Service } from '../../services/nuget/nugetV3Service';
@@ -153,6 +156,13 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     break;
                 }
 
+                case 'getSources':
+                case 'addSource':
+                case 'removeSource':
+                case 'setSourceEnabled':
+                    await this._handleSources(message, webview);
+                    break;
+
                 case 'getConsolidatePackages':
                     await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
                     break;
@@ -215,14 +225,54 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // The dropdown of Browse; a feed that cannot be listed must not keep the lists away
             const sources = await Promise.resolve().then(() => NuGetManagerService.getEnabledSources()).catch(() => []);
 
+            const manageSources = Settings.nugetPackageSources();
+            const sourceMapping = manageSources ? readSourceMapping(configStartDir()) : undefined;
+
             sendToUi(webview, {
                 type: 'nugetData',
-                payload: { ...nugetData, sources }
+                payload: { ...nugetData, sources, manageSources, sourceMapping }
             });
 
         } catch (error) {
             log.error('Error updating NuGet webview:', error);
         }
+    }
+
+    /** The Sources tab: only with the setting on, whatever the webview asks */
+    private async _handleSources(message: BackendCmd, webview: vscode.Webview): Promise<void> {
+        if (!Settings.nugetPackageSources()) {
+            return;
+        }
+        let error: string | undefined;
+        try {
+            switch (message.type) {
+                case 'addSource': {
+                    const { name, url, location } = message.payload;
+                    const problem = sourceProblem(name, url, (await listManagedSources()).map(source => source.name));
+                    if (problem) {
+                        error = problem;
+                    } else {
+                        await addSource(name, url, location === 'solution' ? 'solution' : 'user');
+                    }
+                    break;
+                }
+                case 'removeSource': {
+                    const answer = await vscode.window.showWarningMessage(
+                        `Remove the package source ${message.payload.name}? It is deleted from the NuGet.Config that adds it.`, { modal: true }, 'Remove');
+                    if (answer === 'Remove') {
+                        await removeSource(message.payload.name);
+                    }
+                    break;
+                }
+                case 'setSourceEnabled':
+                    await setSourceEnabled(message.payload.name, message.payload.enabled === true);
+                    break;
+            }
+        } catch (caught) {
+            error = caught instanceof Error ? caught.message : String(caught);
+            log.warn('Package source change failed:', caught);
+        }
+        sendToUi(webview, { type: 'packageSources', payload: { sources: await listManagedSources().catch(() => []), error } });
     }
 
     /**

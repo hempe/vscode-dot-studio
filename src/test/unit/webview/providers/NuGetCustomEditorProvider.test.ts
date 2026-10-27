@@ -8,7 +8,7 @@ jest.mock('vscode', () => ({
     ProgressLocation: { Notification: 15 },
     Uri: { joinPath: jest.fn(() => ({})) },
 }), { virtual: true });
-jest.mock('../../../../services/settings', () => ({ Settings: { nugetIncludePrerelease: () => false } }));
+jest.mock('../../../../services/settings', () => ({ Settings: { nugetIncludePrerelease: () => false, nugetPackageSources: () => false } }));
 jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => ({ solutionPath: '/repo/App.sln' }) } }));
 jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
 jest.mock('../../../../webview/providers/views/NuGetWebview', () => ({ NuGetWebview: { getHtmlForWebview: () => '<html />' } }));

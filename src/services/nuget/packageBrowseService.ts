@@ -9,6 +9,9 @@ import { Mutable } from '../../types';
 import { execDotnet } from './dotnetCli';
 import { applyLegacyConfig } from './legacyNugetConfig';
 import { configStartDir } from './feedAuth';
+import { mappedSources, SourceMapping } from './packageSourceMapping';
+import { readSourceMapping } from './packageSourceMappingFiles';
+import { Settings } from '../settings';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
@@ -61,6 +64,12 @@ export function parseSourceList(stdout: string): PackageSource[] {
  * Service for browsing and searching NuGet packages using NuGet V3 API
  * Supports all standard NuGet feeds including public and private sources
  */
+/** Whether the Package Source Mapping lets the package's source provide it (no mapping: every source may) */
+export function allowedBySourceMapping(mapping: SourceMapping, pkg: { id: string; source?: string }): boolean {
+    const allowed = mappedSources(mapping, pkg.id);
+    return !allowed || !pkg.source || allowed.some(name => name.toLowerCase() === pkg.source!.toLowerCase());
+}
+
 /** The sources a search can use: enabled feeds (the V3 protocol; a folder of packages has no search service) */
 export function searchableSources<T extends { enabled: boolean; isLocal: boolean }>(sources: readonly T[]): T[] {
     return sources.filter(source => source.enabled && !source.isLocal);
@@ -301,6 +310,8 @@ export class PackageBrowseService {
 
             const allResults: NuGetPackage[] = [];
             const searchPromises: Promise<NuGetPackage[]>[] = [];
+            // With Package Source Mapping (and the setting), a result counts only from a source the mapping lets provide the package
+            const mapping = Settings.nugetPackageSources() ? readSourceMapping(configStartDir()) : {};
 
             // One chosen source, or the enabled ones (the first 3, to keep a search quick)
             const chosen = options.source ? sources.filter(source => source.name === options.source) : searchableSources(sources).slice(0, 3);
@@ -316,7 +327,7 @@ export class PackageBrowseService {
 
             results.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
-                    allResults.push(...result.value);
+                    allResults.push(...result.value.filter(pkg => allowedBySourceMapping(mapping, pkg)));
                 } else {
                     log.warn(`Search failed for source ${index}:`, result.reason);
                 }
@@ -352,7 +363,8 @@ export class PackageBrowseService {
             const upgradedUrl = upgradeNuGetOrgUrl(source.url);
 
             log.info(`Using NuGet V3 API for: ${source.name}`);
-            return await NuGetV3Service.searchPackages(upgradedUrl, options, accessToken);
+            const found = await NuGetV3Service.searchPackages(upgradedUrl, options, accessToken);
+            return found.map(pkg => ({ ...pkg, source: source.name }));
 
         } catch (error) {
             log.error(`Error searching source ${source.name}:`, error);
@@ -368,7 +380,8 @@ export class PackageBrowseService {
 
         for (const pkg of packages) {
             const existing = packageMap.get(pkg.id.toLowerCase());
-            if (!existing || VersionUtils.compare(pkg.currentVersion, existing.currentVersion) > 0) {
+            // compare sorts descending: negative when the new one is the higher version
+            if (!existing || VersionUtils.compare(pkg.currentVersion, existing.currentVersion) < 0) {
                 packageMap.set(pkg.id.toLowerCase(), pkg);
             }
         }

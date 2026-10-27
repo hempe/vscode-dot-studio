@@ -8,8 +8,10 @@ interface NugetDetailProps {
     selectedPackage: LocalNuGetPackage;
     packageReadmes: Map<string, string>;
     advisory?: PackageAdvisory;
+    /** Package Source Mapping: the sources that may provide the package, `[]` none, undefined when there is no mapping */
+    mappedSources?: string[];
 }
-export default function NugetDetails({ selectedPackage, packageReadmes, advisory }: NugetDetailProps) {
+export default function NugetDetails({ selectedPackage, packageReadmes, advisory, mappedSources }: NugetDetailProps) {
     const [detailsTab, setDetailsTab] = useState<'details' | 'readme'>('details');
 
     return (
@@ -66,7 +68,7 @@ export default function NugetDetails({ selectedPackage, packageReadmes, advisory
             </div>
 
             {detailsTab === 'details' && (
-                <NugetDetail selectedPackage={selectedPackage} advisory={advisory} />
+                <NugetDetail selectedPackage={selectedPackage} advisory={advisory} mappedSources={mappedSources} />
             )}
 
             {detailsTab === 'readme' && (

@@ -18,6 +18,13 @@ Visual Studio's NuGet Package Manager, in an editor tab.
 
 **Transitive packages:** Install makes one a direct reference, e.g. to pin a newer version with a security fix; they have no Uninstall, since only the package that brings them in can be removed. Solution Explorer: [Dependencies > Packages](solution-explorer.md#dependencies) shows the same tree under each package.
 
+## Package sources and Package Source Mapping
+
+With the setting **`shinobi.nuget.packageSources`** (off by default) the manager manages package sources like Visual Studio's options page, and follows Package Source Mapping.
+
+- **Sources tab:** lists the feeds of your `NuGet.Config` files with the file that defines each. The checkbox enables or disables a source (written to your user `NuGet.Config`, so it applies to every solution); **Remove** deletes it from the file that adds it, after asking; **Add** takes a name and an address (an `https://` URL to the feed's `index.json`, or a folder) and saves it to your `NuGet.Config` or to a `nuget.config` next to the solution (created when missing, the file to commit for the team). It runs `dotnet nuget add|remove|enable|disable source`. Credentials are not asked here: a feed that needs them prompts for a token when it rejects a request, as before. The Browse dropdown follows the changes.
+- **Package Source Mapping** (`<packageSourceMapping>` in `NuGet.Config`, which restore follows with or without this setting): the package details name the sources that may provide the selected package, by the longest matching pattern (an exact id beats `Prefix.*`, which beats `*`), or warn that none does (restore would fail with NU1100). Browse leaves out a result from a source the mapping does not allow for that id, so a public package with the id of a private one does not shadow it. **Install** does not pass a source: restore picks the mapped one.
+
 ## Vulnerable and deprecated packages
 
 The Installed and Updates lists label the versions you use that have a known vulnerability (**vulnerable: high**, with the worst severity: critical, high, moderate or low) or that the author deprecated (**deprecated**). The details pane names each advisory with its link (GitHub Advisory Database), and for a deprecated package the reasons and the package to use instead. In **Installed**, the **Vulnerable** and **Deprecated** checkboxes show only those packages (both checked: either). Transitive packages are checked too, so a vulnerable package you only get through another one shows in its section, and **Install** on it pins a newer version.

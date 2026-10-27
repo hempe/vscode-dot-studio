@@ -201,4 +201,78 @@ describe('NuGet manager: refresh and package source', () => {
             expect(container.querySelector('a[href="https://github.com/advisories/GHSA-5crp-9r3c-p9vr"]')).not.toBeNull();
         });
     });
+
+    describe('Package Source Mapping', () => {
+        const open = (mapping: Record<string, string[]>) => {
+            const view = render(<App />);
+            post({ type: 'nugetData', payload: { installedPackages: [{ ...pkg('Company.Core'), version: '1.0.0' }, { ...pkg('Serilog'), version: '1.0.0' }, { ...pkg('Orphan.Lib'), version: '1.0.0' }], projects: [project], searchResults: [], sourceMapping: mapping } });
+            return view;
+        };
+
+        it('names the sources the mapping lets provide the selected package', () => {
+            const { container } = open({ 'nuget.org': ['Serilog*'], 'Company Feed': ['Company.*'] });
+            fireEvent.click(screen.getAllByText('Company.Core')[0]);
+            expect(container.textContent).toContain('Package source mapping: Company Feed');
+            fireEvent.click(screen.getAllByText('Serilog')[0]);
+            expect(container.textContent).toContain('Package source mapping: nuget.org');
+        });
+
+        it('warns when no source is mapped for the package', () => {
+            const { container } = open({ 'nuget.org': ['Serilog*'] });
+            fireEvent.click(screen.getAllByText('Orphan.Lib')[0]);
+            expect(container.textContent).toContain('no source is mapped for this package');
+        });
+
+        it('says nothing without a mapping', () => {
+            const { container } = open({});
+            fireEvent.click(screen.getAllByText('Serilog')[0]);
+            expect(container.textContent).not.toContain('Package source mapping');
+        });
+    });
+});
+
+describe('NuGet manager: Sources tab', () => {
+    const open = (manageSources: boolean) => {
+        mockSent.length = 0;
+        const view = render(<App />);
+        post({ type: 'nugetData', payload: { installedPackages: [], projects: [project], searchResults: [], manageSources } });
+        return view;
+    };
+
+    it('has no Sources tab without the setting', () => {
+        open(false);
+        expect(screen.queryByRole('tab', { name: 'Sources' })).toBeNull();
+    });
+
+    it('lists the sources when opened and sends the changes, and the Browse dropdown follows', () => {
+        open(true);
+        fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+        expect(mockSent.some(m => m.type === 'getSources')).toBe(true);
+
+        post({ type: 'packageSources', payload: { sources: [
+            { name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, file: '/home/u/.nuget/NuGet/NuGet.Config' },
+            { name: 'Company Feed', url: 'https://pkgs.example.org/index.json', enabled: false, file: '/repo/nuget.config' },
+        ] } });
+        expect(screen.getByText('Company Feed')).toBeTruthy();
+        expect(screen.getByText('repo/nuget.config')).toBeTruthy();
+
+        const [, companyCheckbox] = screen.getAllByRole('checkbox');
+        fireEvent.click(companyCheckbox);
+        expect(mockSent).toContainEqual({ type: 'setSourceEnabled', payload: { name: 'Company Feed', enabled: true } });
+
+        fireEvent.click(screen.getAllByText('Remove')[1]);
+        expect(mockSent).toContainEqual({ type: 'removeSource', payload: { name: 'Company Feed' } });
+
+        fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Mirror' } });
+        fireEvent.change(screen.getByPlaceholderText(/index.json or a folder/), { target: { value: 'https://mirror.example.org/index.json' } });
+        fireEvent.click(screen.getByText('Add'));
+        expect(mockSent).toContainEqual({ type: 'addSource', payload: { name: 'Mirror', url: 'https://mirror.example.org/index.json', location: 'user' } });
+    });
+
+    it('shows what went wrong with a change', () => {
+        open(true);
+        fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+        post({ type: 'packageSources', payload: { sources: [], error: 'A source named Mirror exists' } });
+        expect(screen.getByRole('alert').textContent).toContain('A source named Mirror exists');
+    });
 });

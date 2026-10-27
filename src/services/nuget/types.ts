@@ -282,3 +282,12 @@ export type PackageAdvisories = Readonly<Record<string, PackageAdvisory>>;
 export function advisoryKey(id: string, version: string): string {
     return `${id.toLowerCase()}|${version}`;
 }
+
+/** A package source for the Sources tab: where it is defined tells which NuGet.Config a removal edits */
+export interface ManagedSource {
+    readonly name: string;
+    readonly url: string;
+    readonly enabled: boolean;
+    /** The NuGet.Config that adds it; undefined for a source of the machine-wide config or when not found */
+    readonly file?: string;
+}
