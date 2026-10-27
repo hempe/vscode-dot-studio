@@ -53,7 +53,12 @@ export function frame(message: object): Buffer {
 export interface TestApp {
     kill(): void;
     output(): string;
+    /** Calls the listener when the process ends (a debugger session does not tell) */
+    onExit?(listener: (code: number | null) => void): void;
 }
+
+/** How long a connection that is on its way may still arrive after the process ended */
+export const EXIT_GRACE_MS = 500;
 
 /** A connected test app in server mode */
 export interface TestSession {
@@ -74,6 +79,7 @@ export function connectTestApp(start: (args: string[]) => Promise<TestApp>, time
     return new Promise((resolve, reject) => {
         const server = net.createServer();
         let app: TestApp | undefined;
+        let connected = false;
         const timer = setTimeout(() => {
             server.close();
             app?.kill();
@@ -81,6 +87,7 @@ export function connectTestApp(start: (args: string[]) => Promise<TestApp>, time
         }, timeoutMs);
 
         server.once('connection', socket => {
+            connected = true;
             clearTimeout(timer);
             server.close();
             const reader = new MessageReader();
@@ -146,7 +153,17 @@ export function connectTestApp(start: (args: string[]) => Promise<TestApp>, time
         server.listen(0, '127.0.0.1', () => {
             const port = (server.address() as net.AddressInfo).port;
             start(['--server', '--client-host', '127.0.0.1', '--client-port', String(port)])
-                .then(started => { app = started; }, error => {
+                .then(started => {
+                    app = started;
+                    // An app that ends before it connected (a crash on start, a wrong argument) is not waited for until the timeout
+                    started.onExit?.(code => setTimeout(() => {
+                        if (!connected) {
+                            clearTimeout(timer);
+                            server.close();
+                            reject(new Error(`The test app ended (exit code ${code}) before it connected.\n${started.output()}`));
+                        }
+                    }, EXIT_GRACE_MS));
+                }, error => {
                     clearTimeout(timer);
                     server.close();
                     reject(error);

@@ -59,7 +59,7 @@ function startProcess(project: TestProject, args: string[], environment: Readonl
     child.stdout.on('data', chunk => { output += chunk; });
     child.stderr.on('data', chunk => { output += chunk; });
     child.on('error', error => { output += String(error); });
-    return Promise.resolve({ kill: () => { child.kill(); }, output: () => output });
+    return Promise.resolve({ kill: () => { child.kill(); }, output: () => output, onExit: listener => { child.once('exit', listener); } });
 }
 
 async function startInDebugger(project: TestProject, args: string[], environment: Readonly<Record<string, string>>): Promise<TestApp> {
@@ -101,7 +101,7 @@ async function startVsTestConsole(project: TestProject, port: number): Promise<T
     child.stdout.on('data', chunk => { output += chunk; });
     child.stderr.on('data', chunk => { output += chunk; });
     child.on('error', error => { output += String(error); });
-    return { kill: () => { child.kill(); }, output: () => output };
+    return { kill: () => { child.kill(); }, output: () => output, onExit: listener => { child.once('exit', listener); } };
 }
 
 async function attachToTestHost(project: TestProject, processId: number): Promise<boolean> {

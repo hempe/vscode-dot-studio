@@ -1,5 +1,5 @@
 import * as net from 'net';
-import { TestApp, TestNode } from './testingPlatformClient';
+import { EXIT_GRACE_MS, TestApp, TestNode } from './testingPlatformClient';
 import { DEFAULT_RUN_SETTINGS } from './runSettings';
 
 // Client for vstest.console in design mode, the protocol Visual Studio uses for classic VSTest projects
@@ -148,6 +148,7 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
     return new Promise((resolve, reject) => {
         const server = net.createServer();
         let app: TestApp | undefined;
+        let socketConnected = false;
         const timer = setTimeout(() => {
             server.close();
             app?.kill();
@@ -155,6 +156,7 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
         }, timeoutMs);
 
         server.once('connection', socket => {
+            socketConnected = true;
             clearTimeout(timer);
             server.close();
             const reader = new VsTestReader();
@@ -262,7 +264,16 @@ export function connectVsTest(start: (port: number) => Promise<TestApp>, timeout
 
         server.listen(0, '127.0.0.1', () => {
             const port = (server.address() as net.AddressInfo).port;
-            start(port).then(started => { app = started; }, error => {
+            start(port).then(started => {
+                app = started;
+                started.onExit?.(code => setTimeout(() => {
+                    if (!socketConnected) {
+                        clearTimeout(timer);
+                        server.close();
+                        reject(new Error(`vstest.console ended (exit code ${code}) before it connected.\n${started.output()}`));
+                    }
+                }, EXIT_GRACE_MS));
+            }, error => {
                 clearTimeout(timer);
                 server.close();
                 reject(error);

@@ -111,4 +111,13 @@ describe('vstestClient', () => {
         const request = ran.find(m => m.MessageType === 'TestExecution.RunAllWithDefaultHost');
         expect(request.Payload).toEqual({ Sources: ['/repo/a.dll', '/repo/b.dll'], RunSettings: settings });
     });
+
+    it('does not wait for the timeout when vstest.console ends before it connected (review A5-9)', async () => {
+        const started = Date.now();
+        await expect(connectVsTest(async () => ({
+            kill: () => { }, output: () => 'Could not find testhost',
+            onExit: listener => { setTimeout(() => listener(1), 10); },
+        }), 30000)).rejects.toThrow(/ended \(exit code 1\) before it connected[\s\S]*testhost/);
+        expect(Date.now() - started).toBeLessThan(3000);
+    });
 });

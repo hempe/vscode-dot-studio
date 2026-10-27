@@ -83,4 +83,23 @@ describe('connectTestApp', () => {
         await expect(connectTestApp(async () => ({ kill: () => { }, output: () => 'Unhandled exception: boom' }), 200))
             .rejects.toThrow(/did not connect[\s\S]*boom/);
     });
+
+    it('gives up as soon as the app ends before it connected, not after the timeout (review A5-9)', async () => {
+        const started = Date.now();
+        await expect(connectTestApp(async () => ({
+            kill: () => { },
+            output: () => 'Unhandled exception: boom',
+            onExit: listener => { setTimeout(() => listener(134), 10); },
+        }), 20000)).rejects.toThrow(/ended \(exit code 134\) before it connected[\s\S]*boom/);
+        expect(Date.now() - started).toBeLessThan(3000);
+    });
+
+    it('does not wait for the timeout when the app ends before it connected (review A5-9)', async () => {
+        const started = Date.now();
+        await expect(connectTestApp(async () => ({
+            kill: () => { }, output: () => 'Unhandled exception: boom',
+            onExit: listener => { setTimeout(() => listener(134), 10); },
+        }), 30000)).rejects.toThrow(/ended \(exit code 134\) before it connected[\s\S]*boom/);
+        expect(Date.now() - started).toBeLessThan(3000);
+    });
 });

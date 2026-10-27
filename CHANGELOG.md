@@ -7,6 +7,7 @@
 - **Templates:** the New Project and Add New Item wizards list the templates and options of the SDK that `global.json` picks for the solution, as `dotnet new` will use.
 - **NuGet:** `http://` feeds work, redirects are followed without passing credentials to another host, answers have a size and time limit, folder sources no longer slow package lookups down, and package icons and READMEs are looked up on nuget.org only when it is a source.
 - **Startup project:** choosing a startup project, a framework or a profile in quick succession ends with the last choice (the writes of launch.json and tasks.json wait for each other). The NuGet manager opens faster (one `dotnet list package` per project).
+- **Test Explorer:** a test host that crashes on start is reported at once with its output, not after 30 seconds.
 - **Fixes:** a moved `.slnx` solution folder stays open; a file moved into a collapsed folder shows (it kept its old timestamps); version properties of a parent `Directory.Packages.props` imported with unquoted `GetPathOfFileAbove` are found; creating files no longer leaves entries in the stored expansion state.
 
 ## 0.1.2
