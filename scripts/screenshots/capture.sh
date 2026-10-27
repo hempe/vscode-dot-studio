@@ -87,12 +87,14 @@ wants() { [[ " $SCENES " == *" $1 "* ]]; }
 
 # Tree navigation with the Solution Explorer's own keys: the first click focuses the tree, typing jumps to a node
 # (type-to-find), Right expands it
-tree_focus() { key ctrl+alt+l; pause 1; click 140 81; }
+# The y of the first tree row: below the view title and the toolbar row of the Solution Explorer
+TREE_TOP=108
+tree_focus() { key ctrl+alt+l; pause 1; click 140 "$TREE_TOP"; }
 tree_open() { for name in "$@"; do type_text "$name"; pause 1.2; key Right; pause 1.5; done; }
 tree_select() { pause 1.2; type_text "$1"; pause 1.2; }
-# The y of the tree row with the given index (0 = the solution): about 20.3 px apart from y=81 (project rows are a
+# The y of the tree row with the given index (0 = the solution): about 20.3 px apart from TREE_TOP (project rows are a
 # pixel taller than file rows, so far down the list this is a few pixels off, still inside the row)
-row_y() { echo $(( 81 + $1 * 203 / 10 )); }
+row_y() { echo $(( TREE_TOP + $1 * 203 / 10 )); }
 # HTML5 drag & drop with the mouse: press, move in small steps (Chromium only starts a drag after moves between press
 # and release; xdotool's events do start it), rest on the target (the highlight; a collapsed folder expands after
 # 0.7 s), release. drag x1 y1 x2 y2 [rest]. Chromium draws the dragged row under the pointer and, with no compositor,
@@ -103,12 +105,12 @@ drag() {
     sleep "${5:-1}"; xdotool mouseup 1; sleep 1
 }
 # Opens Shop.Web's context menu and clicks an entry by its offset below the click (from context-menu.png).
-# After Collapse All and opening the solution and src, rows are 20.6 px apart from y=81: the solution, Solution Items,
+# After Collapse All and opening the solution and src, rows are 20.6 px apart from TREE_TOP: the solution, Solution Items,
 # src, then src's projects in order.
 project_y() {
     local dir="$1" index
     index="$(ls "$SOLUTION/$dir" | sort -f | grep -n -x "$2" | cut -d: -f1)"
-    echo $(( 81 + (3 + index - 1) * 206 / 10 ))
+    echo $(( TREE_TOP + (3 + index - 1) * 206 / 10 ))
 }
 shop_web_y() { project_y src Shop.Web; }
 shop_web_menu() {

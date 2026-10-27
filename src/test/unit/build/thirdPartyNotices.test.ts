@@ -12,7 +12,7 @@ describe('packageRootOf', () => {
     });
 
     it('keeps the scope of a scoped package', () => {
-        expect(packageRootOf(`${modules}@iconify${sep}react${sep}dist${sep}iconify.mjs`)).toBe(`${modules}@iconify${sep}react`);
+        expect(packageRootOf(`${modules}@vscode${sep}codicons${sep}dist${sep}codicon.css`)).toBe(`${modules}@vscode${sep}codicons`);
     });
 
     it('uses the innermost node_modules of a nested dependency', () => {

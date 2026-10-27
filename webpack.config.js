@@ -3,7 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { ThirdPartyNoticesPlugin } = require('./scripts/thirdPartyNotices');
 
-const CODICONS = 'Codicons (the icon font in webview/codicons, and the chevron and link icons of the Solution Explorer), Copyright (c) Microsoft Corporation, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), the CSS under MIT: https://github.com/microsoft/vscode-codicons\n\nIcons of the Solution Explorer from the Iconify collections (https://iconify.design): Material Design Icons (mdi, Apache-2.0, https://github.com/Templarian/MaterialDesign), Carbon (Apache-2.0, https://github.com/carbon-design-system/carbon), Simple Icons (CC0-1.0, https://github.com/simple-icons/simple-icons).';
+const CODICONS = 'Codicons (the icon font in webview/codicons, also used for the built-in icons of the Solution Explorer), Copyright (c) Microsoft Corporation, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), the CSS under MIT: https://github.com/microsoft/vscode-codicons';
 
 
 module.exports = [

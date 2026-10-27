@@ -1718,7 +1718,6 @@
     "generate:menus": "node scripts/generate-context-menus.js"
   },
   "dependencies": {
-    "@iconify/react": "^6.0.2",
     "@vscode/codicons": "^0.0.46-24",
     "glob": "^13.0.1",
     "jsonc-parser": "^3.3.1",
