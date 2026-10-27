@@ -102,6 +102,25 @@ describe('generateServiceReference', () => {
         expect(fs.readFileSync(projectPath, 'utf8')).toContain('<WCFMetadata Include="Connected Services" />');
     });
 
+    it('keeps an edit made to the project file while svcutil ran, and still undoes svcutil\'s own (review A6-3)', async () => {
+        const folder = path.join(project, 'Connected Services', 'CardOperations');
+        const before = fs.readFileSync(projectPath, 'utf8');
+        const svcutil: Svcutil = async (args, cwd) => {
+            const result = await fakeSvcutil([])(args, cwd);
+            // The user saves a change in the editor while svcutil runs
+            fs.writeFileSync(projectPath, fs.readFileSync(projectPath, 'utf8').replace('</Project>', '<PropertyGroup><MyOwnSetting>1</MyOwnSetting></PropertyGroup></Project>'));
+            return result;
+        };
+
+        const result = await generateServiceReference({ projectPath, reference: readServiceReference(folder), targetFramework: 'net10.0', svcutil, addPackage });
+
+        expect(result.success).toBe(true);
+        const after = fs.readFileSync(projectPath, 'utf8');
+        expect(after).toContain('<MyOwnSetting>1</MyOwnSetting>');
+        expect(after).not.toContain('System.ServiceModel.Duplex');
+        expect(after.replace('<PropertyGroup><MyOwnSetting>1</MyOwnSetting></PropertyGroup>', '')).toBe(before);
+    });
+
     it('a failing run leaves the reference and the project file as they were', async () => {
         const folder = path.join(project, 'Connected Services', 'CardOperations');
         fs.writeFileSync(path.join(folder, 'Reference.cs'), '// old');

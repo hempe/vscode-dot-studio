@@ -33,7 +33,7 @@ export async function generateServiceReference(options: GenerateOptions): Promis
     const { projectPath, reference, targetFramework } = options;
     const projectDir = path.dirname(projectPath);
     const tempDir = path.join(projectDir, 'obj', `shinobi-svcutil-${crypto.randomBytes(4).toString('hex')}`);
-    const projectXml = fs.readFileSync(projectPath, 'utf8');
+    const snapshot = fs.readFileSync(projectPath, 'utf8');
 
     try {
         fs.mkdirSync(tempDir, { recursive: true });
@@ -60,7 +60,11 @@ export async function generateServiceReference(options: GenerateOptions): Promis
         fs.writeFileSync(path.join(tempDir, SVCUTIL_PARAMS_FILE), toSvcutilParams({ ...reference.options, inputs }, targetFramework));
 
         const result = await options.svcutil(['--update', path.relative(projectDir, tempDir), '--noLogo'], projectDir);
-        fs.writeFileSync(projectPath, projectXml);
+        // Undo what svcutil added to the project file, nothing else: it ran for minutes, and an edit made meanwhile stays
+        const projectXml = undoSvcutilEdits(snapshot, fs.readFileSync(projectPath, 'utf8'));
+        if (projectXml !== fs.readFileSync(projectPath, 'utf8')) {
+            fs.writeFileSync(projectPath, projectXml);
+        }
 
         const outputFile = reference.options.outputFile ?? 'Reference.cs';
         if (result.code !== 0 || !fs.existsSync(path.join(tempDir, outputFile))) {
@@ -88,15 +92,41 @@ export async function generateServiceReference(options: GenerateOptions): Promis
             fs.rmSync(path.join(reference.folder, SVCUTIL_PARAMS_FILE), { force: true });
         }
 
-        fs.writeFileSync(projectPath, ProjectFileEditor.ensureWcfMetadata(projectXml));
+        const currentXml = fs.readFileSync(projectPath, 'utf8');
+        fs.writeFileSync(projectPath, ProjectFileEditor.ensureWcfMetadata(currentXml));
         const code = fs.readFileSync(path.join(reference.folder, outputFile), 'utf8');
-        for (const id of requiredPackages(code, projectXml, targetFramework)) {
+        for (const id of requiredPackages(code, currentXml, targetFramework)) {
             await options.addPackage(projectPath, id);
         }
         return { success: true, output: result.output };
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
     }
+}
+
+/** What the old svcutil versions add to a project: WCF client packages and its own CLI tool reference */
+const SVCUTIL_ITEMS = /^(System\.ServiceModel\.|Microsoft\.Tools\.ServiceModel\.Svcutil)/i;
+
+/**
+ * The project file as it is now, without the packages and tool references svcutil added since `before` (the file as it
+ * was when svcutil started): edits made to the file meanwhile are kept
+ */
+export function undoSvcutilEdits(before: string, now: string): string {
+    if (now === before) {
+        return now;
+    }
+    let result = now;
+    for (const itemType of ['PackageReference', 'DotNetCliToolReference']) {
+        const had = new Set<string>();
+        ProjectFileEditor.removeItems(before, itemType, include => { had.add(include.toLowerCase()); return false; });
+        result = ProjectFileEditor.removeItems(result, itemType, include => SVCUTIL_ITEMS.test(include) && !had.has(include.toLowerCase())).content;
+    }
+    // An item group that held only svcutil's items is left empty
+    const emptyGroup = /[ \t]*<ItemGroup>\s*<\/ItemGroup>[ \t]*\r?\n?/g;
+    if ((result.match(emptyGroup) ?? []).length > (before.match(emptyGroup) ?? []).length) {
+        result = result.replace(emptyGroup, '');
+    }
+    return result;
 }
 
 /** svcutil's output, plus what to do about errors it explains badly */
