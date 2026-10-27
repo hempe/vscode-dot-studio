@@ -17,7 +17,7 @@ const log = logger('SolutionTree');
 export const DRAG_DATA_TYPE = 'application/vnd.shinobi.solution-nodes';
 /** Hovering a collapsed folder this long while dragging expands it, as in Visual Studio */
 const AUTO_EXPAND_DELAY_MS = 700;
-export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFilePath, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
+export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
     // Multi-select: the selected nodes, and where a Shift+click range starts
@@ -182,7 +182,17 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
     // The row under the mouse. Not CSS :hover: after a drop Chromium sends a mouseover (and moves :hover) to the row now
     // at the point where the drag started, though the mouse is elsewhere. So from a drag's start nothing is hovered
     // until the mouse really moves: a mousemove with a movement (Chromium's own events after the drop have none)
-    const [hoveredNodeId, setHoveredNodeId] = useState<NodeIdString | undefined>();
+    // Set on the row's element itself: moving the mouse over the tree must not render every row
+    const hoveredElement = useRef<HTMLElement | null>(null);
+    const setHoveredNodeId = (nodeId: NodeIdString | undefined, element?: HTMLElement | null) => {
+        const next = nodeId ? element ?? null : null;
+        if (hoveredElement.current === next) {
+            return;
+        }
+        hoveredElement.current?.classList.remove('hovered');
+        hoveredElement.current = next;
+        next?.classList.add('hovered');
+    };
     const hoverPaused = useRef(false);
     const handleNodeHover = (nodeId: NodeIdString | undefined, e: React.MouseEvent) => {
         if (draggedIds.current.length > 0) {
@@ -194,7 +204,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
             }
             hoverPaused.current = false;
         }
-        setHoveredNodeId(nodeId);
+        setHoveredNodeId(nodeId, nodeId ? e.currentTarget as HTMLElement : null);
     };
 
     /** The rules' answer for what is dragged over `targetId`; undefined when nothing is dragged */
@@ -602,7 +612,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     key={nodeIdToKey(node.nodeId)}
                     node={node}
                     level={0}
-                    activeFilePath={activeFilePath}
                     onProjectAction={handleProjectActionWrapper}
                     onToggleExpand={handleToggleExpand}
                     onNodeClick={handleNodeClick}
@@ -619,7 +628,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, activeFile
                     onNodeDragOver={handleNodeDragOver}
                     onNodeDrop={handleNodeDrop}
                     onNodeDragEnd={endDrag}
-                    hoveredNodeId={hoveredNodeId}
                     onNodeHover={handleNodeHover}
                 />
             ))}

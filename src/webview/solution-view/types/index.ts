@@ -9,7 +9,6 @@ export interface TreeNodeProps {
     level: number;
     /** The node is in a test project (set for the children of a test project node) */
     inTestProject?: boolean;
-    activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionCmd) => void;
     onToggleExpand: (nodeId: NodeIdString, nodeType: NodeType) => void;
     /** `toggle`: Ctrl/Cmd+click, `range`: Shift+click (multi-select) */
@@ -32,14 +31,12 @@ export interface TreeNodeProps {
     onNodeDrop?: (nodeId: NodeIdString, e: DragEvent) => void;
     onNodeDragEnd?: () => void;
     /** The row under the mouse: a class, not CSS :hover, which Chromium moves to a wrong row after a drop */
-    hoveredNodeId?: NodeIdString;
     /** A mouseover or mousemove on the row */
     onNodeHover?: (nodeId: NodeIdString, e: MouseEvent) => void;
 }
 
 export interface SolutionTreeProps {
     projects: any[];
-    activeFilePath?: string | null;
     onProjectAction: (action: ProjectActionCmd) => void;
     onExpandNode?: (nodeId: NodeIdString) => void;
     onCollapseNode?: (nodeId: NodeIdString) => void;

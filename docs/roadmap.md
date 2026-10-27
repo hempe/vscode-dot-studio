@@ -18,7 +18,8 @@ Bugs found later are listed here, to be fixed.
 ## Phase 23: Limitations to look at after the code review
 Edge cases and cosmetics; decided to leave until the code review of Phase 22 is done. Phase 35 holds the per-framework package work.
 
-- [ ] From the code review, risks and suspected problems to check first on the other systems: the Windows glob/path handling of the `.sln` and `launch.json` watchers (A1-12) and the solution filter (A1-13), a deleted and recreated solution or project file (A1-14), the non-atomic project rename (A1-15), an expand that arrives during a rebuild (A2-12), the cost of re-rendering every tree row (A3-8), accessibility of the tree and the other views (A3-9, A3-10), Attach to Process with non-ASCII paths (A5-12), AltGr+L takes Ctrl+Alt+L (A7-5)
+- [ ] From the code review, to check first on the other systems: the Windows glob/path handling of the `.sln` and `launch.json` watchers (A1-12) and the solution filter (A1-13), a deleted and recreated solution or project file (A1-14), the non-atomic project rename (A1-15), Attach to Process with non-ASCII paths (A5-12), AltGr+L takes Ctrl+Alt+L (A7-5); these are in the manual-testing list for a Windows machine
+- [ ] Solution Explorer rendering: hover no longer renders the tree, but a selection, diagnostics or tree message still renders every row (no `React.memo`, no virtualization): measure on a solution with thousands of rows before changing it (A3-8)
 
 ## Phase 30: Later
 - [ ] NuGet manager marks vulnerable packages (severity, advisory link) and deprecated ones (with the suggested replacement), with filters for them; restore already warns about vulnerable packages (NuGet Audit) in the Error List
@@ -38,6 +39,8 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 - [ ] Docs, GIF and manual-testing entries for the conditional cases
 
 ## Not Planned
+- Accessibility of the Solution Explorer and the other views (ARIA tree roles, keyboard multi-select, links that cannot be focused, colour-only markers): to be done when someone opens an issue (A3-9, A3-10)
+- An expand that arrives while the tree is being rebuilt can show collapsed for a moment; it is remembered and the next rebuild opens it (A2-12)
 - Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`; they have a `PackageVersion` but no reference); update them in `Directory.Packages.props`
 - gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it, and shows collapsed that once
 - A Test Explorer run builds each test project on its own, one after the other (Visual Studio builds the selection once); a failed build reports its first errors in the test message and the whole output is in the Test Results

@@ -9,7 +9,7 @@ import { SolutionTree } from '../../../../webview/solution-view/components/Solut
 describe('Solution Explorer built-in icons', () => {
     it('show a chevron and an icon in a row without a network request', async () => {
         const projects = [{ nodeId: 'a', type: 'project', name: 'App', fileName: 'App.csproj', expanded: false, hasChildren: true }] as any;
-        const { container } = render(<SolutionTree projects={projects} activeFilePath={null} onProjectAction={() => { }} onExpandNode={() => { }} onCollapseNode={() => { }} markers={{} as any} />);
+        const { container } = render(<SolutionTree projects={projects} onProjectAction={() => { }} onExpandNode={() => { }} onCollapseNode={() => { }} markers={{} as any} />);
         await act(async () => { await new Promise(resolve => setTimeout(resolve, 200)); });
 
         const row = container.querySelector('.tree-node')!;
@@ -27,7 +27,7 @@ describe('Solution Explorer built-in icons', () => {
                     { nodeId: 'da', type: 'dependencyCategory', name: 'Assemblies', hasChildren: false },
                 ] }],
         }] as any;
-        const { container } = render(<SolutionTree projects={projects} activeFilePath={null} onProjectAction={() => { }} onExpandNode={() => { }} onCollapseNode={() => { }} markers={{} as any} />);
+        const { container } = render(<SolutionTree projects={projects} onProjectAction={() => { }} onExpandNode={() => { }} onCollapseNode={() => { }} markers={{} as any} />);
         await act(async () => { await new Promise(resolve => setTimeout(resolve, 200)); });
 
         const icons = [...container.querySelectorAll('.node-icon .codicon')].map(element => element.className);

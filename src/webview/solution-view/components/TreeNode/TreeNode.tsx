@@ -16,7 +16,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     node,
     level,
     inTestProject,
-    activeFilePath,
     onProjectAction,
     onToggleExpand,
     onNodeClick,
@@ -34,7 +33,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onNodeDragOver,
     onNodeDrop,
     onNodeDragEnd,
-    hoveredNodeId,
     onNodeHover
 }) => {
     const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
@@ -330,7 +328,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''} ${hoveredNodeId === nodeIdentifier ? 'hovered' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
@@ -446,7 +444,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             node={child}
                             level={level + 1}
                             inTestProject={isInTestProject}
-                            activeFilePath={activeFilePath}
                             onProjectAction={onProjectAction}
                             onToggleExpand={onToggleExpand}
                             onNodeClick={onNodeClick}
@@ -464,7 +461,6 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onNodeDragOver={onNodeDragOver}
                             onNodeDrop={onNodeDrop}
                             onNodeDragEnd={onNodeDragEnd}
-                            hoveredNodeId={hoveredNodeId}
                             onNodeHover={onNodeHover}
                         />
                     ))}

@@ -191,7 +191,6 @@ export const useVsCodeApi = () => {
     // Why the solution could not be loaded (the host's message), until data arrives
     const [loadError, setLoadError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
     const [markers, setMarkers] = useState<DiagnosticMarkers>({} as DiagnosticMarkers);
     const [iconTheme, setIconTheme] = useState<IconThemePayload | null>(null);
 
@@ -252,8 +251,7 @@ export const useVsCodeApi = () => {
                     });
                     break;
                 case 'activeFileChanged':
-                    log.info('Active file changed:', message.payload.filePath);
-                    setActiveFilePath(message.payload.filePath);
+                    // Nothing in the tree shows it: no state, so an editor switch does not render the tree
                     break;
                 case 'diagnostics':
                     setMarkers(message.payload.markers);
@@ -316,7 +314,6 @@ export const useVsCodeApi = () => {
         toolbarAction,
         loading,
         refreshing,
-        activeFilePath,
         markers,
         iconTheme,
         handleFrameworkChange,
