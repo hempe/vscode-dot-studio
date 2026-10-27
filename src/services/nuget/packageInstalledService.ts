@@ -30,6 +30,9 @@ export function withVersionSources(packages: BasicInstalledPackage[], evaluated:
  * Service for managing installed NuGet packages using dotnet CLI
  * Handles listing, analyzing, and getting details about installed packages
  */
+/** How long the answer of one `dotnet list package` is shared with the callers that ask for the same project again */
+const LIST_SHARE_MS = 3000;
+
 export class PackageInstalledService {
     /**
      * Get installed packages with rich metadata for UI display
@@ -47,6 +50,30 @@ export class PackageInstalledService {
      * Get installed packages for a specific project
      */
     static async getProjectPackages(projectPath: string): Promise<BasicInstalledPackage[]> {
+        // Opening the manager asks several times in a row; one `dotnet list package` answers them while nothing changed
+        const key = [projectPath, ...['', path.join('obj', 'project.assets.json')].map(file => {
+            try {
+                return fs.statSync(path.join(path.dirname(projectPath), file || path.basename(projectPath))).mtimeMs;
+            } catch {
+                return 0;
+            }
+        })].join('|');
+        const cached = this.listRuns.get(key);
+        if (cached && Date.now() - cached.at < LIST_SHARE_MS) {
+            return cached.result;
+        }
+        const result = this.listProjectPackages(projectPath);
+        this.listRuns.set(key, { at: Date.now(), result });
+        result.catch(() => this.listRuns.delete(key));
+        if (this.listRuns.size > 50) {
+            this.listRuns.delete(this.listRuns.keys().next().value!);
+        }
+        return result;
+    }
+
+    private static readonly listRuns = new Map<string, { at: number; result: Promise<BasicInstalledPackage[]> }>();
+
+    private static async listProjectPackages(projectPath: string): Promise<BasicInstalledPackage[]> {
         try {
             // Determine the working directory - use the project's directory or solution directory
             const workingDir = path.dirname(projectPath);

@@ -96,6 +96,22 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         expect(DebugConfigService.getActiveFramework()).toBe('net10.0');
     });
 
+    it('writes in the order asked for when the earlier one is slower (review A5-7)', async () => {
+        const other = path.join(env.workspacePath, 'Other', 'Other.csproj');
+        fs.mkdirSync(path.dirname(other));
+        fs.writeFileSync(other, '<Project />');
+        jest.spyOn(DebugConfigService as any, 'launchConfiguration').mockImplementation(async (project: any) => {
+            await new Promise(resolve => setTimeout(resolve, String(project).endsWith('App.csproj') ? 300 : 10));
+            return { config: { name: 'Startup', type: 'coreclr', request: 'launch', program: String(project) }, framework: 'net10.0', configuration: 'Debug', platform: undefined };
+        });
+
+        await Promise.all([DebugConfigService.updateStartupConfiguration(projectPath), DebugConfigService.updateStartupConfiguration(other)]);
+
+        expect(parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations[0].program).toBe(other);
+        expect(DebugConfigService.getStartupProject()).toBe(other);
+        jest.restoreAllMocks();
+    });
+
     it('builds and runs the active configuration', async () => {
         env.configuration = 'Release';
         await DebugConfigService.updateStartupConfiguration(projectPath);

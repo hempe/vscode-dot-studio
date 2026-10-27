@@ -101,7 +101,23 @@ export class DebugConfigService {
      * e.g. coming back from a multi-project profile). Cancelling the pick changes nothing.
      * Replaces a multi-project "Startup" compound. Resolves with whether the configuration was written.
      */
-    static async updateStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false, launchProfile?: string): Promise<boolean> {
+    static updateStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false, launchProfile?: string): Promise<boolean> {
+        return this.serialized(() => this.writeStartupConfiguration(startupProjectPath, framework, askForProfile, launchProfile));
+    }
+
+    /**
+     * Runs the writes of launch.json and tasks.json one after the other, in the order they were asked for: each one waits
+     * for MSBuild between reading and writing, and the slower earlier request must not overwrite a later one
+     */
+    private static serialized<T>(write: () => Promise<T>): Promise<T> {
+        const run = this.writes.then(write, write);
+        this.writes = run.then(() => undefined, () => undefined);
+        return run;
+    }
+
+    private static writes: Promise<void> = Promise.resolve();
+
+    private static async writeStartupConfiguration(startupProjectPath: string, framework?: string, askForProfile = false, launchProfile?: string): Promise<boolean> {
         try {
             log.info(`updateStartupConfiguration called with project: ${startupProjectPath}, framework: ${framework}`);
 
@@ -190,7 +206,11 @@ export class DebugConfigService {
      * `presentation` before those without) when nothing valid is selected yet. Visible project configurations came
      * first, and F5 started one project without the compound's build. Hidden configurations still run in the compound.
      */
-    static async updateStartupProfileConfiguration(launches: readonly ProfileProjectLaunch[], buildTarget: string): Promise<void> {
+    static updateStartupProfileConfiguration(launches: readonly ProfileProjectLaunch[], buildTarget: string): Promise<void> {
+        return this.serialized(() => this.writeStartupProfileConfiguration(launches, buildTarget));
+    }
+
+    private static async writeStartupProfileConfiguration(launches: readonly ProfileProjectLaunch[], buildTarget: string): Promise<void> {
         try {
             const workspaceFolder = solutionWorkspaceFolder();
             if (!workspaceFolder) {
