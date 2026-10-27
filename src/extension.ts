@@ -16,6 +16,7 @@ import { logger as loggerFn, setLogSink } from './core/logger';
 import { checkCSharpExtension } from './services/csharpExtensionCheck';
 import { BuildConfiguration } from './services/buildConfiguration';
 import { SlnxMigration } from './services/slnxMigration';
+import { LegacyConfigOffer, offerLegacyConfigMove } from './services/nuget/legacyConfigOffer';
 import { SolutionDiscovery } from './services/solutionDiscovery';
 import { reportPacked } from './services/pack';
 import { UnloadedProjects } from './services/unloadedProjects';
@@ -101,6 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
     BuildConfiguration.initialize(context.workspaceState);
     StartupChoice.initialize(context.workspaceState);
     SlnxMigration.initialize(context.workspaceState);
+    LegacyConfigOffer.initialize(context.workspaceState);
     SolutionDiscovery.initialize(context.workspaceState);
     UnloadedProjects.initialize(context.workspaceState);
     ShowAllFiles.initialize(context.workspaceState);
@@ -316,6 +318,12 @@ export function activate(context: vscode.ExtensionContext) {
             if ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild', 'restore'].includes(task.definition.action))
                 || task.name === 'StartupPreBuild') {
                 solutionWebviewProvider.refresh();
+            }
+            // A failed restore or build with a .nuget/NuGet.Config next to the solution: dotnet does not read it
+            const solutionPath = SolutionService.getActiveSolution()?.solutionPath;
+            if (solutionPath && event.exitCode !== undefined && event.exitCode !== 0
+                && ((task.definition.type === DOTNET_TASK_TYPE && ['build', 'rebuild', 'restore'].includes(task.definition.action)) || task.name === 'StartupPreBuild')) {
+                void offerLegacyConfigMove(solutionPath, 'restoreFailed');
             }
             if (task.definition.type === DOTNET_TASK_TYPE && task.definition.action === 'pack' && event.exitCode === 0) {
                 void reportPacked(task.definition.target);

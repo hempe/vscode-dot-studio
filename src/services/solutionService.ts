@@ -9,6 +9,7 @@ import { logger } from '../core/logger';
 import { DebugConfigService } from './debugConfigService';
 import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
 import { offerSlnxMigration } from './slnxMigration';
+import { offerLegacyConfigMove } from './nuget/legacyConfigOffer';
 import { setActiveSolutionPath } from './workspaceFolders';
 import { ShowAllFiles } from './showAllFiles';
 
@@ -164,6 +165,7 @@ export class SolutionService {
                     await vscode.commands.executeCommand('shinobi.internal.refreshSolution');
                 },
             }).catch(error => log.error('Error offering the .slnx conversion:', error));
+            offerLegacyConfigMove(solutionPath, 'open').catch(error => log.error('Error offering the NuGet.Config move:', error));
             log.info(`Initialized solution: ${path.basename(solutionPath)}`);
 
             return solution;

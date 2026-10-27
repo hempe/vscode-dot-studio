@@ -7,6 +7,7 @@ import { VersionUtils } from '../versionUtils';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 import { Mutable } from '../../types';
 import { execDotnet } from './dotnetCli';
+import { applyLegacyConfig } from './legacyNugetConfig';
 import { configStartDir } from './feedAuth';
 
 const execAsync = promisify(exec);
@@ -111,7 +112,8 @@ export class PackageBrowseService {
     static async getPackageSources(): Promise<PackageSource[]> {
         try {
             // First try to get sources using dotnet CLI (respects all nuget.config files)
-            const sources = await this.getSourcesFromDotnetCli();
+            // plus those of the solution-level .nuget/NuGet.Config, which Visual Studio reads and the CLI does not
+            const sources = applyLegacyConfig(await this.getSourcesFromDotnetCli(), configStartDir());
             if (sources.length > 0) {
                 return sources;
             }

@@ -110,6 +110,11 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "When a `.sln` opens, offer to convert it to `.slnx`, the current solution format (*Don't Ask Again* turns it off for one solution)."
+          },
+          "shinobi.solution.offerNugetConfigMove": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "When a solution has a Visual Studio-era `.nuget/NuGet.Config` and no `nuget.config` next to it, offer to move it there: `dotnet restore` does not read the `.nuget` folder (*Don't Ask Again* turns it off for one solution)."
           }
         }
       },

@@ -176,3 +176,25 @@ describe('findCredential: what NuGet reads (review A4-10)', () => {
         expect(read(content)).toMatchObject({ line: 6 });
     });
 });
+
+describe('nugetConfigFiles and the solution-level .nuget/NuGet.Config', () => {
+    it('lists it after the config in the solution folder, for the solution folder only', () => {
+        const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-legacy-')));
+        try {
+            const solutionDir = path.join(root, 'src');
+            fs.mkdirSync(path.join(solutionDir, '.nuget'), { recursive: true });
+            fs.mkdirSync(path.join(root, '.nuget'), { recursive: true });
+            fs.writeFileSync(path.join(solutionDir, '.nuget', 'NuGet.Config'), '<configuration />');
+            fs.writeFileSync(path.join(root, '.nuget', 'NuGet.Config'), '<configuration />');
+            fs.writeFileSync(path.join(solutionDir, 'NuGet.Config'), '<configuration />');
+
+            const files = nugetConfigFiles(solutionDir, path.join(root, 'home'));
+
+            expect(files.slice(0, 2)).toEqual([path.join(solutionDir, 'NuGet.Config'), path.join(solutionDir, '.nuget', 'NuGet.Config')]);
+            // a .nuget folder above the solution is not a Visual Studio location
+            expect(files).not.toContain(path.join(root, '.nuget', 'NuGet.Config'));
+        } finally {
+            fs.rmSync(root, { recursive: true, force: true });
+        }
+    });
+});

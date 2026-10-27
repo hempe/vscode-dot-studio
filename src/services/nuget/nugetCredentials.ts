@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { legacyConfigPath } from './legacyNugetConfig';
 
 /** Credentials of a package source as NuGet would use them, and where they are */
 export type SourceCredential =
@@ -32,6 +33,13 @@ export function nugetConfigFiles(startDir: string, home = os.homedir()): string[
         const file = findConfig(dir);
         if (file) {
             files.push(file);
+        }
+        // Visual Studio's solution-level .nuget/NuGet.Config, read next to the solution (dotnet restore does not read it)
+        if (dir === path.resolve(startDir)) {
+            const legacy = legacyConfigPath(dir);
+            if (legacy) {
+                files.push(legacy);
+            }
         }
         if (path.dirname(dir) === dir) {
             break;

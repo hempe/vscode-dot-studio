@@ -9,6 +9,8 @@ export const Settings = {
     trackActiveItem: () => vscode.workspace.getConfiguration('shinobi.solutionExplorer').get<boolean>('trackActiveItem', false),
     /** Offer to convert a .sln to .slnx when it opens */
     offerSlnxConversion: () => vscode.workspace.getConfiguration('shinobi.solution').get<boolean>('offerSlnxConversion', true),
+    /** Offer to move a solution-level .nuget/NuGet.Config to nuget.config, where dotnet reads it, when the solution opens */
+    offerNugetConfigMove: () => vscode.workspace.getConfiguration('shinobi.solution').get<boolean>('offerNugetConfigMove', true),
     /** Builds write the source generators' output (Dependencies > Analyzers) */
     emitGeneratedFiles: () => vscode.workspace.getConfiguration('shinobi.build').get<boolean>('emitGeneratedFiles', true),
     /** Discover tests again after every build */
