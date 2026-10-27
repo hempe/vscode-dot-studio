@@ -7,7 +7,7 @@ interface RefreshTask {
 }
 
 type TimeoutID = ReturnType<typeof setTimeout>; // number
-const DELAY = 60_000; // 5 second delay between refreshes
+const DELAY = 5_000; // wait before a refresh is queued, so a burst of stale reads asks once
 
 export class BackgroundRefreshQueue {
     private readonly tasks = new Map<string, RefreshTask>(); // Simple list of things to refresh
@@ -23,10 +23,11 @@ export class BackgroundRefreshQueue {
     enqueue(url: string, accessToken?: string): void {
         log.debug(`Request to enqueue background refresh for: ${url}`);
         const key = `${url}|${accessToken || ''}`;
+        // Already waiting for its turn: keep the timer it has. Starting it over on every stale read would push the refresh
+        // back for as long as the data is being used, which is when it is needed
         if (this.pending.has(key)) {
-            // Already pending, reset the timer
-            clearTimeout(this.pending.get(key)!);
-            log.debug(`Resetting pending refresh timer for: ${url}`);
+            log.debug(`Refresh already pending for: ${url}`);
+            return;
         }
 
         // If already in the list, do nothing
@@ -102,7 +103,7 @@ export class BackgroundRefreshQueue {
         const [key, task] = entry.value;
         this.tasks.delete(key);
 
-        log.error(`Processing background refresh for: ${task.url}`);
+        log.debug(`Processing background refresh for: ${task.url}`);
 
         try {
             // Perform the actual refresh

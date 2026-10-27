@@ -27,20 +27,25 @@ export class NuGetV3Service {
     // In-memory cache (existing)
     private static requestCache: Map<string, { timestamp: number, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
 
+    /** Counts the times the caches were cleared: an answer to a request from before must not be stored after it */
+    private static cacheGeneration = 0;
+
     // Persistent cache
     private static persistentCache: PersistentCache<{ body: string, statusCode: number }> | null = null;
 
     // Background refresh queue
     private static refreshQueue = new BackgroundRefreshQueue(async (url: string, accessToken?: string) => {
+        const generation = this.cacheGeneration;
         const data = await this._makeHttpRequest(url, accessToken);
-        if (data) {
-            // Update both caches
-            const cacheKey = this.getCacheKey(url);
+        // Only a good answer replaces the cached one, and not one that was asked for before the caches were cleared
+        if (data && data.statusCode === 200 && generation === this.cacheGeneration) {
+            // Update both caches, under the key the readers use (with the token: a private feed's entry is keyed by it)
+            const cacheKey = this.getCacheKey(url, accessToken);
             this.requestCache.set(cacheKey, {
                 timestamp: Date.now(),
                 promise: Promise.resolve(data)
             });
-            this.persistentCache?.set(cacheKey, data, url);
+            await this.persistentCache?.set(cacheKey, data, url);
 
             // Notify UI (simplified, no rate limiting needed since queue handles timing)
             this.notifyUI(url);
@@ -73,6 +78,7 @@ export class NuGetV3Service {
 
     /** Drops every cached response (memory and disk), so the next requests ask the feeds again (the refresh button) */
     static async clearCaches(): Promise<void> {
+        this.cacheGeneration++;
         this.requestCache.clear();
         await this.persistentCache?.clear();
     }
@@ -421,13 +427,20 @@ export class NuGetV3Service {
 
         // 3. No cache available - make fresh request
         log.debug(`Making fresh request to ${url}`);
+        const generation = this.cacheGeneration;
         const promise = this._makeHttpRequestWithETag(url, accessToken);
 
         this.requestCache.set(cacheKey, { timestamp: Date.now(), promise });
+        // Forgets this request's entry, not that of a newer request for the same URL made after the caches were cleared
+        const forget = () => { if (this.requestCache.get(cacheKey)?.promise === promise) { this.requestCache.delete(cacheKey); } };
 
         return promise
             .then(async (result) => {
                 // Cache the result if successful
+                if (generation !== this.cacheGeneration) {
+                    // The caches were cleared (Refresh) while this was on its way: the caller gets the answer, nothing keeps it
+                    return result;
+                }
                 if (result.statusCode === 200) {
                     await this.persistentCache?.set(cacheKey, result, url, this.extractETag(result));
                 } else if (result.statusCode === 304) {
@@ -441,16 +454,16 @@ export class NuGetV3Service {
                     }
                 } else if (result.statusCode >= 500) {
                     // Server error - remove from memory cache
-                    this.requestCache.delete(cacheKey);
+                    forget();
                 } else if (result.statusCode === 401 || result.statusCode === 403) {
                     // Expired or missing token: explain what to do, and don't remember the answer
-                    this.requestCache.delete(cacheKey);
+                    forget();
                     void reportRejectedCredentials(url, result.statusCode);
                 }
                 return result;
             })
             .catch(error => {
-                this.requestCache.delete(cacheKey);
+                forget();
                 throw error;
             });
     }

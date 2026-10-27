@@ -9,6 +9,7 @@
 - **Startup project:** choosing a startup project, a framework or a profile in quick succession ends with the last choice (the writes of launch.json and tasks.json wait for each other). The NuGet manager opens faster (one `dotnet list package` per project).
 - **Test Explorer:** a test host that crashes on start is reported at once with its output, not after 30 seconds.
 - **Service references:** Add and Update Service Reference no longer throw away edits made to the project file while svcutil runs.
+- **NuGet cache:** stale feed answers are refreshed in the background after 5 seconds (not a minute that restarted on every read), private feeds' entries are really replaced, and Refresh is not undone by an answer that was still on its way.
 - **Fixes:** a moved `.slnx` solution folder stays open; a file moved into a collapsed folder shows (it kept its old timestamps); version properties of a parent `Directory.Packages.props` imported with unquoted `GetPathOfFileAbove` are found; creating files no longer leaves entries in the stored expansion state.
 
 ## 0.1.2
