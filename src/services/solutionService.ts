@@ -2,11 +2,10 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SolutionFileParser } from '../parsers/solutionFileParser';
-import { SolutionFile, SolutionProject } from '../types/solution';
+import { SolutionFile } from '../types/solution';
 import { Solution } from '../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
 import { logger } from '../core/logger';
-import { DebugConfigService } from './debugConfigService';
 import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
 import { offerSlnxMigration } from './slnxMigration';
 import { offerLegacyConfigMove } from './nuget/legacyConfigOffer';
@@ -37,75 +36,6 @@ export class SolutionService {
             log.error('Error parsing solution file:', error);
             throw new Error(`Failed to parse solution file: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-    }
-
-    /**
-     * Gets the raw content of a solution file
-     */
-    static async readSolutionContent(solutionPath: string): Promise<string> {
-        return await fs.promises.readFile(solutionPath, 'utf8');
-    }
-
-    /**
-     * Writes content to a solution file and clears cache
-     */
-    static async writeSolutionContent(solutionPath: string, content: string): Promise<void> {
-        await fs.promises.writeFile(solutionPath, content, 'utf8');
-    }
-
-    /**
-     * Finds a project by its GUID
-     */
-    static async findProjectByGuid(solutionPath: string, projectGuid: string): Promise<SolutionProject | null> {
-        const solutionFile = await this.parseSolutionFile(solutionPath);
-        return solutionFile.projects.find(p => p.guid === projectGuid) || null;
-    }
-
-    /**
-     * Gets the absolute path of a project from its GUID
-     */
-    static async getProjectPath(solutionPath: string, projectGuid: string): Promise<string | null> {
-        const project = await this.findProjectByGuid(solutionPath, projectGuid);
-        if (!project) {
-            return null;
-        }
-
-        // Normalize path separators for cross-platform compatibility and convert to absolute path
-        const normalizedPath = project.path.replace(/\\/g, path.sep);
-        return path.resolve(path.dirname(solutionPath), normalizedPath);
-    }
-
-    /**
-     * Gets the GUID of a project by its file path
-     */
-    static async getProjectGuid(solutionPath: string, projectPath: string): Promise<string | null> {
-        const solutionFile = await this.parseSolutionFile(solutionPath);
-        const solutionDir = path.dirname(solutionPath);
-
-        for (const project of solutionFile.projects) {
-            // Normalize path separators for cross-platform compatibility
-            const normalizedPath = project.path.replace(/\\/g, path.sep);
-            const absoluteProjectPath = path.resolve(solutionDir, normalizedPath);
-            if (absoluteProjectPath === projectPath || normalizedPath === projectPath) {
-                return project.guid;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Gets all .NET project paths from a solution
-     */
-    static async getProjectPaths(solutionPath: string): Promise<string[]> {
-        const solutionFile = await this.parseSolutionFile(solutionPath);
-        const solutionDir = path.dirname(solutionPath);
-
-        return solutionFile.projects
-            .filter(project => SolutionFileParser.isDotNetProject(project))
-            .map(project => {
-                const normalizedPath = project.path.replace(/\\/g, path.sep);
-                return path.resolve(solutionDir, normalizedPath);
-            });
     }
 
     /**
@@ -224,26 +154,6 @@ export class SolutionService {
     }
 
     /**
-     * Gets solution statistics for debugging
-     */
-    static async getSolutionStats(solutionPath: string): Promise<{
-        totalProjects: number;
-        dotNetProjects: number;
-        solutionFolders: number;
-        startupProject: string | null;
-    }> {
-        const solutionFile = await this.parseSolutionFile(solutionPath);
-        const startupProject = await DebugConfigService.getStartupProject();
-
-        return {
-            totalProjects: solutionFile.projects.length,
-            dotNetProjects: solutionFile.projects.filter(p => SolutionFileParser.isDotNetProject(p)).length,
-            solutionFolders: solutionFile.projects.filter(p => SolutionFileParser.isSolutionFolder(p)).length,
-            startupProject
-        };
-    }
-
-    /**
      * Get all target frameworks from projects in the solution
      */
     static getAllFrameworks(solutionFile: SolutionFile): string[] {
@@ -324,25 +234,6 @@ export class SolutionService {
         }
 
         return framework;
-    }
-
-    /**
-     * Get recommended upgrade path for a framework
-     */
-    static getUpgradeRecommendation(framework: string): string {
-        if (framework.startsWith('net6') || framework.startsWith('net7')) {
-            return 'Consider upgrading to .NET 10.0 (LTS) for continued support and performance improvements.';
-        }
-        if (framework.startsWith('netcoreapp') || framework.startsWith('net5')) {
-            return 'Upgrade to .NET 10.0 (LTS) - this framework is no longer supported.';
-        }
-        if (framework.startsWith('net4')) {
-            return 'Consider migrating to .NET 8.0 for better performance, cross-platform support, and modern features.';
-        }
-        if (framework.startsWith('netstandard1')) {
-            return 'Consider targeting .NET Standard 2.0 or higher for better API surface.';
-        }
-        return '';
     }
 
 }

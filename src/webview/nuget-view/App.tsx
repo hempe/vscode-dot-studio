@@ -256,12 +256,7 @@ export const App: React.FC = () => {
                     setLoading(false);
                     log.info(`NuGet React: ${message.type} - success: ${message.payload.success}`);
 
-                    // Refresh data to reflect the changes in the UI
-                    if (message.payload.success) {
-                        log.info(`NuGet React: Refreshing data after successful ${message.type}`);
-                        // Trigger refresh by updating a state or calling the refresh function
-                        setIncludePrerelease(prev => prev); // Trigger re-fetch
-                    }
+                    // The host sends fresh data after a successful change
                     break;
                 case 'bulkUpdateComplete':
                     // Handle bulk update completion
@@ -270,8 +265,6 @@ export const App: React.FC = () => {
 
                     // Refresh data and clear selections after successful bulk update
                     if (message.payload.success) {
-                        log.info(`NuGet React: Refreshing data after successful bulk update`);
-                        setIncludePrerelease(prev => prev); // Trigger re-fetch
                         // Clear all selections after successful update
                         setData(prevData => ({
                             ...prevData,

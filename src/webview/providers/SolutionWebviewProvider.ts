@@ -42,7 +42,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'shinobi-solution-webview';
 
     private _view?: vscode.WebviewView;
-    private _isRenaming: boolean = false;
     private _focusedNodeId?: NodeIdString;
     /** Nodes selected with Ctrl/Shift+click, reported by the webview */
     private _selectedNodeIds: NodeIdString[] = [];
@@ -83,7 +82,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 log.debug('Debounced updateView triggered');
 
                 // Load data asynchronously to prevent blocking
-                log.info('Loading solution data and frameworks...');
+                log.info('Loading solution data...');
 
                 const solutionData = await this._getSolutionData();
 
@@ -277,11 +276,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'getSolutionData':
                 log.info('Handling getSolutionData request');
                 await this._sendCachedData();
-                break;
-
-            case 'setFramework':
-                log.info('Handling setFramework request:', message.payload.framework);
-                await this._frameworkService.setActiveFramework(message.payload.framework);
                 break;
 
             case 'projectAction':
@@ -493,11 +487,6 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     public refresh() {
         log.debug('Refresh called');
 
-        // Don't refresh if we're in the middle of a rename operation
-        if (this._isRenaming) {
-            log.debug('Skipping refresh during rename operation');
-            return;
-        }
         // Use incremental update instead of full refresh
         this._updateViewDebouncer.trigger();
     }
@@ -539,10 +528,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 // Solution file was deleted - clear everything
                 sendToUi(this.webview, {
                     type: 'solutionData',
-                    payload: {
-                        projects: [],
-                        frameworks: []
-                    }
+                    payload: { projects: [] }
                 });
             } else {
                 this._updateViewDebouncer.trigger(); // Full refresh with expansion state preservation
@@ -567,15 +553,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
 
-        // Get frameworks for complete update
-        const frameworks = await this._frameworkService.getAvailableFrameworks();
-        const activeFramework = this._frameworkService.getActiveFramework();
-
-        const data: SolutionData = {
-            projects: projects,
-            frameworks: frameworks || [],
-            activeFramework
-        };
+        const data: SolutionData = { projects };
         sendToUi(this.webview, {
             type: 'solutionData',
             payload: data

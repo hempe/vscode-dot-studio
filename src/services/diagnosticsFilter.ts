@@ -8,7 +8,6 @@ export interface SeverityFilter {
 }
 
 export type FilterSeverity = keyof SeverityFilter;
-export const FILTER_SEVERITIES: readonly FilterSeverity[] = ['errors', 'warnings', 'infos'];
 
 const SECTION = 'shinobi.diagnostics';
 const KEYS: Record<FilterSeverity, string> = { errors: 'showErrors', warnings: 'showWarnings', infos: 'showInfos' };

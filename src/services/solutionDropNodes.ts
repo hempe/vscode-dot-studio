@@ -25,12 +25,8 @@ const statOf = (file: string) => {
 
 /** Parses an id from the webview; undefined for anything that is not a node id with a path */
 function parseNodeId(nodeIdString: NodeIdString): NodeId | undefined {
-    try {
-        const node = NodeIdService.parse(nodeIdString);
-        return node && typeof node === 'object' && typeof node.type === 'string' && typeof node.path === 'string' ? node : undefined;
-    } catch {
-        return undefined;
-    }
+    const node = NodeIdService.tryParse(nodeIdString);
+    return node && typeof node === 'object' && typeof node.type === 'string' && typeof node.path === 'string' ? node : undefined;
 }
 
 /**

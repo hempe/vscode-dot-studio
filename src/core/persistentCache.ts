@@ -121,21 +121,6 @@ export class PersistentCache<T> {
         }
     }
 
-    /**
-     * Get all cache keys
-     */
-    async getAllKeys(): Promise<string[]> {
-        try {
-            const files = await fs.promises.readdir(this.cacheDir);
-            return files
-                .filter(file => file.endsWith('.json'))
-                .map(file => file.replace('.json', ''));
-        } catch (error) {
-            log.error('Failed to get cache keys:', error);
-            return [];
-        }
-    }
-
     private ensureCacheDirectory(): void {
         try {
             if (!fs.existsSync(this.cacheDir)) {

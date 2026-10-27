@@ -1,5 +1,4 @@
 const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { ThirdPartyNoticesPlugin } = require('./scripts/thirdPartyNotices');
 
@@ -87,16 +86,6 @@ module.exports = [
         },
         plugins: [
             new ThirdPartyNoticesPlugin({ extra: CODICONS }),
-            new HtmlWebpackPlugin({
-                template: './src/webview/solution-view/template.html',
-                filename: 'solution-view/index.html',
-                chunks: ['solution-view']
-            }),
-            new HtmlWebpackPlugin({
-                template: './src/webview/nuget-view/template.html',
-                filename: 'nuget-view/index.html',
-                chunks: ['nuget-view']
-            }),
             new CopyWebpackPlugin({
                 patterns: [
                     {

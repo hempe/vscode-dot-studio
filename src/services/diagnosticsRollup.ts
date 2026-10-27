@@ -32,7 +32,7 @@ export function computeMarkers(nodes: readonly ProjectNode[], fileCounts: FileCo
 export type LinkedFilesOf = (projectPath: string) => readonly { fullPath: string; virtualPath: string }[];
 
 function visit(node: ProjectNode, fileCounts: FileCounts, markers: Record<NodeIdString, NodeMarker>, linkedOf: LinkedFilesOf, projectPath: string | undefined): DiagnosticCounts {
-    const nodeId = parseNodeId(node.nodeId);
+    const nodeId = NodeIdService.tryParse(node.nodeId);
     const owner = nodeId?.type === 'project' ? nodeId.path : projectPath;
     const childSum = (node.children ?? [])
         .map(child => visit(child, fileCounts, markers, linkedOf, owner))
@@ -60,14 +60,6 @@ function countsFor(nodeId: NodeId | undefined, childSum: DiagnosticCounts, fileC
             return childSum;
         default:
             return ZERO;
-    }
-}
-
-function parseNodeId(nodeId: NodeIdString): NodeId | undefined {
-    try {
-        return NodeIdService.parse(nodeId);
-    } catch {
-        return undefined;
     }
 }
 

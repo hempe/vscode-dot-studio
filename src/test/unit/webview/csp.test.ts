@@ -8,8 +8,6 @@ const shells = [
     'webview/providers/views/SolutionWebview.ts',
     'webview/providers/views/TemplateWizardWebview.ts',
     'webview/providers/views/ErrorListWebview.ts',
-    'webview/nuget-view/template.html',
-    'webview/solution-view/template.html',
 ];
 
 describe('Content-Security-Policy of the webviews', () => {
@@ -19,5 +17,6 @@ describe('Content-Security-Policy of the webviews', () => {
         expect(policy).toContain("form-action 'none'");
         expect(policy).toContain("base-uri 'none'");
         expect(policy).toContain("default-src 'none'");
+        expect(policy).not.toContain('unsafe-eval');
     });
 });

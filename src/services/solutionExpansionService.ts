@@ -505,17 +505,11 @@ export class SolutionExpansionService {
         context.workspaceState.update('solutionTreeExpanded', Array.from(expandedNodes));
     }
 
-    private static firstLoad: boolean = false;
     /**
      * Gets expansion state from workspace storage
      */
     static getExpansionState(context: vscode.ExtensionContext): Set<NodeIdString> {
-        let state = context.workspaceState.get<NodeIdString[]>('solutionTreeExpanded', []);
-        if (this.firstLoad) {
-            state = state.filter(x => NodeIdService.isValid(x));
-            this.firstLoad = false;
-        }
-        return new Set<NodeIdString>(state ?? []);
+        return new Set<NodeIdString>(context.workspaceState.get<NodeIdString[]>('solutionTreeExpanded', []) ?? []);
     }
 
     /**

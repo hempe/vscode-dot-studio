@@ -48,24 +48,6 @@ export class DebounceManager<T = void> {
     }
 
     /**
-     * Add multiple items at once
-     */
-    public triggerBatch(items: T[]): void {
-        // Clear existing timer
-        if (this._timer) {
-            clearTimeout(this._timer);
-        }
-
-        // Add all items to queue
-        items.forEach(item => this._addToQueue(item));
-
-        // Set new timer
-        this._timer = setTimeout(() => {
-            this._process();
-        }, this._debounceMs);
-    }
-
-    /**
      * Process immediately without debouncing
      */
     public async processImmediately(): Promise<void> {
@@ -86,13 +68,6 @@ export class DebounceManager<T = void> {
         }
         this._queue = [];
         this._rerun = false;
-    }
-
-    /**
-     * Get current queue length
-     */
-    public get queueLength(): number {
-        return this._queue.length;
     }
 
     /**

@@ -116,11 +116,6 @@ export declare type PackageReadmeCmd = {
     }
 }
 
-export declare type LoadingCmd = {
-    readonly type: 'loading',
-    readonly payload: {}
-}
-
 export declare type HideLoadingCmd = {
     readonly type: 'hideLoading'
 }
@@ -135,9 +130,7 @@ export declare type ActiveFileChangedCmd = {
 export declare type SolutionDataCmd = {
     readonly type: 'solutionData',
     readonly payload: {
-        readonly projects: ProjectNode[],
-        readonly frameworks: string[],
-        readonly activeFramework?: string | undefined;
+        readonly projects: ProjectNode[]
     }
 }
 
@@ -207,7 +200,6 @@ export declare type UICmd =
     BulkConsolidateCompleteCmd |
     PackageIconCmd |
     PackageReadmeCmd |
-    LoadingCmd |
     HideLoadingCmd |
     ActiveFileChangedCmd |
     SolutionDataCmd |

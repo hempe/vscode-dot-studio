@@ -83,23 +83,6 @@ export class NuGetV3Service {
         await this.persistentCache?.clear();
     }
 
-    /**
-     * Register a callback for UI notifications when cache is updated
-     */
-    static onCacheUpdate(callback: (url: string) => void): void {
-        this.uiNotificationCallbacks.push(callback);
-    }
-
-    /**
-     * Remove UI notification callback
-     */
-    static offCacheUpdate(callback: (url: string) => void): void {
-        const index = this.uiNotificationCallbacks.indexOf(callback);
-        if (index !== -1) {
-            this.uiNotificationCallbacks.splice(index, 1);
-        }
-    }
-
     private static notifyUI(url: string): void {
         this.uiNotificationCallbacks.forEach(callback => {
             try {
@@ -264,40 +247,6 @@ export class NuGetV3Service {
         }
 
         throw new Error(`Failed to get package details for ${packageId} after multiple attempts`);
-    }
-
-    /**
-     * Get all versions for a package using flat container API
-     */
-    static async getPackageVersions(
-        _sourceUrl: string,
-        packageId: string,
-        accessToken?: string
-    ): Promise<string[]> {
-        try {
-            // Use flat container API which is more reliable for version lists
-            // Format: https://api.nuget.org/v3-flatcontainer/{id-lower}/index.json
-            const flatContainerUrl = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/index.json`;
-            log.info(`Fetching package versions from flat container: ${flatContainerUrl}`);
-
-            const response = await this.makeRequest(flatContainerUrl, accessToken);
-            if (response.statusCode !== 200) {
-                log.warn(`Failed to get versions for ${packageId}, status code: ${response.statusCode}`);
-                return [];
-            }
-
-            const versionData = JSON.parse(response.body);
-
-            // Flat container returns {versions: ["1.0.0", "1.0.1", ...]}
-            const versions = versionData.versions || [];
-            log.info(`Got ${versions.length} versions from flat container, latest 5: ${versions.slice(-5).join(', ')}`);
-
-            return versions;
-
-        } catch (error) {
-            log.error(`Error getting V3 versions for ${packageId}:`, error);
-            return [];
-        }
     }
 
     private static serviceIndexCache: Map<string, { timestamp: number, request: Promise<any> }> = new Map();

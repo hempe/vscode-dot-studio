@@ -147,10 +147,6 @@ export class SolutionWebView {
                             margin-right: -10px;
                         }
 
-                        .tree-node.active .node-name {
-                            font-weight: bold;
-                        }
-
                         .node-icon {
                             margin-right: 6px;
                             font-size: 16px;

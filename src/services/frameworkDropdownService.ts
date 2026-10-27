@@ -103,32 +103,6 @@ export class FrameworkDropdownService {
         }
     }
 
-    public getAvailableFrameworks(): string[] {
-        if (!this.solution?.solutionFile) {
-            return [];
-        }
-
-        try {
-            return SolutionService.getAllFrameworks(this.solution.solutionFile);
-        } catch (error) {
-            log.error('Error getting available frameworks:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Validates if a framework is supported and returns upgrade recommendation if needed.
-     */
-    public getFrameworkValidation(framework: string): { isSupported: boolean; upgradeRecommendation?: string } {
-        const isSupported = SolutionService.isFrameworkSupported(framework);
-        const upgradeRecommendation = isSupported ? undefined : SolutionService.getUpgradeRecommendation(framework);
-
-        return {
-            isSupported,
-            upgradeRecommendation
-        };
-    }
-
     /**
      * Gets the display name for a framework.
      */

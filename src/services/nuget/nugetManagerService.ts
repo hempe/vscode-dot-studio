@@ -16,7 +16,6 @@ import { mergeAdvisories, readProjectAdvisories } from './packageAdvisories';
 import { SolutionService } from '../solutionService';
 import { UnloadedProjects } from '../unloadedProjects';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
-import { sln } from '../../core/utils';
 import { collectTransitivePackages, readPackageGraph } from './packageGraph';
 import { activeFrameworkOf } from '../projectFramework';
 
@@ -370,32 +369,4 @@ export class NuGetManagerService {
         return PackageSharedService.enrichWithBrowseMetadata(collectTransitivePackages(graphs));
     }
 
-    // ============ HELPER METHODS ============
-    /**
-     * Determine if a path is a solution or project file
-     */
-    static getContextFromPath(filePath: string): 'solution' | 'project' | 'unknown' {
-        if (sln(filePath)) {
-            return 'solution';
-        } else if (filePath.endsWith('.csproj') || filePath.endsWith('.vbproj') || filePath.endsWith('.fsproj')) {
-            return 'project';
-        }
-        return 'unknown';
-    }
-
-    /**
-     * Validate package operation parameters
-     */
-    static validatePackageOperation(packageId: string, version?: string): { valid: boolean, error?: string } {
-        if (!packageId || packageId.trim().length === 0) {
-            return { valid: false, error: 'Package ID is required' };
-        }
-
-        if (version && version.trim().length === 0) {
-            return { valid: false, error: 'Version cannot be empty if specified' };
-        }
-
-        // Add more validation as needed
-        return { valid: true };
-    }
 }

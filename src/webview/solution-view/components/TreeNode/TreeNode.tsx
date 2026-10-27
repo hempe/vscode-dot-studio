@@ -35,15 +35,21 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onNodeDragEnd,
     onNodeHover
 }) => {
-    const [clickTimeout, setClickTimeout] = React.useState<NodeJS.Timeout | null>(null);
+    // The single-click action waits for a possible double click; a row removed meanwhile must not act
+    const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearClickTimeout = () => {
+        if (clickTimeout.current) {
+            clearTimeout(clickTimeout.current);
+            clickTimeout.current = null;
+        }
+    };
+    React.useEffect(() => clearClickTimeout, []);
 
     const nodeIdentifier = node.nodeId;
     const isInTestProject = inTestProject || node.isTestProject;
     const isRenaming = renamingNodeId === nodeIdentifier || (node.isTemporary && node.isEditing);
     // Nodes with a move can be dragged, not while a name is being edited (the input needs the mouse)
     const canDrag = isDraggable(node) && !renamingNodeId && !node.isLoading;
-
-    const isActiveFile = false;
 
     const handleClick = (e: React.MouseEvent) => {
         log.info(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
@@ -60,11 +66,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             return;
         }
 
-        // Clear any existing timeout
-        if (clickTimeout) {
-            clearTimeout(clickTimeout);
-            setClickTimeout(null);
-        }
+        clearClickTimeout();
 
         // Set up debounced single click action
         const timeout = setTimeout(() => {
@@ -83,10 +85,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 onNodeClick(nodeIdentifier);
             }
 
-            setClickTimeout(null);
+            clickTimeout.current = null;
         }, ['folder', 'solutionFolder', 'dependencyCategory', 'dependencies'].includes(node.type) ? 0 : 250); // 250ms delay to detect double clicks
 
-        setClickTimeout(timeout);
+        clickTimeout.current = timeout;
     };
 
     const handleDoubleClick = () => {
@@ -98,11 +100,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
             return;
         }
 
-        // Clear single click timeout since this is a double click
-        if (clickTimeout) {
-            clearTimeout(clickTimeout);
-            setClickTimeout(null);
-        }
+        // The single click action is not wanted: this is a double click
+        clearClickTimeout();
 
         // Double click opens file for file types, project files, and solution files
         if (node.type === 'file' || node.type === 'generatedFile' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution' || node.type === 'grpcReference') {
@@ -328,7 +327,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     return (
         <div>
             <div
-                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${isActiveFile ? 'active' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''}`}
+                className={`tree-node ${node.type} ${isSelected ? 'selected' : ''} ${isFocused ? 'focused' : ''} ${node.isUnloaded ? 'unloaded' : ''} ${node.itemState ?? ''} ${dropTargetId === nodeIdentifier ? 'drop-target' : ''}`}
                 style={{ paddingLeft, cursor: node.isLoading ? 'wait' : 'pointer' }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}

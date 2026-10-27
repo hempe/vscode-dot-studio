@@ -2,8 +2,7 @@ import { NuGetPackage, InstalledPackage, PackageVersionSource } from "../../serv
 import { logger } from "../shared/logger";
 import { BackendCmd } from "../../types/commands/backend";
 import { UICmd } from "../../types/commands/ui";
-import { VSCodeAPI } from "../shared/vscode-api";
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 const log = logger('NuGetReact');
 
@@ -57,16 +56,7 @@ declare global {
     }
 }
 
-const vs: { postMessage(message: BackendCmd): void } = (function () {
-    try {
-        // Try to get the real VS Code API when running in a webview
-        return window.acquireVsCodeApi();
-    } catch {
-        // Fallback to mock API for development/testing
-        log.info('Using fallback VSCodeAPI for development');
-        return new VSCodeAPI();
-    }
-})();
+const vs: { postMessage(message: BackendCmd): void } = window.acquireVsCodeApi();
 
 
 export function sendToBackend(message: BackendCmd) {

@@ -15,9 +15,9 @@ const tree = (startup: 'Web' | 'Worker'): ProjectNode[] => [{
 
 describe('mergeTreeData', () => {
     it('takes over a new startup project (bold name, its context menu)', () => {
-        const before = { projects: tree('Web'), frameworks: [] };
+        const before = { projects: tree('Web') };
 
-        const merged = mergeTreeData(before, { projects: tree('Worker'), frameworks: [] });
+        const merged = mergeTreeData(before, { projects: tree('Worker') });
 
         const [web, worker] = merged.projects[0].children!;
         expect([web.isStartupProject, web.contextValue]).toEqual([false, 'executable']);
@@ -25,9 +25,9 @@ describe('mergeTreeData', () => {
     });
 
     it('keeps the node objects that did not change, so React does not re-render them', () => {
-        const before = { projects: tree('Web'), frameworks: [] };
+        const before = { projects: tree('Web') };
 
-        const merged = mergeTreeData(before, { projects: tree('Web'), frameworks: [] });
+        const merged = mergeTreeData(before, { projects: tree('Web') });
 
         expect(merged.projects[0].children![1]).toBe(before.projects[0].children![1]);
     });

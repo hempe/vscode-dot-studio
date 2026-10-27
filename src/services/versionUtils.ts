@@ -1,4 +1,3 @@
-import * as semver from 'semver';
 
 /**
  * Version comparison utilities that handle both semantic versioning and non-semver formats
@@ -34,24 +33,6 @@ export class VersionUtils {
 
         // Sort in descending order and return the first (highest)
         return candidateVersions.sort((a, b) => this.compare(a, b))[0];
-    }
-
-    /**
-     * Extract major version number from a version string
-     * @param version Version string
-     * @returns Major version number or 0 if cannot be determined
-     */
-    static getMajorVersion(version: string): number {
-        if (!version) return 0;
-
-        // Try semver first
-        if (semver.valid(version)) {
-            return semver.major(version);
-        }
-
-        // Fallback to manual parsing
-        const parts = parseVersionParts(version);
-        return parts[0] || 0;
     }
 
     /**

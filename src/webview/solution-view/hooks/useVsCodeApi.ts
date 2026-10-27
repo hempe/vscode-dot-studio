@@ -212,11 +212,8 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 case 'solutionData':
-                    console.error('📥 Received full solution data:', message.payload);
-                    console.error('📥 Projects count:', message.payload?.projects?.length);
                     setSolutionData(prev => mergeTreeData(prev, message.payload));
                     setLoadError(null);
-                    console.error('📥 Setting loading=false, refreshing=false');
                     setLoading(false);
                     setRefreshing(false);
                     break;
@@ -271,11 +268,6 @@ export const useVsCodeApi = () => {
         };
     }, []);
 
-    const handleFrameworkChange = useCallback((framework: string) => {
-        log.info('Framework change requested:', framework);
-        sendToBackend({ type: 'setFramework', payload: { framework } });
-    }, []);
-
     const handleProjectAction = useCallback((cmd: ProjectActionCmd) => {
         log.info('Project action requested:', cmd);
 
@@ -316,7 +308,6 @@ export const useVsCodeApi = () => {
         refreshing,
         markers,
         iconTheme,
-        handleFrameworkChange,
         handleProjectAction,
         expandNode,
         collapseNode

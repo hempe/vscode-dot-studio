@@ -46,14 +46,6 @@ import type { Project } from '../core/Project';
 
 const log = logger('SolutionActionService');
 
-export interface MessageData {
-    type?: string;
-    newName?: string;
-    name?: string;
-    isConfirmed?: boolean;
-    [key: string]: any;
-}
-
 /**
  * Service responsible for handling all solution and project actions
  * Extracted from SolutionWebviewProvider to improve maintainability
@@ -291,7 +283,7 @@ export class SolutionActionService {
                 break;
 
             case 'paste':
-                await this._handlePaste(nodeId, undefined);
+                await this._handlePaste(nodeId);
                 break;
 
             case 'addFile':
@@ -1518,7 +1510,7 @@ export class SolutionActionService {
     /**
      * Handles pasting a file or folder from the clipboard
      */
-    private static async _handlePaste(nodeId: NodeId, _data?: MessageData): Promise<void> {
+    private static async _handlePaste(nodeId: NodeId): Promise<void> {
         try {
             log.info(`_handlePaste called: nodeId=${nodeId}, clipboard=${JSON.stringify(this.clipboard)}`);
 

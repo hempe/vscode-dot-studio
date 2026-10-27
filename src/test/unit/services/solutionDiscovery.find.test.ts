@@ -11,7 +11,7 @@ jest.mock('vscode', () => ({
 
 import { SolutionDiscovery } from '../../../services/solutionDiscovery';
 
-describe('SolutionDiscovery.discoverSolutions', () => {
+describe('SolutionDiscovery.findSolutionFiles', () => {
     let root: string;
     const touch = (relative: string) => {
         const file = path.join(root, relative);
@@ -26,13 +26,13 @@ describe('SolutionDiscovery.discoverSolutions', () => {
     it('finds a solution in the opened folder', async () => {
         const app = touch('App.slnx');
         touch('src/Other.sln');
-        expect(await SolutionDiscovery.discoverSolutions(root)).toEqual({ type: 'single', solutionPath: app });
+        expect(await SolutionDiscovery.findSolutionFiles(root)).toEqual([app]);
     });
 
     it('offers all solutions of the opened folder', async () => {
         const a = touch('A.sln');
         const b = touch('B.slnx');
-        expect(await SolutionDiscovery.discoverSolutions(root)).toEqual({ type: 'multiple', availableSolutions: [a, b] });
+        expect(await SolutionDiscovery.findSolutionFiles(root)).toEqual([a, b]);
     });
 
     it('looks in subfolders when the opened folder has none (src/App.sln), shallow ones first', async () => {
@@ -43,13 +43,13 @@ describe('SolutionDiscovery.discoverSolutions', () => {
         touch('.git/Weird.sln');
         touch('a/b/c/d/TooDeep.sln');
 
-        expect(await SolutionDiscovery.discoverSolutions(root)).toEqual({ type: 'multiple', availableSolutions: [src, deep] });
+        expect(await SolutionDiscovery.findSolutionFiles(root)).toEqual([src, deep]);
     });
 
     it('finds nothing in a folder without solutions', async () => {
         touch('README.md');
-        expect(await SolutionDiscovery.discoverSolutions(root)).toEqual({ type: 'none' });
-        expect(await SolutionDiscovery.discoverSolutions(path.join(root, 'missing'))).toEqual({ type: 'none' });
+        expect(await SolutionDiscovery.findSolutionFiles(root)).toEqual([]);
+        expect(await SolutionDiscovery.findSolutionFiles(path.join(root, 'missing'))).toEqual([]);
     });
 });
 

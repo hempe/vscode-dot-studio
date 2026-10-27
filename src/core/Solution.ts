@@ -405,18 +405,6 @@ export class Solution {
     }
 
     /**
-     * Gets project by GUID
-     */
-    getProjectByGuid(guid: string): Project | undefined {
-        for (const project of this._projects.values()) {
-            if (project.solutionProject.guid === guid) {
-                return project;
-            }
-        }
-        return undefined;
-    }
-
-    /**
      * Gets all .NET projects (excluding solution folders)
      */
     getDotNetProjects(): Project[] {
@@ -429,14 +417,6 @@ export class Solution {
     getSolutionFolders(): SolutionProject[] {
         if (!this._solutionFile) return [];
         return this._solutionFile.projects.filter(p => SolutionFileParser.isSolutionFolder(p));
-    }
-
-    /**
-     * Gets the project hierarchy as built by the parser
-     */
-    getProjectHierarchy(): Map<string, SolutionProject[]> {
-        if (!this._solutionFile) return new Map();
-        return SolutionFileParser.buildProjectHierarchy(this._solutionFile);
     }
 
     /**

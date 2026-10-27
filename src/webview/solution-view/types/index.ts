@@ -42,9 +42,3 @@ export interface SolutionTreeProps {
     onCollapseNode?: (nodeId: NodeIdString) => void;
     markers?: DiagnosticMarkers;
 }
-
-export interface FrameworkSelectorProps {
-    frameworks: string[];
-    activeFramework?: string;
-    onFrameworkChange: (framework: string) => void;
-}

@@ -1,11 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '../core/logger';
 import { sln } from '../core/utils';
 import { shouldSkipDirectory } from '../core/constants';
-
-const log = logger('SolutionDiscovery');
 
 export interface SolutionDiscoveryResult {
     type: 'none' | 'single' | 'multiple';
@@ -62,33 +59,6 @@ export class SolutionDiscovery {
             }
         }
         return collected;
-    }
-
-    /**
-     * Discovers the solution files of the workspace (see findSolutionFiles)
-     * Returns discovery result with type and available solutions
-     */
-    static async discoverSolutions(workspaceRoot: string): Promise<SolutionDiscoveryResult> {
-        try {
-            const solutionFiles = await this.findSolutionFiles(workspaceRoot);
-
-            if (solutionFiles.length === 0) {
-                return { type: 'none' };
-            } else if (solutionFiles.length === 1) {
-                return {
-                    type: 'single',
-                    solutionPath: solutionFiles[0]
-                };
-            } else {
-                return {
-                    type: 'multiple',
-                    availableSolutions: solutionFiles
-                };
-            }
-        } catch (error) {
-            log.error('Error discovering solution files:', error);
-            return { type: 'none' };
-        }
     }
 
     /**

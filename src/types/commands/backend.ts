@@ -109,13 +109,6 @@ export declare type GetSolutionDataCmd = {
     readonly type: 'getSolutionData'
 }
 
-export declare type SetFrameworkCmd = {
-    readonly type: 'setFramework',
-    readonly payload: {
-        readonly framework: string
-    }
-}
-
 export declare type ProjectActionBackendCmd = {
     readonly type: 'projectAction',
     readonly payload: ProjectActionCmd
@@ -182,7 +175,6 @@ export declare type BackendCmd =
     BulkConsolidatePackagesCmd |
     GetConsolidatePackagesCmd |
     GetSolutionDataCmd |
-    SetFrameworkCmd |
     ProjectActionBackendCmd |
     ExpandNodeCmd |
     CollapseNodeCmd |

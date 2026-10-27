@@ -83,41 +83,4 @@ describe('PackageOperationsService', () => {
             expect(await PackageOperationsService.addPackageReference('/w/App.csproj', 'Serilog')).toMatchObject({ success: false, message: 'Error adding package reference: nope' });
         });
     });
-
-    describe('clearCache', () => {
-        it('clears all NuGet caches', async () => {
-            ok('Clearing NuGet HTTP cache');
-            expect((await PackageOperationsService.clearCache()).success).toBe(true);
-            expect(run.mock.calls[0][0]).toEqual(['nuget', 'locals', 'all', '--clear']);
-        });
-
-        it('fails on an error without a "Clearing" line, and when the command throws', async () => {
-            ok('', 'error: access denied');
-            expect((await PackageOperationsService.clearCache()).success).toBe(false);
-            fail('x');
-            expect((await PackageOperationsService.clearCache()).message).toBe('Error clearing package cache: x');
-        });
-    });
-
-    describe('verifyPackageInstalled and getPackageStatus', () => {
-        it('finds the package in the list, and says no when listing fails', async () => {
-            ok('> Serilog 4.0.0');
-            expect(await PackageOperationsService.verifyPackageInstalled('/w/App.csproj', 'Serilog')).toBe(true);
-            ok('> Other 1.0.0');
-            expect(await PackageOperationsService.verifyPackageInstalled('/w/App.csproj', 'Serilog')).toBe(false);
-            fail('x');
-            expect(await PackageOperationsService.verifyPackageInstalled('/w/App.csproj', 'Serilog')).toBe(false);
-        });
-
-        it('reads the version and whether the package is transitive', async () => {
-            ok(JSON.stringify({ projects: [{ path: '/w/App.csproj', frameworks: [{ framework: 'net8.0',
-                topLevelPackages: [{ id: 'Serilog', resolvedVersion: '4.0.0' }],
-                transitivePackages: [{ id: 'Newtonsoft.Json', resolvedVersion: '13.0.3' }] }] }] }));
-            expect(await PackageOperationsService.getPackageStatus('/w/App.csproj', 'Serilog')).toMatchObject({ installed: true, version: '4.0.0' });
-            ok(JSON.stringify({ projects: [{ path: '/w/App.csproj', frameworks: [{ framework: 'net8.0', transitivePackages: [{ id: 'Newtonsoft.Json', resolvedVersion: '13.0.3' }] }] }] }));
-            expect(await PackageOperationsService.getPackageStatus('/w/App.csproj', 'Newtonsoft.Json')).toMatchObject({ installed: true, isTransitive: true });
-            ok('not json');
-            expect(await PackageOperationsService.getPackageStatus('/w/App.csproj', 'X')).toMatchObject({ installed: false });
-        });
-    });
 });

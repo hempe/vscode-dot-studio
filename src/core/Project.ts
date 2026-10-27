@@ -478,24 +478,10 @@ export class Project {
     }
 
     /**
-     * Checks if a folder is expanded
-     */
-    isFolderExpanded(folderPath: string): boolean {
-        return this._collapsedState.get(folderPath) === false;
-    }
-
-    /**
      * Gets the collapsed state for persistence
      */
     getCollapsedState(): Map<string, boolean> {
         return new Map(this._collapsedState);
-    }
-
-    /**
-     * Sets the collapsed state from persistence
-     */
-    setCollapsedState(state: Map<string, boolean>): void {
-        this._collapsedState = new Map(state);
     }
 
     /**
@@ -520,31 +506,6 @@ export class Project {
         };
 
         return findInNode(this._fileTree);
-    }
-
-    /**
-     * Gets all loaded file paths (for UI updates)
-     */
-    getLoadedFilePaths(): string[] {
-        const paths: string[] = [];
-
-        const collectPaths = (node: ProjectFileNode) => {
-            if (node.type === 'file') {
-                paths.push(node.path);
-            }
-
-            if (node.children && node.isLoaded) {
-                for (const child of node.children) {
-                    collectPaths(child);
-                }
-            }
-        };
-
-        if (this._fileTree) {
-            collectPaths(this._fileTree);
-        }
-
-        return paths;
     }
 
     /** Whether the project node can be expanded: always, every project shows its Dependencies node, as in Visual Studio */
@@ -1060,31 +1021,6 @@ export class Project {
     }
 
     /**
-     * Removes a folder watcher when a directory is collapsed
-     */
-    public removeFolderWatcher(folderPath: string): void {
-        const watcher = this._folderWatchers.get(folderPath);
-        if (!watcher) {
-            log.info(`No folder watcher to remove for: ${folderPath}`);
-            return;
-        }
-
-        log.info(`Removing folder watcher for: ${folderPath}`);
-
-        // Dispose the watcher
-        watcher.dispose();
-        this._folderWatchers.delete(folderPath);
-
-        // Remove from disposables array
-        const index = this._disposables.indexOf(watcher);
-        if (index > -1) {
-            this._disposables.splice(index, 1);
-        }
-
-        log.info(`Folder watcher removed for: ${folderPath}`);
-    }
-
-    /**
      * Disposes all folder watchers
      */
     private _disposeAllFolderWatchers(): void {
@@ -1096,13 +1032,6 @@ export class Project {
         }
 
         this._folderWatchers.clear();
-    }
-
-    /**
-     * Gets all currently watched folder paths
-     */
-    public getWatchedFolders(): string[] {
-        return Array.from(this._folderWatchers.keys());
     }
 
     dispose(): void {

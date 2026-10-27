@@ -183,8 +183,14 @@ export class NodeIdService {
         }
     }
 
-    // Alias for backward compatibility
-    static parseNodeId = NodeIdService.parse;
+    /** Like `parse`, but undefined for anything that is not a node id */
+    static tryParse(nodeId: NodeIdString): NodeId | undefined {
+        try {
+            return this.parse(nodeId);
+        } catch {
+            return undefined;
+        }
+    }
 
     /**
      * Generates a unique ID for a solution node

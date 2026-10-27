@@ -55,25 +55,6 @@ export interface BasicUpdateablePackage {
     readonly projectName: string;
 }
 
-/**
- * Basic consolidation package information from analysis
- * Represents a package that has different versions across projects and needs consolidation
- */
-export interface BasicConsolidationPackage {
-    /** The package identifier (e.g., "Newtonsoft.Json") */
-    readonly id: string;
-    /** The highest version currently used across all projects */
-    readonly currentVersion: string;
-    /** The latest version available from the package source (optional) */
-    readonly latestVersion?: string;
-    /** All versions currently in use across projects */
-    readonly versions: string[];
-    /** Breakdown of which projects use which versions */
-    readonly currentVersions: Array<{ version: string; projects: string[] }>;
-    /** Project information for all projects using this package */
-    readonly projects: ProjectInfo[];
-}
-
 // ============ FULL TYPES (For UI/API) ============
 // These include full metadata from NuGet API
 

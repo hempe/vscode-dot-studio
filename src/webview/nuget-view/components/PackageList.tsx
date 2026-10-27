@@ -62,6 +62,8 @@ export const PackageList: React.FC<PackageListProps> = ({
     onToggleCollapsed,
     indexOffset = 0
 }) => {
+    // Icons that did not load show the package emoji instead (React owns the element, so no innerHTML)
+    const [brokenIcons, setBrokenIcons] = React.useState<ReadonlySet<string>>(new Set());
     const uniquePackages = ensureArray(packages);
     // Helper function to determine if a version is prerelease using semver
     const includePrereleaseFn = (includePrerelease: boolean): (versions: string) => boolean => VersionUtils.includePrerelease(includePrerelease);
@@ -127,7 +129,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                             <div style={{
                                 width: '24px',
                                 height: '24px',
-                                background: getPackageIconUrl(pkg) ? 'transparent' : 'var(--vscode-button-background)',
+                                background: (!brokenIcons.has(pkg.id) && getPackageIconUrl(pkg)) ? 'transparent' : 'var(--vscode-button-background)',
                                 borderRadius: '2px',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -138,7 +140,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                 overflow: 'hidden'
                             }}>
                                 {(() => {
-                                    const iconUrl = getPackageIconUrl(pkg);
+                                    const iconUrl = brokenIcons.has(pkg.id) ? '' : getPackageIconUrl(pkg);
                                     return iconUrl ? (
                                         <img
                                             src={iconUrl}
@@ -148,13 +150,7 @@ export const PackageList: React.FC<PackageListProps> = ({
                                                 height: '20px',
                                                 objectFit: 'contain'
                                             }}
-                                            onError={(e) => {
-                                                // Fallback to emoji if image fails to load
-                                                (e.target as HTMLImageElement).style.display = 'none';
-                                                const parent = (e.target as HTMLImageElement).parentElement!;
-                                                parent.style.background = 'var(--vscode-button-background)';
-                                                parent.innerHTML = '📦';
-                                            }}
+                                            onError={() => setBrokenIcons(prev => new Set(prev).add(pkg.id))}
                                         />
                                     ) : (
                                         '📦'

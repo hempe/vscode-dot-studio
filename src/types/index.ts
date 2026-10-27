@@ -62,8 +62,6 @@ export interface ProjectNode {
 
 export interface SolutionData {
     readonly projects: ProjectNode[];
-    readonly frameworks: string[];
-    readonly activeFramework?: string;
 }
 
 /** Diagnostic counts of a file, or rolled up for a tree node */
