@@ -55,25 +55,35 @@ export class StartupProjectsPanel {
             StartupChoice.onDidChange(() => void this.postState()),
         );
         this.watchSolution();
+        // Open Solution replaces the solution: follow the new one
+        this.subscriptions.push(SolutionService.onDidChangeActiveSolution(() => {
+            this.watchSolution();
+            void this.postState();
+        }));
         this.panel.onDidDispose(() => {
             StartupProjectsPanel.current = undefined;
+            this.solutionWatchers.forEach(watcher => watcher.dispose());
             this.subscriptions.forEach(subscription => subscription.dispose());
         });
     }
 
     /** Refreshes the tab when the solution or its profile files change (in Visual Studio, by hand) */
     private watchSolution(): void {
+        this.solutionWatchers.forEach(watcher => watcher.dispose());
+        this.solutionWatchers = [];
         const solution = SolutionService.getActiveSolution();
         if (!solution) {
             return;
         }
-        this.subscriptions.push(solution.onDidChange(() => void this.postState()));
         const files = slnLaunchPaths(solution.solutionPath);
         const watcher = vscode.workspace.createFileSystemWatcher(
             new vscode.RelativePattern(path.dirname(files.shared), `${path.basename(files.shared)}*`));
         const changed = () => void this.postState();
-        this.subscriptions.push(watcher, watcher.onDidCreate(changed), watcher.onDidChange(changed), watcher.onDidDelete(changed));
+        this.solutionWatchers = [solution.onDidChange(changed), watcher, watcher.onDidCreate(changed), watcher.onDidChange(changed), watcher.onDidDelete(changed)];
     }
+
+    /** What listens to the solution that is open now; replaced when another solution is opened */
+    private solutionWatchers: { dispose(): void }[] = [];
 
     private post(message: StartupProjectsMessage): Thenable<boolean> {
         return this.panel.webview.postMessage(message);

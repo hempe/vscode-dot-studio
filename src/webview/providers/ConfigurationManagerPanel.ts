@@ -55,19 +55,27 @@ export class ConfigurationManagerPanel {
             BuildConfiguration.onDidChange(() => void this.postState()),
         );
         this.watchSolution();
+        // Open Solution replaces the solution: follow the new one
+        this.subscriptions.push(SolutionService.onDidChangeActiveSolution(() => {
+            this.watchSolution();
+            void this.postState();
+        }));
         this.panel.onDidDispose(() => {
             ConfigurationManagerPanel.current = undefined;
+            this.solutionChanges?.dispose();
             this.subscriptions.forEach(subscription => subscription.dispose());
         });
     }
 
     /** Refreshes the tab when the solution open at that time changes */
     private watchSolution(): void {
+        this.solutionChanges?.dispose();
+        this.solutionChanges = undefined;
         this.solution = SolutionService.getActiveSolution();
-        if (this.solution) {
-            this.subscriptions.push(this.solution.onDidChange(() => void this.postState()));
-        }
+        this.solutionChanges = this.solution?.onDidChange(() => void this.postState());
     }
+
+    private solutionChanges: { dispose(): void } | undefined;
 
     private post(message: ConfigurationManagerMessage): Thenable<boolean> {
         return this.panel.webview.postMessage(message);
