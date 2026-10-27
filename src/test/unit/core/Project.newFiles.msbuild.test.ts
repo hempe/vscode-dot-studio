@@ -86,4 +86,27 @@ describe('files created while their folder was collapsed, with real MSBuild', ()
         await until('Sub/C.cs to show', async () => (await names(loaded.getFolderChildren(at('Sub')))).includes('C.cs'));
         expect(service.evaluatedAt(projectPath)).toBeGreaterThan(evaluated);
     }, TIMEOUT);
+
+    withDotnet('a file moved (renamed) in from elsewhere keeps its old timestamps and shows all the same', async () => {
+        const projectPath = at('App.csproj');
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n');
+        fs.writeFileSync(at('Sub', 'A.cs'), '');
+        const service = ProjectItemsService.instance;
+        project = new Project(projectPath, { name: 'App', path: 'App.csproj', guid: 'g', typeGuid: 't' } as never);
+        await until('the first evaluation', async () => service.evaluatedAt(projectPath) !== undefined);
+        const loaded = project;
+        const evaluated = service.evaluatedAt(projectPath)!;
+        await until('a clock tick after the evaluation', async () => Date.now() > evaluated + 10);
+
+        // Written long ago somewhere else, then moved in: rename keeps the file's timestamps
+        const moved = path.join(root, 'Moved.cs');
+        fs.writeFileSync(moved, '');
+        const longAgo = (Date.now() - 3600000) / 1000;
+        fs.utimesSync(moved, longAgo, longAgo);
+        fs.renameSync(moved, at('Sub', 'Moved.cs'));
+
+        await loaded.getRootChildren();
+        expect(await names(loaded.getFolderChildren(at('Sub')))).toEqual(['A.cs']);
+        await until('Sub/Moved.cs to show', async () => (await names(loaded.getFolderChildren(at('Sub')))).includes('Moved.cs'));
+    }, TIMEOUT);
 });

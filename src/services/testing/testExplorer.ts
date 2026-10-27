@@ -147,7 +147,16 @@ const defaultDeps: TestExplorerDeps = {
     hasVsTestBridge: targetPath => fs.existsSync(path.join(path.dirname(targetPath), 'Microsoft.Testing.Extensions.VSTestBridge.dll')),
     writeRunSettings: content => {
         // One file per content: concurrent runs of projects with different settings don't overwrite each other
-        const file = path.join(privateTempDir('runsettings'), `${createHash('sha256').update(content).digest('hex').slice(0, 16)}.runsettings`);
+        const folder = privateTempDir('runsettings');
+        // The temp folder is not emptied on Windows: files of earlier sessions go
+        for (const name of fs.readdirSync(folder)) {
+            try {
+                if (Date.now() - fs.statSync(path.join(folder, name)).mtimeMs > 24 * 3600 * 1000) {
+                    fs.rmSync(path.join(folder, name), { force: true });
+                }
+            } catch { /* in use or gone */ }
+        }
+        const file = path.join(folder, `${createHash('sha256').update(content).digest('hex').slice(0, 16)}.runsettings`);
         fs.writeFileSync(file, content, 'utf8');
         return file;
     },

@@ -18,7 +18,6 @@ Bugs found later are listed here, to be fixed.
 ## Phase 23: Limitations to look at after the code review
 Edge cases and cosmetics; decided to leave until the code review of Phase 22 is done. Phase 35 holds the per-framework package work.
 
-- [ ] A file moved (renamed) on disk from elsewhere into a folder that is not shown keeps its old timestamps, so reading the folder does not take it for new and it stays hidden until the project is evaluated again; files created, copied or extracted there show (a folder read from disk evaluates again when an entry the item list lacks is newer than the evaluation)
 - [ ] After moving a solution folder of a `.slnx` file without an `Id` by drag & drop, the moved folder and the folders in it show collapsed (their tree ids come from their path)
 - [ ] Central Package Management: the Updates tab does not offer updates of pinned transitive packages (`CentralPackageTransitivePinningEnabled`); update them in `Directory.Packages.props`
 - [ ] gRPC references: the Connected Services node of a project without that folder becomes the folder once a WCF reference creates it (its expansion state is not carried over)

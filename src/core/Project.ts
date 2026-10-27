@@ -943,7 +943,8 @@ export class Project {
         if (unlisted.length === 0) {
             return;
         }
-        const unseen = (await changedSince(unlisted, evaluatedAt))
+        // A file moved (renamed) in keeps its old timestamps, but its folder changed: that counts too
+        const unseen = (await changedSince([...unlisted, folderPath], evaluatedAt))
             .map(entry => `${entry.path}|${entry.changedAt}`)
             .filter(key => !this._reevaluatedFor.has(key));
         if (unseen.length > 0) {
