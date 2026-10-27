@@ -124,25 +124,7 @@ export class SolutionFileParser {
             }
 
             try {
-                // CRITICAL: Normalize and validate before resolving paths
-                let projectPath = project.path;
-
-                // Normalize path separators
-                projectPath = projectPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
-
-                // Check for system paths before resolving
-                if (isSystemPath(projectPath)) {
-                    log.error(`BLOCKED: Framework enhancement - project path is system path: ${projectPath}`);
-                    continue;
-                }
-
-                const fullProjectPath = path.resolve(solutionDir, projectPath);
-
-                // Double-check resolved path
-                if (isSystemPath(fullProjectPath)) {
-                    log.error(`BLOCKED: Framework enhancement - resolved path is system path: ${fullProjectPath}`);
-                    continue;
-                }
+                const fullProjectPath = path.resolve(solutionDir, this.checkedProjectPath(project.path, solutionDir));
 
                 const projectContent = await fs.promises.readFile(fullProjectPath, 'utf8');
                 const projectData = await parser.parseStringPromise(projectContent);
@@ -175,6 +157,19 @@ export class SolutionFileParser {
         }
     }
 
+    /**
+     * The path of a project entry with this platform's separators. System folders are refused, written or resolved
+     * (`..\\..\\etc`): a solution file is not trusted to point there.
+     */
+    private static checkedProjectPath(raw: string, solutionDir: string): string {
+        const projectPath = raw.replace(/[\\/]/g, path.sep);
+        if (isSystemPath(projectPath) || isSystemPath(path.resolve(solutionDir, projectPath))) {
+            log.error(`BLOCKED: project path ${projectPath} is, or resolves to, a system path`);
+            throw new Error(`Invalid project path: ${projectPath} (system path)`);
+        }
+        return projectPath;
+    }
+
     private static parseProject(lines: string[], startIndex: number, solutionDir: string): { project: SolutionProject; nextIndex: number } {
         const projectLine = lines[startIndex];
         const projectMatch = projectLine.match(/Project\("([^"]+)"\)\s*=\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"/);
@@ -188,39 +183,7 @@ export class SolutionFileParser {
         const typeGuid = rawTypeGuid.toUpperCase();
         const guid = rawGuid.toUpperCase();
 
-        // CRITICAL: Normalize and validate project path
-        log.info(`Parsing project: ${name} with raw path: "${projectPathRaw}"`);
-        log.info(`Raw path length: ${projectPathRaw.length}, first char code: ${projectPathRaw.charCodeAt(0)}`);
-
-        // Fix common path issues from solution files
-        let projectPath = projectPathRaw;
-
-        // Normalize path separators to current platform
-        projectPath = projectPath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
-
-        log.info(`Normalized project path: ${projectPath}`);
-
-        // Check for obviously bad paths AFTER normalization
-        if (isSystemPath(projectPath)) {
-            log.error(`BLOCKED: Normalized project path is a system path: ${projectPath}`);
-            throw new Error(`Invalid project path: ${projectPath} (system path)`);
-        }
-
-        // Resolve and validate the full path
-        let fullProjectPath;
-        try {
-            fullProjectPath = path.resolve(solutionDir, projectPath);
-        } catch (error) {
-            log.error(`BLOCKED: Failed to resolve project path: ${projectPath}`, error);
-            throw new Error(`Cannot resolve project path: ${projectPath}`);
-        }
-
-        if (isSystemPath(fullProjectPath)) {
-            log.error(`BLOCKED: Resolved project path is a system path: ${fullProjectPath}`);
-            throw new Error(`Invalid resolved project path: ${fullProjectPath} (system path)`);
-        }
-
-        log.info(`Project ${name} resolved to: ${fullProjectPath}`);
+        const projectPath = this.checkedProjectPath(projectPathRaw, solutionDir);
 
         const project: SolutionProject = {
             typeGuid,

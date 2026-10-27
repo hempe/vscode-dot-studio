@@ -20,9 +20,8 @@ describe('SDK-style projects that target .NET Framework', () => {
         expect(solution.projects.find(p => p.name === 'Multi.Lib')?.targetFrameworks).toEqual(['net48', 'net10.0']);
     });
 
-    it('lists the files and the package references of the project', async () => {
-        const parsed = await new ProjectFileParser().parseProjectFiles(path.join(fixture, 'Legacy.App', 'Legacy.App.csproj'));
-        expect(parsed.files.map(file => path.basename(file.path ?? String(file)))).toContain('Program.cs');
-        expect(parsed.dependencies).toEqual([{ name: 'Newtonsoft.Json', version: '13.0.3', type: 'PackageReference' }]);
+    it('lists the package references of the project', async () => {
+        const parsed = await new ProjectFileParser().parseDependencies(path.join(fixture, 'Legacy.App', 'Legacy.App.csproj'));
+        expect(parsed).toEqual([{ name: 'Newtonsoft.Json', version: '13.0.3', type: 'PackageReference' }]);
     });
 });

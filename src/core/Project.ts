@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
+import { ProjectFileParser } from '../parsers/projectFileParser';
 import { isExecutableProject, usesEntityFramework } from '../parsers/projectKind';
 import { parseTargetFrameworks } from '../parsers/targetFrameworks';
 import { isTestProjectCandidate, projectTextWithBuildProps } from '../services/testing/testProjects';
@@ -82,7 +82,6 @@ const REEVALUATE_AFTER_CREATE_MS = 300;
 export class Project {
     private _disposables: vscode.Disposable[] = [];
     private _fileWatcher?: vscode.FileSystemWatcher;
-    private _projectStructure?: ProjectFileStructure;
     private _fileTree?: ProjectFileNode;
     private _dependencies: ProjectDependency[] = [];
     private _frameworks: string[] = [];
@@ -313,8 +312,7 @@ export class Project {
         try {
             const parser = new ProjectFileParser();
 
-            this._projectStructure = await parser.parseProjectFiles(this._projectPath);
-            this._dependencies = this._projectStructure.dependencies || [];
+            this._dependencies = await parser.parseDependencies(this._projectPath);
             const projectXml = await fs.promises.readFile(this._projectPath, 'utf8');
             // From the project file itself, so editing TargetFrameworks shows up without reloading the solution
             const declared = await parseTargetFrameworks(projectXml).catch(() => []);

@@ -1,16 +1,8 @@
-import { glob } from 'glob';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
-import { excludePatterns, isSystemPath } from '../core/constants';
+import { isSystemPath } from '../core/constants';
 import { logger } from '../core/logger';
-
-export interface ProjectFile {
-    path: string;
-    relativePath: string;
-    isDirectory: boolean;
-    itemType?: string; // Compile, Content, None, etc.
-}
 
 export interface Dependency {
     name: string;
@@ -19,165 +11,12 @@ export interface Dependency {
     path?: string; // For ProjectReferences
 }
 
-export interface ProjectFileStructure {
-    files: ProjectFile[];
-    directories: Set<string>;
-    dependencies: Dependency[];
-}
-
-const searchPattern = '**/*';  // everything under projectDir
 const log = logger('ProjectFileParser');
 
+/** Reads what a project file references: packages, projects, shared frameworks and assemblies */
 export class ProjectFileParser {
 
-    constructor() { }
-
-    async parseProjectFiles(projectPath: string): Promise<ProjectFileStructure> {
-        try {
-            // CRITICAL: Validate project path before any operations
-            if (isSystemPath(projectPath)) {
-                log.warn(`Blocked attempt to parse system path project: ${projectPath}`);
-                return { files: [], directories: new Set(), dependencies: [] };
-            }
-
-            // Check if project file exists before proceeding
-            try {
-                await fs.promises.access(projectPath, fs.constants.F_OK);
-            } catch (accessError) {
-                log.warn(`Project file does not exist: ${projectPath}`);
-                log.warn(`This project is referenced in solution but file is missing`);
-                return { files: [], directories: new Set(), dependencies: [] };
-            }
-
-            const projectDir = path.dirname(projectPath);
-
-            // CRITICAL: Validate project directory
-            if (isSystemPath(projectDir)) {
-                log.warn(`Blocked attempt to parse project in system directory: ${projectDir}`);
-                return { files: [], directories: new Set(), dependencies: [] };
-            }
-
-            // Parse dependencies from project file
-            const dependencies = await this.parseDependencies(projectPath);
-
-            // Use file patterns based on our relevant extensions
-            const pattern = `**/*.*`;
-            const allFiles: string[] = [];
-
-            // Check if project is within workspace
-
-            if (isSystemPath(projectDir)) {
-                log.warn(`Skipping system directory project: ${projectDir}`);
-
-            } else {
-                // Use glob search for projects within workspace                
-                try {
-                    const files = await glob(searchPattern, {
-                        cwd: projectDir,
-                        ignore: excludePatterns,
-                        absolute: true,
-                        dot: false
-                    });
-
-                    allFiles.push(...files);
-                } catch (error) {
-                    // Continue with other patterns even if one fails
-                    log.error(`Pattern ${pattern} failed:`, error);
-                }
-            }
-
-            // Remove duplicates and filter
-            const uniqueFiles = [...new Set(allFiles)];
-            const filteredFiles = uniqueFiles.filter(file => !this.shouldSkipFile(file, projectPath));
-
-            // Build structure with dependencies
-            const fileStructure = this.buildSimpleFileStructure(filteredFiles, projectDir);
-            return {
-                ...fileStructure,
-                dependencies
-            };
-
-        } catch (error) {
-            log.error('Error parsing project file:', error);
-            return { files: [], directories: new Set(), dependencies: [] };
-        }
-    }
-
-    // Remove this method since we now use the shared function from constants
-
-    private shouldSkipFile(filePath: string, projectPath: string): boolean {
-        // Skip the project file itself - it's the "node" that defines the tree
-        if (filePath === projectPath) {
-            return true;
-        }
-
-        // Skip other common files that shouldn't appear in project tree
-        const fileName = path.basename(filePath);
-        const skipFiles = ['.gitignore', '.gitattributes', 'Directory.Build.props', 'Directory.Build.targets'];
-
-        return skipFiles.includes(fileName);
-    }
-
-    private getDefaultItemType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-
-        switch (ext) {
-            case '.cs':
-            case '.vb':
-            case '.fs':
-                return 'Compile';
-            case '.resx':
-                return 'EmbeddedResource';
-            case '.config':
-            case '.json':
-            case '.xml':
-                return 'Content';
-            default:
-                return 'None';
-        }
-    }
-
-
-    private buildSimpleFileStructure(files: string[], projectDir: string): ProjectFileStructure {
-        const result: ProjectFile[] = [];
-        const directories = new Set<string>();
-
-        for (const filePath of files) {
-            const relativePath = path.relative(projectDir, filePath).replace(/\\/g, '/');
-
-            result.push({
-                path: filePath,
-                relativePath,
-                isDirectory: false,
-                itemType: this.getDefaultItemType(filePath)
-            });
-
-            // Add parent directories
-            const dirPath = path.dirname(relativePath);
-            if (dirPath !== '.') {
-                const parts = dirPath.split('/');
-                let currentPath = '';
-
-                for (const part of parts) {
-                    currentPath = currentPath ? `${currentPath}/${part}` : part;
-                    directories.add(currentPath);
-                }
-            }
-        }
-
-        // Add directory entries
-        for (const dir of directories) {
-            result.push({
-                path: path.resolve(projectDir, dir),
-                relativePath: dir,
-                isDirectory: true
-            });
-        }
-
-        return { files: result, directories, dependencies: [] };
-    }
-
-    private async parseDependencies(projectPath: string): Promise<Dependency[]> {
+    async parseDependencies(projectPath: string): Promise<Dependency[]> {
         try {
             // Validate path is not a system path (already resolved absolute path)
             if (isSystemPath(projectPath)) {

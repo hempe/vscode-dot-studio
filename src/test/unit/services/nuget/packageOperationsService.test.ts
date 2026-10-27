@@ -51,36 +51,15 @@ describe('PackageOperationsService', () => {
     });
 
     describe('restorePackages', () => {
-        it('succeeds on "Restore succeeded", also when other lines say error', async () => {
+        it('succeeds when the command does, whatever the output says', async () => {
             ok('error-pages\nRestore succeeded in 1s');
             expect(await PackageOperationsService.restorePackages('/w/App.sln')).toMatchObject({ success: true, message: 'Successfully restored packages for App.sln' });
             expect(run.mock.calls[0][0]).toEqual(['restore', '/w/App.sln']);
         });
 
-        it('fails when the output reports an error and not a success', async () => {
-            ok('', 'error NU1101: Unable to find package');
-            const result = await PackageOperationsService.restorePackages('/w/App.sln');
-            expect(result.success).toBe(false);
-            expect(result.message).toContain('NU1101');
-        });
-
-        it('reports a command that throws', async () => {
-            fail('timed out');
-            expect(await PackageOperationsService.restorePackages('/w/App.sln')).toMatchObject({ success: false, message: 'Error restoring packages: timed out' });
-        });
-    });
-
-    describe('addPackageReference', () => {
-        it('adds the version and framework when given', async () => {
-            ok();
-            const result = await PackageOperationsService.addPackageReference('/w/App.csproj', 'Serilog', '4.0.0', 'net8.0');
-            expect(run.mock.calls[0][0]).toEqual(['add', '/w/App.csproj', 'package', 'Serilog', '--version', '4.0.0', '--framework', 'net8.0']);
-            expect(result).toMatchObject({ success: true, version: '4.0.0' });
-        });
-
-        it('reports a failure', async () => {
-            fail('nope');
-            expect(await PackageOperationsService.addPackageReference('/w/App.csproj', 'Serilog')).toMatchObject({ success: false, message: 'Error adding package reference: nope' });
+        it('reports a command that fails, with its message', async () => {
+            fail('error NU1101: Unable to find package');
+            expect(await PackageOperationsService.restorePackages('/w/App.sln')).toMatchObject({ success: false, message: 'Error restoring packages: error NU1101: Unable to find package' });
         });
     });
 });

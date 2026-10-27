@@ -260,41 +260,6 @@ export class SolutionXFileParser {
         return `{${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}}`;
     }
 
-    /**
-     * Serializes a SolutionFile object to .slnx XML format
-     *
-     * @param solutionFile - The solution file object to serialize
-     * @returns XML string in .slnx format
-     */
-    public static async serialize(solutionFile: SolutionFile): Promise<string> {
-        try {
-            log.debug('Serializing SolutionFile to .slnx XML');
-
-            // TODO: Implement .slnx serialization
-            // Convert SolutionFile structure to .slnx XML format
-
-            const builder = new xml2js.Builder({
-                rootName: 'Solution',
-                xmldec: { version: '1.0', encoding: 'UTF-8' }
-            });
-
-            // For now, create minimal XML structure
-            const xml = builder.buildObject({
-                '@': {
-                    Version: solutionFile.formatVersion || '1.0'
-                }
-                // TODO: Add Project, Folder, Configuration elements
-            });
-
-            log.warn('.slnx serialization not yet implemented');
-            return xml;
-
-        } catch (error) {
-            log.error('Error serializing to .slnx:', error);
-            throw new Error(`Failed to serialize .slnx file: ${error}`);
-        }
-    }
-
     // Utility methods (same as SolutionFileParser for consistency)
 
     public static isSolutionFolder(project: SolutionProject): boolean {

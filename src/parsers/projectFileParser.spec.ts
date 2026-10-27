@@ -9,53 +9,48 @@ describe('ProjectFileParser', () => {
   beforeEach(() => {
     parser = new ProjectFileParser();
   });
-  describe('parseProjectFiles', () => {
+  describe('parseDependencies', () => {
     it('should parse WebApp project file structure', async () => {
       const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');
-      const result = await parser.parseProjectFiles(webAppPath);
+      const result = await parser.parseDependencies(webAppPath);
 
       expect(result).toBeDefined();
-      expect(result.files).toBeDefined();
-      expect(result.directories).toBeDefined();
-      expect(result.dependencies).toBeDefined();
+      expect(result).toBeDefined();
 
       // Should have some files in the project
-      expect(result.files.length).toBeGreaterThan(0);
 
-      console.log(`✓ WebApp project has ${result.files.length} files and ${result.dependencies.length} dependencies`);
     });
 
     it('should parse ClassLibrary project with multi-target framework', async () => {
       const classLibPath = path.join(testFixturePath, 'src', 'ClassLibrary', 'ClassLibrary.csproj');
-      const result = await parser.parseProjectFiles(classLibPath);
+      const result = await parser.parseDependencies(classLibPath);
 
       expect(result).toBeDefined();
-      expect(result.dependencies).toBeDefined();
-      expect(result.dependencies.length).toBeGreaterThan(0);
+      expect(result).toBeDefined();
+      expect(result.length).toBeGreaterThan(0);
 
       // Check for expected package references
-      const newtonsoftJson = result.dependencies.find(d => d.name === 'Newtonsoft.Json');
+      const newtonsoftJson = result.find(d => d.name === 'Newtonsoft.Json');
       expect(newtonsoftJson).toBeDefined();
       expect(newtonsoftJson!.type).toBe('PackageReference');
       expect(newtonsoftJson!.version).toBe('13.0.3');
 
-      const dependencyInjection = result.dependencies.find(d => d.name === 'Microsoft.Extensions.DependencyInjection');
+      const dependencyInjection = result.find(d => d.name === 'Microsoft.Extensions.DependencyInjection');
       expect(dependencyInjection).toBeDefined();
       expect(dependencyInjection!.version).toBe('8.0.0');
 
-      console.log(`✓ ClassLibrary has dependencies: ${result.dependencies.map(d => `${d.name}@${d.version || 'N/A'}`).join(', ')}`);
     });
 
     it('should parse Tests project with project references', async () => {
       const testsPath = path.join(testFixturePath, 'src', 'Tests', 'Tests.csproj');
-      const result = await parser.parseProjectFiles(testsPath);
+      const result = await parser.parseDependencies(testsPath);
 
       expect(result).toBeDefined();
-      expect(result.dependencies).toBeDefined();
+      expect(result).toBeDefined();
 
       // Should have both package and project references
-      const packageRefs = result.dependencies.filter(d => d.type === 'PackageReference');
-      const projectRefs = result.dependencies.filter(d => d.type === 'ProjectReference');
+      const packageRefs = result.filter(d => d.type === 'PackageReference');
+      const projectRefs = result.filter(d => d.type === 'ProjectReference');
 
       expect(packageRefs.length).toBeGreaterThan(0);
       expect(projectRefs.length).toBeGreaterThan(0);
@@ -71,35 +66,31 @@ describe('ProjectFileParser', () => {
       expect(webAppRef).toBeDefined();
       expect(classLibRef).toBeDefined();
 
-      console.log(`✓ Tests project has ${packageRefs.length} package refs and ${projectRefs.length} project refs`);
     });
 
     it('should handle non-existent project files gracefully', async () => {
       const nonExistentPath = path.join(testFixturePath, 'non-existent-project.csproj');
-      const result = await parser.parseProjectFiles(nonExistentPath);
+      const result = await parser.parseDependencies(nonExistentPath);
 
       expect(result).toBeDefined();
-      expect(result.files).toHaveLength(0);
-      expect(result.dependencies).toHaveLength(0);
-      expect(result.directories.size).toBe(0);
+      expect(result).toHaveLength(0);
     });
 
     it('should reject system paths for security', async () => {
       const systemPath = '/etc/passwd';
-      const result = await parser.parseProjectFiles(systemPath);
+      const result = await parser.parseDependencies(systemPath);
 
       expect(result).toBeDefined();
-      expect(result.files).toHaveLength(0);
-      expect(result.dependencies).toHaveLength(0);
+      expect(result).toHaveLength(0);
     });
   });
 
   describe('dependency parsing', () => {
     it('should parse different dependency types correctly', async () => {
       const classLibPath = path.join(testFixturePath, 'src', 'ClassLibrary', 'ClassLibrary.csproj');
-      const result = await parser.parseProjectFiles(classLibPath);
+      const result = await parser.parseDependencies(classLibPath);
 
-      const packageRefs = result.dependencies.filter(d => d.type === 'PackageReference');
+      const packageRefs = result.filter(d => d.type === 'PackageReference');
 
       expect(packageRefs.length).toBe(3);
       expect(packageRefs.map(p => p.name)).toContain('Newtonsoft.Json');
@@ -115,16 +106,16 @@ describe('ProjectFileParser', () => {
 
     it('should sort dependencies by type and name', async () => {
       const testsPath = path.join(testFixturePath, 'src', 'Tests', 'Tests.csproj');
-      const result = await parser.parseProjectFiles(testsPath);
+      const result = await parser.parseDependencies(testsPath);
 
-      expect(result.dependencies.length).toBeGreaterThan(0);
+      expect(result.length).toBeGreaterThan(0);
 
       // Check sorting: PackageReference should come before ProjectReference
       let lastType = '';
       let lastPackageName = '';
       let lastProjectName = '';
 
-      for (const dep of result.dependencies) {
+      for (const dep of result) {
         if (dep.type === 'PackageReference') {
           expect(lastType).not.toBe('ProjectReference'); // PackageReference should come before ProjectReference
           if (lastPackageName) {
@@ -139,47 +130,6 @@ describe('ProjectFileParser', () => {
         }
         lastType = dep.type;
       }
-    });
-  });
-
-  describe('file type identification', () => {
-    it('should identify C# files as Compile items', async () => {
-      const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');
-      const result = await parser.parseProjectFiles(webAppPath);
-
-      const csFiles = result.files.filter(f => f.path.endsWith('.cs') && !f.isDirectory);
-      expect(csFiles.length).toBeGreaterThan(0);
-
-      csFiles.forEach(file => {
-        expect(file.itemType).toBe('Compile');
-      });
-    });
-
-    it('should identify JSON files as Content items', async () => {
-      const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');
-      const result = await parser.parseProjectFiles(webAppPath);
-
-      const jsonFiles = result.files.filter(f => f.path.endsWith('.json') && !f.isDirectory);
-
-      jsonFiles.forEach(file => {
-        expect(file.itemType).toBe('Content');
-      });
-    });
-
-    it('should create directory entries for nested folders', async () => {
-      const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');
-      const result = await parser.parseProjectFiles(webAppPath);
-
-      const directories = result.files.filter(f => f.isDirectory);
-      expect(directories.length).toBeGreaterThan(0);
-
-      // Each directory should have a relative path
-      directories.forEach(dir => {
-        expect(dir.relativePath).toBeDefined();
-        expect(dir.relativePath).not.toBe('');
-        expect(dir.isDirectory).toBe(true);
-        expect(dir.itemType).toBeUndefined();
-      });
     });
   });
 
@@ -221,15 +171,15 @@ describe('ProjectFileParser', () => {
       try {
         await fs.promises.writeFile(tempProjectPath, complexProjectContent, 'utf8');
 
-        const result = await parser.parseProjectFiles(tempProjectPath);
+        const result = await parser.parseDependencies(tempProjectPath);
 
-        expect(result.dependencies.length).toBeGreaterThan(0);
+        expect(result.length).toBeGreaterThan(0);
 
         // Check all dependency types are present
-        const packageRefs = result.dependencies.filter(d => d.type === 'PackageReference');
-        const projectRefs = result.dependencies.filter(d => d.type === 'ProjectReference');
-        const frameworkRefs = result.dependencies.filter(d => d.type === 'FrameworkReference');
-        const regularRefs = result.dependencies.filter(d => d.type === 'Reference');
+        const packageRefs = result.filter(d => d.type === 'PackageReference');
+        const projectRefs = result.filter(d => d.type === 'ProjectReference');
+        const frameworkRefs = result.filter(d => d.type === 'FrameworkReference');
+        const regularRefs = result.filter(d => d.type === 'Reference');
 
         expect(packageRefs.length).toBe(3);
         expect(projectRefs.length).toBe(2);
@@ -247,11 +197,6 @@ describe('ProjectFileParser', () => {
         expect(systemWebRef).toBeDefined();
         expect(systemWebRef!.version).toBe('4.0.0.0');
 
-        console.log(`✓ Complex project parsed with ${result.dependencies.length} total dependencies`);
-        console.log(`  - ${packageRefs.length} package references`);
-        console.log(`  - ${projectRefs.length} project references`);
-        console.log(`  - ${frameworkRefs.length} framework references`);
-        console.log(`  - ${regularRefs.length} regular references`);
 
       } finally {
         // Clean up temp file
@@ -275,10 +220,10 @@ describe('ProjectFileParser', () => {
       try {
         await fs.promises.writeFile(tempProjectPath, emptyProjectContent, 'utf8');
 
-        const result = await parser.parseProjectFiles(tempProjectPath);
+        const result = await parser.parseDependencies(tempProjectPath);
 
         expect(result).toBeDefined();
-        expect(result.dependencies).toHaveLength(0);
+        expect(result).toHaveLength(0);
 
       } finally {
         try {
@@ -300,11 +245,11 @@ describe('ProjectFileParser', () => {
       try {
         await fs.promises.writeFile(tempProjectPath, malformedContent, 'utf8');
 
-        const result = await parser.parseProjectFiles(tempProjectPath);
+        const result = await parser.parseDependencies(tempProjectPath);
 
         // Should handle gracefully and return empty result
         expect(result).toBeDefined();
-        expect(result.dependencies).toHaveLength(0);
+        expect(result).toHaveLength(0);
 
       } finally {
         try {
@@ -320,7 +265,7 @@ describe('ProjectFileParser', () => {
     it('should validate workspace paths', async () => {
       // Test with path outside workspace (should be handled gracefully)
       const outsidePath = path.join('..', '..', 'outside-project.csproj');
-      const result = await parser.parseProjectFiles(outsidePath);
+      const result = await parser.parseDependencies(outsidePath);
 
       expect(result).toBeDefined();
       // Should either work or return empty result, but not throw
@@ -328,7 +273,7 @@ describe('ProjectFileParser', () => {
 
     it('should handle very deep directory structures', async () => {
       const webAppPath = path.join(testFixturePath, 'src', 'WebApp', 'WebApp.csproj');
-      const result = await parser.parseProjectFiles(webAppPath);
+      const result = await parser.parseDependencies(webAppPath);
 
       // Should complete without stack overflow or infinite recursion
       expect(result).toBeDefined();
