@@ -625,6 +625,21 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.addMigration",
+        "title": "Add Migration...",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.updateDatabase",
+        "title": "Update Database",
+        "category": ".NET"
+      },
+      {
+        "command": "shinobi.solutionExplorer.removeMigration",
+        "title": "Remove Last Migration",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.pack",
         "title": "Pack",
         "category": ".NET"
@@ -739,6 +754,10 @@
       {
         "id": "shinobi.solutionExplorer.debug",
         "label": "Debug"
+      },
+      {
+        "id": "shinobi.solutionExplorer.entityFramework",
+        "label": "Entity Framework"
       }
     ],
     "menus": {
@@ -938,62 +957,62 @@
         {
           "command": "shinobi.solutionExplorer.rename",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "06_group@1"
+          "group": "07_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.removeProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "06_group@2"
+          "group": "07_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.deleteProject",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "06_group@3"
+          "group": "07_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.build",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "07_group@1"
+          "group": "08_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.rebuild",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "07_group@2"
+          "group": "08_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.clean",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "07_group@3"
+          "group": "08_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.publish",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "07_group@4"
+          "group": "08_group@4"
         },
         {
           "command": "shinobi.solutionExplorer.codeCleanup",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "10_group@1"
+          "group": "11_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.syncNamespaces",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "10_group@2"
+          "group": "11_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.copyFullPath",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "11_group@1"
+          "group": "12_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.revealInExplorer",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "11_group@2"
+          "group": "12_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.openInTerminal",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue != 'unloaded'",
-          "group": "11_group@3"
+          "group": "12_group@3"
         },
         {
           "command": "shinobi.solutionExplorer.setStartupProject",
@@ -1028,7 +1047,7 @@
         {
           "command": "shinobi.solutionExplorer.pack",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && contextValue == 'library'",
-          "group": "08_group@1"
+          "group": "09_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.reloadProject",
@@ -1328,12 +1347,12 @@
         {
           "command": "shinobi.solutionExplorer.runTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && inTestProject",
-          "group": "09_group@1"
+          "group": "10_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.debugTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && inTestProject",
-          "group": "09_group@2"
+          "group": "10_group@2"
         },
         {
           "command": "shinobi.solutionExplorer.runTests",
@@ -1354,6 +1373,11 @@
           "command": "shinobi.solutionExplorer.debugTests",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'file' && inTestProject",
           "group": "05_group@2"
+        },
+        {
+          "submenu": "shinobi.solutionExplorer.entityFramework",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'project' && usesEntityFramework && contextValue != 'unloaded'",
+          "group": "06_group@1"
         }
       ],
       "commandPalette": [
@@ -1518,6 +1542,18 @@
           "when": "false"
         },
         {
+          "command": "shinobi.solutionExplorer.addMigration",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateDatabase",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeMigration",
+          "when": "false"
+        },
+        {
           "command": "shinobi.solutionExplorer.pack",
           "when": "false"
         },
@@ -1617,6 +1653,20 @@
         },
         {
           "command": "shinobi.solutionExplorer.startWithHotReload",
+          "group": "01_group@3"
+        }
+      ],
+      "shinobi.solutionExplorer.entityFramework": [
+        {
+          "command": "shinobi.solutionExplorer.addMigration",
+          "group": "01_group@1"
+        },
+        {
+          "command": "shinobi.solutionExplorer.updateDatabase",
+          "group": "01_group@2"
+        },
+        {
+          "command": "shinobi.solutionExplorer.removeMigration",
           "group": "01_group@3"
         }
       ]

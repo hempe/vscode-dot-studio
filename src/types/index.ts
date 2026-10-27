@@ -49,6 +49,8 @@ export interface ProjectNode {
     readonly itemState?: 'excluded' | 'linked';
     /** Project nodes of test projects: they and everything in them get Run Tests / Debug Tests */
     readonly isTestProject?: boolean;
+    /** Project nodes that reference Entity Framework Core: their menu has the Entity Framework submenu */
+    readonly usesEntityFramework?: boolean;
     readonly nodeId: NodeIdString;
     /** File name of solution and project nodes (`Api.csproj`), whose `name` has no extension */
     readonly fileName?: string;

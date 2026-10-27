@@ -53,7 +53,7 @@ describe('contextMenus', () => {
 
     test('Pack is offered on libraries, in its own group below Build', () => {
         const pack = buildMenuContributions().webviewContext.filter(entry => entry.command === 'shinobi.solutionExplorer.pack');
-        expect(pack).toEqual([expect.objectContaining({ group: '08_group@1', when: expect.stringContaining("nodeType == 'project' && contextValue == 'library'") })]);
+        expect(pack).toEqual([expect.objectContaining({ group: '09_group@1', when: expect.stringContaining("nodeType == 'project' && contextValue == 'library'") })]);
     });
 
     test('an unloaded project gets its own menu instead of the project menu', () => {
@@ -112,7 +112,10 @@ describe('contextMenus', () => {
         const debugMenu = webviewContext.filter(entry => entry.submenu === 'shinobi.solutionExplorer.debug');
         expect(debugMenu).toHaveLength(1);
         expect(debugMenu[0].when).toContain("nodeType == 'project' && contextValue =~ /^(executable|startup|startupWithProfiles)$/");
-        expect(generated).toEqual([{ id: 'shinobi.solutionExplorer.debug', label: 'Debug' }]);
+        expect(generated).toEqual([
+            { id: 'shinobi.solutionExplorer.debug', label: 'Debug' },
+            { id: 'shinobi.solutionExplorer.entityFramework', label: 'Entity Framework' },
+        ]);
         expect(submenuItems['shinobi.solutionExplorer.debug'].map(item => item.command)).toEqual([
             'shinobi.solutionExplorer.startNewInstance',
             'shinobi.solutionExplorer.startWithoutDebugging',
@@ -120,6 +123,18 @@ describe('contextMenus', () => {
         ]);
         // Only in the submenu: not offered on libraries, test projects or unloaded projects
         expect(webviewContext.some(entry => entry.command === 'shinobi.solutionExplorer.startWithHotReload')).toBe(false);
+    });
+
+    it('offers the Entity Framework submenu on loaded projects that reference Entity Framework Core', () => {
+        const { webviewContext, submenuItems } = buildMenuContributions();
+        const entries = webviewContext.filter(entry => entry.submenu === 'shinobi.solutionExplorer.entityFramework');
+        expect(entries).toHaveLength(1);
+        expect(entries[0].when).toContain("nodeType == 'project' && usesEntityFramework && contextValue != 'unloaded'");
+        expect(submenuItems['shinobi.solutionExplorer.entityFramework'].map(item => item.command)).toEqual([
+            'shinobi.solutionExplorer.addMigration',
+            'shinobi.solutionExplorer.updateDatabase',
+            'shinobi.solutionExplorer.removeMigration',
+        ]);
     });
 
     it('offers Run Tests and Debug Tests on the solution and on everything in test projects', () => {

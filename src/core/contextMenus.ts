@@ -39,6 +39,8 @@ export const EXCLUDED_ITEM = 'excluded';
 export const LINKED_ITEM = 'linked';
 /** `contextValue` of gRPC references added from a URL: they can be updated */
 export const GRPC_URL_REFERENCE = 'url';
+/** Key of project rows that reference Entity Framework Core, set in their `data-vscode-context` */
+export const ENTITY_FRAMEWORK_PROJECT = 'usesEntityFramework';
 /** Key of tree rows in test projects (the project and everything in it), set in their `data-vscode-context` */
 export const IN_TEST_PROJECT = 'inTestProject';
 
@@ -80,6 +82,9 @@ export const menuCommands = {
     build: { title: 'Build', description: 'Builds the solution or project as a task (`dotnet build`); errors go to the Error List.' },
     rebuild: { title: 'Rebuild', description: 'Builds everything again, ignoring what is up to date (`dotnet build --no-incremental`).' },
     clean: { title: 'Clean', description: 'Deletes the build output (`dotnet clean`).' },
+    addMigration: { title: 'Add Migration...', description: 'Asks for a name and runs `dotnet ef migrations add` for the project (the startup project supplies the connection string and the DbContext configuration; with several DbContexts you pick one). Needs the `dotnet-ef` tool; the extension offers to install it.' },
+    updateDatabase: { title: 'Update Database', description: 'Applies the pending migrations: `dotnet ef database update` against the database the startup project is configured for, after asking.' },
+    removeMigration: { title: 'Remove Last Migration', description: 'Deletes the last migration that is not applied to the database: `dotnet ef migrations remove`, after asking.' },
     pack: { title: 'Pack', description: "Builds the project's NuGet package (`dotnet pack`) in the active configuration, with the package metadata of the project file (`PackageId`, `Version`, `Authors`, ...), and tells where the `.nupkg` went." },
     publish: { title: 'Publish...', description: 'Opens the Publish tab of the project: publish profiles, settings and the Publish button.' },
     configurationManager: { title: 'Configuration Manager...', description: 'Opens the Configuration Manager tab: solution configurations and platforms, and which configuration, platform and Build setting each project uses.' },
@@ -109,6 +114,7 @@ export type MenuCommandAction = keyof typeof menuCommands;
 /** Submenus of the context menus, e.g. Visual Studio's "Debug >" on projects */
 export const submenus = {
     debug: { label: 'Debug', description: "Visual Studio's Debug submenu of projects that can be started.", items: ['startNewInstance', 'startWithoutDebugging', 'startWithHotReload'] },
+    entityFramework: { label: 'Entity Framework', description: 'Migrations of projects that reference Entity Framework Core, with the `dotnet ef` tool.', items: ['addMigration', 'updateDatabase', 'removeMigration'] },
 } as const satisfies Record<string, { readonly label: string; readonly description: string; readonly items: readonly MenuCommandAction[] }>;
 
 export type SubmenuId = keyof typeof submenus;
@@ -143,6 +149,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['paste'],
         [], // setStartupProject or chooseLaunchProfile, openLaunchSettings and the Debug submenu, see below
         ['manageNuGetPackages', 'manageUserSecrets'],
+        [], // entityFramework in projects that reference Entity Framework Core
         ['rename', 'removeProject', 'deleteProject'],
         ['build', 'rebuild', 'clean', 'publish'],
         [], // pack in libraries
@@ -166,7 +173,7 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
     ],
     // Libraries can be packed; the empty groups keep the item in its slot in the project menu
     [`project.${LIBRARY_PROJECT}`]: [
-        [], [], [], [], [], [], [],
+        [], [], [], [], [], [], [], [],
         ['pack'],
     ],
     // Only what works without loading the project
@@ -258,9 +265,14 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
 
 /** Items added to the menus of rows in test projects (the project, its folders and files), in the empty slots above */
 export const testProjectMenus: Readonly<Partial<Record<NodeType, Menu>>> = {
-    project: [[], [], [], [], [], [], [], [], ['runTests', 'debugTests']],
+    project: [[], [], [], [], [], [], [], [], [], ['runTests', 'debugTests']],
     folder: [[], [], [], [], ['runTests', 'debugTests']],
     file: [[], [], [], [], ['runTests', 'debugTests']],
+};
+
+/** Items added to the menus of projects that reference Entity Framework Core */
+export const entityFrameworkMenus: Readonly<Partial<Record<NodeType, Menu>>> = {
+    project: [[], [], [], [], [], ['entityFramework']],
 };
 
 /** Names of the node types in the menu reference, in the order of the tree; `temporary` nodes have no menu */
@@ -302,6 +314,7 @@ const conditionNames: Readonly<Record<string, string>> = {
     'dependencyCategory.projects': 'On Projects',
     'dependencyCategory.assemblies': 'On Assemblies',
     test: 'In test projects',
+    entityFramework: 'On projects that reference Entity Framework Core',
 };
 
 const keyName = (key: string) => key.split('+').map(part =>
@@ -327,7 +340,8 @@ export function buildMenuReference(): string {
             .filter(([key]) => key.startsWith(`${nodeType}.`))
             .map(([key, menu]) => [key, menu as Menu] as const);
         const testMenu = testProjectMenus[nodeType];
-        const extra = [...variants, ...(testMenu ? [['test', testMenu] as const] : [])]
+        const efMenu = entityFrameworkMenus[nodeType];
+        const extra = [...variants, ...(testMenu ? [['test', testMenu] as const] : []), ...(efMenu ? [['entityFramework', efMenu] as const] : [])]
             .filter(([, menu]) => menu.flat().length > 0)
             .map(([key, menu]) => {
                 if (!conditionNames[key]) {
@@ -399,6 +413,8 @@ function menuEntries() {
         }),
         ...Object.entries(testProjectMenus).map(([nodeType, menu]) =>
             ({ nodeType: nodeType as NodeType, condition: ` && ${IN_TEST_PROJECT}`, menu: menu as Menu })),
+        ...Object.entries(entityFrameworkMenus).map(([nodeType, menu]) =>
+            ({ nodeType: nodeType as NodeType, condition: ` && ${ENTITY_FRAMEWORK_PROJECT} && contextValue != '${UNLOADED_PROJECT}'`, menu: menu as Menu })),
     ];
 }
 

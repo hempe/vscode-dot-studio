@@ -235,3 +235,4 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 
 ## Phase 30: Later (done so far)
 - [x] NuGet manager marks vulnerable packages (worst severity, advisory links) and deprecated ones (reasons, suggested replacement) from `dotnet list package --vulnerable|--deprecated`, with Vulnerable and Deprecated filters in Installed
+- [x] EF Core migrations from the context menu: Add Migration, Update Database and Remove Last Migration on projects that reference Entity Framework Core, running `dotnet ef` in a task with the startup project and DbContext chosen, and an offer to install `dotnet-ef`

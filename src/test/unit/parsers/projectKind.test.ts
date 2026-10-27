@@ -1,4 +1,4 @@
-import { isExecutableProject, isWebProject } from '../../../parsers/projectKind';
+import { isExecutableProject, isWebProject, usesEntityFramework } from '../../../parsers/projectKind';
 
 const project = (sdk: string, body = '') =>
     `<Project Sdk="${sdk}"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${body}</PropertyGroup></Project>`;
@@ -41,5 +41,19 @@ describe('isWebProject', () => {
         expect(isWebProject('<Project><Sdk Name="Microsoft.NET.Sdk.Web/10.0.100" /></Project>')).toBe(true);
         expect(isWebProject(project('Microsoft.NET.Sdk.Worker'))).toBe(false);
         expect(isWebProject(project('Microsoft.NET.Sdk', '<OutputType>Exe</OutputType>'))).toBe(false);
+    });
+});
+
+describe('usesEntityFramework', () => {
+    it('recognizes Entity Framework Core packages of any provider, also from a props file', () => {
+        expect(usesEntityFramework('<Project><ItemGroup><PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" /></ItemGroup></Project>')).toBe(true);
+        expect(usesEntityFramework('<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />')).toBe(true);
+        expect(usesEntityFramework("<PackageReference Update='microsoft.entityframeworkcore.design' />")).toBe(true);
+    });
+
+    it('is false for other packages, look-alikes and projects that only mention it', () => {
+        expect(usesEntityFramework('<PackageReference Include="EntityFramework" Version="6.4.4" />')).toBe(false);
+        expect(usesEntityFramework('<PackageReference Include="Microsoft.EntityFrameworkCoreX" />')).toBe(false);
+        expect(usesEntityFramework('<!-- Microsoft.EntityFrameworkCore -->')).toBe(false);
     });
 });

@@ -128,6 +128,14 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Run Tests |  | Builds and runs the tests in the solution, project, folder or file; results appear in the Test Explorer. |
 | Debug Tests |  | Like Run Tests, with the debugger attached: breakpoints in tests and tested code are hit. |
 
+**On projects that reference Entity Framework Core**
+
+| Command | Key | What it does |
+|---|---|---|
+| Entity Framework > Add Migration... |  | Asks for a name and runs `dotnet ef migrations add` for the project (the startup project supplies the connection string and the DbContext configuration; with several DbContexts you pick one). Needs the `dotnet-ef` tool; the extension offers to install it. |
+| Entity Framework > Update Database |  | Applies the pending migrations: `dotnet ef database update` against the database the startup project is configured for, after asking. |
+| Entity Framework > Remove Last Migration |  | Deletes the last migration that is not applied to the database: `dotnet ef migrations remove`, after asking. |
+
 ## Folder
 
 | Command | Key | What it does |

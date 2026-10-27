@@ -18,6 +18,7 @@ A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style So
 | [Code Cleanup](code-cleanup.md) | Format, remove unused usings and apply `.editorconfig` fixes on a file, folder, project or solution |
 | [Sync Namespaces](sync-namespaces.md) | Change the namespaces of a project's or folder's C# files to match their folders |
 | [Publish](publish.md) | The Publish tab and Folder profiles |
+| [Entity Framework](entity-framework.md) | Add Migration, Update Database and Remove Last Migration from a project's context menu |
 | [Connected Services](connected-services.md) | WCF/SOAP service references and gRPC references |
 | [Settings](settings.md) | This extension's settings and the C# extension defaults it changes |
 | [Troubleshooting](troubleshooting.md) | The log, common problems, reporting a bug |

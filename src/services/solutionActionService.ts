@@ -39,6 +39,7 @@ import { openNewProjectWizard } from '../webview/providers/TemplateWizardPanel';
 import { addServiceReference, removeServiceReferenceWithConfirmation, updateServiceReference } from './serviceReferences/serviceReferenceService';
 import { removeGrpcReference, updateGrpcReference } from './grpc/grpcReferenceService';
 import type { DropResult } from './solutionExpansionService';
+import { runEfAction } from './entityFramework/efCommands';
 import { linkedDeleteDetail, multiDeleteQuestion, removeLinkedItem } from './projectItems/linkedItems';
 import { pathKey } from './projectItems/projectItems';
 import type { Project } from '../core/Project';
@@ -135,6 +136,12 @@ export class SolutionActionService {
             case 'pack':
                 packStarted(nodeId.path);
                 await vscode.tasks.executeTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'pack', target: nodeId.path }));
+                break;
+
+            case 'addMigration':
+            case 'updateDatabase':
+            case 'removeMigration':
+                await runEfAction(cmd.action, nodeId.path);
                 break;
 
             case 'unloadProject':

@@ -35,3 +35,8 @@ export function isExecutableProject(projectXml: string): boolean {
     }
     return sdks.some(sdk => EXECUTABLE_SDKS.test(sdk));
 }
+
+/** Whether the project (with the props files it imports) references Entity Framework Core: it gets the Entity Framework menu */
+export function usesEntityFramework(projectText: string): boolean {
+    return /<PackageReference\b[^>]*\b(?:Include|Update)\s*=\s*["']Microsoft\.EntityFrameworkCore(?:\.[\w.]+)?["']/i.test(projectText);
+}

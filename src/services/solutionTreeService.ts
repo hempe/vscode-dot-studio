@@ -166,6 +166,7 @@ export class SolutionTreeService {
                             itemNode.contextValue = LIBRARY_PROJECT;
                         }
                         itemNode.isTestProject = projectInstance.isTestProject;
+                        itemNode.usesEntityFramework = projectInstance.usesEntityFramework;
                     } else {
                         log.warn(`Could not find project instance for: ${absolutePath}`);
                         // For projects, assume they have children if we can't check

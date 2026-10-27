@@ -5,7 +5,7 @@ import { RenameInput } from '../RenameInput/RenameInput';
 import { logger } from '../../../shared/logger';
 import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
-import { IN_TEST_PROJECT } from '../../../../core/contextMenus';
+import { ENTITY_FRAMEWORK_PROJECT, IN_TEST_PROJECT } from '../../../../core/contextMenus';
 import { isDraggable } from '../../../../core/dropRules';
 import { describeMarker, markerCount } from './diagnosticMarker';
 import { IconThemeContext, themeFontFamily } from './IconThemeContext';
@@ -345,6 +345,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     nodeType: node.type,
                     contextValue: node.contextValue,
                     ...(isInTestProject && { [IN_TEST_PROJECT]: true }),
+                    ...(node.usesEntityFramework && { [ENTITY_FRAMEWORK_PROJECT]: true }),
                     nodeId: nodeIdentifier,
                     preventDefaultContextMenuItems: true
                 })}

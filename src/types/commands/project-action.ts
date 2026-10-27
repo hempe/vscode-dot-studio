@@ -279,6 +279,21 @@ export declare type PackActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+export declare type AddMigrationActionCmd = {
+    readonly action: 'addMigration';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type UpdateDatabaseActionCmd = {
+    readonly action: 'updateDatabase';
+    readonly nodeId: NodeIdString;
+}
+
+export declare type RemoveMigrationActionCmd = {
+    readonly action: 'removeMigration';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type UnloadProjectActionCmd = {
     readonly action: 'unloadProject';
     readonly nodeId: NodeIdString;
@@ -370,6 +385,9 @@ export type ProjectActionCmd =
     | CopyFullPathActionCmd
     | ManageUserSecretsActionCmd
     | PackActionCmd
+    | AddMigrationActionCmd
+    | UpdateDatabaseActionCmd
+    | RemoveMigrationActionCmd
     | UnloadProjectActionCmd
     | ReloadProjectActionCmd
     | OpenLaunchSettingsActionCmd

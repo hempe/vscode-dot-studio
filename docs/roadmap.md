@@ -22,7 +22,6 @@ Edge cases and cosmetics; decided to leave until the code review of Phase 22 is 
 - [ ] Solution Explorer rendering: hover no longer renders the tree, but a selection, diagnostics or tree message still renders every row (no `React.memo`, no virtualization): measure on a solution with thousands of rows before changing it (A3-8)
 
 ## Phase 30: Later
-- [ ] EF Core migrations from the context menu (Add Migration, Update Database, Remove Migration...) running the `dotnet ef` commands, since Visual Studio's Package Manager Console route is clumsy and teams use the CLI anyway
 - [ ] NuGet package sources like Visual Studio, as an opt-in feature (a setting): a package source picker for Browse, a page to add, remove and enable feeds, and Package Source Mapping (shown in the package details, offered when installing, respected by Browse; restore already follows a mapping in `NuGet.Config`)
 - [ ] Hot Reload with the debugger attached: not possible with netcoredbg (`dotnet watch` refuses assembly updates while a debugger is attached); revisit if a debugger that does Edit and Continue is available (Microsoft's, in Microsoft's C# extension)
 - [ ] No C# extension needed: bundle our own debugger ([netcoredbg](https://github.com/Samsung/netcoredbg), MIT, prebuilt releases for Linux, Windows and macOS) and run the Roslyn and Razor language servers ourselves, with completion, diagnostics, navigation, code actions and formatting wired to the editor. The debugger alone is a contained job but gains little while the language server still comes from the C# extension

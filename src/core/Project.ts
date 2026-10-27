@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileParser, ProjectFileStructure } from '../parsers/projectFileParser';
-import { isExecutableProject } from '../parsers/projectKind';
+import { isExecutableProject, usesEntityFramework } from '../parsers/projectKind';
 import { parseTargetFrameworks } from '../parsers/targetFrameworks';
 import { isTestProjectCandidate, projectTextWithBuildProps } from '../services/testing/testProjects';
 import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceReferences/connectedService';
@@ -88,6 +88,7 @@ export class Project {
     private _frameworks: string[] = [];
     private _isExecutable = false;
     private _isTestProject = false;
+    private _usesEntityFramework = false;
     private _isSdkStyle = false;
     private _changeEmitter = new vscode.EventEmitter<void>();
     private _isInitialized = false;
@@ -133,6 +134,11 @@ export class Project {
     /** Whether the project can be started, i.e. can be the startup project */
     get isExecutable(): boolean {
         return this._isExecutable;
+    }
+
+    /** Whether the project references Entity Framework Core (it gets the Entity Framework menu: migrations) */
+    get usesEntityFramework(): boolean {
+        return this._usesEntityFramework;
     }
 
     /** Whether the project references a test framework (it gets Run Tests / Debug Tests) */
@@ -314,7 +320,9 @@ export class Project {
             const declared = await parseTargetFrameworks(projectXml).catch(() => []);
             this._frameworks = declared.length > 0 ? declared : this._solutionProject.targetFrameworks || [];
             this._isExecutable = isExecutableProject(projectXml);
-            this._isTestProject = isTestProjectCandidate(projectTextWithBuildProps(this._projectPath));
+            const withProps = projectTextWithBuildProps(this._projectPath);
+            this._isTestProject = isTestProjectCandidate(withProps);
+            this._usesEntityFramework = usesEntityFramework(withProps);
             this._isSdkStyle = /<Project\b[^>]*\bSdk\s*=/.test(projectXml) || /<Sdk\s+Name\s*=/.test(projectXml);
 
             log.debug(`Parsed project ${this.name}: ${this._dependencies.length} dependencies, ${this._frameworks.length} frameworks`);
@@ -324,6 +332,7 @@ export class Project {
             this._frameworks = [];
             this._isExecutable = false;
             this._isTestProject = false;
+            this._usesEntityFramework = false;
             this._isSdkStyle = false;
         }
     }
