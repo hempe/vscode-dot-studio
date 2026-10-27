@@ -8,7 +8,8 @@ import {
     ProjectInfo,
     BasicInstalledPackage,
     InstalledPackage,
-    UpdateablePackage
+    UpdateablePackage,
+    isNuGetOrgUrl
 } from './types';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
 import { sln } from '../../core/utils';
@@ -278,6 +279,14 @@ export class NuGetManagerService {
     /** The enabled package sources, for the source dropdown of Browse */
     static async getEnabledSources(): Promise<{ name: string }[]> {
         return (await PackageBrowseService.getPackageSources()).filter(source => source.enabled).map(source => ({ name: source.name }));
+    }
+
+    /**
+     * Whether nuget.org is one of the enabled sources. Icons and READMEs are read from nuget.org by package id, so
+     * without it a private package's id is not sent there (and a public package of the same id shows nothing of it)
+     */
+    static async usesNuGetOrg(): Promise<boolean> {
+        return (await PackageBrowseService.getPackageSources()).some(source => source.enabled && isNuGetOrgUrl(source.url));
     }
 
     static async searchPackages(query: string, options?: Partial<PackageSearchOptions>) {

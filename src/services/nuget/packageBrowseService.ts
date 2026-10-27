@@ -61,6 +61,11 @@ export function parseSourceList(stdout: string): PackageSource[] {
  * Service for browsing and searching NuGet packages using NuGet V3 API
  * Supports all standard NuGet feeds including public and private sources
  */
+/** The sources a search can use: enabled feeds (the V3 protocol; a folder of packages has no search service) */
+export function searchableSources<T extends { enabled: boolean; isLocal: boolean }>(sources: readonly T[]): T[] {
+    return sources.filter(source => source.enabled && !source.isLocal);
+}
+
 export class PackageBrowseService {
 
     /**
@@ -298,9 +303,9 @@ export class PackageBrowseService {
             const searchPromises: Promise<NuGetPackage[]>[] = [];
 
             // One chosen source, or the enabled ones (the first 3, to keep a search quick)
-            const chosen = options.source ? sources.filter(source => source.name === options.source) : sources.slice(0, 3);
+            const chosen = options.source ? sources.filter(source => source.name === options.source) : searchableSources(sources).slice(0, 3);
             for (const source of chosen) {
-                if (source.enabled) {
+                if (source.enabled && !source.isLocal) {
                     log.info(`Searching source: ${source.name} (${source.url})`);
                     searchPromises.push(this.searchSingleSource(source, options));
                 }

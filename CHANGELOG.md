@@ -5,6 +5,7 @@
 - **Solution files:** Add and Rename Solution Folder refuse a name that a folder next to it has; Remove Solution Folder removes projects of every type (SQL projects too) and their configuration lines, also when the file has lower-case GUIDs; `.slnx` edits ignore XML comments; a `.sln` with an absolute project path outside its folder loads, and a project that cannot be read is skipped instead of failing the solution.
 - **Test Explorer:** a failed build shows its first errors in the test message (it pointed to the Problems panel, which never had NuGet or MSBuild errors), and Cancel stops the build that is running.
 - **Templates:** the New Project and Add New Item wizards list the templates and options of the SDK that `global.json` picks for the solution, as `dotnet new` will use.
+- **NuGet:** `http://` feeds work, redirects are followed without passing credentials to another host, answers have a size and time limit, folder sources no longer slow package lookups down, and package icons and READMEs are looked up on nuget.org only when it is a source.
 - **Fixes:** a moved `.slnx` solution folder stays open; a file moved into a collapsed folder shows (it kept its old timestamps); version properties of a parent `Directory.Packages.props` imported with unquoted `GetPathOfFileAbove` are found; creating files no longer leaves entries in the stored expansion state.
 
 ## 0.1.2

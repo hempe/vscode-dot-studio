@@ -56,4 +56,27 @@ describe('NuGetV3Service.getPackageDetails', () => {
         ]);
         expect(details?.dependencies?.['2.71.0']?.[0]).toEqual({ id: 'Google.Protobuf', range: '[3.30.2, )' });
     });
+
+    it('does not wait on a folder source listed before the feed (review A4-14)', async () => {
+        const asked: string[] = [];
+        jest.spyOn(NuGetV3Service as any, 'makeRequest').mockImplementation(async (url: any) => {
+            asked.push(url);
+            if (url === 'https://slow/index.json') {
+                return { body: JSON.stringify({ resources: [{ '@type': 'RegistrationsBaseUrl', '@id': 'https://slow/reg/' }] }), statusCode: 200 };
+            }
+            return url === 'https://slow/reg/pkg2/index.json'
+                ? { body: JSON.stringify({ items: [{ '@id': 'x', lower: '1.0.0', upper: '1.0.0', items: [entry('1.0.0', 'Ann')] }] }), statusCode: 200 }
+                : { body: '', statusCode: 404 };
+        });
+        const started = Date.now();
+
+        const details = await NuGetV3Service.getPackageDetails('Pkg2', [
+            { name: 'folder', url: '/srv/packages', enabled: true, isLocal: true } as any,
+            { name: 'slow', url: 'https://slow/index.json', enabled: true, isLocal: false } as any,
+        ]);
+
+        expect(details?.currentVersion).toBe('1.0.0');
+        expect(asked.some(url => url.includes('/srv/packages'))).toBe(false);
+        expect(Date.now() - started).toBeLessThan(1500);
+    });
 });

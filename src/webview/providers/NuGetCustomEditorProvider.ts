@@ -736,8 +736,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
      */
     private async _getPackageIcon(packageId: string, version: string, webview: vscode.Webview): Promise<void> {
         try {
-            // Use direct NuGet icon URL instead of caching
-            const iconUri = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/icon`;
+            // Use direct NuGet icon URL instead of caching, when nuget.org is a source at all
+            const iconUri = !await NuGetManagerService.usesNuGetOrg() ? null : `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/icon`;
             sendToUi(webview, {
                 type: 'packageIcon',
                 payload: {
@@ -765,8 +765,8 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
      */
     private async _getPackageReadme(packageId: string, version: string, webview: vscode.Webview): Promise<void> {
         try {
-            // Use direct NuGet README URL
-            const readmeUrl = `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/readme`;
+            // Use direct NuGet README URL, when nuget.org is a source at all
+            const readmeUrl = !await NuGetManagerService.usesNuGetOrg() ? null : `https://api.nuget.org/v3-flatcontainer/${packageId.toLowerCase()}/${version}/readme`;
 
             sendToUi(webview, {
                 type: 'packageReadme',

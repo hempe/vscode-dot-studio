@@ -226,6 +226,16 @@ export interface PackageSource {
 }
 
 
+/** Whether a source URL is nuget.org's (the feed that icons and READMEs are read from) */
+export function isNuGetOrgUrl(sourceUrl: string): boolean {
+    try {
+        const host = new URL(sourceUrl).hostname.toLowerCase();
+        return host === 'nuget.org' || host.endsWith('.nuget.org');
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Upgrade nuget.org V2 URLs to V3 for better functionality
  */

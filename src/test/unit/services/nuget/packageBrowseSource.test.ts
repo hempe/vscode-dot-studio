@@ -28,9 +28,17 @@ describe('PackageBrowseService.searchPackages with a source', () => {
         expect(searched).toEqual(['five']);
     });
 
-    it('without a source searches the enabled ones among the first three', async () => {
+    it('without a source searches the first three that are enabled feeds (disabled and folder sources do not use up a place, review A4-18)', async () => {
+        jest.spyOn(PackageBrowseService, 'getPackageSources').mockResolvedValue([
+            source('off', false), { ...source('folder'), isLocal: true }, source('nuget.org'), source('birs'), source('four'), source('five')]);
         await PackageBrowseService.searchPackages({ query: 'serilog' });
-        expect(searched.sort()).toEqual(['birs', 'nuget.org']);
+        expect(searched.sort()).toEqual(['birs', 'four', 'nuget.org']);
+    });
+
+    it('does not search a folder source, even when chosen', async () => {
+        jest.spyOn(PackageBrowseService, 'getPackageSources').mockResolvedValue([{ ...source('folder'), isLocal: true }]);
+        await PackageBrowseService.searchPackages({ query: 'serilog', source: 'folder' });
+        expect(searched).toEqual([]);
     });
 
     it('does not search a disabled source, even when chosen', async () => {

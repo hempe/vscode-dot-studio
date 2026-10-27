@@ -1,8 +1,8 @@
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageDependency, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
-import * as https from 'https';
 import { VersionUtils } from '../versionUtils';
-import { pickRegistrationUrl, responseText } from './httpBody';
+import { pickRegistrationUrl } from './httpBody';
+import { httpGet } from './httpGet';
 import { PersistentCache } from '../../core/persistentCache';
 import { BackgroundRefreshQueue } from '../../core/backgroundRefreshQueue';
 import * as path from 'path';
@@ -184,8 +184,9 @@ export class NuGetV3Service {
     ): Promise<NuGetPackage | null> {
 
         for (const packageSource of packageSources) {
+            // A folder of packages has no registration service: skipping it saves three tries and their waits
+            if (!packageSource.enabled || packageSource.isLocal) continue;
             const accessToken = await NuGetCredentialManager.getSourceToken(packageSource);
-            if (!packageSource.enabled) continue;
 
             for (let i = 0; i < 3; i++) {
                 try {
@@ -459,7 +460,6 @@ export class NuGetV3Service {
      */
     private static async _makeHttpRequestWithETag(url: string, accessToken?: string, etag?: string): Promise<{ body: string, statusCode: number, etag?: string }> {
         return new Promise<{ body: string, statusCode: number, etag?: string }>((resolve, reject) => {
-            const urlObj = new URL(url);
             const headers: Record<string, string> = {
                 'Accept': 'application/json',
                 'Accept-Encoding': 'gzip',
@@ -476,37 +476,7 @@ export class NuGetV3Service {
                 headers['If-None-Match'] = etag;
             }
 
-            const options = {
-                hostname: urlObj.hostname,
-                port: urlObj.port || 443,
-                path: urlObj.pathname + urlObj.search,
-                method: 'GET',
-                headers,
-            };
-
-            const req = https.request(options, (res: any) => {
-                const chunks: Buffer[] = [];
-                res.on('data', (chunk: Buffer) => chunks.push(chunk));
-                res.on('end', () => {
-                    const responseETag = res.headers['etag'];
-                    try {
-                        resolve({
-                            statusCode: res.statusCode,
-                            body: responseText(chunks, res.headers['content-encoding']),
-                            etag: responseETag
-                        });
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-            });
-
-            req.on('error', reject);
-            req.setTimeout(30000, () => {
-                req.destroy();
-                reject(new Error('Request timeout'));
-            });
-            req.end();
+            httpGet(url, { headers }).then(resolve, reject);
         });
     }
 
