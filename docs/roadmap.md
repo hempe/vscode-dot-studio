@@ -12,7 +12,6 @@ Bugs found later are listed here, to be fixed.
 
 ## Phase 22: Quality and documentation
 - [ ] Automate manual checks: spike driving VS Code with Playwright (`_electron.launch` on `code-oss`, webviews as frames) in the throwaway profile of `scripts/screenshots/capture.sh`; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
-- [ ] Compare with Visual Studio feature by feature (including how its NuGet manager handles Central Package Management and which build actions it lists) and write the result into a new page (linked from the README): what we support, what works differently, what is not planned (and why) and what is still to come; replaces the loose notes in [Coming from Visual Studio](coming-from-visual-studio.md)
 
 ## Phase 23: Limitations to look at after the code review
 Edge cases and cosmetics; decided to leave until the code review of Phase 22 is done. Phase 35 holds the per-framework package work.

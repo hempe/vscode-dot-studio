@@ -5,7 +5,7 @@ A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style So
 | Page | What it covers |
 |---|---|
 | [Getting started](#getting-started) | Install, open a solution, build, run, test |
-| [Coming from Visual Studio](coming-from-visual-studio.md) | What works differently, and why |
+| [Visual Studio comparison](visual-studio-comparison.md) | Feature by feature: what is supported, what works differently, what is not planned and why |
 | [Solution Explorer](solution-explorer.md) | The tree, toolbar, keys, Dependencies, errors in the tree |
 | [Context menus](context-menus.md) | Every right-click menu of the Solution Explorer, command by command |
 | [Keyboard shortcuts](keyboard-shortcuts.md) | This extension's keys, and Visual Studio's keys in VS Code |

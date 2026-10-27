@@ -154,7 +154,7 @@ Most things are where you expect them. The differences, in short:
 - the startup project is stored in `.vscode/launch.json`;
 - errors and generated code are as of the last build.
 
-[Coming from Visual Studio](docs/coming-from-visual-studio.md) has the details and the keys that differ.
+The [Visual Studio comparison](docs/visual-studio-comparison.md) lists what is supported, what works differently and what is not planned, and where the keys differ.
 
 ## Settings
 
