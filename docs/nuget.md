@@ -14,7 +14,7 @@ Visual Studio's NuGet Package Manager, in an editor tab.
 | **Updates** | Packages with newer versions; update one, or check several and **Update Selected** |
 | **Consolidate** | (solution only) Packages used in different versions across projects, to bring them to one version |
 
-**Include prerelease** adds prerelease versions. The details pane shows the description, versions, dependencies and the package's README.
+**Package source** (Browse) is a dropdown like Visual Studio's: **All** (the enabled sources of your `NuGet.Config`) or one source by name, for example `nuget.org` or a private feed. Choosing one searches again. **Refresh** (the button right of Include prerelease, on every tab) drops the cached answers of the feeds and reads the lists again, and searches again in Browse: use it after publishing a package or when a feed was unreachable. **Include prerelease** adds prerelease versions. The details pane shows the description, versions, dependencies and the package's README.
 
 **Transitive packages:** Install makes one a direct reference, e.g. to pin a newer version with a security fix; they have no Uninstall, since only the package that brings them in can be removed. Solution Explorer: [Dependencies > Packages](solution-explorer.md#dependencies) shows the same tree under each package.
 

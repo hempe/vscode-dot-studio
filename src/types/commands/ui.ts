@@ -29,6 +29,8 @@ export interface NuGetViewData {
     readonly consolidatePackages?: LocalNuGetPackage[]; // For future consolidation functionality
     readonly projects?: ProjectInfo[] | null;
     readonly projectPath?: string | null;
+    /** The enabled package sources, for the source dropdown of Browse */
+    readonly sources?: readonly { readonly name: string }[];
 }
 
 export declare type NugetDataCmd = {

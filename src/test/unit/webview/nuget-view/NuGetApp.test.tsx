@@ -17,6 +17,12 @@ jest.mock('vscrui', () => {
 });
 (Element.prototype as any).scrollIntoView = () => { };
 
+const mockSent: any[] = [];
+jest.mock('../../../../webview/nuget-view/shared', () => ({
+    ...jest.requireActual('../../../../webview/nuget-view/shared'),
+    sendToBackend: (message: unknown) => { mockSent.push(message); },
+}));
+
 import { App } from '../../../../webview/nuget-view/App';
 
 const post = (data: any) => act(() => { window.dispatchEvent(new MessageEvent('message', { data })); });
@@ -84,5 +90,63 @@ describe('NuGet manager', () => {
         post({ type: 'error', payload: { message: 'boom' } });
         fireEvent.click(screen.getByText('Dismiss'));
         expect(screen.queryByRole('alert')).toBeNull();
+    });
+});
+
+describe('NuGet manager: refresh and package source', () => {
+    const sent = mockSent;
+    beforeEach(() => { sent.length = 0; });
+
+    const open = () => {
+        const view = render(<App />);
+        post({ type: 'nugetData', payload: { installedPackages: [], projects: [project], searchResults: [], sources: [{ name: 'nuget.org' }, { name: 'birs' }] } });
+        return view;
+    };
+
+    it('has a refresh button on every tab that asks the host to drop its caches and read again', () => {
+        open();
+        for (const tab of ['Browse', 'Installed', 'Updates', 'Consolidate']) {
+            const button = screen.queryByRole('tab', { name: tab });
+            if (!button) { continue; }
+            fireEvent.click(button);
+            sent.length = 0;
+            fireEvent.click(screen.getAllByRole('button').find(candidate => candidate.parentElement?.getAttribute('title') === 'Refresh')!);
+            expect(sent.some(message => message.type === 'refreshNuGet')).toBe(true);
+        }
+    });
+
+    it('Browse offers All and the enabled sources, and searches only the chosen one', () => {
+        open();
+        fireEvent.click(screen.getByRole('tab', { name: 'Browse' }));
+        fireEvent.change(screen.getByTestId('tf'), { target: { value: 'serilog' } });
+
+        fireEvent.click(screen.getByLabelText('Package source'));
+        expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['All', 'nuget.org', 'birs']);
+        sent.length = 0;
+        fireEvent.click(screen.getByRole('option', { name: 'birs' }));
+
+        expect(sent).toContainEqual({ type: 'searchPackages', payload: { query: 'serilog', source: 'birs' } });
+    });
+
+    it('All searches without a source', () => {
+        open();
+        fireEvent.click(screen.getByRole('tab', { name: 'Browse' }));
+        fireEvent.change(screen.getByTestId('tf'), { target: { value: 'serilog' } });
+        sent.length = 0;
+        fireEvent.keyDown(screen.getByTestId('tf'), { key: 'Enter' });
+        expect(sent).toContainEqual({ type: 'searchPackages', payload: { query: 'serilog' } });
+    });
+
+    it('a refresh searches again in Browse after a search', () => {
+        open();
+        fireEvent.click(screen.getByRole('tab', { name: 'Browse' }));
+        fireEvent.change(screen.getByTestId('tf'), { target: { value: 'serilog' } });
+        fireEvent.keyDown(screen.getByTestId('tf'), { key: 'Enter' });
+        post({ type: 'searchResults', payload: { searchResults: [pkg('Serilog')] } });
+        sent.length = 0;
+
+        fireEvent.click(screen.getAllByRole('button').find(candidate => candidate.parentElement?.getAttribute('title') === 'Refresh')!);
+
+        expect(sent.map(message => message.type)).toEqual(expect.arrayContaining(['refreshNuGet', 'searchPackages']));
     });
 });

@@ -3,6 +3,7 @@ import { nugetEditorQuery, parseNuGetEditorQuery } from './nugetEditorUri';
 import { Settings } from '../../services/settings';
 import * as path from 'path';
 import { NuGetManagerService } from '../../services/nuget/nugetManagerService';
+import { NuGetV3Service } from '../../services/nuget/nugetV3Service';
 import { SolutionService } from '../../services/solutionService';
 import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
@@ -137,6 +138,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
                     await this._handleSearchPackages(message, webview);
                     break;
 
+                case 'refreshNuGet':
+                    await NuGetV3Service.clearCaches();
+                    await this._updateWebview(webview, context, message.payload.includePrerelease);
+                    break;
+
                 case 'getConsolidatePackages':
                     await this._handleGetConsolidatePackages(webview, context, message.payload.includePrerelease);
                     break;
@@ -196,10 +202,11 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         try {
             // Get NuGet data based on context (project vs solution)
             const nugetData = await this._getNuGetData(context, includePrerelease);
+            const sources = await NuGetManagerService.getEnabledSources().catch(() => []);
 
             sendToUi(webview, {
                 type: 'nugetData',
-                payload: nugetData
+                payload: { ...nugetData, sources }
             });
 
         } catch (error) {
@@ -390,7 +397,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
             // Extract query from both message formats
             const query = message.payload.query;
 
-            const results = await NuGetManagerService.searchPackages(query);
+            const results = await NuGetManagerService.searchPackages(query, { source: message.payload.source });
 
             sendToUi(webview, {
                 type: 'searchResults',

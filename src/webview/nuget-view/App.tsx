@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Panels, TextField, Button, Checkbox, Icon } from 'vscrui';
+import { Select } from '../shared/Select';
 import { logger } from '../shared/logger';
 import { LoadingBar } from '../shared/LoadingBar';
 import { ensureArray, formatAuthors, LocalNuGetPackage, sendToBackend } from './shared';
@@ -27,6 +28,8 @@ export const App: React.FC = () => {
     const [loading, setLoading] = useState(false);
     // What the host reported as failed (a search, or anything it could not do); shown above the tabs until dismissed
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    // The package source Browse searches ('' = all enabled sources)
+    const [selectedSource, setSelectedSource] = useState('');
     const [initializing, setInitializing] = useState(true);
     // Starts as the setting shinobi.nuget.includePrerelease says (passed on the root element)
     const [includePrerelease, setIncludePrerelease] = useState(() => document.getElementById('root')?.dataset.includePrerelease === 'true');
@@ -122,6 +125,7 @@ export const App: React.FC = () => {
                         ...safeData,
                         searchResults: safeData.searchResults?.length ? safeData.searchResults : prev.searchResults,
                         consolidatePackages: safeData.consolidatePackages?.length ? safeData.consolidatePackages : prev.consolidatePackages,
+                        sources: safeData.sources ?? prev.sources,
                     }));
 
                     // Try to preserve selected package after data refresh, or auto-select first package
@@ -308,7 +312,7 @@ export const App: React.FC = () => {
         });
     }, [data.searchResults, data.installedPackages, data.transitivePackages, transitiveExpanded, activeTab, packageIcons, requestedIcons, failedIcons, packageReadmes, requestedReadmes]);
 
-    const handleSearch = () => {
+    const handleSearch = (source: string = selectedSource) => {
         if (searchTerm.trim()) {
             log.info('Frontend: Starting search for:', searchTerm);
             setLoading(true);
@@ -317,6 +321,7 @@ export const App: React.FC = () => {
                 type: 'searchPackages',
                 payload: {
                     query: searchTerm,
+                    ...(source ? { source } : {}),
                 }
             });
             log.info('Frontend: Search message sent to backend');
@@ -662,6 +667,24 @@ export const App: React.FC = () => {
         }
     }, [selectedIndex]);
 
+    // The refresh button: the feeds' caches are dropped and the lists are read again (Browse searches again too)
+    const refresh = () => {
+        sendToBackend({ type: 'refreshNuGet', payload: { includePrerelease } });
+        setErrorMessage(null);
+        setConsolidateLoaded(false);
+        if (activeTab === 'browse' && hasSearched) {
+            handleSearch();
+        }
+    };
+    const refreshButton = (
+        <span title="Refresh" style={{ marginLeft: 'auto', display: 'inline-flex' }}>
+            <Button onClick={refresh} disabled={loading || initializing} appearance="secondary">
+                <Icon name="refresh" />
+            </Button>
+        </span>
+    );
+    const sourceOptions = [{ value: '', label: 'All' }, ...[...(data.sources ?? [])].map(source => ({ value: source.name, label: source.name }))];
+
     const browseView = (
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
             {/* Search Input */}
@@ -684,14 +707,18 @@ export const App: React.FC = () => {
                         style={{ flex: 1 }}
                     />
                     <Button
-                        onClick={handleSearch}
+                        onClick={() => handleSearch()}
                         disabled={loading || initializing}
                         appearance="primary"
                     >
                         <Icon name="search" />
                     </Button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <label htmlFor="nuget-source" style={{ fontSize: '13px', color: 'var(--vscode-foreground)' }}>Package source:</label>
+                    <Select id="nuget-source" aria-label="Package source" value={selectedSource} options={sourceOptions} disabled={initializing}
+                        onChange={source => { setSelectedSource(source); handleSearch(source); }} />
+                    <span style={{ width: '8px' }} />
                     <Checkbox
                         checked={includePrerelease}
                         onChange={setIncludePrerelease}
@@ -704,6 +731,7 @@ export const App: React.FC = () => {
                     }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
+                    {refreshButton}
                 </div>
             </div>
 
@@ -838,6 +866,7 @@ export const App: React.FC = () => {
                     }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                         Include prerelease
                     </label>
+                    {refreshButton}
                 </div>
             </div>
 
@@ -994,6 +1023,7 @@ export const App: React.FC = () => {
                         }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
                             Include prerelease
                         </label>
+                    {refreshButton}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Checkbox
@@ -1224,6 +1254,7 @@ export const App: React.FC = () => {
                         disabled={initializing}
                         style={{ flex: 1 }}
                     />
+                    {refreshButton}
                     <Button
                         onClick={handleBulkConsolidate}
                         disabled={

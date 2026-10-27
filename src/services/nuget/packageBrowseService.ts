@@ -297,8 +297,9 @@ export class PackageBrowseService {
             const allResults: NuGetPackage[] = [];
             const searchPromises: Promise<NuGetPackage[]>[] = [];
 
-            // Search each source (but limit to avoid overwhelming)
-            for (const source of sources.slice(0, 3)) { // Limit to first 3 sources for performance
+            // One chosen source, or the enabled ones (the first 3, to keep a search quick)
+            const chosen = options.source ? sources.filter(source => source.name === options.source) : sources.slice(0, 3);
+            for (const source of chosen) {
                 if (source.enabled) {
                     log.info(`Searching source: ${source.name} (${source.url})`);
                     searchPromises.push(this.searchSingleSource(source, options));

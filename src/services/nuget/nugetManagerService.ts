@@ -275,6 +275,11 @@ export class NuGetManagerService {
     /**
      * Search packages for solution-wide installation
      */
+    /** The enabled package sources, for the source dropdown of Browse */
+    static async getEnabledSources(): Promise<{ name: string }[]> {
+        return (await PackageBrowseService.getPackageSources()).filter(source => source.enabled).map(source => ({ name: source.name }));
+    }
+
     static async searchPackages(query: string, options?: Partial<PackageSearchOptions>) {
         return PackageBrowseService.searchPackages({
             query,

@@ -31,6 +31,16 @@ export declare type SearchPackagesCmd = {
     readonly type: 'searchPackages',
     readonly payload: {
         readonly query: string,
+        /** The package source to search (its name); all enabled sources when not set */
+        readonly source?: string,
+    }
+}
+
+/** The refresh button: the caches of the feeds are dropped and everything is read again */
+export declare type RefreshNuGetCmd = {
+    readonly type: 'refreshNuGet',
+    readonly payload: {
+        readonly includePrerelease: boolean
     }
 }
 
@@ -165,4 +175,5 @@ export declare type BackendCmd =
     TreeFocusChangedCmd |
     TreeSelectionChangedCmd |
     MoveNodesCmd |
-    ToolbarActionCmd;
+    ToolbarActionCmd |
+    RefreshNuGetCmd;

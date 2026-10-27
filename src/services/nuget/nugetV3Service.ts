@@ -71,6 +71,12 @@ export class NuGetV3Service {
         log.info(`Initialized caching system with directory: ${cacheDir}`);
     }
 
+    /** Drops every cached response (memory and disk), so the next requests ask the feeds again (the refresh button) */
+    static async clearCaches(): Promise<void> {
+        this.requestCache.clear();
+        await this.persistentCache?.clear();
+    }
+
     /**
      * Register a callback for UI notifications when cache is updated
      */
