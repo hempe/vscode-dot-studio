@@ -88,18 +88,18 @@ const moreItems: readonly MenuItem[] = [
  */
 export const Toolbar: React.FC<ToolbarProps> = ({ state, onAction }) => (
     <div role="toolbar" aria-label="Solution Explorer" style={{
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', padding: '2px 4px', flexShrink: 0,
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', padding: '6px 4px', marginBottom: '4px', flexShrink: 0,
         borderBottom: '1px solid var(--vscode-panel-border)', background: 'var(--vscode-sideBar-background)',
     }}>
         <button type="button" title="Solution Configuration: Debug/Release, platform, startup profile" aria-label="Solution Configuration"
             style={buttonStyle} onClick={() => onAction('configuration')}>
-            {icon('settings-gear')}
             <span>{state?.configuration ?? 'Debug'}</span>
+            {icon('chevron-down')}
         </button>
         <button type="button" title="Select Framework or Startup Profile" aria-label="Select Framework"
             style={buttonStyle} onClick={() => onAction('framework')}>
-            {icon('symbol-namespace')}
-            {state?.startup && <span>{state.startup}</span>}
+            <span>{state?.startup ?? 'Auto'}</span>
+            {icon('chevron-down')}
         </button>
         <span style={{ flex: 1 }} />
         <span style={{ display: 'inline-flex' }}>

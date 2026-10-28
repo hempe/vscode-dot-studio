@@ -45,6 +45,11 @@ export class SolutionWebView {
                             overflow: hidden;
                         }
 
+                        /* The React root: without a height, the explorer's 100% is its content, and a menu opened from the toolbar is cut off at the last row */
+                        #root {
+                            height: 100%;
+                        }
+
                         .solution-explorer {
                             display: flex;
                             flex-direction: column;

@@ -31,3 +31,14 @@ describe('nonce of the webview shells', () => {
         }
     });
 });
+
+describe('layout of the Solution Explorer shell', () => {
+    it('gives the React root the height of the view, so the explorer fills it and a toolbar menu is not cut off', () => {
+        jest.isolateModules(() => {
+            jest.doMock('vscode', () => ({ Uri: { joinPath: () => ({}) } }), { virtual: true });
+            const { SolutionWebView } = require('../../../webview/providers/views/SolutionWebview');
+            const html = SolutionWebView.getHtmlForWebview({}, { asWebviewUri: () => 'x', cspSource: 'c' }) as string;
+            expect(html).toMatch(/#root\s*\{[^}]*height:\s*100%/);
+        });
+    });
+});

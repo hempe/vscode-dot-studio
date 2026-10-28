@@ -10,6 +10,14 @@ describe('Toolbar', () => {
         expect(screen.getByLabelText('Select Framework').textContent).toBe('Web and Worker');
     });
 
+    it('shows them as dropdowns: text and an arrow, no icon of their own', () => {
+        render(<Toolbar state={{ configuration: 'Debug', startup: 'net10.0', showAllFiles: false }} onAction={() => { }} />);
+        for (const label of ['Solution Configuration', 'Select Framework']) {
+            const icons = [...screen.getByLabelText(label).querySelectorAll('.codicon')].map(element => element.className);
+            expect(icons).toEqual(['codicon codicon-chevron-down']);
+        }
+    });
+
     it('has one Start button, with the other ways to start and the rest in menus, and each reports its action', () => {
         const actions: string[] = [];
         render(<Toolbar state={null} onAction={action => actions.push(action)} />);

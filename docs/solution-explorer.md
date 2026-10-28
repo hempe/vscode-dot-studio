@@ -25,12 +25,12 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 The buttons are one row above the tree, like Visual Studio's Solution Explorer toolbar; the view's title bar has no buttons of its own. The row wraps when the view is narrow (the secondary side bar, for example), where VS Code would hide the icons of a title bar. Every button is also a command in the command palette.
 
-On the left, what is built and run: the **configuration** (Debug or Release, with the platform when there are several) and the **framework or startup profile**. On the right, one **Start** button and the buttons of the tree.
+On the left, two dropdowns for what is built and run, like Visual Studio's: the **configuration** (Debug or Release, with the platform when there are several) and the **framework or startup profile** (Auto when the project picks it). On the right, one **Start** button and the buttons of the tree.
 
 | Button | What it does |
 |---|---|
-| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. Its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
-| Select Framework | The target framework of multi-targeted startup projects, or the startup profile |
+| Debug ▾ (Solution Configuration) | Debug or Release (and other configurations of the solution) for builds, F5 and tests. Its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
+| net10.0 ▾ (Framework or startup profile) | The target framework of multi-targeted startup projects, or the startup profile |
 | ▷ Start | F5: starts the selected launch configuration, normally the startup project. The arrow next to it has the other ways to start: **Start Without Debugging** (Ctrl+F5), **Start with Hot Reload**, and **Attach to Process...** |
 | ◎ Sync with Active Document | Opens the tree down to the file in the active editor and selects it, so you see where the file you are editing lives (Ctrl+[, S). To do this on every switch of files, turn on `shinobi.solutionExplorer.trackActiveItem` (Visual Studio's "Track Active Item") |
 | Show All Files | Shows the files the project does not contain, greyed out, like Visual Studio's button; see [Show All Files and linked files](#show-all-files-and-linked-files) |

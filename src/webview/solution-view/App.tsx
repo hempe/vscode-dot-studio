@@ -34,6 +34,7 @@ export const App: React.FC = React.memo(() => {
         return (
             <div className="solution-explorer" style={{ position: 'relative', height: '100vh' }}>
                 <LoadingBar visible={true} />
+                <div className="loading">Loading the solution...</div>
             </div>
         );
     }
