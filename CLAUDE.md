@@ -15,6 +15,7 @@ npm run build            # production build (used by vscode:prepublish)
 npm run compile:extension  # build only the extension host bundle
 npm run compile:webview    # build only the React webview bundles
 npm run typecheck        # tsc --noEmit
+npm run lint             # ESLint: no floating promises (write `void` when meant), hooks rules
 npm test                 # jest (all tests)
 npx jest path/to/file.test.ts          # single test file
 npx jest -t "test name substring"      # single test by name

@@ -299,6 +299,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const markerTitle = marker ? describeMarker(marker) : undefined;
 
     // Memoize icon configuration to prevent multiple calls during render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const iconConfig = React.useMemo(() => getIconConfig(), [node.type, node.name, nodeIdentifier, node.expanded]);
 
     // Files and folders use the user's file icon theme when it has an icon for them; solutions and

@@ -71,7 +71,11 @@ const ColumnFilter: React.FC<{
                                 checked={!excluded?.has(value)}
                                 onChange={() => {
                                     const next = new Set(excluded);
-                                    next.has(value) ? next.delete(value) : next.add(value);
+                                    if (next.has(value)) {
+                                        next.delete(value);
+                                    } else {
+                                        next.add(value);
+                                    }
                                     onChange(next);
                                 }}
                             />

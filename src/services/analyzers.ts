@@ -72,7 +72,11 @@ export function generatedFiles(generatedDir: string, analyzer: string, generator
         }
         for (const entry of entries) {
             const entryPath = path.join(dir, entry.name);
-            entry.isDirectory() ? collect(entryPath) : files.push(entryPath);
+            if (entry.isDirectory()) {
+                collect(entryPath);
+            } else {
+                files.push(entryPath);
+            }
         }
     };
     collect(path.join(generatedDir, analyzer, generator));

@@ -99,14 +99,14 @@ export class StartupChoice {
     }
 
     /** Makes a profile active; `single` is the startup project to go back to (the remembered one stays when undefined) */
-    static async useProfile(solutionPath: string, ref: ActiveProfileRef, single?: RememberedSingle): Promise<void> {
+    static async chooseProfile(solutionPath: string, ref: ActiveProfileRef, single?: RememberedSingle): Promise<void> {
         const stored = this._stored(solutionPath);
         await this._store(solutionPath, { profile: { name: ref.name, source: ref.source }, single: single ?? stored.single });
         this._fire();
     }
 
     /** Back to the single startup project; nothing happens when no profile is active */
-    static async useSingle(solutionPath: string): Promise<void> {
+    static async chooseSingle(solutionPath: string): Promise<void> {
         const stored = this._stored(solutionPath);
         if (!stored.profile) {
             return;

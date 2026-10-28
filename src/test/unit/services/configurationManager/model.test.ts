@@ -64,7 +64,7 @@ describe('configuration and platform lists', () => {
     });
 
     it('removes a configuration and its mappings, but never the last one', () => {
-        let model = removeConfiguration(emptyModel(), 'Release');
+        const model = removeConfiguration(emptyModel(), 'Release');
         expect(model.configurations).toEqual(['Debug']);
         expect(() => removeConfiguration(model, 'Debug')).toThrow('last');
     });

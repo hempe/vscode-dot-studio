@@ -192,10 +192,10 @@ export function activate(context: vscode.ExtensionContext) {
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand('shinobi.openNuGetManager', (projectPath?: string) => {
-            NuGetCustomEditorProvider.openNuGetManager(projectPath);
+            void NuGetCustomEditorProvider.openNuGetManager(projectPath);
         }),
         vscode.commands.registerCommand('shinobi.openNuGetManagerForSolution', (solutionPath?: string) => {
-            NuGetCustomEditorProvider.openNuGetManagerForSolution(solutionPath);
+            void NuGetCustomEditorProvider.openNuGetManagerForSolution(solutionPath);
         }),
         vscode.commands.registerCommand('shinobi.solution.selectFramework', async () => {
             const frameworkOptions = frameworkDropdownService.getFrameworkOptions();

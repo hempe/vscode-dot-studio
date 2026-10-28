@@ -11,7 +11,7 @@ const log = logger('SolutionFileHandler');
  * Handler for traditional .sln (text-based) solution files
  */
 export class SolutionFileHandler implements ISolutionFileHandler {
-    public readonly fileType: '.sln' = '.sln';
+    public readonly fileType = '.sln' as const;
 
     constructor(public readonly filePath: string) {
         if (!filePath.endsWith('.sln')) {

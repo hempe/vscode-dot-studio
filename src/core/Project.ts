@@ -110,7 +110,7 @@ export class Project {
         private readonly _isUnloaded: () => boolean = () => false,
         private readonly _solutionProjects: () => readonly string[] = () => []
     ) {
-        this.initialize();
+        void this.initialize();
     }
 
     get projectPath(): string {
@@ -995,17 +995,17 @@ export class Project {
             // Set up event handlers
             watcher.onDidCreate((uri) => {
                 log.info(`File created in watched folder: ${uri.fsPath}`);
-                this.handleFileCreated(uri);
+                void this.handleFileCreated(uri);
             }, this, this._disposables);
 
             watcher.onDidChange((uri) => {
                 log.info(`File changed in watched folder: ${uri.fsPath}`);
-                this.handleFileChanged(uri);
+                void this.handleFileChanged(uri);
             }, this, this._disposables);
 
             watcher.onDidDelete((uri) => {
                 log.debug(`File deleted in watched folder: ${uri.fsPath}`);
-                this.handleFileDeleted(uri);
+                void this.handleFileDeleted(uri);
             }, this, this._disposables);
 
             // Store the watcher

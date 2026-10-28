@@ -43,7 +43,7 @@ export class DebounceManager<T = void> {
 
         // Set new timer
         this._timer = setTimeout(() => {
-            this._process();
+            void this._process();
         }, this._debounceMs);
     }
 
@@ -124,7 +124,7 @@ export class DebounceManager<T = void> {
                 this._rerun = false;
                 if (!this._timer) {
                     this._timer = setTimeout(() => {
-                        this._process();
+                        void this._process();
                     }, this._debounceMs);
                 }
             }

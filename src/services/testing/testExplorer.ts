@@ -555,7 +555,11 @@ export class TestExplorer implements vscode.Disposable {
                     if (item.uri && item.range) {
                         message.location = new vscode.Location(item.uri, item.range);
                     }
-                    outcome.state === 'failed' ? run.failed(item, message, outcome.duration) : run.errored(item, message, outcome.duration);
+                    if (outcome.state === 'failed') {
+                        run.failed(item, message, outcome.duration);
+                    } else {
+                        run.errored(item, message, outcome.duration);
+                    }
                     break;
                 }
             }

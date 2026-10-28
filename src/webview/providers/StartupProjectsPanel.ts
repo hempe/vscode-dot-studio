@@ -137,7 +137,7 @@ export class StartupProjectsPanel {
             case 'ready':
                 break;
             case 'useSingle':
-                await StartupChoice.useSingle(solutionPath);
+                await StartupChoice.chooseSingle(solutionPath);
                 break;
             case 'setSingle':
                 // The same path as "Set as Startup Project"; it also ends an active profile
@@ -152,11 +152,11 @@ export class StartupProjectsPanel {
                     writeStartupProfiles(solutionPath, write.source, write.profiles);
                 }
                 if (plan.active) {
-                    await StartupChoice.useProfile(solutionPath, plan.active, single);
+                    await StartupChoice.chooseProfile(solutionPath, plan.active, single);
                 } else if (request.type === 'deleteProfile') {
                     const active = StartupChoice.profileRef(solutionPath);
                     if (active?.name === request.name && (active.source === 'shared') === request.shared) {
-                        await StartupChoice.useSingle(solutionPath);
+                        await StartupChoice.chooseSingle(solutionPath);
                     }
                 }
                 await refreshStartup();

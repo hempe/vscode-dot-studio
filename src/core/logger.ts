@@ -66,25 +66,45 @@ class BackendConsoleLogger implements Logger {
     }
 
     debug(message: string, ...args: any[]): void {
-        sink ? sink.debug(this.channelMessage(message, args)) : console.debug(this.formatMessage("debug", message), ...args);
+        if (sink) {
+            sink.debug(this.channelMessage(message, args));
+        } else {
+            console.debug(this.formatMessage("debug", message), ...args);
+        }
     }
 
     info(message: string, ...args: any[]): void {
-        sink ? sink.info(this.channelMessage(message, args)) : console.log(this.formatMessage("info", message), ...args);
+        if (sink) {
+            sink.info(this.channelMessage(message, args));
+        } else {
+            console.log(this.formatMessage("info", message), ...args);
+        }
     }
 
     warn(message: string, ...args: any[]): void {
-        sink ? sink.warn(this.channelMessage(message, args)) : console.warn(this.formatMessage("warn", message), ...args);
+        if (sink) {
+            sink.warn(this.channelMessage(message, args));
+        } else {
+            console.warn(this.formatMessage("warn", message), ...args);
+        }
     }
 
     error(message: string, ...args: any[]): void {
-        sink ? sink.error(this.channelMessage(message, args)) : console.error(this.formatMessage("error", message), ...args);
+        if (sink) {
+            sink.error(this.channelMessage(message, args));
+        } else {
+            console.error(this.formatMessage("error", message), ...args);
+        }
     }
 
     // DO NOT REMOVE - shotgun logging is used for debugging complex issues
     // Even if not currently used, keep this method for future debugging sessions
     shotgun(message: string, ...args: any[]): void {
-        sink ? sink.trace(this.channelMessage(`🔫 SHOTGUN ${message}`, args)) : console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
+        if (sink) {
+            sink.trace(this.channelMessage(`🔫 SHOTGUN ${message}`, args));
+        } else {
+            console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);
+        }
     }
 }
 /**

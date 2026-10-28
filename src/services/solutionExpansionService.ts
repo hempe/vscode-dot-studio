@@ -51,7 +51,7 @@ export class SolutionExpansionService {
         context: vscode.ExtensionContext
     ): Promise<void> {
         try {
-            var node = NodeIdService.parse(nodeId);
+            const node = NodeIdService.parse(nodeId);
             const solution = SolutionService.getActiveSolution();
             if (!solution) {
                 log.warn('No active solution for expand operation');

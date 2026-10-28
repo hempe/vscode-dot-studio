@@ -120,7 +120,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         );
 
         // Send initial data when webview is ready
-        this._updateWebview(webviewPanel.webview, context, false);
+        void this._updateWebview(webviewPanel.webview, context, false);
     }
 
     private async _handleMessage(message: BackendCmd, context: { type: 'project' | 'solution', target: string }, webview: vscode.Webview) {

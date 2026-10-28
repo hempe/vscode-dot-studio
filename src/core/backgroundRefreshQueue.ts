@@ -56,7 +56,7 @@ export class BackgroundRefreshQueue {
 
             // If no run loop is active, start one
             if (!this.isRunning) {
-                this.startRunLoop();
+                void this.startRunLoop();
             }
         }, DELAY);
         this.pending.set(key, invalidate);

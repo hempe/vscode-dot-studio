@@ -245,8 +245,8 @@ export async function selectStartupProfile(): Promise<void> {
         return;
     }
     if (picked.choice.kind === 'single') {
-        await StartupChoice.useSingle(solutionPath);
+        await StartupChoice.chooseSingle(solutionPath);
         return;
     }
-    await StartupChoice.useProfile(solutionPath, picked.choice.ref, currentSingle());
+    await StartupChoice.chooseProfile(solutionPath, picked.choice.ref, currentSingle());
 }

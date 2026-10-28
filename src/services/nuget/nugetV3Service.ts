@@ -179,7 +179,7 @@ export class NuGetV3Service {
 
             for (let i = 0; i < 3; i++) {
                 try {
-                    var sourceUrl = upgradeNuGetOrgUrl(packageSource.url);
+                    const sourceUrl = upgradeNuGetOrgUrl(packageSource.url);
                     const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
                     const registrationUrl = this.findRegistrationService(serviceIndex);
 

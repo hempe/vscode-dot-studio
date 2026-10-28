@@ -185,7 +185,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             });
         }
 
-        this._sendCachedData();
+        void this._sendCachedData();
     }
 
     /** Tree node that keyboard shortcuts apply to, if the tree has focus */

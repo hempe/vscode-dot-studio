@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { releaseNotes } = require('../../../../scripts/release-notes.js');
 
 const changelog = `# Changelog

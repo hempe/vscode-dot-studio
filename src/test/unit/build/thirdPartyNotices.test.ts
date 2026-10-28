@@ -1,6 +1,5 @@
 // The bundles ship with the licence notices of the npm packages in them (review A7-3)
 import * as path from 'path';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { packageRootOf } = require('../../../../scripts/thirdPartyNotices');
 
 describe('packageRootOf', () => {

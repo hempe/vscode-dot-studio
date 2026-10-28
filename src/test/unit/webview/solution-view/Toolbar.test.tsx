@@ -28,7 +28,6 @@ describe('Toolbar', () => {
     });
 
     it('every action maps to a command the extension registers', () => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const declared = new Set((require('../../../../../package.json').contributes.commands as { command: string }[]).map(command => command.command));
         for (const action of TOOLBAR_ACTIONS) {
             expect(declared.has(TOOLBAR_COMMANDS[action])).toBe(true);

@@ -333,6 +333,8 @@ export const App: React.FC = () => {
             requestPackageIcon(pkg);
             requestPackageReadme(pkg);
         });
+        // The request functions are new on every render; what they read is in the list
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data.searchResults, data.installedPackages, data.transitivePackages, transitiveExpanded, activeTab, packageIcons, requestedIcons, failedIcons, packageReadmes, requestedReadmes]);
 
     const handleSearch = (source: string = selectedSource) => {
@@ -544,10 +546,9 @@ export const App: React.FC = () => {
     };
 
     // Fetch detailed package metadata when package is selected
-    const selectPackageWithDetails = async (pkg: LocalNuGetPackage, index: number) => {
+    const selectPackageWithDetails = (pkg: LocalNuGetPackage, index: number) => {
         setSelectedPackage(pkg);
         setSelectedIndex(index);
-        return;
     };
 
     const handlePackageToggle = (pkg: LocalNuGetPackage, checked: boolean) => {
@@ -1078,6 +1079,8 @@ export const App: React.FC = () => {
                 }
             });
         }
+        // Asked once when the tab opens, with the prerelease choice of that moment
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, shouldShowConsolidate, consolidateLoaded, consolidateLoading]);
 
     const rightSidePanel = (

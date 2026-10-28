@@ -122,7 +122,7 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
     };
 
     const activate = async (name = 'Both') => {
-        await StartupChoice.useProfile(solutionPath, { name, source: 'shared' },
+        await StartupChoice.chooseProfile(solutionPath, { name, source: 'shared' },
             { projectPath: apiPath, framework: 'net10.0', launchProfile: 'https' });
         await refreshStartup();
     };
@@ -217,7 +217,7 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         await activate();
         expect(launchJson().configurations.map((config: any) => config.name)).toEqual(['Both: Api', 'Both: Worker', 'Mine']);
 
-        await StartupChoice.useSingle(solutionPath);
+        await StartupChoice.chooseSingle(solutionPath);
         await refreshStartup();
 
         const text = fs.readFileSync(launchJsonPath(), 'utf8');
@@ -323,7 +323,7 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
                 [workerPath, { isExecutable: true, isTestProject: false }],
             ]),
         };
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' });
         await refreshStartup();
         expect(launchJson().compounds).toEqual([COMPOUND]);
 
@@ -337,9 +337,9 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
     }, 60000);
 
     it('none of the projects can start: the profile entries go and it says F5 has nothing to start', async () => {
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' });
         await refreshStartup();
-        await StartupChoice.useSingle(solutionPath);
+        await StartupChoice.chooseSingle(solutionPath);
         await refreshStartup();
 
         expect(launchJson().compounds).toEqual([]);

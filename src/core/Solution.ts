@@ -1135,7 +1135,7 @@ export class Solution {
             log.info(`About to update launch.json with startup project: ${projectPath}`);
             if (await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true)) {
                 // Like Visual Studio, a single startup project replaces a multi-project startup profile
-                await StartupChoice.useSingle(this.solutionPath);
+                await StartupChoice.chooseSingle(this.solutionPath);
             }
             log.info(`Finished updating launch.json`);
 

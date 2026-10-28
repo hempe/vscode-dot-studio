@@ -28,7 +28,7 @@ export class FrameworkDropdownService {
     public getFrameworkOptions(): FrameworkOption[] {
         try {
             // First, try to get frameworks from the current startup project
-            let startupProjectPath = this.solution?.getStartupProject();
+            const startupProjectPath = this.solution?.getStartupProject();
             const project = this.solution?.projects.get(startupProjectPath || '');
             let frameworks: string[] = project?.frameworks || [];
             // Fallback: if no startup project or no frameworks found, get from solution
@@ -87,7 +87,7 @@ export class FrameworkDropdownService {
 
     public async setActiveFramework(framework?: string): Promise<void> {
         // Update the debug configuration with the new framework
-        let currentStartupProject = this.solution?.getStartupProject();
+        const currentStartupProject = this.solution?.getStartupProject();
 
         log.info(`Framework changed to: ${framework}, current startup project: ${currentStartupProject}`);
         if (currentStartupProject) {

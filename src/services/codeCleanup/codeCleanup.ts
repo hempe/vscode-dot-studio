@@ -44,6 +44,8 @@ interface StepResult {
 function run(args: string[], cwd: string, token: vscode.CancellationToken): Promise<StepResult> {
     return new Promise(resolve => {
         let cancelled = false;
+        // The cancel listener and the exit callback need each other: the child is assigned after the listener exists
+        // eslint-disable-next-line prefer-const
         let child: ChildProcess | undefined;
         const subscription = token.onCancellationRequested(() => {
             cancelled = true;

@@ -67,9 +67,9 @@ const SettingsForm: React.FC<{
     const update = (changes: Partial<FolderSettings>) => setSettings(current => normalize({ ...current, ...changes }, init.hostRuntime));
     useEffect(() => {
         if (pickedFolder !== undefined) {
-            update({ publishDir: pickedFolder });
+            setSettings(current => normalize({ ...current, publishDir: pickedFolder }, init.hostRuntime));
         }
-    }, [pickedFolder]);
+    }, [pickedFolder, init.hostRuntime]);
     const frameworks = settings.targetFramework && !init.frameworks.includes(settings.targetFramework)
         ? [settings.targetFramework, ...init.frameworks] : init.frameworks;
     const configurations = init.configurations.includes(settings.configuration) ? init.configurations : [settings.configuration, ...init.configurations];

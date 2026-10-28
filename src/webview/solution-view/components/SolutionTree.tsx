@@ -47,25 +47,6 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         return null;
     }, []);
 
-    const handleToggleExpand = (nodeId: NodeIdString, nodeType: NodeType) => {
-        log.info(`Toggle expand request for nodeId: ${nodeId}, type: ${nodeType}`);
-
-        // Find the node to check its current state
-        const node = findNodeById(nodeId, treeNodes);
-        if (!node) {
-            log.warn(`Node not found: ${nodeId}`);
-            return;
-        }
-
-        if (node.expanded) {
-            log.info(`Requesting collapse: ${nodeId}`);
-            onCollapseNode?.(nodeId);
-        } else {
-            log.info(`Requesting expand: ${nodeId}`);
-            onExpandNode?.(nodeId);
-        }
-    };
-
     const handleNodeClick = (nodeId: NodeIdString, modifiers?: { toggle?: boolean; range?: boolean }) => {
         log.info(`Node clicked: ${nodeId}`);
         setFocusedNodeId(nodeId);
@@ -163,6 +144,25 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     }, []);
 
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
+
+    const handleToggleExpand = useCallback((nodeId: NodeIdString, _nodeType: NodeType) => {
+        log.info(`Toggle expand request for nodeId: ${nodeId}`);
+
+        // Find the node to check its current state
+        const node = findNodeById(nodeId, treeNodes);
+        if (!node) {
+            log.warn(`Node not found: ${nodeId}`);
+            return;
+        }
+
+        if (node.expanded) {
+            log.info(`Requesting collapse: ${nodeId}`);
+            onCollapseNode?.(nodeId);
+        } else {
+            log.info(`Requesting expand: ${nodeId}`);
+            onExpandNode?.(nodeId);
+        }
+    }, [findNodeById, treeNodes, onCollapseNode, onExpandNode]);
     const flatNodes = React.useMemo(() => flattenNodes(treeNodes), [flattenNodes, treeNodes]);
 
     // Drag & drop
@@ -479,16 +479,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         };
 
         // Only listen for keyboard events when the tree has focus
-        if (treeRef.current) {
-            treeRef.current.addEventListener('keydown', handleKeyDown);
-        }
-
-        return () => {
-            if (treeRef.current) {
-                treeRef.current.removeEventListener('keydown', handleKeyDown);
-            }
-        };
-    }, [focusedNodeId, flatNodes, handleToggleExpand]);
+        const tree = treeRef.current;
+        tree?.addEventListener('keydown', handleKeyDown);
+        return () => tree?.removeEventListener('keydown', handleKeyDown);
+    }, [focusedNodeId, flatNodes, handleToggleExpand, onProjectAction]);
 
     // Tell the extension which node keyboard shortcuts (VS Code key bindings) apply to.
     // Nothing while the view is unfocused or a name is being edited, so keys like Delete reach the input.
@@ -511,6 +505,8 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             type: 'treeFocusChanged',
             payload: shortcutNode ? { nodeId: shortcutNode.nodeId, nodeType: shortcutNode.type } : {}
         });
+        // Only the id and type go to the extension: a new node object with the same id is no change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shortcutNode?.nodeId, shortcutNode?.type]);
 
     // The extension applies multi-select commands (Delete, Build, ...) to all selected nodes

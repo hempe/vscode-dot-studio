@@ -36,6 +36,7 @@ To try your changes, press **F5** in VS Code with this launch configuration in `
 | `npm run watch` | The same, rebuilding on changes |
 | `npm run build` | Production build (used when packaging) |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (`eslint.config.mjs`): unawaited promises, hooks rules, `var`, `prefer-const`; CI runs it |
 | `npm test` | All Jest tests; `npx jest path/to/file.test.ts` or `npx jest -t "name"` for one |
 | `npm run generate:menus` | Writes the context menus from `src/core/contextMenus.ts` into `package.json` and `docs/context-menus.md` (a test fails if you forget) |
 | `scripts/screenshots/capture.sh` | Captures the screenshots in `docs/images/` (see below) |

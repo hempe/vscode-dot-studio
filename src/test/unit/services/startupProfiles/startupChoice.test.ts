@@ -54,7 +54,7 @@ describe('StartupChoice', () => {
         fs.writeFileSync(path.join(dir, 'Shop.slnLaunch.user'), PROFILES);
         const single = { projectPath: path.join(dir, 'Api', 'Api.csproj'), framework: 'net10.0', launchProfile: 'https' };
 
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'user' }, single);
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'user' }, single);
 
         const resolved = StartupChoice.resolve(solutionPath);
         expect(resolved.kind).toBe('profile');
@@ -64,12 +64,12 @@ describe('StartupChoice', () => {
         expect(fired).toBe(1);
 
         // Another profile keeps the remembered single project
-        await StartupChoice.useProfile(solutionPath, { name: 'Other', source: 'user' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Other', source: 'user' });
         expect(StartupChoice.rememberedSingle(solutionPath)).toEqual(single);
     });
 
     it('falls back to the single startup project when the file or the profile is gone, and comes back with it', async () => {
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' });
         expect(StartupChoice.resolve(solutionPath)).toEqual({ kind: 'single' });
 
         fs.writeFileSync(path.join(dir, 'Shop.slnLaunch'), '[{"Name":"Renamed","Projects":[]}]');
@@ -83,25 +83,25 @@ describe('StartupChoice', () => {
 
     it('reports a file that cannot be parsed instead of falling back', async () => {
         fs.writeFileSync(path.join(dir, 'Shop.slnLaunch'), '[{"Name":');
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' });
 
         const resolved = StartupChoice.resolve(solutionPath);
         expect(resolved).toEqual({ kind: 'unreadable', ref: { name: 'Both', source: 'shared' }, error: expect.stringContaining('not valid JSON') });
     });
 
     it('goes back to the single startup project, and does nothing without a profile', async () => {
-        await StartupChoice.useSingle(solutionPath);
+        await StartupChoice.chooseSingle(solutionPath);
         expect(fired).toBe(0);
 
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' }, { projectPath: 'Api.csproj' });
-        await StartupChoice.useSingle(solutionPath);
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' }, { projectPath: 'Api.csproj' });
+        await StartupChoice.chooseSingle(solutionPath);
         expect(fired).toBe(2);
         expect(StartupChoice.profileRef(solutionPath)).toBeUndefined();
         expect(StartupChoice.rememberedSingle(solutionPath)).toEqual({ projectPath: 'Api.csproj' });
     });
 
     it('keeps the choice per solution', async () => {
-        await StartupChoice.useProfile(solutionPath, { name: 'Both', source: 'shared' });
+        await StartupChoice.chooseProfile(solutionPath, { name: 'Both', source: 'shared' });
         expect(StartupChoice.profileRef(path.join(dir, 'Other.sln'))).toBeUndefined();
     });
 

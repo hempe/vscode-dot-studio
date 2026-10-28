@@ -39,6 +39,7 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       # The github-actions reporter turns failing tests into annotations on the run
       - run: npm test -- --reporters=default --reporters=github-actions --json --outputFile=jest.json
       # Suite-level failures (crashes, setup errors) produce no annotation from the reporter, so list them from the JSON result

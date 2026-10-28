@@ -15,7 +15,7 @@ const log = logger('SolutionXFileHandler');
  * for better source control integration and easier parsing.
  */
 export class SolutionXFileHandler implements ISolutionFileHandler {
-    public readonly fileType: '.slnx' = '.slnx';
+    public readonly fileType = '.slnx' as const;
 
     constructor(public readonly filePath: string) {
         if (!filePath.endsWith('.slnx')) {

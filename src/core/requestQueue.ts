@@ -37,7 +37,7 @@ export class RequestQueue {
     private enqueue<T>(task: () => Promise<T>): Promise<T> {
         return new Promise<T>((resolve, reject) => {
             this.queue.push({ task, resolve, reject });
-            this.processQueue();
+            void this.processQueue();
         });
     }
 

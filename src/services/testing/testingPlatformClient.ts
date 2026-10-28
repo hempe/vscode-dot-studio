@@ -108,7 +108,11 @@ export function connectTestApp(start: (args: string[]) => Promise<TestApp>, time
                     if (message.method === undefined && pending.has(message.id)) {
                         const { resolve: resolveRequest, reject: rejectRequest } = pending.get(message.id)!;
                         pending.delete(message.id);
-                        message.error ? rejectRequest(new Error(message.error.message ?? 'Request failed')) : resolveRequest(message.result);
+                        if (message.error) {
+                            rejectRequest(new Error(message.error.message ?? 'Request failed'));
+                        } else {
+                            resolveRequest(message.result);
+                        }
                     } else if (message.method === 'testing/testUpdates/tests') {
                         const nodes = (message.params?.changes ?? []).map((change: any) => change.node).filter(Boolean);
                         updateListeners.forEach(listener => listener(nodes));
