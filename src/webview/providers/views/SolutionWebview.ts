@@ -218,11 +218,13 @@ export class SolutionWebView {
                             align-items: center;
                             width: calc(100% - 8px);
                             margin: 0 4px;
-                            padding: 4px 28px;
+                            /* The row keeps its size for the mouse; the highlight is the padding box, 2px smaller on every side */
+                            padding: 2px 26px;
                             min-height: 18px;
-                            border: none;
+                            border: 2px solid transparent;
+                            background-clip: padding-box;
                             border-radius: 5px;
-                            background: transparent;
+                            background-color: transparent;
                             color: var(--vscode-menu-foreground);
                             font: inherit;
                             text-align: left;
