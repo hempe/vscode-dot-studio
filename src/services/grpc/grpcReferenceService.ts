@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { isWebProject } from '../../parsers/projectKind';
 import { SolutionService } from '../solutionService';
-import { pathKey, ProjectItems } from '../projectItems/projectItems';
+import { ProjectItems } from '../projectItems/projectItems';
 import { ProjectItemsService } from '../projectItems/projectItemsService';
 import { changePackageVersions, OperationsHost, vscodeHost as packageOperationsHost } from '../nuget/centralPackageOperations';
 import { PackageBrowseService } from '../nuget/packageBrowseService';
@@ -11,6 +11,7 @@ import { PackageOperationResult } from '../nuget/types';
 import { VersionUtils } from '../versionUtils';
 import { serviceReferencesOutput, showServiceReferenceFailure } from '../serviceReferences/output';
 import { Cancellation, download, DownloadCancelled, redactUrl } from './download';
+import { sameFile } from '../projectItems/itemPaths';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, downloadedContentRefusal, duplicateRefusal, ensureDevelopmentDependency, GRPC_SERVICES,
     GrpcServices, grpcPackages, isExistingReference, notListedMessage, protobufReferenceFor, protoFileName, PROTOS_FOLDER, rangeMinimum,
@@ -267,7 +268,6 @@ export async function installGrpcPackages(
     return outcome.cancelled ? [{ success: false, message: 'Cancelled: the packages were not added.' }] : outcome.results;
 }
 
-const sameFile = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
 const notEvaluated = (projectPath: string) => `${path.basename(projectPath)} could not be evaluated by MSBuild (does it build?),`;
 
 /**

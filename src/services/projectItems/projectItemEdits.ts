@@ -4,10 +4,8 @@ import { ProjectFileEditor } from '../../parsers/projectFileEditor';
 import { BUILD_OUTPUT_FOLDERS } from './folderLayout';
 import { ProjectItems } from './projectItems';
 import { NewItem, newItemFor } from './defaultItems';
+import { isBelow } from './itemPaths';
 
-/** Whether `relative` (from path.relative) points below the folder it is relative to */
-const isBelow = (relative: string) =>
-    relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 
 /**
  * MSBuild item paths, relative to the project folder, with backslashes like the project templates, escaped.

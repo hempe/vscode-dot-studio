@@ -1,17 +1,11 @@
-import * as path from 'path';
 import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
-import { pathKey } from './projectItems';
+import { resolveItem, sameFile } from './itemPaths';
 
 /**
  * Linked files (`<Compile Include="..\Shared\x.cs" Link="x.cs" />`): the file lives outside the project folder, the
  * project only points to it. Remove Link takes the item out of the project file; Delete would delete the real file.
  */
 
-const unescapeMsbuild = (value: string) => value.replace(/%([0-9A-Fa-f]{2})/g, (_all, hex: string) => String.fromCharCode(parseInt(hex, 16)));
-/** The file an Include written in the project file stands for */
-const resolveItem = (projectDir: string, value: string) =>
-    path.resolve(projectDir, unescapeMsbuild(Xml.unescape(value)).trim().replace(/[\\/]/g, path.sep));
-const sameFile = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
 /** A wildcard, a list of files, or properties/item lists: what it stands for takes MSBuild to tell */
 const isExact = (include: string) => !/[*?;]|[$@]\(/.test(Xml.unescape(include));
 

@@ -3,7 +3,8 @@ import * as crypto from 'crypto';
 import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
 import { isWebProject } from '../../parsers/projectKind';
 import { escapeMsbuild } from '../projectItems/projectItemEdits';
-import { pathKey, ProtobufItem } from '../projectItems/projectItems';
+import { ProtobufItem } from '../projectItems/projectItems';
+import { isBelow, resolveItem, sameFile, unescapeMsbuild } from '../projectItems/itemPaths';
 
 /**
  * gRPC references (`<Protobuf>` items) as Visual Studio's "Add Connected Service > gRPC" and `dotnet-grpc` write them:
@@ -39,8 +40,6 @@ export function referenceLabel(item: ProtobufItem): string {
     return `${path.basename(item.fullPath)} (${servicesOf(item)})`;
 }
 
-const isBelow = (relative: string) =>
-    relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 
 /**
  * The item for a `.proto` file: Include relative to the project folder; a file outside it also gets
@@ -57,10 +56,7 @@ export function protobufReferenceFor(projectDir: string, protoPath: string, serv
     };
 }
 
-const unescapeMsbuild = (value: string) => value.replace(/%([0-9A-Fa-f]{2})/g, (_all, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 /** The file an Include (or Link) written in the project file stands for */
-const resolveItem = (projectDir: string, value: string) => path.resolve(projectDir, unescapeMsbuild(Xml.unescape(value)).trim().replace(/[\\/]/g, path.sep));
-const sameFile = (a: string, b: string) => pathKey(path.normalize(a)) === pathKey(path.normalize(b));
 
 interface Element {
     readonly include: string;
