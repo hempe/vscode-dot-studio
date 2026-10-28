@@ -42,3 +42,15 @@ describe('layout of the Solution Explorer shell', () => {
         });
     });
 });
+
+describe('hover of the Solution Explorer toolbar', () => {
+    it('has hover rules for its buttons and menu items in the shell', () => {
+        jest.isolateModules(() => {
+            jest.doMock('vscode', () => ({ Uri: { joinPath: () => ({}) } }), { virtual: true });
+            const { SolutionWebView } = require('../../../webview/providers/views/SolutionWebview');
+            const html = SolutionWebView.getHtmlForWebview({}, { asWebviewUri: () => 'x', cspSource: 'c' }) as string;
+            expect(html).toMatch(/\.toolbar-button:hover\s*\{[^}]*toolbar-hoverBackground/);
+            expect(html).toMatch(/\.toolbar-menu-item:hover[^{]*\{[^}]*menu-selectionBackground/);
+        });
+    });
+});

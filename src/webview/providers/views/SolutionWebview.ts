@@ -188,6 +188,60 @@ export class SolutionWebView {
                             -webkit-font-smoothing: antialiased;
                         }
 
+                        /* Buttons of the toolbar: hover and keyboard focus like VS Code's action bar */
+                        .toolbar-button:hover {
+                            background-color: var(--vscode-toolbar-hoverBackground) !important;
+                        }
+
+                        .toolbar-button:focus-visible {
+                            outline: 1px solid var(--vscode-focusBorder);
+                            outline-offset: -1px;
+                        }
+
+                        /* Menus of the toolbar, drawn like VS Code's own menus (the colours are the theme's menu colours) */
+                        .toolbar-menu {
+                            background-color: var(--vscode-menu-background);
+                            border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
+                            border-radius: 6px;
+                            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                            padding: 4px 0;
+                            min-width: 220px;
+                            font-family: var(--vscode-font-family);
+                            font-size: 13px;
+                            line-height: 1.4;
+                            outline: none;
+                        }
+
+                        .toolbar-menu-item {
+                            display: flex;
+                            align-items: center;
+                            width: calc(100% - 8px);
+                            margin: 0 4px;
+                            padding: 4px 28px;
+                            min-height: 18px;
+                            border: none;
+                            border-radius: 4px;
+                            background: transparent;
+                            color: var(--vscode-menu-foreground);
+                            font: inherit;
+                            text-align: left;
+                            white-space: nowrap;
+                            cursor: pointer;
+                        }
+
+                        .toolbar-menu-item:hover,
+                        .toolbar-menu-item:focus {
+                            background-color: var(--vscode-menu-selectionBackground);
+                            color: var(--vscode-menu-selectionForeground);
+                            outline: none;
+                        }
+
+                        .toolbar-menu-separator {
+                            height: 1px;
+                            background-color: var(--vscode-menu-separatorBackground);
+                            margin: 4px 0;
+                        }
+
                         .node-name.startup-project {
                             font-weight: bold;
                         }

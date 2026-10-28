@@ -73,3 +73,19 @@ describe('Toolbar', () => {
         }
     });
 });
+
+describe('Toolbar menus', () => {
+    it('focus the first item when opened and move with the arrow keys, wrapping round', () => {
+        render(<Toolbar state={null} onAction={() => { }} />);
+        fireEvent.click(screen.getByLabelText('More ways to start'));
+        const items = screen.getAllByRole('menuitem');
+        expect(document.activeElement).toBe(items[0]);
+
+        const menu = screen.getByRole('menu');
+        fireEvent.keyDown(menu, { key: 'ArrowDown' });
+        expect(document.activeElement).toBe(items[1]);
+        fireEvent.keyDown(menu, { key: 'ArrowUp' });
+        fireEvent.keyDown(menu, { key: 'ArrowUp' });
+        expect(document.activeElement).toBe(items[items.length - 1]);
+    });
+});
