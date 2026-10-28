@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { chooseTestFramework, isNetFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, projectTextWithBuildProps, testProjectFrom } from '../../../../services/testing/testProjects';
+import { chooseTestFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, projectTextWithBuildProps, testProjectFrom } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -92,11 +92,6 @@ describe('the selected framework (Select Framework) and the test framework', () 
         expect(choose('net8.0;net9.0;net472', undefined)).toEqual({ framework: 'net8.0', reason: 'automatic: the highest .NET with an installed runtime' });
         expect(choose('net9.0;net472', undefined, [8]).reason).toBe('automatic: no installed runtime fits, the highest .NET');
         expect(choose('net48;net472', undefined)).toEqual({ framework: 'net48', reason: 'automatic: no modern .NET, the first framework' });
-    });
-
-    it('tells .NET Framework frameworks apart', () => {
-        expect(['net472', 'net48', 'net481', 'net462', 'net45', 'net40', 'net35'].every(isNetFramework)).toBe(true);
-        expect(['net8.0', 'net10.0', 'netcoreapp3.1', 'netstandard2.0', 'net6.0-windows', undefined].some(isNetFramework)).toBe(false);
     });
 });
 

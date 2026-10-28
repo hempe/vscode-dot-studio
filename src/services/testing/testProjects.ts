@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
+import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
 
 const TEST_PACKAGES = ['xunit.v3', 'xunit', 'MSTest', 'MSTest.TestFramework', 'TUnit', 'NUnit', 'Microsoft.Testing.Platform', 'Microsoft.NET.Test.Sdk'];
 
@@ -100,11 +101,6 @@ export function pickTestFramework(frameworks: readonly string[], runtimeMajors: 
     return modern.find(entry => runtimeMajors.includes(entry.version[0]))?.framework ?? modern[0]?.framework ?? frameworks[0];
 }
 
-/** .NET Framework target frameworks: net20 ... net481 */
-export function isNetFramework(framework: string | undefined): boolean {
-    return /^net[1-4]\d{1,2}$/i.test(framework ?? '');
-}
-
 /**
  * The framework to test a multi-targeted project on and why: the solution's selected framework (Select Framework)
  * when the project targets it, .NET Framework ones included; else pickTestFramework's automatic pick.
@@ -172,7 +168,7 @@ export function testProjectFrom(projectPath: string, msbuildJson: string, framew
             ...(vstestConsolePath ? { vstestConsolePath } : {}),
             ...(runSettingsPath ? { runSettingsPath: path.resolve(path.dirname(projectPath), runSettingsPath) } : {}),
             ...(choice ? { targetFramework: choice.framework, frameworkReason: choice.reason } : {}),
-            ...(isNetFramework(framework) ? { netFramework: true } : {}),
+            ...(isNetFrameworkTarget(framework) ? { netFramework: true } : {}),
         }
         : undefined;
 }

@@ -33,7 +33,3 @@ export function hotReloadTerminalName(projectPath: string): string {
     return `${path.basename(projectPath, path.extname(projectPath))} (watch)`;
 }
 
-/** .NET Framework target frameworks (`net48`, `net472`): dotnet watch cannot hot reload them */
-export function isNetFrameworkTarget(framework: string | null | undefined): boolean {
-    return !!framework && /^net\d{2,3}$/.test(framework);
-}

@@ -17,3 +17,8 @@ export async function parseTargetFrameworks(projectXml: string): Promise<string[
     }
     return frameworks;
 }
+
+/** .NET Framework target frameworks (`net20` ... `net481`): they run on Mono or Windows, make an `.exe` and have no `dotnet watch` */
+export function isNetFrameworkTarget(framework: string | null | undefined): boolean {
+    return /^net[1-4]\d{1,2}$/i.test(framework ?? '');
+}

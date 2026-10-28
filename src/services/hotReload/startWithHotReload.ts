@@ -7,7 +7,8 @@ import { platformProperty } from '../configurationManager/configurationManager';
 import { checkDevCertificateBeforeStart } from '../devCert/devCertCheck';
 import { SolutionService } from '../solutionService';
 import { UnloadedProjects } from '../unloadedProjects';
-import { hotReloadArgs, hotReloadTerminalName, isNetFrameworkTarget } from './hotReloadCommand';
+import { hotReloadArgs, hotReloadTerminalName } from './hotReloadCommand';
+import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
 
 const log = logger('HotReload');
 

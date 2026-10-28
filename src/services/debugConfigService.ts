@@ -4,7 +4,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../core/logger';
 import { parseStringPromise } from 'xml2js';
-import { VersionUtils } from './versionUtils';
+import { sortFrameworksByVersion } from './frameworkOrder';
+import { isNetFrameworkTarget } from '../parsers/targetFrameworks';
 import { parseJsonc, removeArrayItems, upsertArrayItem } from '../core/jsonc';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -339,7 +340,7 @@ export class DebugConfigService {
             ? targetPath
             : `\${workspaceFolder}/${relativeTargetPath.split(path.sep).join('/')}`;
 
-        const isNetFramework = this.isNetFramework(selectedFramework);
+        const isNetFramework = isNetFrameworkTarget(selectedFramework);
 
         // Determine debug type based on framework and platform
         let debugType: string;
@@ -494,7 +495,7 @@ export class DebugConfigService {
     private static async resolveTargetPath(projectPath: string, configuration: string, framework: string | null, platform?: string): Promise<string> {
         const projectDir = path.dirname(projectPath);
         const fallback = path.join(projectDir, 'bin', configuration, framework || 'net*',
-            `${path.basename(projectPath, path.extname(projectPath))}.${this.isNetFramework(framework) ? 'exe' : 'dll'}`);
+            `${path.basename(projectPath, path.extname(projectPath))}.${isNetFrameworkTarget(framework) ? 'exe' : 'dll'}`);
         try {
             const { stdout } = await execFileAsync('dotnet', [
                 'msbuild', projectPath, '-nologo', '-getProperty:TargetPath',
@@ -535,7 +536,7 @@ export class DebugConfigService {
             }
 
             // If preference is 'auto' or not specified, pick the highest version
-            const sortedFrameworks = this.sortFrameworksByVersion(frameworks);
+            const sortedFrameworks = sortFrameworksByVersion(frameworks);
             const selectedFramework = sortedFrameworks[0]; // Highest version first
 
             log.info(`Auto-selected highest framework version: ${selectedFramework}`);
@@ -544,66 +545,6 @@ export class DebugConfigService {
             log.error('Error determining target framework:', error);
             return preferredFramework || null;
         }
-    }
-
-    /**
-     * Sorts frameworks by version, highest first (uses same logic as NuGet version sorting)
-     */
-    private static sortFrameworksByVersion(frameworks: string[]): string[] {
-        return frameworks.sort((a, b) => {
-            // Convert framework names to version-like strings for comparison
-            const normalizeFramework = (fw: string): string => {
-                // Handle modern .NET (net5.0, net6.0, net7.0, net8.0, net9.0, etc.)
-                const modernMatch = fw.match(/^net(\d+)\.(\d+)$/);
-                if (modernMatch) {
-                    // Prefix with high number to prioritize over older frameworks
-                    return `9.${modernMatch[1]}.${modernMatch[2]}`;
-                }
-
-                // Handle .NET Core (netcoreapp3.1, netcoreapp2.1, etc.)
-                const coreMatch = fw.match(/^netcoreapp(\d+)\.(\d+)$/);
-                if (coreMatch) {
-                    // Medium priority
-                    return `5.${coreMatch[1]}.${coreMatch[2]}`;
-                }
-
-                // Handle .NET Framework (net472, net48, net481, etc.)
-                const frameworkMatch = fw.match(/^net(\d)(\d)(\d+)?$/);
-                if (frameworkMatch) {
-                    const major = frameworkMatch[1];
-                    const minor = frameworkMatch[2];
-                    const patch = frameworkMatch[3] || '0';
-                    // Lower priority
-                    return `2.${major}.${minor}.${patch}`;
-                }
-
-                // Handle .NET Standard (netstandard2.0, netstandard2.1, etc.)
-                const standardMatch = fw.match(/^netstandard(\d+)\.(\d+)$/);
-                if (standardMatch) {
-                    // Lowest priority
-                    return `1.${standardMatch[1]}.${standardMatch[2]}`;
-                }
-
-                // Unknown framework type - very low priority
-                return `0.0.0`;
-            };
-
-            const versionA = normalizeFramework(a);
-            const versionB = normalizeFramework(b);
-
-            // Use the same version comparison as NuGet (newest first)
-            return VersionUtils.compare(versionA, versionB);
-        });
-    }
-
-    /**
-     * Determines if a framework is .NET Framework (which produces .exe) vs modern .NET (which produces .dll)
-     */
-    private static isNetFramework(framework: string | null): boolean {
-        if (!framework) return false;
-
-        // .NET Framework patterns: net40, net45, net48, net472, net481 (modern ones have a dot: net8.0)
-        return /^net\d{2,3}$/.test(framework);
     }
 
     /**

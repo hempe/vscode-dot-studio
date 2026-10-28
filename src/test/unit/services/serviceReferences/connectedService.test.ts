@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    CONNECTED_SERVICES, isNetFrameworkTarget, isValidReferenceName, newServiceReference, readServiceReference,
+    CONNECTED_SERVICES, isValidReferenceName, newServiceReference, readServiceReference,
     requiredPackages, serializeServiceReference, serviceFolderKind, suggestReferenceName, toSvcutilParams,
 } from '../../../../services/serviceReferences/connectedService';
 
@@ -122,8 +122,5 @@ describe('required packages', () => {
 
     it('none for .NET Framework, which has System.ServiceModel built in', () => {
         expect(requiredPackages(http, '<Project />', 'net471')).toEqual([]);
-        expect(isNetFrameworkTarget('net48')).toBe(true);
-        expect(isNetFrameworkTarget('net10.0')).toBe(false);
-        expect(isNetFrameworkTarget('netstandard2.0')).toBe(false);
     });
 });

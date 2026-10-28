@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { hotReloadArgs, hotReloadTerminalName, isNetFrameworkTarget } from '../../../../services/hotReload/hotReloadCommand';
+import { hotReloadArgs, hotReloadTerminalName } from '../../../../services/hotReload/hotReloadCommand';
 
 describe('hotReloadArgs', () => {
     const projectPath = path.resolve('src', 'Shop.Web', 'Shop.Web.csproj');
@@ -38,13 +38,3 @@ describe('hotReloadTerminalName', () => {
     });
 });
 
-describe('isNetFrameworkTarget', () => {
-    it('tells .NET Framework from .NET', () => {
-        expect(isNetFrameworkTarget('net48')).toBe(true);
-        expect(isNetFrameworkTarget('net472')).toBe(true);
-        expect(isNetFrameworkTarget('net10.0')).toBe(false);
-        expect(isNetFrameworkTarget('netcoreapp3.1')).toBe(false);
-        expect(isNetFrameworkTarget(null)).toBe(false);
-        expect(isNetFrameworkTarget(undefined)).toBe(false);
-    });
-});

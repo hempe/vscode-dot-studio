@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
 
 export const CONNECTED_SERVICES = 'Connected Services';
 export const VS_METADATA_FILE = 'ConnectedService.json';
@@ -133,11 +134,6 @@ export function suggestReferenceName(input: string, existing: readonly string[])
         name = `${base}${i}`;
     }
     return name;
-}
-
-/** .NET Framework TFMs (net471, net48) come with System.ServiceModel; modern ones need the WCF client packages */
-export function isNetFrameworkTarget(targetFramework: string): boolean {
-    return /^net\d{2,3}$/.test(targetFramework);
 }
 
 /** WCF client packages the generated code needs and the project doesn't reference yet */
