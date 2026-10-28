@@ -14,6 +14,9 @@ import { Settings } from '../services/settings';
 import { NodeId, NodeIdService } from '../services/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../types';
+import { dependencyCategories, dependencyNodes, ProjectDependency } from './dependencyNodes';
+export { dependencyLabel } from './dependencyNodes';
+export type { ProjectDependency } from './dependencyNodes';
 import { workspaceFolderOf } from '../services/workspaceFolders';
 import { ProjectItemsService } from '../services/projectItems/projectItemsService';
 import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
@@ -23,7 +26,6 @@ import { ProjectItems } from '../services/projectItems/projectItems';
 import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
 import { INCLUDED_ITEM, EXCLUDED_ITEM, LINKED_ITEM } from './contextMenus';
 import { ProjectPackages } from '../services/nuget/centralPackages';
-import { PackageVersionSource } from '../services/nuget/types';
 import { OwnWrites } from '../services/ownWrites';
 
 export interface ProjectFileNode {
@@ -34,18 +36,6 @@ export interface ProjectFileNode {
     isLoaded?: boolean; // Track if children have been loaded
     hasChildren?: boolean; // Indicates if the node has children that can be loaded
     itemState?: ItemState; // What the project's items say about it (undefined while unknown)
-}
-
-export interface ProjectDependency {
-    name: string;
-    version?: string;
-    type?: 'PackageReference' | 'ProjectReference' | 'Reference' | 'FrameworkReference' | undefined;
-    /** Packages: where the version comes from; undefined until MSBuild has evaluated the project */
-    versionSource?: PackageVersionSource;
-    /** Packages: the file the version is written in */
-    versionFile?: string;
-    /** Packages: the PackageReference is written in a props file (Directory.Build.props), not in the project file */
-    inherited?: true;
 }
 
 /**
@@ -67,13 +57,6 @@ function withEvaluatedPackages(parsed: readonly ProjectDependency[], packages: P
         })),
         ...parsed.filter(dependency => dependency.type !== 'PackageReference'),
     ];
-}
-
-/** The tree's name of a reference: `Serilog (3.1.1)`, `Newtonsoft.Json (13.0.2, override)`, `X (8.0.0, global)` */
-export function dependencyLabel(dependency: ProjectDependency): string {
-    const source = dependency.versionSource === 'override' || dependency.versionSource === 'global' ? dependency.versionSource : undefined;
-    const details = [dependency.version, source].filter(Boolean).join(', ');
-    return details ? `${dependency.name} (${details})` : dependency.name;
 }
 
 const log = logger('Project');
@@ -623,125 +606,14 @@ export class Project {
         return [...new Set(names)].sort((a, b) => a.localeCompare(b));
     }
 
-    /**
-     * Gets dependency categories for this project (used when Dependencies node is expanded)
-     */
+    /** The categories under the Dependencies node */
     getDependencies(): ProjectChild[] {
-        const all = this.dependencies;
-        log.info(`getDependencies called for ${this.name}, found ${all.length} dependencies`);
-
-        // Count dependencies by type
-        const packageCount = all.filter(dep => dep.type === 'PackageReference').length;
-        const projectCount = all.filter(dep => dep.type === 'ProjectReference').length;
-        const assemblyCount = all.filter(dep => dep.type === 'Reference').length;
-        const frameworkCount = this.frameworkNames().length;
-
-        // Always return the 3 main dependency categories - even if empty (so users can add dependencies via context menu)
-        const items: ProjectChild[] = [
-            {
-                // Listed by MSBuild when expanded; every SDK project has some
-                type: 'dependencyCategory',
-                name: 'Analyzers',
-                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'analyzers'),
-                contextValue: 'analyzers',
-                hasChildren: true
-            },
-            {
-                // The shared frameworks, implicit ones included (from MSBuild; the explicit ones of the project file until it answers)
-                type: 'dependencyCategory',
-                name: 'Frameworks',
-                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'frameworks'),
-                contextValue: 'frameworks',
-                hasChildren: frameworkCount > 0
-            },
-            {
-                type: 'dependencyCategory',
-                name: 'Packages',
-                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'packages'),
-                contextValue: 'packages',
-                hasChildren: packageCount > 0
-            },
-            {
-                type: 'dependencyCategory',
-                name: 'Projects',
-                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'projects'),
-                contextValue: 'projects',
-                hasChildren: projectCount > 0
-            },
-            {
-                type: 'dependencyCategory',
-                name: 'Assemblies',
-                nodeId: NodeIdService.generateDependencyCategoryId(this._projectPath, 'assemblies'),
-                contextValue: 'assemblies',
-                hasChildren: assemblyCount > 0
-            }
-        ];
-
-        log.info(`getDependencies for ${this.name}: Returning 3 dependency categories (Packages: ${packageCount}, Projects: ${projectCount}, Assemblies: ${assemblyCount})`);
-        return items;
+        return dependencyCategories(this._projectPath, this.dependencies, this.frameworkNames());
     }
 
-    /**
-     * Gets dependencies for a specific category (used when dependency category node is expanded)
-     */
+    /** The children of one dependency category node (packages, projects, assemblies, shared frameworks) */
     getDependenciesByCategory(nodeId: NodeId): ProjectChild[] {
-        const items: ProjectChild[] = [];
-        const all = this.dependencies;
-
-        let dependencies: ProjectDependency[] = [];
-        let categoryName: string = '';
-
-        // Determine which category - handle both legacy paths and new expansion IDs
-        if (nodeId.type == 'dependencyCategory') {
-            if (nodeId.name == 'packages') {
-                // Packages: NuGet package references
-                dependencies = all.filter(dep => dep.type === 'PackageReference');
-                categoryName = 'packages';
-            } else if (nodeId.name == 'projects') {
-                // Projects: project-to-project references
-                dependencies = all.filter(dep => dep.type === 'ProjectReference');
-                categoryName = 'projects';
-            } else if (nodeId.name == 'assemblies') {
-                // Assemblies: binary/assembly references
-                dependencies = all.filter(dep => dep.type === 'Reference');
-                categoryName = 'assemblies';
-            } else if (nodeId.name == 'frameworks') {
-                return this.frameworkNames().map(name => ({
-                    type: 'frameworkReference' as const,
-                    name,
-                    nodeId: NodeIdService.generateFrameworkReferenceId(this._projectPath, name),
-                    hasChildren: false
-                }));
-            }
-        }
-
-        // Convert to tree nodes
-        for (const dep of dependencies) {
-            // Create unique legacy path that includes version to handle same package with different versions
-            const uniquePath = dep.version
-                ? `${this._projectPath}/dependencies/${categoryName}/${dep.name}@${dep.version}`
-                : `${this._projectPath}/dependencies/${categoryName}/${dep.name}`;
-
-            // Generate expansion ID
-            const nodeId = NodeIdService.generateDependencyId(
-                this._projectPath,
-                categoryName,
-                dep.name,
-                dep.version
-            );
-
-            items.push({
-                type: 'dependency',
-                name: dependencyLabel(dep),
-                nodeId: nodeId,
-                hasChildren: false
-            });
-
-            log.debug(`Created dependency node: ${dep.name} with path: ${uniquePath}, nodeId: ${nodeId}`);
-        }
-
-        log.info(`getDependenciesByCategory for ${nodeId}: ${items.length} dependencies`);
-        return items;
+        return dependencyNodes(this._projectPath, this.dependencies, this.frameworkNames(), nodeId);
     }
 
     /**

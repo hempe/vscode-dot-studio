@@ -10,14 +10,45 @@ describe('Toolbar', () => {
         expect(screen.getByLabelText('Select Framework').textContent).toBe('Web and Worker');
     });
 
-    it('has a button for every action, and each reports its action', () => {
+    it('has one Start button, with the other ways to start and the rest in menus, and each reports its action', () => {
         const actions: string[] = [];
         render(<Toolbar state={null} onAction={action => actions.push(action)} />);
-        for (const label of ['Solution Configuration', 'Select Framework', 'Start Debugging', 'Start Without Debugging', 'Sync with Active Document', 'Show All Files', 'Collapse All']) {
+        for (const label of ['Solution Configuration', 'Select Framework', 'Start Debugging', 'Sync with Active Document', 'Show All Files', 'Collapse All']) {
             fireEvent.click(screen.getByLabelText(label));
         }
-        expect(actions).toEqual(['configuration', 'framework', 'debug', 'startWithoutDebugging', 'sync', 'showAllFiles', 'collapseAll']);
+        // The other starts and Attach are behind the arrow, Open Solution and Create New Project behind the ellipsis
+        for (const [menu, item] of [['More ways to start', 'Start Without Debugging'], ['More ways to start', 'Start with Hot Reload'], ['More ways to start', 'Attach to Process...'],
+            ['More', 'Open Solution...'], ['More', 'Create New Project...']]) {
+            fireEvent.click(screen.getByLabelText(menu));
+            fireEvent.click(screen.getByRole('menuitem', { name: item }));
+        }
+        expect(actions).toEqual(['configuration', 'framework', 'debug', 'sync', 'showAllFiles', 'collapseAll',
+            'startWithoutDebugging', 'startWithHotReload', 'attachToProcess', 'openSolution', 'newSolution']);
         expect([...actions].sort()).toEqual([...TOOLBAR_ACTIONS].sort());
+    });
+
+    it('has no start button besides the one', () => {
+        render(<Toolbar state={null} onAction={() => { }} />);
+        expect(screen.queryByLabelText('Start Without Debugging')).toBeNull();
+        expect(screen.getAllByRole('button').filter(button => /^Start/.test(button.getAttribute('aria-label') ?? ''))).toHaveLength(1);
+    });
+
+    it('a menu closes after a pick, on Escape and on a click elsewhere', () => {
+        render(<Toolbar state={null} onAction={() => { }} />);
+        const open = () => fireEvent.click(screen.getByLabelText('More ways to start'));
+
+        open();
+        expect(screen.getByRole('menu')).toBeTruthy();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Start with Hot Reload' }));
+        expect(screen.queryByRole('menu')).toBeNull();
+
+        open();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(screen.queryByRole('menu')).toBeNull();
+
+        open();
+        fireEvent.mouseDown(document.body);
+        expect(screen.queryByRole('menu')).toBeNull();
     });
 
     it('shows Show All Files as pressed while it is on', () => {

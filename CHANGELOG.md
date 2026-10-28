@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Solution Explorer toolbar:** one ▷ Start button (its arrow lists Start Without Debugging, Start with Hot Reload and Attach to Process...) instead of three start buttons; Sync with Active Document has a clearer icon and tooltip; Open Solution... and Create New Project... are in the toolbar's `...` menu. The view's title bar reads "Solution Explorer" and has no buttons.
+
 ## 0.1.3
 
 New features, the rest of the code review and a Solution Explorer toolbar.

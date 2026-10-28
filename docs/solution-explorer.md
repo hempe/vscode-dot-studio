@@ -23,17 +23,19 @@ The tree follows changes on disk: new, deleted and renamed files, edited project
 
 ## Toolbar
 
-The buttons are a row above the tree, like Visual Studio's Solution Explorer toolbar. They wrap when the view is narrow (the secondary side bar, for example), where VS Code would hide the icons of a title bar. The title bar keeps ▷ Start Debugging and the `...` menu (Open Solution..., Create New Project..., Attach to Process...). Every button is also a command in the command palette.
+The buttons are one row above the tree, like Visual Studio's Solution Explorer toolbar; the view's title bar has no buttons of its own. The row wraps when the view is narrow (the secondary side bar, for example), where VS Code would hide the icons of a title bar. Every button is also a command in the command palette.
+
+On the left, what is built and run: the **configuration** (Debug or Release, with the platform when there are several) and the **framework or startup profile**. On the right, one **Start** button and the buttons of the tree.
 
 | Button | What it does |
 |---|---|
-| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. The active one shows next to the view title; its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
-| Select Framework | The target framework of multi-targeted startup projects |
-| ▷ Start Debugging | F5: starts the selected launch configuration, normally the startup project |
-| ▷ Start Without Debugging | Ctrl+F5: runs the startup project without the debugger |
-| ⇄ Sync with Active Document | Opens the tree down to the file in the active editor and selects it (Ctrl+[, S). To do this on every switch of files, turn on `shinobi.solutionExplorer.trackActiveItem` (Visual Studio's "Track Active Item") |
+| ⚙ Solution Configuration | Debug or Release (and other configurations of the solution) for builds, F5 and tests. Its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
+| Select Framework | The target framework of multi-targeted startup projects, or the startup profile |
+| ▷ Start | F5: starts the selected launch configuration, normally the startup project. The arrow next to it has the other ways to start: **Start Without Debugging** (Ctrl+F5), **Start with Hot Reload**, and **Attach to Process...** |
+| ◎ Sync with Active Document | Opens the tree down to the file in the active editor and selects it, so you see where the file you are editing lives (Ctrl+[, S). To do this on every switch of files, turn on `shinobi.solutionExplorer.trackActiveItem` (Visual Studio's "Track Active Item") |
 | Show All Files | Shows the files the project does not contain, greyed out, like Visual Studio's button; see [Show All Files and linked files](#show-all-files-and-linked-files) |
 | Collapse All | Collapses everything; the solution keeps showing its top level |
+| ... More | **Open Solution...** and **Create New Project...** |
 
 ## Show All Files and linked files
 
@@ -134,7 +136,7 @@ The extension opens the solution of the folder you opened: a `.sln` or `.slnx` d
 
 In a **multi-root workspace**, every folder is searched; the folder that holds the solution is where its `.vscode/launch.json`, tasks and tool manifests go.
 
-**Open Solution...** in the title bar's `...` menu (or **.NET: Open Solution...**), like Visual Studio's File > Open > Solution, lists the solutions of the workspace and offers **Browse...** for any other `.sln` or `.slnx`. The solution you open is the one that opens next time.
+**Open Solution...** in the toolbar's `...` menu (or **.NET: Open Solution...**), like Visual Studio's File > Open > Solution, lists the solutions of the workspace and offers **Browse...** for any other `.sln` or `.slnx`. The solution you open is the one that opens next time.
 
 ## .sln and .slnx
 

@@ -25,7 +25,7 @@ IIS Express, Docker and similar profiles don't apply.
 
 | | |
 |---|---|
-| **F5** | Debugs the configuration selected in VS Code's Run and Debug view, the `Startup` configuration by default. Also ▷ in the Solution Explorer's title bar |
+| **F5** | Debugs the configuration selected in VS Code's Run and Debug view, the `Startup` configuration by default. Also ▷ in the Solution Explorer's toolbar |
 | **Ctrl+F5** | Runs the startup project without the debugger. Also in the Solution Explorer's toolbar |
 | **Debug > Start New Instance** | On any project that can be started: builds it and starts it in the debugger next to what already runs, without making it the startup project |
 | **Debug > Start Without Debugging** | The same without the debugger |
@@ -104,7 +104,7 @@ It is meant for console, worker and desktop-style programs. ASP.NET on .NET Fram
 
 ## Attach to Process
 
-Visual Studio's Debug > Attach to Process: run **.NET: Attach to Process...** from the command palette, or from the `...` menu in the Solution Explorer's title bar. A picker lists the running .NET programs, and picking one attaches the C# extension's debugger (`coreclr`) to it.
+Visual Studio's Debug > Attach to Process: run **.NET: Attach to Process...** from the command palette, or from the arrow next to Start in the Solution Explorer's toolbar. A picker lists the running .NET programs, and picking one attaches the C# extension's debugger (`coreclr`) to it.
 
 ![Attach to Process](images/attach-to-process.gif)
 

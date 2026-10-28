@@ -2,7 +2,7 @@
 
 ## Create a New Project (a new solution)
 
-Like Visual Studio's "Create a new project": run **.NET: Create New Project...**, click **Create New .NET Project** on VS Code's start screen when no folder is open, or use the Solution Explorer's `...` menu.
+Like Visual Studio's "Create a new project": run **.NET: Create New Project...**, click **Create New .NET Project** on VS Code's start screen when no folder is open, or use the `...` menu of the Solution Explorer's toolbar.
 
 1. Pick a project template, as in Add New Project below.
 2. **Project name**, **Location** (the folder the solution goes in; **Browse...**), **Solution name** (follows the project name until you change it), and **Place solution and project in the same directory**.

@@ -282,14 +282,14 @@
       "activitybar": [
         {
           "id": "shinobi-solution-explorer",
-          "title": "Solution",
+          "title": "Solution Explorer",
           "icon": "$(folder-library)"
         }
       ],
       "secondarySidebar": [
         {
           "id": "shinobi-solution-explorer-secondary-sidebar",
-          "title": "Solution",
+          "title": "Solution Explorer",
           "icon": "$(folder-library)"
         }
       ],
@@ -766,28 +766,6 @@
       }
     ],
     "menus": {
-      "view/title": [
-        {
-          "command": "shinobi.solution.debug",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "navigation@2"
-        },
-        {
-          "command": "shinobi.debug.attachToProcess",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "2_debug@1"
-        },
-        {
-          "command": "shinobi.solution.open",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "1_solution@1"
-        },
-        {
-          "command": "shinobi.solution.new",
-          "when": "view == shinobi-solution-webview || view == shinobi-solution-webview-secondary-sidebar",
-          "group": "1_solution@2"
-        }
-      ],
       "webview/context": [
         {
           "command": "shinobi.solutionExplorer.addNewProject",
