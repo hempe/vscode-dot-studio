@@ -191,6 +191,7 @@ export class SolutionWebView {
                         /* Buttons of the toolbar: hover and keyboard focus like VS Code's action bar */
                         .toolbar-button:hover {
                             background-color: var(--vscode-toolbar-hoverBackground) !important;
+                            border-radius: 5px !important;
                         }
 
                         .toolbar-button:focus-visible {
@@ -220,7 +221,7 @@ export class SolutionWebView {
                             padding: 4px 28px;
                             min-height: 18px;
                             border: none;
-                            border-radius: 4px;
+                            border-radius: 5px;
                             background: transparent;
                             color: var(--vscode-menu-foreground);
                             font: inherit;
@@ -229,10 +230,11 @@ export class SolutionWebView {
                             cursor: pointer;
                         }
 
+                        /* Only what the mouse is over, or what the arrow keys reached, is highlighted: nothing when the menu opens */
                         .toolbar-menu-item:hover,
                         .toolbar-menu-item:focus {
-                            background-color: var(--vscode-menu-selectionBackground);
-                            color: var(--vscode-menu-selectionForeground);
+                            background-color: var(--vscode-list-hoverBackground);
+                            color: var(--vscode-list-hoverForeground, var(--vscode-menu-foreground));
                             outline: none;
                         }
 

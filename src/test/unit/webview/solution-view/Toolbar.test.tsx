@@ -75,13 +75,15 @@ describe('Toolbar', () => {
 });
 
 describe('Toolbar menus', () => {
-    it('focus the first item when opened and move with the arrow keys, wrapping round', () => {
+    it('highlight nothing when opened (the menu has the focus, no item) and move with the arrow keys, wrapping round', () => {
         render(<Toolbar state={null} onAction={() => { }} />);
         fireEvent.click(screen.getByLabelText('More ways to start'));
         const items = screen.getAllByRole('menuitem');
-        expect(document.activeElement).toBe(items[0]);
-
         const menu = screen.getByRole('menu');
+        expect(document.activeElement).toBe(menu);
+
+        fireEvent.keyDown(menu, { key: 'ArrowDown' });
+        expect(document.activeElement).toBe(items[0]);
         fireEvent.keyDown(menu, { key: 'ArrowDown' });
         expect(document.activeElement).toBe(items[1]);
         fireEvent.keyDown(menu, { key: 'ArrowUp' });

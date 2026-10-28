@@ -50,7 +50,7 @@ describe('hover of the Solution Explorer toolbar', () => {
             const { SolutionWebView } = require('../../../webview/providers/views/SolutionWebview');
             const html = SolutionWebView.getHtmlForWebview({}, { asWebviewUri: () => 'x', cspSource: 'c' }) as string;
             expect(html).toMatch(/\.toolbar-button:hover\s*\{[^}]*toolbar-hoverBackground/);
-            expect(html).toMatch(/\.toolbar-menu-item:hover[^{]*\{[^}]*menu-selectionBackground/);
+            expect(html).toMatch(/\.toolbar-menu-item:hover[^{]*\{[^}]*list-hoverBackground/);
         });
     });
 });

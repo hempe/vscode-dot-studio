@@ -8,7 +8,7 @@ interface ToolbarProps {
 
 const buttonStyle: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: '4px', height: '22px', minWidth: '22px', padding: '0 4px',
-    border: '1px solid transparent', borderRadius: '3px', background: 'transparent', color: 'var(--vscode-foreground)',
+    border: '1px solid transparent', borderRadius: '5px', background: 'transparent', color: 'var(--vscode-foreground)',
     cursor: 'pointer', fontSize: '12px', fontFamily: 'inherit', whiteSpace: 'nowrap',
 };
 
@@ -28,8 +28,9 @@ const MenuButton: React.FC<{
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLSpanElement>(null);
     const menu = useRef<HTMLDivElement>(null);
-    // The first item has focus when the menu opens; the arrow keys move between items, as in VS Code's menus
-    useEffect(() => { if (open) { menu.current?.querySelector<HTMLElement>('[role=menuitem]')?.focus(); } }, [open]);
+    // The menu itself has focus when it opens, so the keys work and nothing is highlighted; the arrow keys then move between
+    // the items, as in VS Code's menus
+    useEffect(() => { if (open) { menu.current?.focus(); } }, [open]);
     const moveFocus = (event: React.KeyboardEvent) => {
         if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
             return;
@@ -37,7 +38,9 @@ const MenuButton: React.FC<{
         event.preventDefault();
         const entries = [...(menu.current?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])];
         const at = entries.indexOf(document.activeElement as HTMLElement);
-        entries[(at + (event.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length]?.focus();
+        // From the menu itself (no item yet): Down goes to the first item, Up to the last
+        const next = at < 0 ? (event.key === 'ArrowDown' ? 0 : entries.length - 1) : (at + (event.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length;
+        entries[next]?.focus();
     };
     useEffect(() => {
         if (!open) {
@@ -59,7 +62,7 @@ const MenuButton: React.FC<{
                 {children}
             </button>
             {open && (
-                <div role="menu" aria-label={label} className="toolbar-menu" ref={menu} onKeyDown={moveFocus}
+                <div role="menu" aria-label={label} className="toolbar-menu" ref={menu} tabIndex={-1} onKeyDown={moveFocus}
                     style={{ position: 'absolute', top: '100%', right: 0, zIndex: 20, marginTop: '2px' }}>
                     {items.map(item => (
                         <React.Fragment key={item.action}>
