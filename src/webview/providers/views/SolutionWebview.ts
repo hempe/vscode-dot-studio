@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getNonce } from './nonce';
 export class SolutionWebView {
 
     public static getHtmlForWebview(
@@ -13,7 +14,7 @@ export class SolutionWebView {
             extensionUri, 'out', 'webview', 'codicons', 'codicon.css'
         ));
 
-        const nonce = this._getNonce();
+        const nonce = getNonce();
 
         return `<!DOCTYPE html>
                 <html lang="en">
@@ -295,15 +296,6 @@ export class SolutionWebView {
                     <script nonce="${nonce}" src="${scriptUri}"></script>
                 </body>
                 </html>`;
-    }
-
-    private static _getNonce(): string {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 32; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
     }
 
 }

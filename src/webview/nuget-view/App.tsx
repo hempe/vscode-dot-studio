@@ -10,6 +10,8 @@ import { PackageActions } from './components/PackageActions';
 import ProjectList from './components/ProjectList';
 import { PackageList } from './components/PackageList';
 import { SourcesView } from './components/SourcesView';
+import { TwoPanel } from './components/TwoPanel';
+import { LabelledCheckbox } from './components/LabelledCheckbox';
 import { advisoryKey, ManagedSource, PackageAdvisories, PackageAdvisory, ProjectInfo } from '../../services/nuget/types';
 import { passesAdvisoryFilter } from './advisoryView';
 import { mappedSources } from '../../services/nuget/packageSourceMapping';
@@ -740,123 +742,78 @@ export const App: React.FC = () => {
                     <Select id="nuget-source" aria-label="Package source" value={selectedSource} options={sourceOptions} disabled={initializing}
                         onChange={source => { setSelectedSource(source); handleSearch(source); }} />
                     <span style={{ width: '8px' }} />
-                    <Checkbox
-                        checked={includePrerelease}
-                        onChange={setIncludePrerelease}
-                        disabled={initializing}
-                    />
-                    <label style={{
-                        fontSize: '13px',
-                        color: 'var(--vscode-foreground)',
-                        cursor: initializing ? 'default' : 'pointer'
-                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
-                        Include prerelease
-                    </label>
+                    <LabelledCheckbox checked={includePrerelease} onChange={setIncludePrerelease} disabled={initializing}>Include prerelease</LabelledCheckbox>
                     {refreshButton}
                 </div>
             </div>
 
-            {/* Two-Panel Layout */}
-            <div style={{
-                display: 'flex',
-                minHeight: 0,
-                flex: 1,
-                border: '1px solid var(--vscode-panel-border)',
-                borderTop: 'none'
-            }}>
-                {/* Left Panel - Package List */}
-                <div
-                    style={{
-                        width: '40%',
-                        borderRight: '1px solid var(--vscode-panel-border)',
-                        overflow: 'auto',
-                        overscrollBehavior: 'contain',
-                        maxHeight: '100%'
-                    }}
-                    tabIndex={0}
-                    onKeyDown={handleKeyDown}
-                >
-                    <PackageList
-                        getAdvisory={advisoryOf}
-                        includePrerelease={includePrerelease}
-                        packages={enhancedSearchResults}
-                        loading={loading}
-                        emptyMessage="Search for packages to browse"
-                        loadingMessage="Searching for packages..."
-                        searchTerm={searchTerm}
-                        hasSearched={hasSearched}
-                        selectedIndex={selectedIndex}
+            <TwoPanel
+                onKeyDown={handleKeyDown}
+                selection={selectedPackage}
+                left={(
+                <PackageList
+                    getAdvisory={advisoryOf}
+                    includePrerelease={includePrerelease}
+                    packages={enhancedSearchResults}
+                    loading={loading}
+                    emptyMessage="Search for packages to browse"
+                    loadingMessage="Searching for packages..."
+                    searchTerm={searchTerm}
+                    hasSearched={hasSearched}
+                    selectedIndex={selectedIndex}
+                    selectedPackage={selectedPackage}
+                    selectedItemRef={selectedItemRef}
+                    onPackageSelect={selectPackageWithDetails}
+                    getPackageIconUrl={getPackageIconUrl}
+                    title="Browse"
+                />
+                )}
+            >
+                {selectedPackage => (
+                    <>
+                    <NugetHeader selectedPackage={selectedPackage} />
+                    <ProjectList
                         selectedPackage={selectedPackage}
-                        selectedItemRef={selectedItemRef}
-                        onPackageSelect={selectPackageWithDetails}
-                        getPackageIconUrl={getPackageIconUrl}
-                        title="Browse"
+                        projects={data.projects || []}
+                        selectedProjects={selectedProjects}
+                        setSelectedProjects={setSelectedProjects}
+                        initializing={initializing}
+                        projectPath={data.projectPath}
                     />
-                </div>
+                    <PackageActions
+                        selectedPackage={selectedPackage}
+                        selectedVersion={selectedVersion}
+                        selectedProjects={selectedProjects}
+                        initializing={initializing}
+                        loading={loading}
+                        totalProjects={data.projects?.length || 0}
+                        onVersionChange={handleVersionChange}
+                        onInstallUpdate={handleInstallPackage}
+                        onUninstall={handleUninstallPackage}
+                        getVersionOptions={getVersionOptions}
+                        installButtonText="Install"
+                    />
 
-                {/* Right Panel - Package Details */}
-                <div style={{
-                    flex: 1,
-                    padding: '16px',
-                    overflow: 'auto'
-                }}>
-                    {selectedPackage ? (
-                        <div>
-                            <NugetHeader selectedPackage={selectedPackage} />
-                            <ProjectList
-                                selectedPackage={selectedPackage}
-                                projects={data.projects || []}
-                                selectedProjects={selectedProjects}
-                                setSelectedProjects={setSelectedProjects}
-                                initializing={initializing}
-                                projectPath={data.projectPath}
-                            />
-                            <PackageActions
-                                selectedPackage={selectedPackage}
-                                selectedVersion={selectedVersion}
-                                selectedProjects={selectedProjects}
-                                initializing={initializing}
-                                loading={loading}
-                                totalProjects={data.projects?.length || 0}
-                                onVersionChange={handleVersionChange}
-                                onInstallUpdate={handleInstallPackage}
-                                onUninstall={handleUninstallPackage}
-                                getVersionOptions={getVersionOptions}
-                                installButtonText="Install"
-                            />
-
-                            {selectedProjects.size === 0 && (
-                                <div style={{
-                                    fontSize: '12px',
-                                    color: 'var(--vscode-descriptionForeground)',
-                                    marginBottom: '16px',
-                                    fontStyle: 'italic'
-                                }}>
-                                    Select one or more projects to install to
-                                </div>
-                            )}
-
-                            <NugetDetails
-                                selectedPackage={selectedPackage}
-                                packageReadmes={packageReadmes}
-                                advisory={advisoryOf(selectedPackage)}
-                                mappedSources={mappedSourcesOf(selectedPackage)}
-                            />
-                        </div>
-                    ) : (
+                    {selectedProjects.size === 0 && (
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100%',
+                            fontSize: '12px',
                             color: 'var(--vscode-descriptionForeground)',
+                            marginBottom: '16px',
                             fontStyle: 'italic'
                         }}>
-                            Select a package to view details
+                            Select one or more projects to install to
                         </div>
                     )}
-                </div>
-            </div>
+
+                    <NugetDetails
+                        selectedPackage={selectedPackage}
+                        packageReadmes={packageReadmes}
+                        advisory={advisoryOf(selectedPackage)}
+                        mappedSources={mappedSourcesOf(selectedPackage)}
+                    />
+                    </>
+                )}
+            </TwoPanel>
         </div>
     );
 
@@ -878,152 +835,93 @@ export const App: React.FC = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Checkbox
-                        checked={includePrerelease}
-                        onChange={setIncludePrerelease}
-                        disabled={initializing}
-                    />
-                    <label style={{
-                        fontSize: '13px',
-                        color: 'var(--vscode-foreground)',
-                        cursor: initializing ? 'default' : 'pointer'
-                    }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
-                        Include prerelease
-                    </label>
-                    <Checkbox
-                        checked={advisoryFilter.vulnerable}
-                        onChange={vulnerable => setAdvisoryFilter(prev => ({ ...prev, vulnerable }))}
-                        disabled={initializing}
-                    />
-                    <label style={{ fontSize: '13px', color: 'var(--vscode-foreground)', cursor: 'pointer' }}
-                        onClick={() => setAdvisoryFilter(prev => ({ ...prev, vulnerable: !prev.vulnerable }))}>
-                        Vulnerable
-                    </label>
-                    <Checkbox
-                        checked={advisoryFilter.deprecated}
-                        onChange={deprecated => setAdvisoryFilter(prev => ({ ...prev, deprecated }))}
-                        disabled={initializing}
-                    />
-                    <label style={{ fontSize: '13px', color: 'var(--vscode-foreground)', cursor: 'pointer' }}
-                        onClick={() => setAdvisoryFilter(prev => ({ ...prev, deprecated: !prev.deprecated }))}>
-                        Deprecated
-                    </label>
+                    <LabelledCheckbox checked={includePrerelease} onChange={setIncludePrerelease} disabled={initializing}>Include prerelease</LabelledCheckbox>
+                    <LabelledCheckbox checked={advisoryFilter.vulnerable} onChange={vulnerable => setAdvisoryFilter(prev => ({ ...prev, vulnerable }))} disabled={initializing}>Vulnerable</LabelledCheckbox>
+                    <LabelledCheckbox checked={advisoryFilter.deprecated} onChange={deprecated => setAdvisoryFilter(prev => ({ ...prev, deprecated }))} disabled={initializing}>Deprecated</LabelledCheckbox>
                     {refreshButton}
                 </div>
             </div>
 
-            {/* Two-Panel Layout */}
-            <div style={{
-                display: 'flex',
-                minHeight: 0,
-                flex: 1,
-                border: '1px solid var(--vscode-panel-border)',
-                borderTop: 'none'
-            }}>
-                {/* Left Panel - Package List */}
-                <div
-                    style={{
-                        width: '40%',
-                        borderRight: '1px solid var(--vscode-panel-border)',
-                        overflow: 'auto',
-                        overscrollBehavior: 'contain',
-                        maxHeight: '100%'
-                    }}
-                    tabIndex={0}
-                    onKeyDown={handleKeyDown}
-                >
+            <TwoPanel
+                onKeyDown={handleKeyDown}
+                selection={selectedPackage}
+                left={(
+                    <>
+                <PackageList
+                    getAdvisory={advisoryOf}
+                    includePrerelease={includePrerelease}
+                    packages={filteredPackages}
+                    loading={loading}
+                    emptyMessage="No packages installed"
+                    loadingMessage="Loading installed packages..."
+                    selectedIndex={selectedIndex}
+                    selectedPackage={selectedPackage}
+                    selectedItemRef={selectedItemRef}
+                    onPackageSelect={selectPackageWithDetails}
+                    getPackageIconUrl={getPackageIconUrl}
+                    title="Top-level packages"
+                />
+                {filteredTransitive.length > 0 && (
                     <PackageList
                         getAdvisory={advisoryOf}
                         includePrerelease={includePrerelease}
-                        packages={filteredPackages}
-                        loading={loading}
-                        emptyMessage="No packages installed"
-                        loadingMessage="Loading installed packages..."
+                        packages={filteredTransitive}
+                        emptyMessage=""
                         selectedIndex={selectedIndex}
                         selectedPackage={selectedPackage}
                         selectedItemRef={selectedItemRef}
                         onPackageSelect={selectPackageWithDetails}
                         getPackageIconUrl={getPackageIconUrl}
-                        title="Top-level packages"
+                        title="Transitive packages"
+                        collapsed={!transitiveExpanded}
+                        onToggleCollapsed={() => setTransitiveExpanded(expanded => !expanded)}
+                        indexOffset={filteredPackages.length}
+                        getNote={pkg => pkg.transitiveReferencedBy && `Transitively referenced by ${pkg.transitiveReferencedBy.join(', ')}`}
                     />
-                    {filteredTransitive.length > 0 && (
-                        <PackageList
-                            getAdvisory={advisoryOf}
-                            includePrerelease={includePrerelease}
-                            packages={filteredTransitive}
-                            emptyMessage=""
-                            selectedIndex={selectedIndex}
-                            selectedPackage={selectedPackage}
-                            selectedItemRef={selectedItemRef}
-                            onPackageSelect={selectPackageWithDetails}
-                            getPackageIconUrl={getPackageIconUrl}
-                            title="Transitive packages"
-                            collapsed={!transitiveExpanded}
-                            onToggleCollapsed={() => setTransitiveExpanded(expanded => !expanded)}
-                            indexOffset={filteredPackages.length}
-                            getNote={pkg => pkg.transitiveReferencedBy && `Transitively referenced by ${pkg.transitiveReferencedBy.join(', ')}`}
-                        />
-                    )}
-                </div>
-
-                {/* Right Panel - Package Details */}
-                <div style={{
-                    flex: 1,
-                    padding: '16px',
-                    overflow: 'auto'
-                }}>
-                    {selectedPackage ? (
-                        <div>
-                            <NugetHeader selectedPackage={selectedPackage} />
-                            {selectedPackage.transitiveReferencedBy && (
-                                <div style={{ fontSize: '12px', color: 'var(--vscode-descriptionForeground)', marginBottom: '12px' }}>
-                                    Transitively referenced by: {selectedPackage.transitiveReferencedBy.join(', ')}.
-                                    Install it to reference it directly, e.g. to use a newer version.
-                                </div>
-                            )}
-                            {centralNoteBlock(selectedPackage)}
-                            <ProjectList
-                                selectedPackage={selectedPackage}
-                                projects={data.projects || []}
-                                selectedProjects={selectedProjects}
-                                setSelectedProjects={setSelectedProjects}
-                                initializing={initializing}
-                            />
-                            <PackageActions
-                                selectedPackage={selectedPackage}
-                                selectedVersion={selectedVersion}
-                                selectedProjects={selectedProjects}
-                                initializing={initializing}
-                                loading={loading}
-                                totalProjects={data.projects?.length || 0}
-                                onVersionChange={handleVersionChange}
-                                onInstallUpdate={handleInstallPackage}
-                                onUninstall={handleUninstallPackage}
-                                getVersionOptions={getVersionOptions}
-                                canUninstall={!selectedPackage.transitiveReferencedBy}
-                                onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
-                            />
-                            <NugetDetails
-                                selectedPackage={selectedPackage}
-                                packageReadmes={packageReadmes}
-                                advisory={advisoryOf(selectedPackage)}
-                                mappedSources={mappedSourcesOf(selectedPackage)}
-                            />
-                        </div>
-                    ) : (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100%',
-                            color: 'var(--vscode-descriptionForeground)',
-                            fontStyle: 'italic'
-                        }}>
-                            Select a package to view details
+                )}
+                    </>
+                )}
+            >
+                {selectedPackage => (
+                    <>
+                    <NugetHeader selectedPackage={selectedPackage} />
+                    {selectedPackage.transitiveReferencedBy && (
+                        <div style={{ fontSize: '12px', color: 'var(--vscode-descriptionForeground)', marginBottom: '12px' }}>
+                            Transitively referenced by: {selectedPackage.transitiveReferencedBy.join(', ')}.
+                            Install it to reference it directly, e.g. to use a newer version.
                         </div>
                     )}
-                </div>
-            </div>
+                    {centralNoteBlock(selectedPackage)}
+                    <ProjectList
+                        selectedPackage={selectedPackage}
+                        projects={data.projects || []}
+                        selectedProjects={selectedProjects}
+                        setSelectedProjects={setSelectedProjects}
+                        initializing={initializing}
+                    />
+                    <PackageActions
+                        selectedPackage={selectedPackage}
+                        selectedVersion={selectedVersion}
+                        selectedProjects={selectedProjects}
+                        initializing={initializing}
+                        loading={loading}
+                        totalProjects={data.projects?.length || 0}
+                        onVersionChange={handleVersionChange}
+                        onInstallUpdate={handleInstallPackage}
+                        onUninstall={handleUninstallPackage}
+                        getVersionOptions={getVersionOptions}
+                        canUninstall={!selectedPackage.transitiveReferencedBy}
+                        onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
+                    />
+                    <NugetDetails
+                        selectedPackage={selectedPackage}
+                        packageReadmes={packageReadmes}
+                        advisory={advisoryOf(selectedPackage)}
+                        mappedSources={mappedSourcesOf(selectedPackage)}
+                    />
+                    </>
+                )}
+            </TwoPanel>
         </div>
     );
 
@@ -1057,18 +955,7 @@ export const App: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Checkbox
-                            checked={includePrerelease}
-                            onChange={setIncludePrerelease}
-                            disabled={initializing}
-                        />
-                        <label style={{
-                            fontSize: '13px',
-                            color: 'var(--vscode-foreground)',
-                            cursor: initializing ? 'default' : 'pointer'
-                        }} onClick={() => !initializing && setIncludePrerelease(!includePrerelease)}>
-                            Include prerelease
-                        </label>
+                        <LabelledCheckbox checked={includePrerelease} onChange={setIncludePrerelease} disabled={initializing}>Include prerelease</LabelledCheckbox>
                     {refreshButton}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1088,111 +975,77 @@ export const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* Two-Panel Layout */}
-            <div style={{
-                display: 'flex',
-                minHeight: 0,
-                flex: 1,
-                border: '1px solid var(--vscode-panel-border)',
-                borderTop: 'none'
-            }}>
-                {/* Left Panel - Package List */}
-                <div
-                    style={{
-                        width: '40%',
-                        borderRight: '1px solid var(--vscode-panel-border)',
-                        overflow: 'auto',
-                        overscrollBehavior: 'contain',
-                        maxHeight: '100%'
-                    }}
-                    tabIndex={0}
-                    onKeyDown={handleKeyDown}
-                >
-                    <PackageList
-                        getAdvisory={advisoryOf}
-                        includePrerelease={includePrerelease}
-                        packages={filteredUpdates}
-                        loading={loading}
-                        emptyMessage="No updates available"
-                        loadingMessage="Checking for updates..."
-                        selectedIndex={selectedIndex}
+            <TwoPanel
+                onKeyDown={handleKeyDown}
+                selection={selectedPackage}
+                left={(
+                <PackageList
+                    getAdvisory={advisoryOf}
+                    includePrerelease={includePrerelease}
+                    packages={filteredUpdates}
+                    loading={loading}
+                    emptyMessage="No updates available"
+                    loadingMessage="Checking for updates..."
+                    selectedIndex={selectedIndex}
+                    selectedPackage={selectedPackage}
+                    selectedItemRef={selectedItemRef}
+                    onPackageSelect={selectPackageWithDetails}
+                    getPackageIconUrl={getPackageIconUrl}
+                    showUpdateInfo={true}
+                    getVersionChangeText={getVersionChangeText}
+                    title="Updates"
+                    showCheckboxes={true}
+                    onPackageToggle={handlePackageToggle}
+                />
+                )}
+            >
+                {selectedPackage => (
+                    <>
+                    <NugetHeader selectedPackage={selectedPackage} />
+                    {centralNoteBlock(selectedPackage)}
+                    <ProjectList
                         selectedPackage={selectedPackage}
-                        selectedItemRef={selectedItemRef}
-                        onPackageSelect={selectPackageWithDetails}
-                        getPackageIconUrl={getPackageIconUrl}
-                        showUpdateInfo={true}
-                        getVersionChangeText={getVersionChangeText}
-                        title="Updates"
-                        showCheckboxes={true}
-                        onPackageToggle={handlePackageToggle}
+                        projects={data.projects || []}
+                        selectedProjects={selectedProjects}
+                        setSelectedProjects={setSelectedProjects}
+                        initializing={initializing}
+                        projectPath={data.projectPath}
                     />
-                </div>
+                    <PackageActions
+                        selectedPackage={selectedPackage}
+                        selectedVersion={selectedVersion}
+                        selectedProjects={selectedProjects}
+                        initializing={initializing}
+                        loading={loading}
+                        totalProjects={data.projects?.length || 0}
+                        onVersionChange={handleVersionChange}
+                        onInstallUpdate={handleInstallPackage}
+                        onUninstall={handleUninstallPackage}
+                        getVersionOptions={getVersionOptions}
+                        installButtonText="Install"
+                        onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
+                    />
 
-                {/* Right Panel - Package Details */}
-                <div style={{
-                    flex: 1,
-                    padding: '16px',
-                    overflow: 'auto'
-                }}>
-                    {selectedPackage ? (
-                        <div>
-                            <NugetHeader selectedPackage={selectedPackage} />
-                            {centralNoteBlock(selectedPackage)}
-                            <ProjectList
-                                selectedPackage={selectedPackage}
-                                projects={data.projects || []}
-                                selectedProjects={selectedProjects}
-                                setSelectedProjects={setSelectedProjects}
-                                initializing={initializing}
-                                projectPath={data.projectPath}
-                            />
-                            <PackageActions
-                                selectedPackage={selectedPackage}
-                                selectedVersion={selectedVersion}
-                                selectedProjects={selectedProjects}
-                                initializing={initializing}
-                                loading={loading}
-                                totalProjects={data.projects?.length || 0}
-                                onVersionChange={handleVersionChange}
-                                onInstallUpdate={handleInstallPackage}
-                                onUninstall={handleUninstallPackage}
-                                getVersionOptions={getVersionOptions}
-                                installButtonText="Install"
-                                onSetForProjectOnly={canSetForProjectOnly(selectedPackage, data.projects, selectedProjects) ? handleSetForProjectOnly : undefined}
-                            />
-
-                            {selectedProjects.size === 0 && (
-                                <div style={{
-                                    fontSize: '12px',
-                                    color: 'var(--vscode-descriptionForeground)',
-                                    marginBottom: '16px',
-                                    fontStyle: 'italic'
-                                }}>
-                                    Select one or more projects to install to
-                                </div>
-                            )}
-
-                            <NugetDetails
-                                selectedPackage={selectedPackage}
-                                packageReadmes={packageReadmes}
-                                advisory={advisoryOf(selectedPackage)}
-                                mappedSources={mappedSourcesOf(selectedPackage)}
-                            />
-                        </div>
-                    ) : (
+                    {selectedProjects.size === 0 && (
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100%',
+                            fontSize: '12px',
                             color: 'var(--vscode-descriptionForeground)',
+                            marginBottom: '16px',
                             fontStyle: 'italic'
                         }}>
-                            Select a package to view details
+                            Select one or more projects to install to
                         </div>
                     )}
-                </div>
-            </div>
+
+                    <NugetDetails
+                        selectedPackage={selectedPackage}
+                        packageReadmes={packageReadmes}
+                        advisory={advisoryOf(selectedPackage)}
+                        mappedSources={mappedSourcesOf(selectedPackage)}
+                    />
+                    </>
+                )}
+            </TwoPanel>
         </div>
     );
 

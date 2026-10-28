@@ -20,3 +20,15 @@ describe('Content-Security-Policy of the webviews', () => {
         expect(policy).not.toContain('unsafe-eval');
     });
 });
+
+describe('nonce of the webview shells', () => {
+    it('is random per page and long enough to be unguessable', () => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { getNonce } = require('../../../webview/providers/views/nonce');
+        const nonces = new Set(Array.from({ length: 50 }, () => getNonce()));
+        expect(nonces.size).toBe(50);
+        for (const nonce of nonces) {
+            expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+        }
+    });
+});

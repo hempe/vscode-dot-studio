@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
+import { getNonce } from './nonce';
 
 export class ErrorListWebview {
 
     public static getHtmlForWebview(extensionUri: vscode.Uri, webview: vscode.Webview): string {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', 'error-list', 'bundle.js'));
         const codiconsCss = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', 'codicons', 'codicon.css'));
-        const nonce = this._getNonce();
+        const nonce = getNonce();
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -54,14 +55,5 @@ export class ErrorListWebview {
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
-    }
-
-    private static _getNonce(): string {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 32; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
     }
 }

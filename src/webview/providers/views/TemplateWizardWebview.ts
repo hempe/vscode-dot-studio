@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
+import { getNonce } from './nonce';
 
 export class TemplateWizardWebview {
 
     /** The HTML of a form-like editor tab (the template wizards, the Publish tab), running the webview bundle `bundle` */
     public static getHtmlForWebview(extensionUri: vscode.Uri, webview: vscode.Webview, title: string, bundle = 'template-wizard'): string {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', bundle, 'bundle.js'));
-        const nonce = this._getNonce();
+        const nonce = getNonce();
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -74,14 +75,5 @@ export class TemplateWizardWebview {
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
-    }
-
-    private static _getNonce(): string {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 32; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
     }
 }
