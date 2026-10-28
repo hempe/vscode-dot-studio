@@ -2,16 +2,10 @@
  * NuGet's Package Source Mapping (`<packageSourceMapping>` in NuGet.Config): which sources may provide which package ids.
  * Pure functions, no file access: the webview uses them too.
  */
+import { xmlAttribute } from './configXml';
 
 /** Patterns by source name */
 export type SourceMapping = Readonly<Record<string, readonly string[]>>;
-
-const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
-const decode = (value: string) => value.replace(/&(amp|lt|gt|quot|apos);/gi, (_all, name: string) => XML_ENTITIES[name.toLowerCase()]);
-const attribute = (element: string, name: string) => {
-    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(element);
-    return match ? decode(match[1] ?? match[2]) : undefined;
-};
 
 /** The mapping a NuGet.Config declares (comments ignored); empty when it has none */
 export function parseSourceMapping(configXml: string): SourceMapping {
@@ -22,12 +16,12 @@ export function parseSourceMapping(configXml: string): SourceMapping {
     }
     const mapping: Record<string, string[]> = {};
     for (const source of section[1].matchAll(/<packageSource\b([^>]*?)(?:\/>|>([\s\S]*?)<\/packageSource\s*>)/gi)) {
-        const key = attribute(source[1], 'key');
+        const key = xmlAttribute(source[1], 'key');
         if (!key) {
             continue;
         }
         const patterns = [...(source[2] ?? '').matchAll(/<package\b([^>]*?)\/?>/gi)]
-            .map(element => attribute(element[1], 'pattern'))
+            .map(element => xmlAttribute(element[1], 'pattern'))
             .filter((pattern): pattern is string => !!pattern);
         mapping[key] = [...(mapping[key] ?? []), ...patterns];
     }

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PackageSource } from './types';
+import { xmlAttribute } from './configXml';
 
 /**
  * The solution-level `.nuget/NuGet.Config` of the Visual Studio era: Visual Studio reads it, `dotnet restore` and the other
@@ -34,23 +35,18 @@ export function legacyConfigSources(content: string): PackageSource[] {
     const disabled = new Set(
         [...(/<disabledPackageSources\b[^>]*>([\s\S]*?)<\/disabledPackageSources>/i.exec(withoutComments)?.[1] ?? '').matchAll(/<add\b[^>]*>/gi)]
             .filter(add => /\bvalue\s*=\s*["']true["']/i.test(add[0]))
-            .map(add => attribute(add[0], 'key')?.toLowerCase())
+            .map(add => xmlAttribute(add[0], 'key')?.toLowerCase())
     );
     const sources: PackageSource[] = [];
     for (const add of section.matchAll(/<add\b[^>]*>/gi)) {
-        const name = attribute(add[0], 'key');
-        const url = attribute(add[0], 'value');
+        const name = xmlAttribute(add[0], 'key');
+        const url = xmlAttribute(add[0], 'value');
         if (name && url) {
             sources.push({ name, url, enabled: !disabled.has(name.toLowerCase()), isLocal: !/^https?:\/\//i.test(url) });
         }
     }
     return sources;
 }
-
-const attribute = (element: string, name: string) => {
-    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(element);
-    return match ? (match[1] ?? match[2]).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"') : undefined;
-};
 
 /** The sources the CLI lists plus those of the legacy file that it does not (matched by name or url), as Visual Studio would show them */
 export function applyLegacyConfig(listed: PackageSource[], solutionDir: string): PackageSource[] {

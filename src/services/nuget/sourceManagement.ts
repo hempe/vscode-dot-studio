@@ -6,8 +6,7 @@ import { configStartDir } from './feedAuth';
 import { PackageBrowseService } from './packageBrowseService';
 import { NuGetV3Service } from './nugetV3Service';
 import { ManagedSource } from './types';
-
-const unquote = (value: string) => value.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+import { decodeXml } from './configXml';
 
 /** The first of the config files (closest first, as NuGet reads them) that adds a source with this name to `packageSources` */
 export function definingFile(files: readonly { path: string; content: string }[], name: string): string | undefined {
@@ -15,7 +14,7 @@ export function definingFile(files: readonly { path: string; content: string }[]
         const section = /<packageSources\b[^>]*>([\s\S]*?)<\/packageSources\s*>/i.exec(file.content.replace(/<!--[\s\S]*?-->/g, ''));
         const found = section && [...section[1].matchAll(/<add\b([^>]*?)\/?>/gi)].some(add => {
             const key = /\bkey\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(add[1]);
-            return !!key && unquote(key[1] ?? key[2]).toLowerCase() === name.toLowerCase();
+            return !!key && decodeXml(key[1] ?? key[2]).toLowerCase() === name.toLowerCase();
         });
         if (found) {
             return file.path;

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { legacyConfigPath } from './legacyNugetConfig';
+import { xmlAttribute } from './configXml';
 
 /** Credentials of a package source as NuGet would use them, and where they are */
 export type SourceCredential =
@@ -60,16 +61,6 @@ export function encodeSourceName(name: string): string {
     }).join('');
 }
 
-const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
-const decodeXml = (value: string) => value.replace(/&(?:#(\d+)|#x([0-9a-f]+)|(amp|lt|gt|quot|apos));/gi, (_all, dec, hex, name) =>
-    name ? XML_ENTITIES[name.toLowerCase()] : String.fromCodePoint(dec ? Number(dec) : parseInt(hex, 16)));
-
-/** The value of an attribute, in double or single quotes, with XML entities decoded as NuGet reads it */
-const attribute = (element: string, name: string) => {
-    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(element);
-    return match ? decodeXml(match[1] ?? match[2]) : undefined;
-};
-
 /** The text with every comment replaced by spaces (line breaks stay), so offsets and line numbers still fit the file */
 const withoutComments = (content: string) => content.replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '));
 
@@ -91,8 +82,8 @@ export function findCredential(files: { path: string; content: string }[], sourc
         let username: string | undefined;
         let password: { kind: 'clearText' | 'encrypted'; value: string; offset: number } | undefined;
         for (const add of block[1].matchAll(/<add\b[^>]*>/gi)) {
-            const key = attribute(add[0], 'key')?.toLowerCase();
-            const value = attribute(add[0], 'value') ?? '';
+            const key = xmlAttribute(add[0], 'key')?.toLowerCase();
+            const value = xmlAttribute(add[0], 'value') ?? '';
             if (key === 'username') {
                 username = value;
             } else if (key === 'cleartextpassword') {
