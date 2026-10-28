@@ -218,10 +218,10 @@ export class SolutionWebView {
                             align-items: center;
                             width: calc(100% - 8px);
                             margin: 0 4px;
-                            /* The row keeps its size for the mouse; the highlight is the padding box, 2px smaller on every side */
-                            padding: 2px 26px;
+                            /* The row keeps its size for the mouse; the highlight is the padding box, 1px smaller on every side */
+                            padding: 3px 27px;
                             min-height: 18px;
-                            border: 2px solid transparent;
+                            border: 1px solid transparent;
                             background-clip: padding-box;
                             border-radius: 5px;
                             background-color: transparent;
