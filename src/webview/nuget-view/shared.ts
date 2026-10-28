@@ -56,11 +56,12 @@ declare global {
     }
 }
 
-const vs: { postMessage(message: BackendCmd): void } = window.acquireVsCodeApi();
+// This file is also loaded by the extension host (sendToUi below), where there is no window: the webview API is taken on first use
+let vs: { postMessage(message: BackendCmd): void } | undefined;
 
 
 export function sendToBackend(message: BackendCmd) {
-    vs.postMessage(message)
+    (vs ??= window.acquireVsCodeApi()).postMessage(message);
 }
 
 export function sendToUi(webview: vscode.Webview | undefined, cmd: UICmd) {
