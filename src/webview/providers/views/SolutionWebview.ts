@@ -203,7 +203,7 @@ export class SolutionWebView {
                         .toolbar-menu {
                             background-color: var(--vscode-menu-background);
                             border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
-                            border-radius: 6px;
+                            border-radius: 10px;
                             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
                             padding: 4px 0;
                             min-width: 220px;
