@@ -8,7 +8,7 @@ import { IconThemeContext, IconThemeFonts } from './components/TreeNode/IconThem
 
 
 export const App: React.FC = React.memo(() => {
-    const { solutionData, loadError, toolbar, toolbarAction, loading, refreshing, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
+    const { solutionData, loadError, toolbar, toolbarAction, toolbarChoose, loading, refreshing, markers, iconTheme, handleProjectAction, expandNode, collapseNode } = useVsCodeApi();
 
     // Prevent keyboard events from bubbling to VS Code's main UI
     React.useEffect(() => {
@@ -49,7 +49,7 @@ export const App: React.FC = React.memo(() => {
             <div className="solution-explorer" style={{ position: 'relative' }}>
                 <IconThemeFonts theme={iconTheme} />
                 <LoadingBar visible={refreshing} />
-                <Toolbar state={toolbar} onAction={toolbarAction} />
+                <Toolbar state={toolbar} onAction={toolbarAction} onChoose={toolbarChoose} />
                 <div className="content">
                     <SolutionTree
                         projects={solutionData.projects}

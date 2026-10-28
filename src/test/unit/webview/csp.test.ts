@@ -44,13 +44,14 @@ describe('layout of the Solution Explorer shell', () => {
 });
 
 describe('hover of the Solution Explorer toolbar', () => {
-    it('has hover rules for its buttons and menu items in the shell', () => {
+    it('has hover rules for its buttons in the shell and for the menu items in the menu component', () => {
         jest.isolateModules(() => {
             jest.doMock('vscode', () => ({ Uri: { joinPath: () => ({}) } }), { virtual: true });
             const { SolutionWebView } = require('../../../webview/providers/views/SolutionWebview');
             const html = SolutionWebView.getHtmlForWebview({}, { asWebviewUri: () => 'x', cspSource: 'c' }) as string;
             expect(html).toMatch(/\.toolbar-button:hover\s*\{[^}]*toolbar-hoverBackground/);
-            expect(html).toMatch(/\.toolbar-menu-item:hover[^{]*\{[^}]*list-hoverBackground/);
         });
+        const source = fs.readFileSync(path.join(root, 'webview/shared/MenuButton.tsx'), 'utf8');
+        expect(source).toMatch(/\.shinobi-menu-item:hover[^{]*\{[^}]*list-hoverBackground/);
     });
 });

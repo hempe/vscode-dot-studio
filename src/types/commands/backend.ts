@@ -2,7 +2,7 @@ import { NodeType } from "..";
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared";
 import { NodeIdString } from "../nodeId";
 import { ProjectActionCmd } from "./project-action";
-import { ToolbarAction } from "../toolbar";
+import { ToolbarAction, ToolbarChoice } from "../toolbar";
 
 export declare type GetPackageReadmeCmd = {
     readonly type: 'getPackageReadme',
@@ -161,6 +161,10 @@ export declare type ToolbarActionCmd = {
     readonly type: 'toolbarAction',
     readonly payload: {
         readonly action: ToolbarAction
+    } | {
+        /** A choice of the configuration menu: the configuration or platform picked */
+        readonly action: ToolbarChoice
+        readonly value: string
     }
 }
 

@@ -199,53 +199,6 @@ export class SolutionWebView {
                             outline-offset: -1px;
                         }
 
-                        /* Menus of the toolbar, drawn like VS Code's own menus (the colours are the theme's menu colours) */
-                        .toolbar-menu {
-                            background-color: var(--vscode-menu-background);
-                            border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
-                            border-radius: 8px;
-                            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                            padding: 4px 0;
-                            min-width: 220px;
-                            font-family: var(--vscode-font-family);
-                            font-size: 13px;
-                            line-height: 1.4;
-                            outline: none;
-                        }
-
-                        .toolbar-menu-item {
-                            display: flex;
-                            align-items: center;
-                            width: calc(100% - 8px);
-                            margin: 0 4px;
-                            /* The row keeps its size for the mouse; the highlight is the padding box, 1px smaller on every side */
-                            padding: 3px 27px;
-                            min-height: 18px;
-                            border: 1px solid transparent;
-                            background-clip: padding-box;
-                            border-radius: 5px;
-                            background-color: transparent;
-                            color: var(--vscode-menu-foreground);
-                            font: inherit;
-                            text-align: left;
-                            white-space: nowrap;
-                            cursor: pointer;
-                        }
-
-                        /* Only what the mouse is over, or what the arrow keys reached, is highlighted: nothing when the menu opens */
-                        .toolbar-menu-item:hover,
-                        .toolbar-menu-item:focus {
-                            background-color: var(--vscode-list-hoverBackground);
-                            color: var(--vscode-list-hoverForeground, var(--vscode-menu-foreground));
-                            outline: none;
-                        }
-
-                        .toolbar-menu-separator {
-                            height: 1px;
-                            background-color: var(--vscode-menu-separatorBackground);
-                            margin: 4px 0;
-                        }
-
                         .node-name.startup-project {
                             font-weight: bold;
                         }

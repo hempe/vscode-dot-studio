@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { ToolbarAction, ToolbarState } from '../../../types/toolbar';
+import type { ToolbarAction, ToolbarChoice, ToolbarState } from '../../../types/toolbar';
 import { logger } from '../../shared/logger';
 import { sendToBackend } from '../../nuget-view/shared';
 import { NodeIdString } from '../../../types/nodeId';
@@ -295,6 +295,10 @@ export const useVsCodeApi = () => {
         sendToBackend({ type: 'collapseNode', payload: { nodeId: nodeId } });
     }, []);
 
+    const toolbarChoose = useCallback((choice: ToolbarChoice, value: string) => {
+        sendToBackend({ type: 'toolbarAction', payload: { action: choice, value } });
+    }, []);
+
     const toolbarAction = useCallback((action: ToolbarAction) => {
         sendToBackend({ type: 'toolbarAction', payload: { action } });
     }, []);
@@ -304,6 +308,7 @@ export const useVsCodeApi = () => {
         loadError,
         toolbar,
         toolbarAction,
+        toolbarChoose,
         loading,
         refreshing,
         markers,

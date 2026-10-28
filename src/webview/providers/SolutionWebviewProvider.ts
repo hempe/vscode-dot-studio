@@ -267,8 +267,15 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
         switch (message.type) {
             case 'toolbarAction':
-                // Only the commands of the toolbar buttons, whatever the webview sends
-                if (message.payload?.action && TOOLBAR_ACTIONS.includes(message.payload.action)) {
+                // Only the commands of the toolbar buttons and the choices of its menu, whatever the webview sends
+                if ('value' in message.payload) {
+                    const { action, value } = message.payload;
+                    if (action === 'setConfiguration' && BuildConfiguration.available.includes(value)) {
+                        await BuildConfiguration.set(value);
+                    } else if (action === 'setPlatform' && BuildConfiguration.availablePlatforms.includes(value)) {
+                        await BuildConfiguration.setPlatform(value);
+                    }
+                } else if (message.payload?.action && TOOLBAR_ACTIONS.includes(message.payload.action)) {
                     await vscode.commands.executeCommand(TOOLBAR_COMMANDS[message.payload.action]);
                 }
                 break;
@@ -468,6 +475,10 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             this._view.description = [[BuildConfiguration.active, platform].filter(Boolean).join(' | '), startup].filter(Boolean).join(' · ');
             this._toolbarState = {
                 configuration: [BuildConfiguration.active, platform].filter(Boolean).join(' | '),
+                configurations: BuildConfiguration.available,
+                activeConfiguration: BuildConfiguration.active,
+                platforms: BuildConfiguration.availablePlatforms,
+                activePlatform: BuildConfiguration.activePlatform,
                 ...(startup ? { startup } : {}),
                 showAllFiles: ShowAllFiles.isOn(),
             };

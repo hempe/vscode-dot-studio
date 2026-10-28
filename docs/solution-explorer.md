@@ -29,7 +29,7 @@ On the left, two dropdowns for what is built and run, like Visual Studio's: the 
 
 | Button | What it does |
 |---|---|
-| Debug ▾ (Solution Configuration) | Debug or Release (and other configurations of the solution) for builds, F5 and tests. Its menu also has the platform, the startup profile and the [Configuration Manager](configuration-manager.md) |
+| Debug ▾ (Solution Configuration) | A dropdown like Visual Studio's: the solution's configurations (Debug, Release, ...; the active one is checked) for builds, F5 and tests, the platforms when there are several, **Startup Profile...** and **Configuration Manager...** (the [Configuration Manager](configuration-manager.md)) |
 | net10.0 ▾ (Framework or startup profile) | The target framework of multi-targeted startup projects, or the startup profile |
 | ▷ Start | F5: starts the selected launch configuration, normally the startup project. The arrow next to it has the other ways to start: **Start Without Debugging** (Ctrl+F5), **Start with Hot Reload**, and **Attach to Process...** |
 | ◎ Sync with Active Document | Opens the tree down to the file in the active editor and selects it, so you see where the file you are editing lives (Ctrl+[, S). To do this on every switch of files, turn on `shinobi.solutionExplorer.trackActiveItem` (Visual Studio's "Track Active Item") |
