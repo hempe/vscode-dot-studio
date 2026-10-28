@@ -8,10 +8,11 @@
 
 ## Install
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/shinobi.dotnet-studio?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/shinobi.dotnet-studio)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/shinobi.dotnet-studio.svg)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
+[![VS Code Marketplace installs](https://vsmarketplacebadges.dev/installs-short/shinobi.dotnet-studio.svg)](https://marketplace.visualstudio.com/items?itemName=shinobi.dotnet-studio)
 [![Open VSX](https://img.shields.io/open-vsx/v/shinobi/dotnet-studio?label=Open%20VSX)](https://open-vsx.org/extension/shinobi/dotnet-studio)
 [![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet-studio)](https://open-vsx.org/extension/shinobi/dotnet-studio)
+[![License: MIT](https://img.shields.io/github/license/hempe/vscode-dot-studio)](LICENCE.md)
 
 VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet-studio --pre-release`.
 VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet-studio --pre-release`.
