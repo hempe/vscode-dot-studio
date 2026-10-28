@@ -383,7 +383,7 @@ export async function pasteOne(sourcePath: string, pasteTargetPath: string, oper
  */
 export async function handlePaste(nodeId: NodeId): Promise<void> {
     try {
-        log.info(`_handlePaste called: nodeId=${nodeId}, clipboard=${JSON.stringify(clipboard.current)}`);
+        log.debug(`handlePaste: nodeId=${nodeId}, clipboard=${JSON.stringify(clipboard.current)}`);
 
         if (!clipboard.current) {
             vscode.window.showWarningMessage('Nothing to paste');

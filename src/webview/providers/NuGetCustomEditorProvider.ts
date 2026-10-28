@@ -127,7 +127,7 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
 
         try {
             // Add debug logging to see if messages are reaching the provider
-            log.info('NuGetCustomEditorProvider received message:', message);
+            log.debug('NuGetCustomEditorProvider received message:', message);
 
             // Handle both old (command) and new (type) message formats
             const messageType = message.type;

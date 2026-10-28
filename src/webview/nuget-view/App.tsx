@@ -123,11 +123,11 @@ export const App: React.FC = () => {
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data as UICmd;
-            log.info('NuGet React: Received message:', message);
+            log.debug('NuGet React: Received message:', message);
 
             switch (message.type) {
                 case 'nugetData':
-                    log.info('NuGet React: Setting data to:', message.payload);
+                    log.debug('NuGet React: Setting data to:', message.payload);
                     // One request for a burst of data messages (an install sends several)
                     clearTimeout(advisoryTimer.current);
                     advisoryTimer.current = setTimeout(() => sendToBackend({ type: 'getPackageAdvisories' }), 800);
@@ -291,7 +291,7 @@ export const App: React.FC = () => {
                     }
                     break;
                 case 'consolidatePackages':
-                    log.info('NuGet React: Received consolidate packages:', message.payload.consolidatePackages);
+                    log.debug('NuGet React: Received consolidate packages:', message.payload.consolidatePackages);
                     setData(prev => ({ ...prev, consolidatePackages: ensureArray(message.payload.consolidatePackages) }));
                     setConsolidateLoading(false);
                     setConsolidateLoaded(true);

@@ -263,7 +263,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _handleMessage(message: BackendCmd) {
-        log.info('Received message:', message);
+        log.debug('Received message:', message);
 
         switch (message.type) {
             case 'toolbarAction':
@@ -280,7 +280,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'projectAction':
                 if (message.payload.action && message.payload.nodeId) {
-                    log.info('Handling projectAction:', message.payload);
+                    log.debug('Handling projectAction:', message.payload);
 
                     // Handle addFile and addFolder specially - create temporary node in edit mode or create actual file/folder
                     if (message.payload.action === 'addFile') {
