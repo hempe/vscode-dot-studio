@@ -29,9 +29,9 @@ import { attachToProcess } from '../../../../../services/debug/attach/attachToPr
 type Callback = (error: Error | null, stdout?: string) => void;
 
 /** Answers the process listing (ps or PowerShell) and the port listing (ss, lsof or netstat) */
-function listings(processes: string | Error, ports: string | Error): void {
+function listings(processes: string | Error, ports: string | Error | { ss: string; lsof: string }): void {
     mockExecFile.mockImplementation((file: string, _args: string[], _options: unknown, callback: Callback) => {
-        const result = /^(ps|powershell\.exe)$/.test(file) ? processes : ports;
+        const result = /^(ps|powershell\.exe)$/.test(file) ? processes : typeof ports === 'object' && !(ports instanceof Error) ? ports[file === 'lsof' ? 'lsof' : 'ss'] : ports;
         if (result instanceof Error) {
             callback(result);
         } else {
@@ -50,7 +50,11 @@ const posix = process.platform === 'win32' ? describe.skip : describe;
 
 posix('attachToProcess', () => {
     it('attaches coreclr to the picked process', async () => {
-        listings('  900   1 dotnet /srv/Shop.Web.dll\n', 'LISTEN 0 512 127.0.0.1:5181 0.0.0.0:* users:(("dotnet",pid=900,fd=1))\n');
+        // Linux asks ss, macOS lsof: each answers in its own format
+        listings('  900   1 dotnet /srv/Shop.Web.dll\n', {
+            ss: 'LISTEN 0 512 127.0.0.1:5181 0.0.0.0:* users:(("dotnet",pid=900,fd=1))\n',
+            lsof: 'p900\nn127.0.0.1:5181\n',
+        });
         mockShowQuickPick.mockImplementation(async (items: unknown[]) => items[0]);
         mockStartDebugging.mockResolvedValue(true);
 

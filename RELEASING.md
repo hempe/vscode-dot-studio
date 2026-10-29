@@ -6,7 +6,7 @@ A release is one click on GitHub; the rest is automatic (`.github/workflows/rele
 
 ## Every release
 
-1. Make sure what should go out is on `master` and the CI badge/run of that commit is green (Actions > CI; Linux and Windows are both gates).
+1. Make sure what should go out is on `master` and the CI badge/run of that commit is green (Actions > CI; Linux, Windows and macOS are all gates).
 2. Add a section to [CHANGELOG.md](CHANGELOG.md) for the new version, newest first, as `## 0.2.0` (a date after it is fine) followed by what changed for users since the last release. A section is a short summary of what changed for users, not the commit history. **The release fails without it** (the same text is the release notes if you leave them empty, and the stores show the changelog).
 3. Commit and push that to `master`.
 4. GitHub > Releases > **Draft a new release**: choose "Create new tag" and type `v0.2.0` (the tag is the version, `v` + `major.minor.patch`, nothing else), target `master`. Tick **Set as a pre-release** for a first or risky release. Leave the notes empty to use the changelog section, or write them. Click **Publish release**.
