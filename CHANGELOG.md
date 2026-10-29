@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+The first stable release: the Solution Explorer toolbar, feed credential and solution file fixes, a NuGet manager that fills the editor, and a tidier code base.
 
 - **Fixed, NuGet manager:** the tab content fills the editor's height instead of stopping a guessed 120 px short, which left a gap at the bottom and could push buttons out of view when the panel was open.
 - **Fixed, solution and project files:** a `.sln` with a stray line between two project blocks, or a block without `EndProject`, no longer drops the projects after it; two quick edits of the solution (drag and drop, context actions) are applied one after the other instead of one overwriting the other; a project file edited from outside with the same size and timestamp is no longer taken for our own write; removing the last item of an `<ItemGroup Condition=...>` removes the group; item-like text inside `<![CDATA[`...`]]>` is ignored.
