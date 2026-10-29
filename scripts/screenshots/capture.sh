@@ -51,15 +51,14 @@ double_click() { xdotool mousemove "$1" "$2" click --repeat 2 --delay 80 1; slee
 pause() { sleep "${1:-1}"; }
 # Runs a command from the command palette
 command() { key ctrl+shift+p; pause 0.8; type_text "$1"; pause 1; key Return; pause "${2:-2}"; }
-# Saves the screen as docs/images/<name>.png, cropped to WxH+X+Y; by default without the title bar, which says
-# "[Extension Development Host]"
+# Saves the screen as docs/images/<name>.png, cropped to WxH+X+Y; by default the whole screen, title bar (menus) included
 shot() {
     import -window root "$WORK/$1.png"
-    magick "$WORK/$1.png" -crop "${2:-${WIDTH}x$((HEIGHT - 35))+0+35}" +repage "$OUT/$1.png"
+    magick "$WORK/$1.png" -crop "${2:-${WIDTH}x${HEIGHT}+0+0}" +repage "$OUT/$1.png"
     echo "  $OUT/$1.png"
 }
-# Screen recording for the GIFs: record_start before the steps, record_stop <name> after; the title bar is cropped
-# away, the result is docs/images/<name>.gif (palette per file, so the colours stay close to the screen).
+# Screen recording for the GIFs: record_start before the steps, record_stop <name> after; the whole screen,
+# the result is docs/images/<name>.gif (palette per file, so the colours stay close to the screen).
 # record_pause leaves a long wait out (a restore, a download): record_start goes on with the next part, record_stop
 # joins the parts
 FFMPEG_PID=""
@@ -67,7 +66,7 @@ REC_PARTS=0
 record_start() {
     REC_PARTS=$(( REC_PARTS + 1 ))
     ffmpeg -loglevel error -y -f x11grab -framerate 15 -video_size "${WIDTH}x${HEIGHT}" -i "$DISPLAY" \
-        -vf "crop=${WIDTH}:$((HEIGHT - 36)):0:36" -c:v libx264 -preset ultrafast -crf 18 -pix_fmt yuv420p "$WORK/rec-$REC_PARTS.mp4" &
+        -c:v libx264 -preset ultrafast -crf 18 -pix_fmt yuv420p "$WORK/rec-$REC_PARTS.mp4" &
     FFMPEG_PID=$!
     sleep 1
 }
@@ -123,13 +122,14 @@ close_panel() { click 1300 52; command "View: Hide Panel" 1; }
 # The panel's own close button: the command above fails at times while a webview has the focus (a build or test run
 # reopened the panel behind the template wizard). With no panel the click lands on empty space
 close_panel_button() { click 1570 696; }
-# A modal dialog of VS Code (a window of its own, at 0,0 without a window manager, under the cropped title bar): moved
+# A modal dialog of VS Code (a window of its own, at 0,0 without a window manager): moved
 # to the middle of the screen; click_dialog_button <n> clicks the n-th of its two buttons (bottom row, left to right)
 dialog_window() { (timeout 10 xdotool search --sync --onlyvisible --name '^(Code - OSS|Visual Studio Code|VSCodium)$' || true) | tail -1; }
 # x y width height of a window
 window_box() { xdotool getwindowgeometry --shell "$1" | sed -n 's/^\(X\|Y\|WIDTH\|HEIGHT\)=//p' | tr '\n' ' '; }
 center_dialog() {
-    local w x y dw dh; w="$(dialog_window)"; [ -n "$w" ] || return 0
+    local w x y dw dh; w="$(dialog_window)"
+    [ -n "$w" ] || return 0
     read -r x y dw dh <<< "$(window_box "$w")"
     xdotool windowmove "$w" $(( (WIDTH - dw) / 2 )) $(( (HEIGHT - dh) / 3 ))
 }
@@ -138,18 +138,9 @@ click_dialog_button() {
     read -r x y dw dh <<< "$(window_box "$w")"
     click $(( x + dw * ($1 * 2 - 1) / 4 )) $(( y + dh - 18 ))
 }
-# The quick input (command palette, pickers, input boxes) sits in the title bar, which the GIFs crop away: scenes that
-# show what is typed into it drag it down (VS Code keeps the place) and put it back at the top afterwards
-quick_input_move() {
-    key ctrl+shift+p; pause 1
-    xdotool mousemove 800 "$1" mousedown 1; sleep 0.3
-    local i; for i in 1 2 3 4 5 6; do xdotool mousemove 800 $(( $1 + ($2 - $1) * i / 6 )); sleep 0.1; done
-    xdotool mouseup 1; pause 1; key Escape
-}
-quick_input_down() { quick_input_move 9 150; }
-quick_input_up() { quick_input_move 151 5; }
 # Every scene starts from the collapsed tree, with no editors and no panel
-reset() { command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
+# A debug session left by an earlier scene shows its toolbar in every later one
+reset() { key shift+F5; command "Collapse All" 2; command "View: Close All Editors" 1; close_panel; }
 
 # --- the sample: a copy of sample/ (Contoso), built ----------------------------------------------------------------
 
@@ -188,13 +179,18 @@ cat > "$WORK/profile/User/settings.json" <<EOF
 EOF
 # --- VS Code in a virtual display ------------------------------------------------------------------------------
 
+# The extension is installed from a .vsix, so the window is not an Extension Development Host (its title bar would say so)
+echo "Packaging and installing the extension"
+(cd "$REPO" && npx --no-install vsce package --no-dependencies --skip-license -o "$WORK/shinobi.vsix" >"$WORK/vsce.log" 2>&1) || { cat "$WORK/vsce.log"; exit 1; }
+"$CODE" --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" --install-extension "$WORK/shinobi.vsix" >"$WORK/install.log" 2>&1 || { cat "$WORK/install.log"; exit 1; }
+
 echo "Starting VS Code ($THEME)"
 Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" -nolisten tcp >/dev/null 2>&1 &
 XVFB_PID=$!
 pause 2
 # Webviews stay blank with GPU compositing in Xvfb. dotnet watch (the hot reload scene) opens no browser
 DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER=1 "$CODE" --disable-gpu --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" \
-    --extensionDevelopmentPath="$REPO" --disable-workspace-trust --new-window "$SOLUTION" >"$WORK/code.log" 2>&1 &
+    --disable-workspace-trust --new-window "$SOLUTION" >"$WORK/code.log" 2>&1 &
 CODE_PID=$!
 pause 20
 WINDOW="$(xdotool search --onlyvisible --class code | tail -1)"
@@ -409,7 +405,7 @@ if wants gif-dev-cert; then
     command "Start Without Debugging" 1
     pause 9
     record_stop dev-cert
-    command "Debug: Stop" 2
+    key shift+F5; pause 2
     cp "$WORK/launch.json.orig" "$SOLUTION/.vscode/launch.json"
     sleep 3
     command "View: Close All Editors" 1
@@ -508,8 +504,9 @@ CS
     pause 2
     click 165 "$(project_y src Shop.Core)" 3; pause 1.5
     # Sync Namespaces is 553 px below the project row, under Code Cleanup
-    click 280 $(( $(project_y src Shop.Core) + 553 )); pause 3
-    # the confirmation: Sync is the default button
+    click 280 $(( $(project_y src Shop.Core) + 553 )); pause 0.3
+    # the confirmation (moved to the middle): Sync is the default button
+    center_dialog; pause 2.5
     key Return; pause 15
     record_stop sync-namespaces
     rm -f "$SOLUTION/.editorconfig" "$SOLUTION/src/Shop.Core/Orders/Shipment.cs" "$SOLUTION/src/Shop.Core/Pricing/ShippingCost.cs"
@@ -572,7 +569,8 @@ if wants gif-drag-and-drop; then
     pause 1
     # Coupon.cs onto Pricing (it opens while the pointer rests on it); the namespace question's default button is
     # Update Namespace, which opens the file
-    drag 70 "$(row_y 8)" 330 "$(row_y 7)" 1.5; pause 1.5
+    drag 70 "$(row_y 8)" 330 "$(row_y 7)" 1.5; pause 0.3
+    center_dialog; pause 2.5
     key Return; pause 2.5
     # Pricing is open now, Coupon.cs selected: 8 Discounts, 9 Coupon.cs, 10 PriceCalculator.cs, 11 Shop.Generators, ...,
     # 15 tools. Shop.Generators onto the collapsed tools solution folder, which opens with it selected
@@ -626,14 +624,20 @@ XML
     # The C# extension warns while it reloads the edited projects: do not disturb (warnings and messages stay hidden,
     # the confirmation is a dialog) until the end of the scene
     command "Notifications: Toggle Do Not Disturb Mode" 1
+    # The restore's task output reopens the panel, which squeezes the manager: close it with its own button
+    close_panel_button; pause 1
     tree_focus
     record_start
     # Dependencies > Packages: the override and the global package
     tree_open Contoso tests Shop.Core.NUnitTests Dependencies Packages
     pause 2
     # Installed: Microsoft.SourceLink.GitHub (selected first) carries the global badge and says where it is set
-    command "Open NuGet Package Manager for Solution" 15
-    pause 3
+    command "Open NuGet Package Manager for Solution" 2
+    # The installed packages of the solution take a while to list: left out of the GIF
+    record_pause
+    sleep 40
+    record_start
+    pause 2
     # Filtered to Microsoft.NET.Test.Sdk and selected: the note names Directory.Packages.props and the override, the
     # project list shows v17.14.1 and v17.14.0 (override)
     click 1000 126; type_text "Test.Sdk"; pause 2
@@ -643,7 +647,12 @@ XML
     click 965 551; pause 1.5
     click 1295 615; pause 1.5
     click 1240 639; pause 1.5
-    click 1437 649; xdotool mousemove 760 700; pause 7
+    click 1437 649; xdotool mousemove 760 700; pause 2
+    # The restore after the edit takes a while: left out of the GIF
+    record_pause
+    sleep 25
+    record_start
+    pause 2
     # Consolidate (the fourth tab), Select all, the Consolidate button: the confirmation lists the edits
     click 784 88; pause 4
     click 507 156; pause 1
@@ -668,7 +677,6 @@ if wants gif-grpc; then
     cp "$SOLUTION/src/Shop.Web/Shop.Web.csproj" "$WORK/Shop.Web.csproj.orig"
     reset
     command "Notifications: Clear All Notifications" 1
-    quick_input_down
     tree_focus; tree_open Contoso src
     y="$(shop_web_y)"
     record_start
@@ -703,7 +711,6 @@ if wants gif-grpc; then
     xdotool mousemove 1000 400; pause 1
     record_stop grpc
     command "Notifications: Clear All Notifications" 1
-    quick_input_up
     cp "$WORK/Shop.Web.csproj.orig" "$SOLUTION/src/Shop.Web/Shop.Web.csproj"
     rm -rf "$SOLUTION/src/Shop.Web/Protos"
     (cd "$SOLUTION" && dotnet restore Contoso.slnx -v q -nologo >/dev/null)

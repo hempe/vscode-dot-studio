@@ -10,12 +10,7 @@
             "cwd": "${workspaceFolder}/src/Shop.Web",
             "console": "integratedTerminal",
             "stopAtEntry": false,
-            "preLaunchTask": "StartupPreBuild",
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
-                "uriFormat": "%s"
-            }
+            "preLaunchTask": "StartupPreBuild"
         }
     ]
 }

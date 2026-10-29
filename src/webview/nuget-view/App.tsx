@@ -710,7 +710,7 @@ export const App: React.FC = () => {
     const sourceOptions = [{ value: '', label: 'All' }, ...[...(data.sources ?? [])].map(source => ({ value: source.name, label: source.name }))];
 
     const browseView = (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             {/* Search Input */}
             <div style={{
                 paddingBottom: '12px',
@@ -819,7 +819,7 @@ export const App: React.FC = () => {
     );
 
     const installedView = (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             {/* Search and Filter */}
             <div style={{
                 paddingBottom: '12px',
@@ -927,7 +927,7 @@ export const App: React.FC = () => {
     );
 
     const updatesView = (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             {/* Search and Filter */}
             <div style={{
                 paddingBottom: '12px',
@@ -1147,7 +1147,7 @@ export const App: React.FC = () => {
     );
 
     const consolidateView = (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             {/* Search and Filter */}
             <div style={{
                 paddingBottom: '12px',
@@ -1268,6 +1268,11 @@ export const App: React.FC = () => {
     return (
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <style>{`
+                /* The tab strip keeps its height (left aligned), the open tab fills the rest of the editor */
+                .nuget-panels { display: flex; flex-direction: column; flex-grow: 1; min-height: 0; }
+                .nuget-panels .vscrui-panels__tablist { display: flex; align-self: flex-start; flex: none; }
+                .nuget-panels .vscrui-panels__views { display: flex; flex-direction: row; flex-grow: 1; min-height: 0; }
+                .nuget-panels .vscrui-view:not([hidden]) { display: flex; flex-grow: 1; min-height: 0; }
                 .nuget-panels [role="tab"][aria-selected="true"] {
                     border-bottom: 2px solid var(--vscode-focusBorder) !important;
                 }
