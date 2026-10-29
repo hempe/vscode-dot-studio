@@ -2,9 +2,9 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ProjectItemsService, RETRY_DELAYS_MS } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService, RETRY_DELAYS_MS } from '../../../../../services/project/items/projectItemsService';
 
-const fixture = path.resolve(__dirname, '../../../../__fixtures__/project-items/ItemsApp/ItemsApp.csproj');
+const fixture = path.resolve(__dirname, '../../../../../__fixtures__/project-items/ItemsApp/ItemsApp.csproj');
 const dir = path.dirname(fixture);
 const output = (...files: string[]) => JSON.stringify({ Items: { Compile: files.map(file => ({ Identity: file, FullPath: path.join(dir, file) })) } });
 

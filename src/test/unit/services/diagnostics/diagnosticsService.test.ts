@@ -3,8 +3,8 @@ jest.mock('vscode', () => ({
     DiagnosticTag: { Unnecessary: 1, Deprecated: 2 },
 }), { virtual: true });
 
-import { collectDiagnostics, countDiagnostics, countFiles, documentationUrl } from '../../../services/diagnosticsService';
-import { normalizePath } from '../../../services/diagnosticsRollup';
+import { collectDiagnostics, countDiagnostics, countFiles, documentationUrl } from '../../../../services/diagnostics/diagnosticsService';
+import { normalizePath } from '../../../../services/diagnostics/diagnosticsRollup';
 
 const ALL = { errors: true, warnings: true, infos: true };
 const WITHOUT_INFOS = { errors: true, warnings: true, infos: false };

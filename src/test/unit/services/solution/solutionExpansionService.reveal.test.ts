@@ -1,8 +1,8 @@
 import * as path from 'path';
-import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { ProjectNode } from '../../../types';
-import { NodeIdString } from '../../../types/nodeId';
+import { SolutionExpansionService } from '../../../../services/solution/solutionExpansionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { ProjectNode } from '../../../../types';
+import { NodeIdString } from '../../../../types/nodeId';
 
 jest.mock('vscode', () => ({}), { virtual: true });
 

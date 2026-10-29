@@ -49,7 +49,7 @@ jest.mock('child_process', () => ({
     },
 }));
 
-import { changedFilesFromReports, failureReason, runCodeCleanup } from '../../../../services/codeCleanup/codeCleanup';
+import { changedFilesFromReports, failureReason, runCodeCleanup } from '../../../../../services/code/codeCleanup/codeCleanup';
 
 beforeEach(() => {
     jest.clearAllMocks();

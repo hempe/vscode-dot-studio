@@ -1,7 +1,7 @@
 jest.mock('vscode', () => ({}), { virtual: true });
 
 import * as path from 'path';
-import { buildIconThemePayload, LanguageContribution } from '../../../services/iconThemeService';
+import { buildIconThemePayload, LanguageContribution } from '../../../../services/shared/iconThemeService';
 
 const themeDir = path.resolve('/ext/icons');
 const toUri = (file: string) => `uri:${file}`;

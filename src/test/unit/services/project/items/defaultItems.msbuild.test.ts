@@ -2,9 +2,9 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { itemsWithoutExcludes, newItemFor } from '../../../../services/projectItems/defaultItems';
-import { includeEdit, listFilesUnder } from '../../../../services/projectItems/projectItemEdits';
-import { cannotRun } from '../../testSupport/cannotRun';
+import { itemsWithoutExcludes, newItemFor } from '../../../../../services/project/items/defaultItems';
+import { includeEdit, listFilesUnder } from '../../../../../services/project/items/projectItemEdits';
+import { cannotRun } from '../../../testSupport/cannotRun';
 
 /** Include In Project against the real SDK: the item types MSBuild gives, and that the build and publish then use the files */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

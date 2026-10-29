@@ -3,7 +3,7 @@
  */
 
 import { gunzipSync } from 'zlib';
-import { NodeIdString } from '../types/nodeId';
+import { NodeIdString } from '../../types/nodeId';
 
 /** How gzip data starts in base64: the node ids of older versions */
 const GZIP_PREFIX = 'H4sI';

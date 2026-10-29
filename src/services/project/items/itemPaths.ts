@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
+import { ProjectFileEditor as Xml } from '../../../parsers/projectFileEditor';
 import { pathKey } from './projectItems';
 
 /** MSBuild's `%XX` escapes in an item's text */

@@ -28,15 +28,15 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-jest.mock('../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: { getActiveSolution: () => env.solution },
 }));
 
-jest.mock('../../../services/buildConfiguration', () => ({
+jest.mock('../../../../services/build/buildConfiguration', () => ({
     BuildConfiguration: { get active() { return env.configuration; }, get activePlatform() { return env.platform; } },
 }));
 
-import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvider, DOTNET_TASK_TYPE } from '../../../services/dotnetTaskProvider';
+import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvider, DOTNET_TASK_TYPE } from '../../../../services/build/dotnetTaskProvider';
 
 describe('dotnetTaskArgs', () => {
     test('build, rebuild, clean and restore', () => {

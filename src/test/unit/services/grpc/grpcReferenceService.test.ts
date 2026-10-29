@@ -17,8 +17,8 @@ import { OperationsHost } from '../../../../services/nuget/centralPackageOperati
 import { PackageOperationsService } from '../../../../services/nuget/packageOperationsService';
 import { ProjectState } from '../../../../services/nuget/centralPackagePlan';
 import { ProjectPackages, parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
+import { parseMsbuildItems } from '../../../../services/project/items/projectItems';
 
 const fixture = path.resolve(__dirname, '../../../../__fixtures__/grpc');
 const GREET_URL = 'https://example.com/protos/greet.proto';

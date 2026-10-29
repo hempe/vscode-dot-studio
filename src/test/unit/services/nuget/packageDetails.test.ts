@@ -1,5 +1,5 @@
 jest.mock('vscode', () => ({ workspace: { workspaceFolders: [] } }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 jest.mock('../../../../services/nuget/nugetCredentialManager', () => ({ NuGetCredentialManager: { getSourceToken: async () => undefined } }));
 
 import { NuGetV3Service } from '../../../../services/nuget/nugetV3Service';

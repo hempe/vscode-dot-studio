@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { PackageEdit, packagesUsingProperty, propertyDefinitions, propertyReference, propertyUseCount, writtenVersion } from './centralPackageEdits';
 import { ProjectState } from './centralPackagePlan';
-import { pathKey } from '../projectItems/projectItems';
+import { pathKey } from '../project/items/projectItems';
 
 /**
  * Central versions written as an MSBuild property (`<PackageVersion Include="Serilog" Version="$(SerilogVersion)" />`):

@@ -13,11 +13,11 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Project } from '../../../core/Project';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { parseMsbuildItems } from '../../../services/projectItems/projectItems';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
-import { ShowAllFiles } from '../../../services/showAllFiles';
-import { OwnWrites } from '../../../services/ownWrites';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
+import { parseMsbuildItems } from '../../../services/project/items/projectItems';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
+import { ShowAllFiles } from '../../../services/solution/showAllFiles';
+import { OwnWrites } from '../../../services/shared/ownWrites';
 
 describe('Project file tree with the item overlay', () => {
     let dir: string;

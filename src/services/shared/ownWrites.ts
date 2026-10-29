@@ -1,8 +1,8 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { pathKey } from './projectItems/projectItems';
-import { Stamp, stampOf } from './nuget/centralPackageWatch';
+import { pathKey } from '../project/items/projectItems';
+import { Stamp, stampOf } from '../nuget/centralPackageWatch';
 
 /** Each file the extension wrote, with its stamp right after the write */
 const written = new Map<string, { stamp: Stamp; hash: string | undefined }>();

@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
-import { parseJsonc } from '../../core/jsonc';
+import { logger } from '../../../core/logger';
+import { parseJsonc } from '../../../core/jsonc';
 
 const log = logger('launchProfiles');
 

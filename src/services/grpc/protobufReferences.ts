@@ -2,9 +2,9 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
 import { isWebProject } from '../../parsers/projectKind';
-import { escapeMsbuild } from '../projectItems/projectItemEdits';
-import { ProtobufItem } from '../projectItems/projectItems';
-import { isBelow, resolveItem, sameFile, unescapeMsbuild } from '../projectItems/itemPaths';
+import { escapeMsbuild } from '../project/items/projectItemEdits';
+import { ProtobufItem } from '../project/items/projectItems';
+import { isBelow, resolveItem, sameFile, unescapeMsbuild } from '../project/items/itemPaths';
 
 /**
  * gRPC references (`<Protobuf>` items) as Visual Studio's "Add Connected Service > gRPC" and `dotnet-grpc` write them:

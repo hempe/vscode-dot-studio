@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
 import { NuGetV3Service } from './nugetV3Service';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 import { Mutable } from '../../types';
 import { execDotnet } from './dotnetCli';
@@ -11,7 +11,7 @@ import { applyLegacyConfig } from './legacyNugetConfig';
 import { configStartDir } from './feedAuth';
 import { mappedSources, SourceMapping } from './packageSourceMapping';
 import { readSourceMapping } from './packageSourceMappingFiles';
-import { Settings } from '../settings';
+import { Settings } from '../shared/settings';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');

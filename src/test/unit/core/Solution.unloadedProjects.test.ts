@@ -40,8 +40,8 @@ jest.mock('../../../core/constants', () => ({
 }));
 
 import { Solution } from '../../../core/Solution';
-import { UnloadedProjects } from '../../../services/unloadedProjects';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+import { UnloadedProjects } from '../../../services/solution/unloadedProjects';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
 
 describe('Solution with unloaded projects', () => {
     let dir: string;

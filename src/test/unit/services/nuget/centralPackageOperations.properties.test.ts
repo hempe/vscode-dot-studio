@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 jest.mock('vscode', () => ({ window: { showWarningMessage: jest.fn() } }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 
 import { OperationsHost, changePackageVersions, consolidatePackages } from '../../../../services/nuget/centralPackageOperations';
 import { ProjectState } from '../../../../services/nuget/centralPackagePlan';

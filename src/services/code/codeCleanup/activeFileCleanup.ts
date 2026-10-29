@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { projectForPath } from '../templates/templateService';
+import { projectForPath } from '../../templates/templateService';
 import { runCodeCleanup } from './codeCleanup';
 
 /**

@@ -1,5 +1,5 @@
 // A trigger during a running callback is not lost (review A2-4)
-import { DebounceManager, SimpleDebounceManager } from '../../../services/debounceManager';
+import { DebounceManager, SimpleDebounceManager } from '../../../../services/shared/debounceManager';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 

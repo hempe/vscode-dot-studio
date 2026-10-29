@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { namespaceSegment } from './templates/itemTemplates';
-import { logger } from '../core/logger';
-import { SolutionService } from './solutionService';
+import { namespaceSegment } from '../templates/itemTemplates';
+import { logger } from '../../core/logger';
+import { SolutionService } from '../solution/solutionService';
 
 const log = logger('NamespaceService');
 

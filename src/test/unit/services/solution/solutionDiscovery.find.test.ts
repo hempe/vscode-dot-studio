@@ -9,7 +9,7 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { SolutionDiscovery } from '../../../services/solutionDiscovery';
+import { SolutionDiscovery } from '../../../../services/solution/solutionDiscovery';
 
 describe('SolutionDiscovery.findSolutionFiles', () => {
     let root: string;

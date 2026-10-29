@@ -14,8 +14,8 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { readStartupProfiles, StartupChoice, STARTUP_PROFILES_CONTEXT, writeStartupProfiles } from '../../../../services/startupProfiles/startupChoice';
-import { StartupProfile } from '../../../../services/startupProfiles/slnLaunch';
+import { readStartupProfiles, StartupChoice, STARTUP_PROFILES_CONTEXT, writeStartupProfiles } from '../../../../../services/debug/startupProfiles/startupChoice';
+import { StartupProfile } from '../../../../../services/debug/startupProfiles/slnLaunch';
 
 class Memento {
     private readonly values = new Map<string, unknown>();

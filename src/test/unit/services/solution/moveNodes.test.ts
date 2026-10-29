@@ -49,22 +49,22 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-jest.mock('../../../core/constants', () => ({
-    ...jest.requireActual('../../../core/constants'),
+jest.mock('../../../../core/constants', () => ({
+    ...jest.requireActual('../../../../core/constants'),
     isSystemPath: () => false,
 }));
 
-import { Solution } from '../../../core/Solution';
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { solutionDropNode } from '../../../services/solutionDropNodes';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
-import { SolutionTreeService } from '../../../services/solutionTreeService';
-import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { ProjectNode } from '../../../types';
+import { Solution } from '../../../../core/Solution';
+import { SolutionService } from '../../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../../services/solution/solutionActionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { solutionDropNode } from '../../../../services/solution/solutionDropNodes';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
+import { SolutionTreeService } from '../../../../services/solution/solutionTreeService';
+import { SolutionExpansionService } from '../../../../services/solution/solutionExpansionService';
+import { ProjectNode } from '../../../../types';
 
-const fixture = path.join(__dirname, '../../../__fixtures__/solution-hierarchy');
+const fixture = path.join(__dirname, '../../../../__fixtures__/solution-hierarchy');
 
 describe('SolutionActionService.moveNodes (drag & drop)', () => {
     let dir: string;

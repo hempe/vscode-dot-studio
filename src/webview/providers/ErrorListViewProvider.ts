@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { DiagnosticsService } from '../../services/diagnosticsService';
-import { buildErrorRows, summarizeErrorList } from '../../services/errorList';
-import { affectsSeverityFilter, readSeverityFilter, toggleSeverity } from '../../services/diagnosticsFilter';
-import { SolutionService } from '../../services/solutionService';
+import { DiagnosticsService } from '../../services/diagnostics/diagnosticsService';
+import { buildErrorRows, summarizeErrorList } from '../../services/diagnostics/errorList';
+import { affectsSeverityFilter, readSeverityFilter, toggleSeverity } from '../../services/diagnostics/diagnosticsFilter';
+import { SolutionService } from '../../services/solution/solutionService';
 import { ErrorListMessage, ErrorListRequest } from '../../types/errorList';
 import { ErrorListWebview } from './views/ErrorListWebview';
 

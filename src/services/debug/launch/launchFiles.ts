@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
-import { parseJsonc, removeArrayItems, upsertArrayItem } from '../../core/jsonc';
-import { platformProperty } from '../configurationManager/configurationManager';
-import { EMIT_GENERATED_FILES } from '../analyzers';
-import { Settings } from '../settings';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { logger } from '../../../core/logger';
+import { parseJsonc, removeArrayItems, upsertArrayItem } from '../../../core/jsonc';
+import { platformProperty } from '../../build/configurationManager/configurationManager';
+import { EMIT_GENERATED_FILES } from '../../diagnostics/analyzers';
+import { Settings } from '../../shared/settings';
+import { solutionWorkspaceFolder } from '../../solution/workspaceFolders';
 
 const log = logger('launchFiles');
 

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { execDotnet } from '../nuget/dotnetCli';
-import { SolutionService } from '../solutionService';
-import { DebugConfigService } from '../debugConfigService';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { SolutionService } from '../solution/solutionService';
+import { DebugConfigService } from '../debug/debugConfigService';
+import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
 import { EfAction, efArgs, efStartup, migrationNameProblem, parseDbContexts } from './efArgs';
 
 /** What the Entity Framework commands need from VS Code and the tool; replaced in tests */

@@ -1,7 +1,7 @@
 import * as path from 'path';
-import { NodeId, NodeIdService } from './nodeIdService';
-import { DiagnosticCounts, DiagnosticMarkers, NodeMarker, ProjectNode } from '../types';
-import { NodeIdString } from '../types/nodeId';
+import { NodeId, NodeIdService } from '../solution/nodeIdService';
+import { DiagnosticCounts, DiagnosticMarkers, NodeMarker, ProjectNode } from '../../types';
+import { NodeIdString } from '../../types/nodeId';
 
 /** Per-file diagnostic counts, keyed by `normalizePath(filePath)` */
 export type FileCounts = ReadonlyMap<string, DiagnosticCounts>;

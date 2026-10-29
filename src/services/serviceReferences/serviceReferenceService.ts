@@ -2,15 +2,15 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { SolutionService } from '../solutionService';
-import { DebugConfigService } from '../debugConfigService';
+import { SolutionService } from '../solution/solutionService';
+import { DebugConfigService } from '../debug/debugConfigService';
 import { PackageOperationsService } from '../nuget/packageOperationsService';
 import {
     CONNECTED_SERVICES, isValidReferenceName, newServiceReference, readServiceReference, ServiceReference, suggestReferenceName,
 } from './connectedService';
 import { findSvcutil, installSvcutil, runSvcutil, SvcutilInstall } from './svcutil';
 import { generateServiceReference, removeServiceReference } from './serviceReferenceGenerator';
-import { workspaceFolderOf } from '../workspaceFolders';
+import { workspaceFolderOf } from '../solution/workspaceFolders';
 import { serviceReferencesOutput as outputChannel, showServiceReferenceFailure as showFailure } from './output';
 import { addGrpcReference } from '../grpc/grpcReferenceService';
 

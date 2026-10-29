@@ -1,7 +1,7 @@
 // Browse follows Package Source Mapping when the setting is on: a package counts only from a source the mapping lets provide it
 jest.mock('vscode', () => ({ workspace: { workspaceFolders: undefined }, window: {}, commands: {}, env: {} }), { virtual: true });
 let enabled = true;
-jest.mock('../../../../services/settings', () => ({ Settings: { nugetPackageSources: () => enabled } }));
+jest.mock('../../../../services/shared/settings', () => ({ Settings: { nugetPackageSources: () => enabled } }));
 jest.mock('../../../../services/nuget/packageSourceMappingFiles', () => ({
     readSourceMapping: () => ({ 'nuget.org': ['*'], 'Company Feed': ['Company.*'] }),
 }));

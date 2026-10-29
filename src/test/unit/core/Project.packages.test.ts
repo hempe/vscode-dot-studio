@@ -14,8 +14,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { Project, dependencyLabel } from '../../../core/Project';
 import { parseMsbuildPackages } from '../../../services/nuget/centralPackages';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
 
 describe('Project dependencies with Central Package Management', () => {
     let dir: string;

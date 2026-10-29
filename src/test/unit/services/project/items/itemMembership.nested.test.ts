@@ -24,10 +24,10 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-import { Solution } from '../../../../core/Solution';
-import { SolutionService } from '../../../../services/solutionService';
-import { SolutionActionService } from '../../../../services/solutionActionService';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { Solution } from '../../../../../core/Solution';
+import { SolutionService } from '../../../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../../../services/solution/solutionActionService';
+import { ProjectItemsService } from '../../../../../services/project/items/projectItemsService';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;
 const sdkProject = '<Project Sdk="Microsoft.NET.Sdk">\n\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n  </PropertyGroup>\n\n</Project>\n';

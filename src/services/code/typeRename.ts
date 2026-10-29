@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 
 const log = logger('TypeRename');
 

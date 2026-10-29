@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { execFile, ChildProcess } from 'child_process';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { CleanupSeverity, CleanupTarget, cleanupSteps, unusedUsingsSeverityFor } from './cleanupSteps';
 
 const log = logger('CodeCleanup');

@@ -2,10 +2,10 @@ import * as path from 'path';
 import * as os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { logger } from '../../core/logger';
-import { ConcurrencyLimit, SingleFlight } from '../singleFlight';
+import { logger } from '../../../core/logger';
+import { ConcurrencyLimit, SingleFlight } from '../../shared/singleFlight';
 import { FRAMEWORK_ITEM_TYPE, ITEM_TYPES, ProjectItems, crossTargetingFramework, parseMsbuildItems } from './projectItems';
-import { PACKAGE_ITEM_TYPES, PACKAGE_PROPERTIES, ProjectPackages, packagesEqual, parseMsbuildPackages } from '../nuget/centralPackages';
+import { PACKAGE_ITEM_TYPES, PACKAGE_PROPERTIES, ProjectPackages, packagesEqual, parseMsbuildPackages } from '../../nuget/centralPackages';
 
 const execFileAsync = promisify(execFile);
 const log = logger('ProjectItems');

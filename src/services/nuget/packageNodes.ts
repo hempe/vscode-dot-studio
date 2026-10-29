@@ -1,7 +1,7 @@
-import { NodeId, NodeIdService } from '../nodeIdService';
+import { NodeId, NodeIdService } from '../solution/nodeIdService';
 import { ProjectChild } from '../../types';
-import { SolutionService } from '../solutionService';
-import { activeFrameworkOf } from '../projectFramework';
+import { SolutionService } from '../solution/solutionService';
+import { activeFrameworkOf } from '../project/projectFramework';
 import { packageDependencies, PackageGraph, readPackageGraph } from './packageGraph';
 
 const graphOf = (projectPath: string): PackageGraph | undefined => readPackageGraph(projectPath, activeFrameworkOf(projectPath));

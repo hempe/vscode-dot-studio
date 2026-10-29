@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { SolutionService } from '../solutionService';
+import { SolutionService } from '../solution/solutionService';
 import { PackageSource } from './types';
 import { feedHelp } from './feedHelp';
 import { matchSource, nugetConfigFiles, readSourceCredential, setClearTextPassword, SourceCredential, userConfigDir } from './nugetCredentials';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
 
 const log = logger('FeedAuth');
 

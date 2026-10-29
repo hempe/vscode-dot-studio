@@ -33,12 +33,12 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { ProjectItems, parseMsbuildItems } from '../../../services/projectItems/projectItems';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
-import { NodeIdString } from '../../../types/nodeId';
+import { SolutionService } from '../../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../../services/solution/solutionActionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { ProjectItems, parseMsbuildItems } from '../../../../services/project/items/projectItems';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
+import { NodeIdString } from '../../../../types/nodeId';
 
 const csproj = (items: string) => `<Project Sdk="Microsoft.NET.Sdk">
 

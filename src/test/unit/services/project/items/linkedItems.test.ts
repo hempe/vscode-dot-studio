@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { linkedDeleteDetail, multiDeleteQuestion, removeLinkedItem } from '../../../../services/projectItems/linkedItems';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+import { linkedDeleteDetail, multiDeleteQuestion, removeLinkedItem } from '../../../../../services/project/items/linkedItems';
+import { parseMsbuildItems } from '../../../../../services/project/items/projectItems';
 
 const root = path.resolve('/repo');
 const projectDir = path.join(root, 'App');

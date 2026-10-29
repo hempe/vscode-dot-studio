@@ -4,7 +4,7 @@ const folders = [
 ];
 jest.mock('vscode', () => ({ workspace: { get workspaceFolders() { return folders; } } }), { virtual: true });
 
-import { setActiveSolutionPath, solutionWorkspaceFolder, workspaceFolderOf } from '../../../services/workspaceFolders';
+import { setActiveSolutionPath, solutionWorkspaceFolder, workspaceFolderOf } from '../../../../services/solution/workspaceFolders';
 
 describe('workspace folders (multi-root workspaces)', () => {
     afterEach(() => setActiveSolutionPath(undefined));

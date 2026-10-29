@@ -14,10 +14,10 @@ import * as os from 'os';
 import * as path from 'path';
 import { Project } from '../../../../core/Project';
 import { grpcChildren } from '../../../../services/grpc/grpcNodes';
-import { NodeIdService } from '../../../../services/nodeIdService';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
-import { ShowAllFiles } from '../../../../services/showAllFiles';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { parseMsbuildItems } from '../../../../services/project/items/projectItems';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
+import { ShowAllFiles } from '../../../../services/solution/showAllFiles';
 
 describe('gRPC references in the tree', () => {
     let root: string;

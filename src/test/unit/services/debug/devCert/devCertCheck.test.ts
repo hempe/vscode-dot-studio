@@ -52,11 +52,11 @@ const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 /** A fresh module state per test: the check is once per session, kept in the module */
 function load() {
     jest.resetModules();
-    return require('../../../../services/devCert/devCertCheck') as typeof import('../../../../services/devCert/devCertCheck');
+    return require('../../../../../services/debug/devCert/devCertCheck') as typeof import('../../../../../services/debug/devCert/devCertCheck');
 }
 
 describe('devCertCheck', () => {
-    let mod: typeof import('../../../../services/devCert/devCertCheck');
+    let mod: typeof import('../../../../../services/debug/devCert/devCertCheck');
     const context = () => ({
         globalState: { get: () => env.dismissed, update: async (key: string, value: unknown) => { env.updates.push([key, value]); } },
         subscriptions: [] as unknown[],

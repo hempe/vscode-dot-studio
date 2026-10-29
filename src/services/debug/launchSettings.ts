@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { isWebProject } from '../parsers/projectKind';
-import { logger } from '../core/logger';
+import { isWebProject } from '../../parsers/projectKind';
+import { logger } from '../../core/logger';
 
 const log = logger('LaunchSettings');
 

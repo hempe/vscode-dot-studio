@@ -1,4 +1,4 @@
-import { SolutionService } from './solutionService';
+import { SolutionService } from '../solution/solutionService';
 
 /**
  * The framework whose dependencies the Solution Explorer shows for a project: the active framework if the

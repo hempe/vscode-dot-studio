@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { mappedBuild, platformProperty, readConfigurationModel, renderConfigurationModel, configurationProjectsOf } from '../../../../services/configurationManager/configurationManager';
-import { addPlatform } from '../../../../services/configurationManager/model';
-import { SolutionFileParser } from '../../../../parsers/solutionFileParser';
-import { SolutionXFileParser } from '../../../../parsers/solutionXFileParser';
+import { mappedBuild, platformProperty, readConfigurationModel, renderConfigurationModel, configurationProjectsOf } from '../../../../../services/build/configurationManager/configurationManager';
+import { addPlatform } from '../../../../../services/build/configurationManager/model';
+import { SolutionFileParser } from '../../../../../parsers/solutionFileParser';
+import { SolutionXFileParser } from '../../../../../parsers/solutionXFileParser';
 
-const sln = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/configurations/Sample.sln'), 'utf8');
-const slnx = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/configurations/Sample.slnx'), 'utf8');
+const sln = fs.readFileSync(path.join(__dirname, '../../../../../__fixtures__/configurations/Sample.sln'), 'utf8');
+const slnx = fs.readFileSync(path.join(__dirname, '../../../../../__fixtures__/configurations/Sample.slnx'), 'utf8');
 const DIR = '/tmp/sample';
 const projects = [
     { path: 'src/App/App.csproj', guid: '{11111111-1111-1111-1111-111111111111}' },

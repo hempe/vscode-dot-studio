@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { solutionFilterContent, UnloadedProjects } from '../../../services/unloadedProjects';
+import { solutionFilterContent, UnloadedProjects } from '../../../../services/solution/unloadedProjects';
 
 class Memento {
     private values = new Map<string, unknown>();

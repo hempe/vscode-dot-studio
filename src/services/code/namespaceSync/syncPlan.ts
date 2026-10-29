@@ -1,4 +1,4 @@
-import { shouldSkipDirectory } from '../../core/constants';
+import { shouldSkipDirectory } from '../../../core/constants';
 
 const GENERATED = /\.(g|g\.i|designer|assemblyinfo)\.cs$/i;
 

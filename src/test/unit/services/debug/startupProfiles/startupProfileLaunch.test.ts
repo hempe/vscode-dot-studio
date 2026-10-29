@@ -35,28 +35,28 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-jest.mock('../../../../services/monoDebug', () => ({
-    ...jest.requireActual('../../../../services/monoDebug'),
+jest.mock('../../../../../services/debug/monoDebug', () => ({
+    ...jest.requireActual('../../../../../services/debug/monoDebug'),
     ensureMonoDebugging: async () => env.monoOk,
 }));
-jest.mock('../../../../services/buildConfiguration', () => ({
+jest.mock('../../../../../services/build/buildConfiguration', () => ({
     BuildConfiguration: { get active() { return 'Debug'; }, get activePlatform() { return 'Any CPU'; } },
 }));
-jest.mock('../../../../services/dotnetTaskProvider', () => ({
+jest.mock('../../../../../services/build/dotnetTaskProvider', () => ({
     DOTNET_TASK_TYPE: 'shinobi-dotnet',
     createDotnetTask: (definition: any) => ({ definition }),
 }));
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../../services/solution/solutionService', () => ({
     SolutionService: { getActiveSolution: () => env.solution },
 }));
-jest.mock('../../../../services/unloadedProjects', () => ({
+jest.mock('../../../../../services/solution/unloadedProjects', () => ({
     UnloadedProjects: { buildTarget: (solutionPath: string) => solutionPath, isUnloaded: (_solutionPath: string, projectPath: string) => env.unloaded.includes(projectPath) },
 }));
 
-import { DebugConfigService } from '../../../../services/debugConfigService';
-import { StartupChoice } from '../../../../services/startupProfiles/startupChoice';
-import { defaultStartupProject, refreshStartup, selectStartupProfile } from '../../../../services/startupProfiles/startProfile';
-import { parseJsonc } from '../../../../core/jsonc';
+import { DebugConfigService } from '../../../../../services/debug/debugConfigService';
+import { StartupChoice } from '../../../../../services/debug/startupProfiles/startupChoice';
+import { defaultStartupProject, refreshStartup, selectStartupProfile } from '../../../../../services/debug/startupProfiles/startProfile';
+import { parseJsonc } from '../../../../../core/jsonc';
 
 class Memento {
     private readonly values = new Map<string, unknown>();

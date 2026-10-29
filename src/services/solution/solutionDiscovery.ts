@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { sln } from '../core/utils';
-import { shouldSkipDirectory } from '../core/constants';
+import { sln } from '../../core/utils';
+import { shouldSkipDirectory } from '../../core/constants';
 
 export interface SolutionDiscoveryResult {
     type: 'none' | 'single' | 'multiple';

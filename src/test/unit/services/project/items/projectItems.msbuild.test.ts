@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ProjectItemsService, runMsbuild } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService, runMsbuild } from '../../../../../services/project/items/projectItemsService';
 
 /** What real MSBuild says a project contains: a file it does not list is hidden in the tree, so every real file must be listed */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

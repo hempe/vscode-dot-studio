@@ -4,7 +4,7 @@
  */
 
 import { Dependency } from "../parsers/projectFileParser";
-import { NodeId } from "../services/nodeIdService";
+import { NodeId } from "../services/solution/nodeIdService";
 import { NodeIdString } from "./nodeId";
 
 export type NodeType = NodeId['type'];

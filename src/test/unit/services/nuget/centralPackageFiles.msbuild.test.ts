@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { applyPackageEdits, declaredGlobals, importChain } from '../../../../services/nuget/centralPackageFiles';
 import { ProjectState, globalUninstallEdits, planUninstall, planVersionChange } from '../../../../services/nuget/centralPackagePlan';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 /** The plans and edits checked against real MSBuild: what each project uses afterwards, not just the text written */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

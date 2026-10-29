@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { Settings } from '../settings';
+import { Settings } from '../shared/settings';
 import { moveLegacyConfig, needsLegacyConfigMove } from './legacyNugetConfig';
 
 const log = logger('LegacyNuGetConfig');

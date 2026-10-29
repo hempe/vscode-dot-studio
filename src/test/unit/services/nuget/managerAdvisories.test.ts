@@ -5,8 +5,8 @@ jest.mock('../../../../services/nuget/packageAdvisories', () => ({
     readProjectAdvisories: (...args: unknown[]) => mockRead(...args),
 }));
 const mockUnloaded = jest.fn();
-jest.mock('../../../../services/unloadedProjects', () => ({ UnloadedProjects: { isUnloaded: (...args: unknown[]) => mockUnloaded(...args) } }));
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/unloadedProjects', () => ({ UnloadedProjects: { isUnloaded: (...args: unknown[]) => mockUnloaded(...args) } }));
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: { getActiveSolution: () => ({ solutionPath: '/w/App.sln', projects: new Map([['/w/A.csproj', {}], ['/w/B.csproj', {}], ['/w/C.csproj', {}]]) }) },
 }));
 

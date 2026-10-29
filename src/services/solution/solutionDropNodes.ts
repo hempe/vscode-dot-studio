@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Solution } from '../core/Solution';
-import { DropAncestor, DropNode } from '../core/dropRules';
-import { SolutionFileParser } from '../parsers/solutionFileParser';
+import { Solution } from '../../core/Solution';
+import { DropAncestor, DropNode } from '../../core/dropRules';
+import { SolutionFileParser } from '../../parsers/solutionFileParser';
 import { NodeId, NodeIdService } from './nodeIdService';
 import { UnloadedProjects } from './unloadedProjects';
-import { NodeIdString } from '../types/nodeId';
+import { NodeIdString } from '../../types/nodeId';
 
 const sameGuid = (a: string | undefined, b: string | undefined) => !!a && !!b && a.toUpperCase() === b.toUpperCase();
 const samePath = (a: string, b: string) => process.platform === 'win32'

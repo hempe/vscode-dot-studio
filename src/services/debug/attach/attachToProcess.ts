@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import * as path from 'path';
-import { logger } from '../../core/logger';
-import { SolutionService } from '../solutionService';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
-import { hasCSharpExtension, recommendedCSharpExtension } from '../csharpExtensionCheck';
+import { logger } from '../../../core/logger';
+import { SolutionService } from '../../solution/solutionService';
+import { solutionWorkspaceFolder } from '../../solution/workspaceFolders';
+import { hasCSharpExtension, recommendedCSharpExtension } from '../../shared/csharpExtensionCheck';
 import { parsePsOutput, parseWindowsProcesses, ProcessEntry } from './processList';
 import { parseLsof, parseNetstat, parseSs, PortsByPid } from './listeningPorts';
 import { findDotnetProcesses, SolutionProjectRef } from './dotnetProcesses';

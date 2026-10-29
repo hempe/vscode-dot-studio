@@ -1,6 +1,6 @@
 import { logger } from '../../core/logger';
 import { NuGetPackage, PackageDependency, PackageSearchOptions, PackageSource, upgradeNuGetOrgUrl } from './types';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 import { pickRegistrationUrl } from './httpBody';
 import { httpGet } from './httpGet';
 import { PersistentCache } from '../../core/persistentCache';

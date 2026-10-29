@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { SolutionService } from '../solutionService';
 import { NodeId } from '../nodeIdService';
-import { updateNamespacesAfterMove } from '../namespaceAfterMove';
-import { renameFileAndType } from '../typeRename';
-import { itemNameProblem } from '../itemNames';
-import { DebugConfigService } from '../debugConfigService';
-import { dependentRenames } from '../templates/dependentRenames';
+import { updateNamespacesAfterMove } from '../../code/namespaceAfterMove';
+import { renameFileAndType } from '../../code/typeRename';
+import { itemNameProblem } from '../../project/itemNames';
+import { DebugConfigService } from '../../debug/debugConfigService';
+import { dependentRenames } from '../../templates/dependentRenames';
 
 const log = logger('renameActions');
 

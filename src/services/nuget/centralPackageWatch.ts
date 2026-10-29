@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { pathKey } from '../projectItems/projectItems';
+import { pathKey } from '../project/items/projectItems';
 
 /** `mtime|size` of a file; undefined when it does not exist */
 export type Stamp = string | undefined;

@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
-import { runMsbuild } from '../../../../services/projectItems/projectItemsService';
+import { parseMsbuildItems } from '../../../../../services/project/items/projectItems';
+import { runMsbuild } from '../../../../../services/project/items/projectItemsService';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 

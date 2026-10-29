@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 import * as path from 'path';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 /** The packages of the fixture as real MSBuild evaluates them (no restore, no network) */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

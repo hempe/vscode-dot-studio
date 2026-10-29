@@ -20,7 +20,7 @@ jest.mock('vscode', () => ({
     Range: class { constructor(public start: unknown, public end: unknown) { } },
 }), { virtual: true });
 
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 
 import { basicAuth, reportRejectedCredentials, reportRejectedInOutput, setFeedSources } from '../../../../services/nuget/feedAuth';
 import { readSourceCredential } from '../../../../services/nuget/nugetCredentials';

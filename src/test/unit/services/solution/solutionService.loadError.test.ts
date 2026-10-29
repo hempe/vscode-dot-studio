@@ -28,8 +28,8 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionDiscovery } from '../../../services/solutionDiscovery';
+import { SolutionService } from '../../../../services/solution/solutionService';
+import { SolutionDiscovery } from '../../../../services/solution/solutionDiscovery';
 
 describe('SolutionService.discoverAndInitializeSolution with an invalid .slnx', () => {
     let dir: string;

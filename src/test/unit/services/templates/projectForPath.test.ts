@@ -3,7 +3,7 @@ import * as path from 'path';
 jest.mock('vscode', () => ({ window: { createOutputChannel: () => ({ appendLine: () => { } }) } }), { virtual: true });
 
 const projects = new Map<string, unknown>();
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: { getActiveSolution: () => ({ projects }) },
 }));
 

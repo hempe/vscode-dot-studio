@@ -1,6 +1,6 @@
 jest.mock('vscode', () => ({}), { virtual: true });
 
-import { splitArguments } from '../../../services/monoDebug';
+import { splitArguments } from '../../../../services/debug/monoDebug';
 
 describe('splitArguments', () => {
     it('splits on spaces and keeps quoted text together', () => {

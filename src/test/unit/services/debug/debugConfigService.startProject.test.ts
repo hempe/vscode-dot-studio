@@ -49,26 +49,26 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-jest.mock('../../../services/monoDebug', () => ({
-    ...jest.requireActual('../../../services/monoDebug'),
+jest.mock('../../../../services/debug/monoDebug', () => ({
+    ...jest.requireActual('../../../../services/debug/monoDebug'),
     ensureMonoDebugging: async () => env.monoOk,
 }));
 
-jest.mock('../../../services/buildConfiguration', () => ({
+jest.mock('../../../../services/build/buildConfiguration', () => ({
     BuildConfiguration: { get active() { return 'Debug'; } },
 }));
 
-jest.mock('../../../services/dotnetTaskProvider', () => ({
+jest.mock('../../../../services/build/dotnetTaskProvider', () => ({
     DOTNET_TASK_TYPE: 'shinobi-dotnet',
     createDotnetTask: (definition: any) => ({ definition }),
 }));
 
 const devCertChecks: any[][] = [];
-jest.mock('../../../services/devCert/devCertCheck', () => ({
+jest.mock('../../../../services/debug/devCert/devCertCheck', () => ({
     checkDevCertificateBeforeStart: (profiles: any[]) => { devCertChecks.push(profiles); },
 }));
 
-import { DebugConfigService } from '../../../services/debugConfigService';
+import { DebugConfigService } from '../../../../services/debug/debugConfigService';
 
 describe('DebugConfigService: starting a project that is not the startup project', () => {
     let apiPath: string;

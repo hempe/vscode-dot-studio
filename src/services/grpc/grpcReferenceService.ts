@@ -2,16 +2,16 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isWebProject } from '../../parsers/projectKind';
-import { SolutionService } from '../solutionService';
-import { ProjectItems } from '../projectItems/projectItems';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { SolutionService } from '../solution/solutionService';
+import { ProjectItems } from '../project/items/projectItems';
+import { ProjectItemsService } from '../project/items/projectItemsService';
 import { changePackageVersions, OperationsHost, vscodeHost as packageOperationsHost } from '../nuget/centralPackageOperations';
 import { PackageBrowseService } from '../nuget/packageBrowseService';
 import { PackageOperationResult } from '../nuget/types';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 import { serviceReferencesOutput, showServiceReferenceFailure } from '../serviceReferences/output';
 import { Cancellation, download, DownloadCancelled, redactUrl } from './download';
-import { sameFile } from '../projectItems/itemPaths';
+import { sameFile } from '../project/items/itemPaths';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, downloadedContentRefusal, duplicateRefusal, ensureDevelopmentDependency, GRPC_SERVICES,
     GrpcServices, grpcPackages, isExistingReference, notListedMessage, protobufReferenceFor, protoFileName, PROTOS_FOLDER, rangeMinimum,

@@ -17,14 +17,14 @@ jest.mock('vscode', () => ({
     debug: { startDebugging: (...args: unknown[]) => mockStartDebugging(...args) },
     env: { uriScheme: 'vscode' },
 }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
-jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => ({ name: 'folder' }) }));
-jest.mock('../../../../services/csharpExtensionCheck', () => ({
+jest.mock('../../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../../services/solution/workspaceFolders', () => ({ solutionWorkspaceFolder: () => ({ name: 'folder' }) }));
+jest.mock('../../../../../services/shared/csharpExtensionCheck', () => ({
     hasCSharpExtension: () => csharp,
     recommendedCSharpExtension: () => 'ms-dotnettools.csharp',
 }));
 
-import { attachToProcess } from '../../../../services/attach/attachToProcess';
+import { attachToProcess } from '../../../../../services/debug/attach/attachToProcess';
 
 type Callback = (error: Error | null, stdout?: string) => void;
 

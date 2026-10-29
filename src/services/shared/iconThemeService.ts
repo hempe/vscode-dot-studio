@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseJsonc } from '../core/jsonc';
-import { logger } from '../core/logger';
-import { IconThemePayload, ThemeIconDefinition, ThemeIconFont } from '../types/iconTheme';
+import { parseJsonc } from '../../core/jsonc';
+import { logger } from '../../core/logger';
+import { IconThemePayload, ThemeIconDefinition, ThemeIconFont } from '../../types/iconTheme';
 
 const log = logger('IconThemeService');
 

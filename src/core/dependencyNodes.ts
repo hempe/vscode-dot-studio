@@ -1,4 +1,4 @@
-import { NodeId, NodeIdService } from '../services/nodeIdService';
+import { NodeId, NodeIdService } from '../services/solution/nodeIdService';
 import type { ProjectChild } from '../types';
 import type { PackageVersionSource } from '../services/nuget/types';
 

@@ -1,4 +1,4 @@
-import { sortFrameworksByVersion } from '../../../services/frameworkOrder';
+import { sortFrameworksByVersion } from '../../../../services/debug/frameworkOrder';
 
 describe('sortFrameworksByVersion', () => {
     it('puts modern .NET first, newest first, then .NET Core, .NET Framework and .NET Standard', () => {

@@ -11,7 +11,7 @@ jest.mock('../../../../services/grpc/grpcReferenceService', () => ({ addGrpcRefe
 import * as path from 'path';
 import { addGrpcReference } from '../../../../services/grpc/grpcReferenceService';
 import { addServiceReference } from '../../../../services/serviceReferences/serviceReferenceService';
-import { SolutionService } from '../../../../services/solutionService';
+import { SolutionService } from '../../../../services/solution/solutionService';
 
 describe('Add Service Reference: the kind of service first', () => {
     const projectPath = path.resolve('/work/App/App.csproj');

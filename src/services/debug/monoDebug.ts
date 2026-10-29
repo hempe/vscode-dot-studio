@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 
 const log = logger('MonoDebug');
 const execFileAsync = promisify(execFile);

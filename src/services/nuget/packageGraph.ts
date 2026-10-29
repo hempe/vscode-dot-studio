@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 
 /** The packages a project uses for one framework, as restore resolved them (`obj/project.assets.json`) */
 export interface PackageGraph {

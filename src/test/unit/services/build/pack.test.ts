@@ -3,9 +3,9 @@ import * as os from 'os';
 import * as path from 'path';
 
 jest.mock('vscode', () => ({}), { virtual: true });
-jest.mock('../../../services/buildConfiguration', () => ({ BuildConfiguration: { active: 'Debug' } }));
+jest.mock('../../../../services/build/buildConfiguration', () => ({ BuildConfiguration: { active: 'Debug' } }));
 
-import { packagesWrittenSince } from '../../../services/pack';
+import { packagesWrittenSince } from '../../../../services/build/pack';
 
 describe('packagesWrittenSince', () => {
     const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-pack-')));

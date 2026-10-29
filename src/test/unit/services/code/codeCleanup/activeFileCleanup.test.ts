@@ -9,10 +9,10 @@ jest.mock('vscode', () => ({
         get activeTextEditor() { return activeEditor; },
     },
 }), { virtual: true });
-jest.mock('../../../../services/templates/templateService', () => ({ projectForPath: (...a: unknown[]) => projectForPath(...a) }));
-jest.mock('../../../../services/codeCleanup/codeCleanup', () => ({ runCodeCleanup: (...a: unknown[]) => runCodeCleanup(...a) }));
+jest.mock('../../../../../services/templates/templateService', () => ({ projectForPath: (...a: unknown[]) => projectForPath(...a) }));
+jest.mock('../../../../../services/code/codeCleanup/codeCleanup', () => ({ runCodeCleanup: (...a: unknown[]) => runCodeCleanup(...a) }));
 
-import { runCodeCleanupOnActiveFile } from '../../../../services/codeCleanup/activeFileCleanup';
+import { runCodeCleanupOnActiveFile } from '../../../../../services/code/codeCleanup/activeFileCleanup';
 
 const editorOf = (fileName: string, scheme = 'file') => ({ document: { uri: { scheme }, fileName } });
 

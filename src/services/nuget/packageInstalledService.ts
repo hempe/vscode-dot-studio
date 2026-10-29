@@ -4,8 +4,8 @@ import * as fs from 'fs';
 import { logger } from '../../core/logger';
 import { BasicInstalledPackage, InstalledPackage, ProjectInfo, NuGetPackage } from './types';
 import { PackageSharedService } from './packageSharedService';
-import { SolutionService } from '../solutionService';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { SolutionService } from '../solution/solutionService';
+import { ProjectItemsService } from '../project/items/projectItemsService';
 import { ProjectPackages } from './centralPackages';
 
 const log = logger('PackageInstalledService');

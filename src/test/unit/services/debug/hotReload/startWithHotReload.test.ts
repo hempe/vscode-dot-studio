@@ -42,7 +42,7 @@ jest.mock('vscode', () => ({
     ThemeIcon: class { constructor(public id: string) { } },
 }), { virtual: true });
 
-jest.mock('../../../../services/debugConfigService', () => ({
+jest.mock('../../../../../services/debug/debugConfigService', () => ({
     DebugConfigService: {
         startFramework: async () => env.framework,
         startLaunchProfile: () => env.profile,
@@ -50,16 +50,16 @@ jest.mock('../../../../services/debugConfigService', () => ({
     },
 }));
 
-jest.mock('../../../../services/activeBuild', () => ({
+jest.mock('../../../../../services/build/activeBuild', () => ({
     activeProjectBuild: () => ({ configuration: 'Debug', platform: env.platform }),
 }));
 
 const devCertChecks: any[][] = [];
-jest.mock('../../../../services/devCert/devCertCheck', () => ({
+jest.mock('../../../../../services/debug/devCert/devCertCheck', () => ({
     checkDevCertificateBeforeStart: (profiles: any[]) => { devCertChecks.push(profiles); },
 }));
 
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../../services/solution/solutionService', () => ({
     SolutionService: {
         getActiveSolution: () => ({
             solutionPath: path.resolve('Contoso.slnx'),
@@ -68,11 +68,11 @@ jest.mock('../../../../services/solutionService', () => ({
     },
 }));
 
-jest.mock('../../../../services/unloadedProjects', () => ({
+jest.mock('../../../../../services/solution/unloadedProjects', () => ({
     UnloadedProjects: { isUnloaded: (_solution: string, projectPath: string) => env.unloaded.includes(projectPath) },
 }));
 
-import { startWithHotReload } from '../../../../services/hotReload/startWithHotReload';
+import { startWithHotReload } from '../../../../../services/debug/hotReload/startWithHotReload';
 
 describe('startWithHotReload', () => {
     const web = path.resolve('src', 'Shop.Web', 'Shop.Web.csproj');

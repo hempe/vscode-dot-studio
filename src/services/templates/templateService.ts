@@ -4,14 +4,14 @@ import * as path from 'path';
 import * as os from 'os';
 import { execFile } from 'child_process';
 import { logger } from '../../core/logger';
-import { SolutionService } from '../solutionService';
-import { NamespaceService } from '../namespaceService';
-import { DebugConfigService } from '../debugConfigService';
+import { SolutionService } from '../solution/solutionService';
+import { NamespaceService } from '../code/namespaceService';
+import { DebugConfigService } from '../debug/debugConfigService';
 import { TemplateInfo, WizardInit, WizardTemplate } from '../../types/templateWizard';
 import { optionArgs, readTemplates } from './templateCache';
 import { BUILTIN_ITEMS, builtinItemContent, itemBaseName, projectLanguage, replaceNamespace } from './itemTemplates';
 import { defaultProjectLocation, findProjectFile, isValidProjectName, mostCommonFramework, solutionLayout } from './newProject';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
 
 const log = logger('Templates');
 const RECENT_PROJECT_TEMPLATES = 'shinobi.recentProjectTemplates';

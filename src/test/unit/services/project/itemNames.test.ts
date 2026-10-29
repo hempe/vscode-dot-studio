@@ -1,5 +1,5 @@
 // Names typed for a new or renamed file or folder must stay in the folder (review A2-6)
-import { itemNameProblem } from '../../../services/itemNames';
+import { itemNameProblem } from '../../../../services/project/itemNames';
 
 describe('itemNameProblem', () => {
     it.each(['Program.cs', 'My File.txt', '.editorconfig', 'a.b.c', 'Ünï.cs', 'x'])('accepts %s', name => {

@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { ProjectFileEditor } from '../parsers/projectFileEditor';
-import { pathKey } from './projectItems/projectItems';
+import { ProjectFileEditor } from '../../parsers/projectFileEditor';
+import { pathKey } from './items/projectItems';
 
 const execFileAsync = promisify(execFile);
 

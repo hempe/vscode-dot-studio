@@ -1,6 +1,6 @@
 jest.mock('vscode', () => ({ ConfigurationTarget: { Global: 1, Workspace: 2 } }), { virtual: true });
 
-import { readSeverityFilter, toggleSeverity } from '../../../services/diagnosticsFilter';
+import { readSeverityFilter, toggleSeverity } from '../../../../services/diagnostics/diagnosticsFilter';
 
 /** A configuration with user (global) and workspace values and the package.json defaults */
 function config(global: Record<string, unknown> = {}, workspace: Record<string, unknown> = {}) {

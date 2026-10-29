@@ -55,7 +55,7 @@ jest.mock('vscode', () => {
 }, { virtual: true });
 
 import * as vscode from 'vscode';
-import { renameFileAndType } from '../../../services/typeRename';
+import { renameFileAndType } from '../../../../services/code/typeRename';
 
 const symbol = (name: string, kind: number, line: number, children: any[] = []) => ({
     name,

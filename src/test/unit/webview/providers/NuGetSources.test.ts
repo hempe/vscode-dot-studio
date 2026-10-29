@@ -2,9 +2,9 @@
 let enabled = false;
 const mockVscode = { showWarningMessage: jest.fn() };
 jest.mock('vscode', () => ({ window: mockVscode, Uri: { joinPath: jest.fn(() => ({})) } }), { virtual: true });
-jest.mock('../../../../services/settings', () => ({ Settings: { nugetIncludePrerelease: () => false, nugetPackageSources: () => enabled } }));
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
-jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
+jest.mock('../../../../services/shared/settings', () => ({ Settings: { nugetIncludePrerelease: () => false, nugetPackageSources: () => enabled } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
 jest.mock('../../../../webview/providers/views/NuGetWebview', () => ({ NuGetWebview: { getHtmlForWebview: () => '<html />' } }));
 jest.mock('../../../../services/nuget/nugetManagerService', () => ({ NuGetManagerService: { getSolutionNuGetData: jest.fn(async () => ({ installedPackages: [], outdatedPackages: [], projects: [] })) } }));
 const sources = [{ name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true }];

@@ -45,13 +45,13 @@ jest.mock('../../../core/constants', () => ({
 }));
 
 import { Solution } from '../../../core/Solution';
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { SolutionTreeService } from '../../../services/solutionTreeService';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { SolutionService } from '../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../services/solution/solutionActionService';
+import { SolutionTreeService } from '../../../services/solution/solutionTreeService';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
 import { ProjectNode } from '../../../types';
 import { ProjectActionCmd } from '../../../types/commands/project-action';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
 
 // The Projects created here would ask MSBuild for their items (a `dotnet msbuild` per project): not in unit tests
 beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });

@@ -5,8 +5,8 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { ProjectFileEditor } from '../parsers/projectFileEditor';
-import { logger } from '../core/logger';
+import { ProjectFileEditor } from '../../parsers/projectFileEditor';
+import { logger } from '../../core/logger';
 
 const execFileAsync = promisify(execFile);
 const log = logger('UserSecrets');

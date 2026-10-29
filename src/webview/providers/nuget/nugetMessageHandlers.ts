@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
-import { Settings } from '../../../services/settings';
+import { Settings } from '../../../services/shared/settings';
 import { addSource, listManagedSources, removeSource, setSourceEnabled, sourceProblem } from '../../../services/nuget/sourceManagement';
 import { NuGetManagerService } from '../../../services/nuget/nugetManagerService';
-import { SolutionService } from '../../../services/solutionService';
+import { SolutionService } from '../../../services/solution/solutionService';
 import { logger } from '../../../core/logger';
 import { LocalNuGetPackage, sendToUi } from '../../nuget-view/shared';
 import { changePackageVersions, consolidatePackages, uninstallPackages } from '../../../services/nuget/centralPackageOperations';
 import { BackendCmd, BulkConsolidatePackagesCmd, BulkUpdatePackagesCmd, InstallPackageCmd, SearchPackagesCmd, UnInstallPackageCmd } from '../../../types/commands/backend';
 import { NuGetViewData } from '../../../types/commands/ui';
-import { VersionUtils } from '../../../services/versionUtils';
-import { solutionWorkspaceFolder } from '../../../services/workspaceFolders';
+import { VersionUtils } from '../../../services/shared/versionUtils';
+import { solutionWorkspaceFolder } from '../../../services/solution/workspaceFolders';
 
 const log = logger('nugetMessageHandlers');
 

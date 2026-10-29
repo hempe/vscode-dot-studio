@@ -1,5 +1,5 @@
 jest.mock('vscode', () => ({ workspace: { workspaceFolders: [] } }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 jest.mock('../../../../services/nuget/dotnetCli', () => ({ execDotnet: jest.fn() }));
 
 import * as fs from 'fs';

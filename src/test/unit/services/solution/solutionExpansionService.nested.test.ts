@@ -1,11 +1,11 @@
 jest.mock('vscode', () => ({}), { virtual: true });
 
 const state = new Map<string, unknown>();
-jest.mock('../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => ({}) } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => ({}) } }));
 
-import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { ProjectNode } from '../../../types';
+import { SolutionExpansionService } from '../../../../services/solution/solutionExpansionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { ProjectNode } from '../../../../types';
 
 describe('expanding a file with nested files (Index.cshtml > Index.cshtml.cs)', () => {
     it('keeps the nested files, which come with their parent', async () => {

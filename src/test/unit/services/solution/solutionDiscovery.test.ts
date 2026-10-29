@@ -1,4 +1,4 @@
-import { SolutionDiscovery } from '../../../services/solutionDiscovery';
+import { SolutionDiscovery } from '../../../../services/solution/solutionDiscovery';
 import * as vscode from 'vscode';
 
 // Mock dependencies

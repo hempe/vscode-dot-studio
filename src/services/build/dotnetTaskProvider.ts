@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { SolutionService } from './solutionService';
-import { sln } from '../core/utils';
+import { SolutionService } from '../solution/solutionService';
+import { sln } from '../../core/utils';
 import { BuildConfiguration } from './buildConfiguration';
-import { EMIT_GENERATED_FILES } from './analyzers';
-import { Settings } from './settings';
-import { solutionWorkspaceFolder } from './workspaceFolders';
-import { UnloadedProjects } from './unloadedProjects';
+import { EMIT_GENERATED_FILES } from '../diagnostics/analyzers';
+import { Settings } from '../shared/settings';
+import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
+import { UnloadedProjects } from '../solution/unloadedProjects';
 import { platformProperty } from './configurationManager/configurationManager';
 import { activeProjectBuild } from './activeBuild';
 

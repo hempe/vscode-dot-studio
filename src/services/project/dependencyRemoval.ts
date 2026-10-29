@@ -1,4 +1,4 @@
-import { ProjectFileEditor } from '../parsers/projectFileEditor';
+import { ProjectFileEditor } from '../../parsers/projectFileEditor';
 
 const ELEMENT: Record<string, string> = {
     packages: 'PackageReference',

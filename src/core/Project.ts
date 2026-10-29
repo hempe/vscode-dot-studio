@@ -9,24 +9,24 @@ import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceRefere
 import { grpcReferenceNodes } from '../services/grpc/grpcNodes';
 import { SolutionProject } from '../types/solution';
 import { shouldSkipDirectory, isExcluded, HARD_SKIP_DIRECTORIES } from '../core/constants';
-import { FileNestingService, NestedFile } from '../services/fileNesting';
-import { Settings } from '../services/settings';
-import { NodeId, NodeIdService } from '../services/nodeIdService';
+import { FileNestingService, NestedFile } from '../services/solution/fileNesting';
+import { Settings } from '../services/shared/settings';
+import { NodeId, NodeIdService } from '../services/solution/nodeIdService';
 import { logger } from './logger';
 import { ProjectChild } from '../types';
 import { dependencyCategories, dependencyNodes, ProjectDependency } from './dependencyNodes';
 export { dependencyLabel } from './dependencyNodes';
 export type { ProjectDependency } from './dependencyNodes';
-import { workspaceFolderOf } from '../services/workspaceFolders';
-import { ProjectItemsService } from '../services/projectItems/projectItemsService';
-import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/projectItems/folderLayout';
-import { ShowAllFiles } from '../services/showAllFiles';
-import { holdsProject, inNestedProject } from '../services/projectItems/projectItemEdits';
-import { ProjectItems } from '../services/projectItems/projectItems';
-import { changedSince, unlistedEntries } from '../services/projectItems/unseenFiles';
+import { workspaceFolderOf } from '../services/solution/workspaceFolders';
+import { ProjectItemsService } from '../services/project/items/projectItemsService';
+import { layoutFolder, ItemState, BUILD_OUTPUT_FOLDERS } from '../services/project/items/folderLayout';
+import { ShowAllFiles } from '../services/solution/showAllFiles';
+import { holdsProject, inNestedProject } from '../services/project/items/projectItemEdits';
+import { ProjectItems } from '../services/project/items/projectItems';
+import { changedSince, unlistedEntries } from '../services/project/items/unseenFiles';
 import { INCLUDED_ITEM, EXCLUDED_ITEM, LINKED_ITEM } from './contextMenus';
 import { ProjectPackages } from '../services/nuget/centralPackages';
-import { OwnWrites } from '../services/ownWrites';
+import { OwnWrites } from '../services/shared/ownWrites';
 
 export interface ProjectFileNode {
     name: string;

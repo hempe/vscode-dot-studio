@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DiskEntry } from '../../../../services/projectItems/folderLayout';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
-import { changedSince, unlistedEntries, TIMESTAMP_MARGIN_MS } from '../../../../services/projectItems/unseenFiles';
+import { DiskEntry } from '../../../../../services/project/items/folderLayout';
+import { parseMsbuildItems } from '../../../../../services/project/items/projectItems';
+import { changedSince, unlistedEntries, TIMESTAMP_MARGIN_MS } from '../../../../../services/project/items/unseenFiles';
 
 const file = (name: string): DiskEntry => ({ name, isDirectory: false });
 const folder = (name: string): DiskEntry => ({ name, isDirectory: true });

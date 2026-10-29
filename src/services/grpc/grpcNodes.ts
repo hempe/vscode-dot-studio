@@ -1,7 +1,7 @@
-import { NodeId, NodeIdService } from '../nodeIdService';
+import { NodeId, NodeIdService } from '../solution/nodeIdService';
 import { ProjectChild } from '../../types';
-import { pathKey } from '../projectItems/projectItems';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { pathKey } from '../project/items/projectItems';
+import { ProjectItemsService } from '../project/items/projectItemsService';
 import { GRPC_URL_REFERENCE } from '../../core/contextMenus';
 import { referenceLabel } from './protobufReferences';
 

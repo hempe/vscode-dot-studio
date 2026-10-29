@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { logger } from '../core/logger';
-import { platformProperty } from './configurationManager/configurationManager';
+import { logger } from '../../core/logger';
+import { platformProperty } from '../build/configurationManager/configurationManager';
 
 const execFileAsync = promisify(execFile);
 const log = logger('Analyzers');

@@ -1,7 +1,7 @@
 import * as path from 'path';
-import { computeMarkers, normalizePath } from '../../../services/diagnosticsRollup';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { DiagnosticCounts, ProjectNode } from '../../../types';
+import { computeMarkers, normalizePath } from '../../../../services/diagnostics/diagnosticsRollup';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
+import { DiagnosticCounts, ProjectNode } from '../../../../types';
 
 const root = path.resolve('/repo');
 const p = (...parts: string[]) => path.join(root, ...parts);

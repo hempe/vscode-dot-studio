@@ -1,8 +1,8 @@
 jest.mock('vscode', () => ({}), { virtual: true });
 
 import * as path from 'path';
-import { ProjectFileEditor } from '../../../parsers/projectFileEditor';
-import { userSecretsIdProblem, userSecretsPath } from '../../../services/userSecrets';
+import { ProjectFileEditor } from '../../../../parsers/projectFileEditor';
+import { userSecretsIdProblem, userSecretsPath } from '../../../../services/project/userSecrets';
 
 describe('user secrets', () => {
     describe('ProjectFileEditor.userSecretsId / addUserSecretsId', () => {

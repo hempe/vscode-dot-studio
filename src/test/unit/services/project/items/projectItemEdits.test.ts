@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { excludeEdit, inNestedProject, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../services/projectItems/projectItemEdits';
-import { parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
-import { NewItem } from '../../../../services/projectItems/defaultItems';
+import { excludeEdit, inNestedProject, includeEdit, includeItemCount, listFilesUnder, membershipApplied, membershipRefusal } from '../../../../../services/project/items/projectItemEdits';
+import { parseMsbuildItems, pathKey } from '../../../../../services/project/items/projectItems';
+import { NewItem } from '../../../../../services/project/items/defaultItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);

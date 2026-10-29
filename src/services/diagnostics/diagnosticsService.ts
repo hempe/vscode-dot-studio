@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { DiagnosticCounts } from '../types';
+import { DiagnosticCounts } from '../../types';
 import { FileCounts, normalizePath } from './diagnosticsRollup';
-import { SimpleDebounceManager } from './debounceManager';
+import { SimpleDebounceManager } from '../shared/debounceManager';
 import { affectsSeverityFilter, readSeverityFilter, SeverityFilter } from './diagnosticsFilter';
 
 

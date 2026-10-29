@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { parseMsbuildJson, pathKey } from '../projectItems/projectItems';
+import { parseMsbuildJson, pathKey } from '../project/items/projectItems';
 import { PackageVersionSource } from './types';
 
 /** Asked of MSBuild together with the project items: one evaluation per project answers both */

@@ -1,4 +1,4 @@
-import { parseDevCertStatus, shouldCheck, usesHttps } from '../../../../services/devCert/devCertStatus';
+import { parseDevCertStatus, shouldCheck, usesHttps } from '../../../../../services/debug/devCert/devCertStatus';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
 const cert = (trust: string, extra: Record<string, unknown> = {}) => ({

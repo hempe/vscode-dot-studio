@@ -2,15 +2,15 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
-import { SolutionService } from '../solutionService';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { SolutionService } from '../solution/solutionService';
+import { ProjectItemsService } from '../project/items/projectItemsService';
 import { PackageOperationsService } from './packageOperationsService';
 import { PackageOperationResult } from './types';
 import { centralFiles } from './centralPackages';
 import { applyPackageEdits, declaredGlobals, importChain } from './centralPackageFiles';
 import { PackageEdit } from './centralPackageEdits';
 import { changesOnlyItself, findVersionProperties, propertyEdit, propertyQuestion } from './versionProperties';
-import { pathKey } from '../projectItems/projectItems';
+import { pathKey } from '../project/items/projectItems';
 import {
     ProjectState, VersionChangePlan, VersionScope, confirmationText, consolidationText, globalUninstallEdits, planConsolidate, planUninstall,
     planVersionChange,

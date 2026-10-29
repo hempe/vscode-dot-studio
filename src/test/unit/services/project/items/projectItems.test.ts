@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ITEM_TYPES, crossTargetingFramework, parseMsbuildItems, pathKey } from '../../../../services/projectItems/projectItems';
+import { ITEM_TYPES, crossTargetingFramework, parseMsbuildItems, pathKey } from '../../../../../services/project/items/projectItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);

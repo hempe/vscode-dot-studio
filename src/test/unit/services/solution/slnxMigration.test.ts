@@ -22,7 +22,7 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { offerSlnxMigration, SlnxMigration } from '../../../services/slnxMigration';
+import { offerSlnxMigration, SlnxMigration } from '../../../../services/solution/slnxMigration';
 
 describe('offering to convert a .sln to .slnx', () => {
     let dir: string;

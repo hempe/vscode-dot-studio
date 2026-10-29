@@ -2,7 +2,7 @@
  * Tests for the new JSON-based NodeId service
  */
 
-import { DependencyNodeId, FolderNodeId, NodeIdService, ProjectNodeId } from '../../../services/nodeIdService';
+import { DependencyNodeId, FolderNodeId, NodeIdService, ProjectNodeId } from '../../../../services/solution/nodeIdService';
 
 describe('NodeIdService', () => {
     describe('Basic functionality', () => {

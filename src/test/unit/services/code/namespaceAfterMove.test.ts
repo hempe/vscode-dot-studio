@@ -51,10 +51,10 @@ jest.mock('vscode', () => {
     };
 }, { virtual: true });
 
-import { namespaceChangesAfterMove, updateNamespacesAfterMove } from '../../../services/namespaceAfterMove';
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { namespaceChangesAfterMove, updateNamespacesAfterMove } from '../../../../services/code/namespaceAfterMove';
+import { SolutionService } from '../../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../../services/solution/solutionActionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
 
 describe('namespaces after a move', () => {
     let dir: string;

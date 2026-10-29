@@ -11,7 +11,7 @@ jest.mock('vscode', () => ({
     },
     RelativePattern: class { constructor(public base: string, public pattern: string) { } },
 }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: {
         getActiveSolution: () => env.open ? { projects: new Map(env.projects.map(project => [project.projectPath, project])) } : undefined,
         onDidChangeActiveSolution: (listener: () => void) => { env.solutionChanged.push(listener); return { dispose: jest.fn() }; },
@@ -21,7 +21,7 @@ jest.mock('../../../../services/solutionService', () => ({
 import * as vscode from 'vscode';
 import { changedFiles, Stamp, watchPlan } from '../../../../services/nuget/centralPackageWatch';
 import { CentralPackageWatchers } from '../../../../services/nuget/centralPackageWatchers';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 import { parseMsbuildPackages } from '../../../../services/nuget/centralPackages';
 import { applyPackageEdits } from '../../../../services/nuget/centralPackageFiles';
 

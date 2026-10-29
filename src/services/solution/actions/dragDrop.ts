@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { SolutionService } from '../solutionService';
 import { NodeIdService } from '../nodeIdService';
-import { updateNamespacesAfterMove } from '../namespaceAfterMove';
-import { canDrop, DropNode } from '../../core/dropRules';
+import { updateNamespacesAfterMove } from '../../code/namespaceAfterMove';
+import { canDrop, DropNode } from '../../../core/dropRules';
 import { solutionDropNode } from '../solutionDropNodes';
-import { NodeIdString } from '../../types/nodeId';
+import { NodeIdString } from '../../../types/nodeId';
 import type { DropResult } from '../solutionExpansionService';
 import { pasteOne } from './fileActions';
 import { addDroppedReferences } from './referenceActions';

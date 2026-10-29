@@ -1,7 +1,7 @@
 import * as path from 'path';
-import { buildErrorRows, MISCELLANEOUS_FILES, summarizeErrorList } from '../../../services/errorList';
-import { normalizePath } from '../../../services/diagnosticsRollup';
-import { FileDiagnostics, ListedDiagnostic, ListedSeverity } from '../../../services/diagnosticsService';
+import { buildErrorRows, MISCELLANEOUS_FILES, summarizeErrorList } from '../../../../services/diagnostics/errorList';
+import { normalizePath } from '../../../../services/diagnostics/diagnosticsRollup';
+import { FileDiagnostics, ListedDiagnostic, ListedSeverity } from '../../../../services/diagnostics/diagnosticsService';
 
 const root = path.resolve('/repo');
 const p = (...parts: string[]) => path.join(root, ...parts);

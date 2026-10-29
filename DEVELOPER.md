@@ -38,6 +38,7 @@ To try your changes, press **F5** in VS Code with this launch configuration in `
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint (`eslint.config.mjs`): unawaited promises, hooks rules, `var`, `prefer-const`; CI runs it |
 | `npm test` | All Jest tests; `npx jest path/to/file.test.ts` or `npx jest -t "name"` for one |
+| `npm run test:coverage` | The tests with a coverage report in `coverage/` (ignored by git) |
 | `npm run generate:menus` | Writes the context menus from `src/core/contextMenus.ts` into `package.json` and `docs/context-menus.md` (a test fails if you forget) |
 | `scripts/screenshots/capture.sh` | Captures the screenshots in `docs/images/` (see below) |
 
@@ -45,21 +46,27 @@ To try your changes, press **F5** in VS Code with this launch configuration in `
 
 ```
 src/
-├── extension.ts            # Entry point
-├── core/                   # Solution & Project models, context menu definitions, logger
+├── extension.ts            # Entry point: registers the views, editors, commands and watchers
+├── core/                   # Solution and Project models, solution folder editing, context menu definitions, logger, caches
 ├── handlers/               # .sln / .slnx file handlers
-├── parsers/                # .sln, .slnx and project file parsers/editors
-├── services/               # Solution tree, actions, build tasks, debug config, diagnostics
-│   ├── nuget/              # NuGet feeds, credentials, package operations
-│   ├── publish/            # Publish profiles (.pubxml)
-│   ├── serviceReferences/  # Connected Services (dotnet-svcutil)
-│   ├── templates/          # dotnet new templates, Add New Project / Item
-│   └── testing/            # Test Explorer (Microsoft.Testing.Platform and VSTest)
+├── parsers/                # .sln, .slnx and project file parsers and text editors
+├── services/               # Everything the commands do, by area:
+│   ├── solution/           #   the active solution, its tree, expansion state, node ids, file nesting; actions/ holds the context-menu actions
+│   ├── project/            #   project files: items/ (the evaluated items), references, framework, delete, user secrets
+│   ├── build/              #   build tasks and configuration, pack, Configuration Manager, publish profiles
+│   ├── debug/              #   F5: launch.json and launch profiles, startup profiles, attach, hot reload, dev certificate
+│   ├── diagnostics/        #   Error List, analyzers, diagnostics filtering
+│   ├── code/               #   namespace sync and rename, type rename, code cleanup
+│   ├── nuget/              #   NuGet feeds, credentials, sources, advisories, package operations
+│   ├── grpc/               #   gRPC and protobuf references
+│   ├── entityFramework/    #   dotnet ef commands
+│   ├── serviceReferences/  #   Connected Services (dotnet-svcutil)
+│   ├── templates/          #   dotnet new templates, Add New Project / Item
+│   ├── testing/            #   Test Explorer (Microsoft.Testing.Platform and VSTest)
+│   └── shared/             #   settings, single-flight, debounce, versions, own-write tracking, extension checks
 ├── types/                  # Webview ⇄ extension message types
-├── webview/                # React UIs (Solution Explorer, NuGet manager, Error List, template wizard, Publish) and their providers
-└── test/unit/              # Jest tests (more sit next to the sources as *.spec.ts)
-docs/                       # User documentation, roadmap, history
-scripts/                    # Menu generator, screenshot script and its sample solution
+├── webview/                # React UIs (Solution Explorer, NuGet manager, Error List, template wizard, Publish, Configuration Manager) and their providers
+└── test/unit/              # Jest tests; test/unit/services mirrors the services folders (a few sit next to sources as *.spec.ts)
 ```
 
 There are two webpack bundles: the extension (Node) and the webviews (browser). Webview code must not import `vscode` or Node modules, not even through shared files; a test builds the webview bundles to catch it. [CLAUDE.md](CLAUDE.md) describes the architecture in more detail.

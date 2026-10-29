@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { nugetEditorQuery, parseNuGetEditorQuery } from './nugetEditorUri';
-import { Settings } from '../../services/settings';
+import { Settings } from '../../services/shared/settings';
 import { readSourceMapping } from '../../services/nuget/packageSourceMappingFiles';
 import { configStartDir } from '../../services/nuget/feedAuth';
 import * as path from 'path';
@@ -10,7 +10,7 @@ import { logger } from '../../core/logger';
 import { NuGetWebview } from './views/NuGetWebview';
 import { sendToUi } from '../nuget-view/shared';
 import { BackendCmd } from '../../types/commands/backend';
-import { ProjectItemsService } from '../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../services/project/items/projectItemsService';
 
 import { ensureActiveSolution, handleSources, handleSearchPackages, getNuGetData, handleGetConsolidatePackages, handleInstallPackage, handleUninstallPackage, handleBulkUpdatePackages, handleBulkConsolidatePackages, getPackageIcon, getPackageReadme, NuGetHost } from './nuget/nugetMessageHandlers';
 

@@ -1,6 +1,6 @@
-import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { ProjectNode } from '../../../types';
-import { NodeIdString } from '../../../types/nodeId';
+import { SolutionExpansionService } from '../../../../services/solution/solutionExpansionService';
+import { ProjectNode } from '../../../../types';
+import { NodeIdString } from '../../../../types/nodeId';
 
 jest.mock('vscode', () => ({}), { virtual: true });
 

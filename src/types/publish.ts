@@ -1,4 +1,4 @@
-import type { FolderSettings } from '../services/publish/publishProfiles';
+import type { FolderSettings } from '../services/build/publish/publishProfiles';
 
 export type { FolderSettings };
 

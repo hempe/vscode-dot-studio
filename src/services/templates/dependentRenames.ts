@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { FileNestingService, NestedFile } from '../fileNesting';
+import { FileNestingService, NestedFile } from '../solution/fileNesting';
 
 /**
  * The files nested under `oldPath` (as the tree shows them) that move along when it is renamed to `newName`:

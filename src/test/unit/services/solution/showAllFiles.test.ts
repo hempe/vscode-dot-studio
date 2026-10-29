@@ -1,7 +1,7 @@
 jest.mock('vscode', () => ({ commands: { executeCommand: jest.fn() } }), { virtual: true });
 
 import * as vscode from 'vscode';
-import { ShowAllFiles } from '../../../services/showAllFiles';
+import { ShowAllFiles } from '../../../../services/solution/showAllFiles';
 
 const memento = () => {
     const values = new Map<string, unknown>();

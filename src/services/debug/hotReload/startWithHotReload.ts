@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { DebugConfigService } from '../debugConfigService';
-import { activeProjectBuild } from '../activeBuild';
-import { platformProperty } from '../configurationManager/configurationManager';
+import { activeProjectBuild } from '../../build/activeBuild';
+import { platformProperty } from '../../build/configurationManager/configurationManager';
 import { checkDevCertificateBeforeStart } from '../devCert/devCertCheck';
-import { SolutionService } from '../solutionService';
-import { UnloadedProjects } from '../unloadedProjects';
+import { SolutionService } from '../../solution/solutionService';
+import { UnloadedProjects } from '../../solution/unloadedProjects';
 import { hotReloadArgs, hotReloadTerminalName } from './hotReloadCommand';
-import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
+import { isNetFrameworkTarget } from '../../../parsers/targetFrameworks';
 
 const log = logger('HotReload');
 

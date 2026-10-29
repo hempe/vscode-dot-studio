@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import {
     applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, parseProfile, profileNameProblem, publishDirOf,
-} from '../../../../services/publish/publishProfiles';
+} from '../../../../../services/build/publish/publishProfiles';
 
 // A Folder profile as Visual Studio 2022 writes it
 const visualStudioProfile = `<?xml version="1.0" encoding="utf-8"?>

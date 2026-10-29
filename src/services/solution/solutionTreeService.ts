@@ -1,13 +1,13 @@
 import * as path from 'path';
-import { SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
-import { Solution } from '../core/Solution';
-import { Mutable, ProjectChild, ProjectNode } from '../types';
+import { SolutionProject, PROJECT_TYPE_GUIDS } from '../../types/solution';
+import { Solution } from '../../core/Solution';
+import { Mutable, ProjectChild, ProjectNode } from '../../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
-import { logger } from '../core/logger';
-import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, LIBRARY_PROJECT, UNLOADED_PROJECT } from '../core/contextMenus';
+import { logger } from '../../core/logger';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, LIBRARY_PROJECT, UNLOADED_PROJECT } from '../../core/contextMenus';
 import { UnloadedProjects } from './unloadedProjects';
-import { DebugConfigService } from './debugConfigService';
-import { NodeIdString } from '../types/nodeId';
+import { DebugConfigService } from '../debug/debugConfigService';
+import { NodeIdString } from '../../types/nodeId';
 
 const log = logger('SolutionTreeService');
 

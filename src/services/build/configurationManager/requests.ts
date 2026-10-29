@@ -1,4 +1,4 @@
-import { ConfigurationManagerRequest } from '../../types/configurationManager';
+import { ConfigurationManagerRequest } from '../../../types/configurationManager';
 import {
     addConfiguration, addPlatform, ConfigurationModel, removeConfiguration, removePlatform, renameConfiguration, renamePlatform, setMapping,
 } from './model';

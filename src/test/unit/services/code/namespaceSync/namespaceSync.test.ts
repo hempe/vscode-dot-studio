@@ -1,4 +1,4 @@
-import { syncNamespaces, syncSummary, SyncDeps, SyncAction } from '../../../../services/namespaceSync/namespaceSync';
+import { syncNamespaces, syncSummary, SyncDeps, SyncAction } from '../../../../../services/code/namespaceSync/namespaceSync';
 
 const change = (ns = 'Demo.Sub'): SyncAction => ({ title: `Change namespace to '${ns}'`, edit: {} });
 

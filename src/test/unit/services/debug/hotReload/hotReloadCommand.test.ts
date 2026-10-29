@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { hotReloadArgs, hotReloadTerminalName } from '../../../../services/hotReload/hotReloadCommand';
+import { hotReloadArgs, hotReloadTerminalName } from '../../../../../services/debug/hotReload/hotReloadCommand';
 
 describe('hotReloadArgs', () => {
     const projectPath = path.resolve('src', 'Shop.Web', 'Shop.Web.csproj');

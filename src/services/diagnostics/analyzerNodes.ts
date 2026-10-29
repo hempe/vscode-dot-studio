@@ -1,9 +1,9 @@
 import * as path from 'path';
-import { NodeId, NodeIdService } from './nodeIdService';
-import { ProjectChild } from '../types';
+import { NodeId, NodeIdService } from '../solution/nodeIdService';
+import { ProjectChild } from '../../types';
 import { analyzerAssemblies, generatedFiles, queryAnalyzers, sourceGenerators } from './analyzers';
-import { activeProjectBuild } from './activeBuild';
-import { activeFrameworkOf as frameworkOf } from './projectFramework';
+import { activeProjectBuild } from '../build/activeBuild';
+import { activeFrameworkOf as frameworkOf } from '../project/projectFramework';
 
 async function generatedDirOf(projectPath: string): Promise<string | undefined> {
     const { configuration, platform } = activeProjectBuild(projectPath);

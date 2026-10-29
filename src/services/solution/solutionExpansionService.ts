@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 import { UnloadedProjects } from './unloadedProjects';
 import { SolutionService } from './solutionService';
 import { SolutionTreeService } from './solutionTreeService';
 import { NodeIdService } from './nodeIdService';
-import { NodeType, ProjectNode } from '../types';
-import { Project } from '../core/Project';
-import { NodeIdString } from '../types/nodeId';
-import { analyzerChildren } from './analyzerNodes';
-import { packageChildren } from './nuget/packageNodes';
-import { grpcChildren } from './grpc/grpcNodes';
+import { NodeType, ProjectNode } from '../../types';
+import { Project } from '../../core/Project';
+import { NodeIdString } from '../../types/nodeId';
+import { analyzerChildren } from '../diagnostics/analyzerNodes';
+import { packageChildren } from '../nuget/packageNodes';
+import { grpcChildren } from '../grpc/grpcNodes';
 
 const log = logger('SolutionExpansionService');
 

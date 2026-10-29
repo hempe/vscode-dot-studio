@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SolutionFileParser } from '../parsers/solutionFileParser';
-import { SolutionFile } from '../types/solution';
-import { Solution } from '../core/Solution';
+import { SolutionFileParser } from '../../parsers/solutionFileParser';
+import { SolutionFile } from '../../types/solution';
+import { Solution } from '../../core/Solution';
 import { SolutionDiscovery } from './solutionDiscovery';
-import { logger } from '../core/logger';
-import { checkOmniSharpForSlnx } from './csharpExtensionCheck';
+import { logger } from '../../core/logger';
+import { checkOmniSharpForSlnx } from '../shared/csharpExtensionCheck';
 import { offerSlnxMigration } from './slnxMigration';
-import { offerLegacyConfigMove } from './nuget/legacyConfigOffer';
+import { offerLegacyConfigMove } from '../nuget/legacyConfigOffer';
 import { setActiveSolutionPath } from './workspaceFolders';
 import { ShowAllFiles } from './showAllFiles';
 

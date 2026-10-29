@@ -43,10 +43,10 @@ jest.mock('../../../core/constants', () => ({
 }));
 
 import { Solution } from '../../../core/Solution';
-import { SolutionService } from '../../../services/solutionService';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { NodeIdService } from '../../../services/nodeIdService';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+import { SolutionService } from '../../../services/solution/solutionService';
+import { SolutionActionService } from '../../../services/solution/solutionActionService';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
 
 beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });
 afterEach(() => jest.restoreAllMocks());

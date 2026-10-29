@@ -14,8 +14,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Project } from '../../../core/Project';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
-import { ShowAllFiles } from '../../../services/showAllFiles';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
+import { ShowAllFiles } from '../../../services/solution/showAllFiles';
 
 /** Files created on disk while their folder was not shown (no watcher) show once the folder is read, with real MSBuild */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

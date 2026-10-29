@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { itemNameProblem } from '../../../services/itemNames';
-import { SolutionActionService } from '../../../services/solutionActionService';
-import { SolutionExpansionService } from '../../../services/solutionExpansionService';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { itemNameProblem } from '../../../services/project/itemNames';
+import { SolutionActionService } from '../../../services/solution/solutionActionService';
+import { SolutionExpansionService } from '../../../services/solution/solutionExpansionService';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
 import { logger } from '../../../core/logger';
 import { NodeIdString } from '../../../types/nodeId';
 import { sendToUi } from '../../nuget-view/shared';

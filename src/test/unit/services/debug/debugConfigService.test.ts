@@ -28,12 +28,12 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-jest.mock('../../../services/buildConfiguration', () => ({
+jest.mock('../../../../services/build/buildConfiguration', () => ({
     BuildConfiguration: { get active() { return env.configuration; } },
 }));
 
-import { DebugConfigService } from '../../../services/debugConfigService';
-import { parseJsonc } from '../../../core/jsonc';
+import { DebugConfigService } from '../../../../services/debug/debugConfigService';
+import { parseJsonc } from '../../../../core/jsonc';
 
 describe('DebugConfigService.updateStartupConfiguration', () => {
     let launchJsonPath: string;

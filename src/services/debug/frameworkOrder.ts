@@ -1,4 +1,4 @@
-import { VersionUtils } from './versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 
 /** The rank of a target framework name as a version, so the newest sorts first: modern .NET above .NET Core above .NET Framework above .NET Standard */
 function rank(framework: string): string {

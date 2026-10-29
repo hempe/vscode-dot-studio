@@ -1,18 +1,18 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { SolutionService } from '../solutionService';
 import { NodeId } from '../nodeIdService';
-import { updateNamespacesAfterMove } from '../namespaceAfterMove';
-import { copyExistingItems } from '../existingItems';
-import { projectForPath } from '../templates/templateService';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
-import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from '../projectItems/projectItemEdits';
-import { itemsWithoutExcludes } from '../projectItems/defaultItems';
-import { linkedDeleteDetail, removeLinkedItem } from '../projectItems/linkedItems';
-import { pathKey } from '../projectItems/projectItems';
-import type { Project } from '../../core/Project';
+import { updateNamespacesAfterMove } from '../../code/namespaceAfterMove';
+import { copyExistingItems } from '../../project/existingItems';
+import { projectForPath } from '../../templates/templateService';
+import { ProjectItemsService } from '../../project/items/projectItemsService';
+import { excludeEdit, includeEdit, includeItemCount, INCLUDE_CONFIRM_LIMIT, listFilesUnder, membershipApplied, membershipRefusal } from '../../project/items/projectItemEdits';
+import { itemsWithoutExcludes } from '../../project/items/defaultItems';
+import { linkedDeleteDetail, removeLinkedItem } from '../../project/items/linkedItems';
+import { pathKey } from '../../project/items/projectItems';
+import type { Project } from '../../../core/Project';
 
 const log = logger('fileActions');
 

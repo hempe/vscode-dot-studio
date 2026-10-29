@@ -8,9 +8,9 @@ jest.mock('vscode', () => ({
     ProgressLocation: { Notification: 15 },
     Uri: { joinPath: jest.fn(() => ({})) },
 }), { virtual: true });
-jest.mock('../../../../services/settings', () => ({ Settings: { nugetIncludePrerelease: () => false, nugetPackageSources: () => false } }));
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => ({ solutionPath: '/repo/App.sln' }) } }));
-jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
+jest.mock('../../../../services/shared/settings', () => ({ Settings: { nugetIncludePrerelease: () => false, nugetPackageSources: () => false } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => ({ solutionPath: '/repo/App.sln' }) } }));
+jest.mock('../../../../services/solution/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
 jest.mock('../../../../webview/providers/views/NuGetWebview', () => ({ NuGetWebview: { getHtmlForWebview: () => '<html />' } }));
 jest.mock('../../../../services/nuget/nugetManagerService', () => ({
     NuGetManagerService: { getSolutionNuGetData: jest.fn(), getProjectNuGetData: jest.fn() },
@@ -23,7 +23,7 @@ jest.mock('../../../../services/nuget/centralPackageOperations', () => ({
 
 import { NuGetCustomEditorProvider } from '../../../../webview/providers/NuGetCustomEditorProvider';
 import { NuGetManagerService } from '../../../../services/nuget/nugetManagerService';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 // Lets the provider's promise chains finish (works with fake timers too)
 const flush = async () => {

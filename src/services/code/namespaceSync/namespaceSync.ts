@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 
 const log = logger('NamespaceSync');
 

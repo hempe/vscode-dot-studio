@@ -1,4 +1,4 @@
-import { SolutionFile, PROJECT_TYPE_GUIDS } from '../../types/solution';
+import { SolutionFile, PROJECT_TYPE_GUIDS } from '../../../types/solution';
 import * as path from 'path';
 import { ConfigurationModel, msbuildPlatform, resolveMapping } from './model';
 import { readSlnModel, renderSlnModel, SolutionProjectRef } from './slnConfigurations';

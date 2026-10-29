@@ -5,7 +5,7 @@ import { SolutionXFileEditor } from '../parsers/solutionXFileEditor';
 import { SolutionFileEditor } from '../parsers/solutionFileEditor';
 import { SolutionFile, SolutionProject, PROJECT_TYPE_GUIDS } from '../types/solution';
 import { ISolutionFileHandler } from '../handlers';
-import { SolutionFolderNodeId } from '../services/nodeIdService';
+import { SolutionFolderNodeId } from '../services/solution/nodeIdService';
 import { logger } from './logger';
 
 const log = logger('SolutionFolderEditor');

@@ -1,7 +1,7 @@
 import {
     msbuildPlatform, emptyModel, resolveMapping, setMapping, addConfiguration, renameConfiguration, removeConfiguration,
     addPlatform, renamePlatform, removePlatform,
-} from '../../../../services/configurationManager/model';
+} from '../../../../../services/build/configurationManager/model';
 
 const project = 'src/App/App.csproj';
 

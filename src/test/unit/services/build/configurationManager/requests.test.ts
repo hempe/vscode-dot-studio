@@ -1,5 +1,5 @@
-import { applyRequest } from '../../../../services/configurationManager/requests';
-import { emptyModel } from '../../../../services/configurationManager/model';
+import { applyRequest } from '../../../../../services/build/configurationManager/requests';
+import { emptyModel } from '../../../../../services/build/configurationManager/model';
 
 describe('applyRequest', () => {
     const projects = ['a/a.csproj'];

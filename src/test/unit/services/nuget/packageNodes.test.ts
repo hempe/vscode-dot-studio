@@ -5,7 +5,7 @@ import * as path from 'path';
 jest.mock('vscode', () => ({}), { virtual: true });
 
 const env = { projectPath: '', directChildren: [] as any[] };
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: {
         getActiveSolution: () => ({
             getActiveFramework: () => null,
@@ -15,7 +15,7 @@ jest.mock('../../../../services/solutionService', () => ({
 }));
 
 import { packageChildren } from '../../../../services/nuget/packageNodes';
-import { NodeIdService } from '../../../../services/nodeIdService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
 
 describe('packageChildren (packages under Dependencies expand like Visual Studio)', () => {
     let root: string;

@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { layoutFolder, DiskEntry } from '../../../../services/projectItems/folderLayout';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
+import { layoutFolder, DiskEntry } from '../../../../../services/project/items/folderLayout';
+import { parseMsbuildItems } from '../../../../../services/project/items/projectItems';
 
 const dir = path.resolve('/work/App');
 const at = (...parts: string[]) => path.join(dir, ...parts);

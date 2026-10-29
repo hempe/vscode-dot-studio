@@ -1,4 +1,4 @@
-import { candidateFiles } from '../../../../services/namespaceSync/syncPlan';
+import { candidateFiles } from '../../../../../services/code/namespaceSync/syncPlan';
 
 describe('candidateFiles', () => {
     it('keeps only .cs files, sorted by path', () => {

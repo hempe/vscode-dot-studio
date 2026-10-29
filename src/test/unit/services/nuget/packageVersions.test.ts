@@ -3,13 +3,13 @@ import * as path from 'path';
 jest.mock('vscode', () => ({}), { virtual: true });
 
 const env = { projects: [] as any[] };
-jest.mock('../../../../services/solutionService', () => ({
+jest.mock('../../../../services/solution/solutionService', () => ({
     SolutionService: {
         getActiveSolution: () => ({ isInitialized: true, solutionPath: 'Central.slnx', projects: new Map(env.projects.map(project => [project.projectPath, project])) }),
     },
 }));
 
-import { VersionUtils } from '../../../../services/versionUtils';
+import { VersionUtils } from '../../../../services/shared/versionUtils';
 import { NuGetManagerService } from '../../../../services/nuget/nugetManagerService';
 import { PackageInstalledService, withVersionSources } from '../../../../services/nuget/packageInstalledService';
 import { ProjectPackages } from '../../../../services/nuget/centralPackages';

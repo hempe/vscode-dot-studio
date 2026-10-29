@@ -3,11 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
 import { Solution } from '../../core/Solution';
-import { SolutionService } from '../../services/solutionService';
-import { BuildConfiguration } from '../../services/buildConfiguration';
+import { SolutionService } from '../../services/solution/solutionService';
+import { BuildConfiguration } from '../../services/build/buildConfiguration';
 import { parseProjectConfigurations } from '../../parsers/projectConfigurations';
-import { readConfigurationModel, renderConfigurationModel } from '../../services/configurationManager/configurationManager';
-import { applyRequest } from '../../services/configurationManager/requests';
+import { readConfigurationModel, renderConfigurationModel } from '../../services/build/configurationManager/configurationManager';
+import { applyRequest } from '../../services/build/configurationManager/requests';
 import { ConfigurationManagerMessage, ConfigurationManagerProject, ConfigurationManagerRequest, ConfigurationManagerState } from '../../types/configurationManager';
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 

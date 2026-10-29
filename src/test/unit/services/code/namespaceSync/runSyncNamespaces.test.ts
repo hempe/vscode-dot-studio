@@ -22,18 +22,18 @@ jest.mock('vscode', () => ({
     Range: class { constructor(public start: unknown, public end: unknown) { } },
     ProgressLocation: { Notification: 15 },
 }), { virtual: true });
-jest.mock('../../../../services/csharpExtensionCheck', () => ({
+jest.mock('../../../../../services/shared/csharpExtensionCheck', () => ({
     hasCSharpExtension: () => hasCSharp,
     recommendedCSharpExtension: () => 'muhammad-sammy.csharp',
 }));
-jest.mock('../../../../services/namespaceService', () => ({
+jest.mock('../../../../../services/code/namespaceService', () => ({
     NamespaceService: {
-        parseNamespaceFromContent: jest.requireActual('../../../../services/namespaceService').NamespaceService?.parseNamespaceFromContent,
+        parseNamespaceFromContent: jest.requireActual('../../../../../services/code/namespaceService').NamespaceService?.parseNamespaceFromContent,
         calculateExpectedNamespace: jest.fn().mockResolvedValue('Demo'),
     },
 }));
 
-import { runSyncNamespaces } from '../../../../services/namespaceSync/runSyncNamespaces';
+import { runSyncNamespaces } from '../../../../../services/code/namespaceSync/runSyncNamespaces';
 
 let dir: string;
 beforeEach(() => {

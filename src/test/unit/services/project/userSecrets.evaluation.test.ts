@@ -13,7 +13,7 @@ jest.mock('vscode', () => ({
     Uri: { file: (fsPath: string) => ({ fsPath }) },
 }), { virtual: true });
 
-import { manageUserSecrets } from '../../../services/userSecrets';
+import { manageUserSecrets } from '../../../../services/project/userSecrets';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 

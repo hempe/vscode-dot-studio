@@ -1,7 +1,7 @@
 import * as path from 'path';
 import type { CollectedDiagnostics, ListedSeverity } from './diagnosticsService';
 import { normalizePath } from './diagnosticsRollup';
-import type { ErrorListRow, ErrorListSummary } from '../types/errorList';
+import type { ErrorListRow, ErrorListSummary } from '../../types/errorList';
 
 /** Project column for files that belong to no project, as in Visual Studio */
 export const MISCELLANEOUS_FILES = 'Miscellaneous Files';

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { DevCertStatus, parseDevCertStatus, shouldCheck } from './devCertStatus';
 
 const log = logger('DevCert');

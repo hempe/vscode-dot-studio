@@ -2,8 +2,8 @@ import type * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { logger } from '../core/logger';
-import { privateTempDir } from '../core/privateTemp';
+import { logger } from '../../core/logger';
+import { privateTempDir } from '../../core/privateTemp';
 
 const log = logger('UnloadedProjects');
 

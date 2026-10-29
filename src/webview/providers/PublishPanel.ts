@@ -6,11 +6,11 @@ import { PublishInit, PublishMessage, PublishRequest } from '../../types/publish
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 import {
     applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, profileNameProblem, profilesFolder, PublishProfile, publishDirOf,
-} from '../../services/publish/publishProfiles';
-import { BuildConfiguration } from '../../services/buildConfiguration';
-import { DebugConfigService } from '../../services/debugConfigService';
-import { createDotnetTask, DOTNET_TASK_TYPE } from '../../services/dotnetTaskProvider';
-import { runTask } from '../../services/runTask';
+} from '../../services/build/publish/publishProfiles';
+import { BuildConfiguration } from '../../services/build/buildConfiguration';
+import { DebugConfigService } from '../../services/debug/debugConfigService';
+import { createDotnetTask, DOTNET_TASK_TYPE } from '../../services/build/dotnetTaskProvider';
+import { runTask } from '../../services/build/runTask';
 
 const log = logger('PublishPanel');
 

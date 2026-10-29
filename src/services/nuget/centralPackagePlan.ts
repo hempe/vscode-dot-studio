@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { PackageEdit } from './centralPackageEdits';
 import { CentralEntry, ProjectPackages, centralFiles, packageVersionFileFor } from './centralPackages';
-import { pathKey } from '../projectItems/projectItems';
+import { pathKey } from '../project/items/projectItems';
 
 /**
  * Plans what a package change writes under Central Package Management, without touching anything: which files get

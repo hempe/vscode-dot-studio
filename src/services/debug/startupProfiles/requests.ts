@@ -1,6 +1,6 @@
 import { StartupProfile, StartupProject } from './slnLaunch';
 import type { ProfileSource } from './startupChoice';
-import { StartupProfileEntry, StartupProjectsRequest } from '../../types/startupProjects';
+import { StartupProfileEntry, StartupProjectsRequest } from '../../../types/startupProjects';
 
 /** The profiles of the shared and the user file as read; `error` when a file exists but could not be read */
 export type ProfileFiles = Record<ProfileSource, { profiles: readonly StartupProfile[]; error?: string }>;

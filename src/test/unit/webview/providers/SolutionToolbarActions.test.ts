@@ -8,7 +8,7 @@ jest.mock('vscode', () => ({
 }), { virtual: true });
 const mockSet = jest.fn();
 const mockSetPlatform = jest.fn();
-jest.mock('../../../../services/buildConfiguration', () => ({
+jest.mock('../../../../services/build/buildConfiguration', () => ({
     BuildConfiguration: {
         available: ['Debug', 'Release'], availablePlatforms: ['Any CPU', 'x64'], active: 'Debug', activePlatform: 'Any CPU',
         set: (...args: unknown[]) => mockSet(...args), setPlatform: (...args: unknown[]) => mockSetPlatform(...args),
@@ -16,10 +16,10 @@ jest.mock('../../../../services/buildConfiguration', () => ({
     },
     solutionConfigurations: () => [], solutionPlatforms: () => [],
 }));
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
-jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
-jest.mock('../../../../services/settings', () => ({ Settings: {} }));
-jest.mock('../../../../services/startupProfiles/startProfile', () => ({ refreshStartup: async () => { } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
+jest.mock('../../../../services/shared/settings', () => ({ Settings: {} }));
+jest.mock('../../../../services/debug/startupProfiles/startProfile', () => ({ refreshStartup: async () => { } }));
 
 import { SolutionWebviewProvider } from '../../../../webview/providers/SolutionWebviewProvider';
 

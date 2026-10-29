@@ -2,7 +2,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { deleteProjectPlan } from '../../../services/deleteProject';
+import { deleteProjectPlan } from '../../../../services/project/deleteProject';
 
 describe('deleteProjectPlan', () => {
     let dir: string;

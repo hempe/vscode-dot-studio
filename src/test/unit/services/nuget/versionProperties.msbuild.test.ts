@@ -4,10 +4,10 @@ import * as os from 'os';
 import * as path from 'path';
 
 jest.mock('vscode', () => ({ window: { showWarningMessage: jest.fn() } }), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
 
 import { OperationsHost, changePackageVersions } from '../../../../services/nuget/centralPackageOperations';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 /** A shared version property against real MSBuild: the projects are evaluated before and after (no restore, no network) */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

@@ -1,8 +1,8 @@
-import { SolutionService } from './solutionService';
-import { FrameworkOption } from '../types/framework';
+import { SolutionService } from '../solution/solutionService';
+import { FrameworkOption } from '../../types/framework';
 import { DebugConfigService } from './debugConfigService';
-import { logger } from '../core/logger';
-import { Solution } from '../core/Solution';
+import { logger } from '../../core/logger';
+import { Solution } from '../../core/Solution';
 
 const log = logger('FrameworkDropdownService');
 

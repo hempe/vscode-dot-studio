@@ -1,4 +1,4 @@
-import { parseLsof, parseNetstat, parseSs } from '../../../../services/attach/listeningPorts';
+import { parseLsof, parseNetstat, parseSs } from '../../../../../services/debug/attach/listeningPorts';
 
 describe('parseSs', () => {
     it('maps pids to their listening ports (IPv4, IPv6, wildcard), ignoring sockets without a process', () => {

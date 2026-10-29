@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 import { activeProjectBuild } from './activeBuild';
 import { platformProperty } from './configurationManager/configurationManager';
 

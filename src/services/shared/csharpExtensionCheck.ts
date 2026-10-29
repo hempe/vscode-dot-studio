@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 
 const log = logger('CSharpExtensionCheck');
 

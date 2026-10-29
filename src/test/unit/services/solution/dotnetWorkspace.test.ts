@@ -5,7 +5,7 @@ import * as path from 'path';
 
 jest.mock('vscode', () => ({ workspace: {}, window: {}, commands: {} }), { virtual: true });
 
-import { workspaceHasDotnetFiles } from '../../../services/dotnetWorkspace';
+import { workspaceHasDotnetFiles } from '../../../../services/solution/dotnetWorkspace';
 
 describe('workspaceHasDotnetFiles', () => {
     let dir: string;

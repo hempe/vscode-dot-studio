@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { FileNestingMode } from './fileNesting';
+import type { FileNestingMode } from '../solution/fileNesting';
 
 /** This extension's settings (package.json `contributes.configuration`, documented in docs/settings.md) */
 export const Settings = {

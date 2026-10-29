@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readSlnModel, renderSlnModel } from '../../../../services/configurationManager/slnConfigurations';
-import { resolveMapping, addPlatform, setMapping, removeConfiguration } from '../../../../services/configurationManager/model';
+import { readSlnModel, renderSlnModel } from '../../../../../services/build/configurationManager/slnConfigurations';
+import { resolveMapping, addPlatform, setMapping, removeConfiguration } from '../../../../../services/build/configurationManager/model';
 
-const content = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/configurations/Sample.sln'), 'utf8');
+const content = fs.readFileSync(path.join(__dirname, '../../../../../__fixtures__/configurations/Sample.sln'), 'utf8');
 const projects = [
     { path: 'src/App/App.csproj', guid: '{11111111-1111-1111-1111-111111111111}' },
     { path: 'src/Lib/Lib.csproj', guid: '{22222222-2222-2222-2222-222222222222}' },

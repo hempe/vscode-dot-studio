@@ -1,5 +1,5 @@
 // Dependencies > Remove edits the project file as text: comments, blank lines and line endings stay (review A2-3)
-import { removeDependencyEdit } from '../../../services/dependencyRemoval';
+import { removeDependencyEdit } from '../../../../services/project/dependencyRemoval';
 
 const project = (items: string[], eol = '\n') => [
     '<Project Sdk="Microsoft.NET.Sdk">',

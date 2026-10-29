@@ -1,4 +1,4 @@
-import { SolutionService } from './solutionService';
+import { SolutionService } from '../solution/solutionService';
 import { BuildConfiguration } from './buildConfiguration';
 import { mappedBuild } from './configurationManager/configurationManager';
 

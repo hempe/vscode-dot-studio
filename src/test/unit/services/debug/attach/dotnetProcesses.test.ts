@@ -1,7 +1,7 @@
 import * as path from 'path';
-import { findDotnetProcesses, DotnetProcess, sortProcesses } from '../../../../services/attach/dotnetProcesses';
-import { buildAttachItems } from '../../../../services/attach/attachItems';
-import { ProcessEntry } from '../../../../services/attach/processList';
+import { findDotnetProcesses, DotnetProcess, sortProcesses } from '../../../../../services/debug/attach/dotnetProcesses';
+import { buildAttachItems } from '../../../../../services/debug/attach/attachItems';
+import { ProcessEntry } from '../../../../../services/debug/attach/processList';
 
 const root = path.resolve('/work/Contoso');
 const projects = [

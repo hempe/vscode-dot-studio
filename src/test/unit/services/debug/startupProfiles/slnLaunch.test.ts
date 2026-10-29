@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readSlnLaunch, renderSlnLaunch, slnLaunchPaths, StartupProfile } from '../../../../services/startupProfiles/slnLaunch';
+import { readSlnLaunch, renderSlnLaunch, slnLaunchPaths, StartupProfile } from '../../../../../services/debug/startupProfiles/slnLaunch';
 
-const fixture = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/startup-profiles/OrchardCore.slnLaunch'), 'utf8');
+const fixture = fs.readFileSync(path.join(__dirname, '../../../../../__fixtures__/startup-profiles/OrchardCore.slnLaunch'), 'utf8');
 
 describe('readSlnLaunch', () => {
     it('reads the Microsoft Learn example with forward-slash project paths', () => {

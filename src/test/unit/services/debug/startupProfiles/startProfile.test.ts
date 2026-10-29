@@ -1,12 +1,12 @@
 import * as path from 'path';
 
 jest.mock('vscode', () => ({}), { virtual: true });
-jest.mock('../../../../services/debugConfigService', () => ({ DebugConfigService: {} }));
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: {} }));
-jest.mock('../../../../services/unloadedProjects', () => ({ UnloadedProjects: {} }));
+jest.mock('../../../../../services/debug/debugConfigService', () => ({ DebugConfigService: {} }));
+jest.mock('../../../../../services/solution/solutionService', () => ({ SolutionService: {} }));
+jest.mock('../../../../../services/solution/unloadedProjects', () => ({ UnloadedProjects: {} }));
 
-import { planProfileLaunch, startupPickItems } from '../../../../services/startupProfiles/startProfile';
-import { StartupAction, StartupProfile } from '../../../../services/startupProfiles/slnLaunch';
+import { planProfileLaunch, startupPickItems } from '../../../../../services/debug/startupProfiles/startProfile';
+import { StartupAction, StartupProfile } from '../../../../../services/debug/startupProfiles/slnLaunch';
 
 const root = path.resolve('/repo');
 const solutionPath = path.join(root, 'Shop.sln');

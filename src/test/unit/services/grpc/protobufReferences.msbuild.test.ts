@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { ProjectFileEditor } from '../../../../parsers/projectFileEditor';
 import { addProtobufReference, ensureDevelopmentDependency, grpcPackages, protobufReferenceFor, removeProtobufReference } from '../../../../services/grpc/protobufReferences';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 /** The edits as real MSBuild and Grpc.Tools see them, on a copy of src/__fixtures__/grpc */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

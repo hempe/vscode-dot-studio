@@ -1,7 +1,7 @@
 jest.mock('vscode', () => ({}), { virtual: true });
-jest.mock('../../../../services/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
-jest.mock('../../../../services/debugConfigService', () => ({ DebugConfigService: { getStartupProject: () => null } }));
-jest.mock('../../../../services/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
+jest.mock('../../../../services/solution/solutionService', () => ({ SolutionService: { getActiveSolution: () => undefined } }));
+jest.mock('../../../../services/debug/debugConfigService', () => ({ DebugConfigService: { getStartupProject: () => null } }));
+jest.mock('../../../../services/solution/workspaceFolders', () => ({ solutionWorkspaceFolder: () => undefined }));
 
 import { EfDeps, runEfAction } from '../../../../services/entityFramework/efCommands';
 

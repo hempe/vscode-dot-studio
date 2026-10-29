@@ -1,4 +1,4 @@
-import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
+import { ProjectFileEditor as Xml } from '../../../parsers/projectFileEditor';
 import { resolveItem, sameFile } from './itemPaths';
 
 /**

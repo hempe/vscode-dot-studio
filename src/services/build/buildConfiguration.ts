@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SolutionFile } from '../types/solution';
+import { SolutionFile } from '../../types/solution';
 
 const STATE_KEY = 'shinobi.solution.configuration';
 /** Context key with the active configuration, for the view title menu */

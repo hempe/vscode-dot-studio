@@ -7,18 +7,18 @@ import { spawn, execFile } from 'child_process';
 import { logger } from '../../core/logger';
 import { sln } from '../../core/utils';
 import { RequestQueue } from '../../core/requestQueue';
-import { SolutionService } from '../solutionService';
-import { BuildConfiguration } from '../buildConfiguration';
-import { DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
-import { EMIT_GENERATED_FILES } from '../analyzers';
-import { Settings } from '../settings';
+import { SolutionService } from '../solution/solutionService';
+import { BuildConfiguration } from '../build/buildConfiguration';
+import { DOTNET_TASK_TYPE } from '../build/dotnetTaskProvider';
+import { EMIT_GENERATED_FILES } from '../diagnostics/analyzers';
+import { Settings } from '../shared/settings';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
 import { evaluateTestProject, isTestProjectCandidate, projectTextWithBuildProps, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
 import { testingPlatformRunSettings, vstestRunSettings } from './runSettings';
-import { solutionWorkspaceFolder } from '../workspaceFolders';
+import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
 
 const log = logger('TestExplorer');
 

@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { logger } from '../core/logger';
-import { Settings } from './settings';
+import { logger } from '../../core/logger';
+import { Settings } from '../shared/settings';
 
 const execFileAsync = promisify(execFile);
 const log = logger('SlnxMigration');

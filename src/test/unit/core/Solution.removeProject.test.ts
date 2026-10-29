@@ -31,7 +31,7 @@ jest.mock('../../../core/constants', () => ({
 }));
 
 import { Solution } from '../../../core/Solution';
-import { ProjectItemsService } from '../../../services/projectItems/projectItemsService';
+import { ProjectItemsService } from '../../../services/project/items/projectItemsService';
 
 beforeEach(() => { jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined); });
 afterEach(() => jest.restoreAllMocks());

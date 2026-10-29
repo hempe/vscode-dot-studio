@@ -2,7 +2,7 @@ import { logger } from '../../core/logger';
 import { PackageBrowseService } from './packageBrowseService';
 import { PackageInstalledService } from './packageInstalledService';
 import { PackageSharedService } from './packageSharedService';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 import {
     PackageSearchOptions,
     ProjectInfo,
@@ -13,11 +13,11 @@ import {
     isNuGetOrgUrl
 } from './types';
 import { mergeAdvisories, readProjectAdvisories } from './packageAdvisories';
-import { SolutionService } from '../solutionService';
-import { UnloadedProjects } from '../unloadedProjects';
+import { SolutionService } from '../solution/solutionService';
+import { UnloadedProjects } from '../solution/unloadedProjects';
 import { LocalNuGetPackage } from '../../webview/nuget-view/shared';
 import { collectTransitivePackages, readPackageGraph } from './packageGraph';
-import { activeFrameworkOf } from '../projectFramework';
+import { activeFrameworkOf } from '../project/projectFramework';
 
 const log = logger('NuGetManagerService');
 

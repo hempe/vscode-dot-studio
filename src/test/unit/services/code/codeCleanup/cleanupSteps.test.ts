@@ -1,4 +1,4 @@
-import { cleanupSteps, unusedUsingsSeverityFor } from '../../../../services/codeCleanup/cleanupSteps';
+import { cleanupSteps, unusedUsingsSeverityFor } from '../../../../../services/code/codeCleanup/cleanupSteps';
 
 describe('cleanupSteps', () => {
     it('runs the whole solution through its solution file, from its directory', () => {

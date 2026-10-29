@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { VersionUtils } from '../versionUtils';
+import { VersionUtils } from '../shared/versionUtils';
 
 /**
  * Where a new project goes, relative to the solution directory: next to the other projects,

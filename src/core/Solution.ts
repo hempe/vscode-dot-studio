@@ -6,16 +6,16 @@ import { SolutionFolderEditor, SolutionEditHost } from './solutionFolderEditor';
 import { renameProjectInSln, renameProjectInSlnx, retargetProjectReferences } from '../parsers/projectRename';
 import { SolutionFile, SolutionProject } from '../types/solution';
 import { ISolutionFileHandler, createSolutionFileHandler } from '../handlers';
-import { DebugConfigService } from '../services/debugConfigService';
-import { StartupChoice } from '../services/startupProfiles/startupChoice';
-import { configurationProjectsOf, readConfigurationModel } from '../services/configurationManager/configurationManager';
-import { ConfigurationModel } from '../services/configurationManager/model';
+import { DebugConfigService } from '../services/debug/debugConfigService';
+import { StartupChoice } from '../services/debug/startupProfiles/startupChoice';
+import { configurationProjectsOf, readConfigurationModel } from '../services/build/configurationManager/configurationManager';
+import { ConfigurationModel } from '../services/build/configurationManager/model';
 import { Project } from './Project';
 import { logger } from './logger';
-import { SimpleDebounceManager } from '../services/debounceManager';
-import { workspaceFolderOf } from '../services/workspaceFolders';
-import { UnloadedProjects } from '../services/unloadedProjects';
-import { pathKey } from '../services/projectItems/projectItems';
+import { SimpleDebounceManager } from '../services/shared/debounceManager';
+import { workspaceFolderOf } from '../services/solution/workspaceFolders';
+import { UnloadedProjects } from '../services/solution/unloadedProjects';
+import { pathKey } from '../services/project/items/projectItems';
 
 export interface SolutionFileTreeNode {
     name: string;

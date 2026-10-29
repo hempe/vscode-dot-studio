@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { DebugConfigService, ProfileProjectLaunch } from '../debugConfigService';
-import { SolutionService } from '../solutionService';
-import { UnloadedProjects } from '../unloadedProjects';
+import { SolutionService } from '../../solution/solutionService';
+import { UnloadedProjects } from '../../solution/unloadedProjects';
 import { StartupProfile } from './slnLaunch';
 import { ActiveProfileRef, ProfileFile, ProfileSource, readStartupProfiles, StartupChoice } from './startupChoice';
 

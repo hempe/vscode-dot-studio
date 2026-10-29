@@ -1,6 +1,6 @@
-import { planRequest, toEntry } from '../../../../services/startupProfiles/requests';
-import { StartupProfile } from '../../../../services/startupProfiles/slnLaunch';
-import { StartupProfileEntry } from '../../../../types/startupProjects';
+import { planRequest, toEntry } from '../../../../../services/debug/startupProfiles/requests';
+import { StartupProfile } from '../../../../../services/debug/startupProfiles/slnLaunch';
+import { StartupProfileEntry } from '../../../../../types/startupProjects';
 
 const profile = (name: string, ...projects: Array<[string, StartupProfile['projects'][number]['action'], Record<string, unknown>?]>): StartupProfile => ({
     name, extra: {}, projects: projects.map(([path, action, extra]) => ({ path, action, extra: extra ?? {} })),

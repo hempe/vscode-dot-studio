@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readSlnxModel, renderSlnxModel } from '../../../../services/configurationManager/slnxConfigurations';
-import { resolveMapping, setMapping, addPlatform, renameConfiguration, removePlatform } from '../../../../services/configurationManager/model';
+import { readSlnxModel, renderSlnxModel } from '../../../../../services/build/configurationManager/slnxConfigurations';
+import { resolveMapping, setMapping, addPlatform, renameConfiguration, removePlatform } from '../../../../../services/build/configurationManager/model';
 
-const content = fs.readFileSync(path.join(__dirname, '../../../../__fixtures__/configurations/Sample.slnx'), 'utf8');
+const content = fs.readFileSync(path.join(__dirname, '../../../../../__fixtures__/configurations/Sample.slnx'), 'utf8');
 const projects = [{ path: 'src/App/App.csproj', guid: 'a' }, { path: 'src/Lib/Lib.csproj', guid: 'b' }];
 const APP = 'src/App/App.csproj';
 const LIB = 'src/Lib/Lib.csproj';

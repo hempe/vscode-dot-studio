@@ -33,7 +33,7 @@ jest.mock('vscode', () => ({
     commands: { executeCommand: async (...args: unknown[]) => { env.commands.push(args); } },
 }), { virtual: true });
 
-import { checkCSharpExtension, checkOmniSharpForSlnx } from '../../../services/csharpExtensionCheck';
+import { checkCSharpExtension, checkOmniSharpForSlnx } from '../../../../services/shared/csharpExtensionCheck';
 
 describe('checkCSharpExtension', () => {
     let state: Map<string, unknown>;
@@ -119,12 +119,12 @@ describe('checkOmniSharpForSlnx', () => {
 
 describe('language server default', () => {
     it('makes the Roslyn language server the default, so muhammad-sammy.csharp loads .slnx without OmniSharp', () => {
-        const packageJson = require('../../../../package.json');
+        const packageJson = require('../../../../../package.json');
         expect(packageJson.contributes.configurationDefaults).toEqual(expect.objectContaining({ 'dotnet.server.useOmnisharp': false }));
     });
 
     it("hides the C# extension's test code lenses, which run tests through VSTest and fail for Microsoft.Testing.Platform projects", () => {
-        const packageJson = require('../../../../package.json');
+        const packageJson = require('../../../../../package.json');
         expect(packageJson.contributes.configurationDefaults).toEqual(expect.objectContaining({ 'dotnet.codeLens.enableTestsCodeLens': false }));
     });
 });

@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { SolutionService } from '../solutionService';
 import { NodeIdService } from '../nodeIdService';
-import { ProjectActionCmd } from '../../types/commands/project-action';
-import { NodeIdString } from '../../types/nodeId';
-import { createDotnetTask, DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
-import { runTask } from '../runTask';
-import { multiDeleteQuestion } from '../projectItems/linkedItems';
+import { ProjectActionCmd } from '../../../types/commands/project-action';
+import { NodeIdString } from '../../../types/nodeId';
+import { createDotnetTask, DOTNET_TASK_TYPE } from '../../build/dotnetTaskProvider';
+import { runTask } from '../../build/runTask';
+import { multiDeleteQuestion } from '../../project/items/linkedItems';
 import { clipboard, projectsLinking } from './fileActions';
 import { removeDependencyFromCsproj } from './referenceActions';
 

@@ -2,11 +2,11 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { parseStringPromise } from 'xml2js';
 import { sortFrameworksByVersion } from '../frameworkOrder';
-import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
-import { platformProperty } from '../configurationManager/configurationManager';
+import { isNetFrameworkTarget } from '../../../parsers/targetFrameworks';
+import { platformProperty } from '../../build/configurationManager/configurationManager';
 
 const execFileAsync = promisify(execFile);
 

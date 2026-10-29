@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { SolutionService } from '../solutionService';
 import { NodeId } from '../nodeIdService';
-import { deleteProjectPlan } from '../deleteProject';
+import { deleteProjectPlan } from '../../project/deleteProject';
 
 const log = logger('solutionFileActions');
 

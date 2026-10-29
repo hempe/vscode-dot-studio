@@ -1,4 +1,4 @@
-import { ConcurrencyLimit, SingleFlight } from '../../../services/singleFlight';
+import { ConcurrencyLimit, SingleFlight } from '../../../../services/shared/singleFlight';
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 

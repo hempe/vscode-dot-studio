@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ProjectFileEditor } from '../../parsers/projectFileEditor';
+import { ProjectFileEditor } from '../../../parsers/projectFileEditor';
 import { BUILD_OUTPUT_FOLDERS } from './folderLayout';
 import { ProjectItems } from './projectItems';
 import { NewItem, newItemFor } from './defaultItems';

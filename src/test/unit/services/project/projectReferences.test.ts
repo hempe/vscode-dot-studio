@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { addProjectReferences, projectReferencesIn, referenceRefusal } from '../../../services/projectReferences';
+import { addProjectReferences, projectReferencesIn, referenceRefusal } from '../../../../services/project/projectReferences';
 
 const at = (...parts: string[]) => path.resolve('/repo', ...parts);
 

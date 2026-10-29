@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from '../../core/logger';
+import { logger } from '../../../core/logger';
 import { NodeId, NodeIdService } from '../nodeIdService';
-import { createDotnetTask, DOTNET_TASK_TYPE } from '../dotnetTaskProvider';
-import { ProjectFileEditor } from '../../parsers/projectFileEditor';
-import { addProjectReferences } from '../projectReferences';
-import { removeDependencyEdit } from '../dependencyRemoval';
-import { uninstallPackages } from '../nuget/centralPackageOperations';
+import { createDotnetTask, DOTNET_TASK_TYPE } from '../../build/dotnetTaskProvider';
+import { ProjectFileEditor } from '../../../parsers/projectFileEditor';
+import { addProjectReferences } from '../../project/projectReferences';
+import { removeDependencyEdit } from '../../project/dependencyRemoval';
+import { uninstallPackages } from '../../nuget/centralPackageOperations';
 
 const log = logger('referenceActions');
 

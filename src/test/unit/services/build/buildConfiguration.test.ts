@@ -10,8 +10,8 @@ jest.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../../services/buildConfiguration';
-import { SolutionFile } from '../../../types/solution';
+import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../../../services/build/buildConfiguration';
+import { SolutionFile } from '../../../../types/solution';
 
 const memento = () => {
     const values = new Map<string, unknown>();

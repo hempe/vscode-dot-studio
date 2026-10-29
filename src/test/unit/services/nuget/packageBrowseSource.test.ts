@@ -1,7 +1,7 @@
 // Browse searches the source the dropdown names (Visual Studio's "Package source")
 jest.mock('vscode', () => ({ workspace: { workspaceFolders: undefined }, window: {}, commands: {}, env: {} }), { virtual: true });
 
-jest.mock('../../../../services/settings', () => ({ Settings: { nugetPackageSources: () => false } }));
+jest.mock('../../../../services/shared/settings', () => ({ Settings: { nugetPackageSources: () => false } }));
 
 import { PackageBrowseService } from '../../../../services/nuget/packageBrowseService';
 

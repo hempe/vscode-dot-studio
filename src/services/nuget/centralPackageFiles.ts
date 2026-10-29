@@ -3,7 +3,7 @@ import * as path from 'path';
 import { ProjectFileEditor as Xml } from '../../parsers/projectFileEditor';
 import { PackageEdit, applyEdit, globalPackageReferences } from './centralPackageEdits';
 import { CentralEntry } from './centralPackages';
-import { OwnWrites } from '../ownWrites';
+import { OwnWrites } from '../shared/ownWrites';
 
 /**
  * Writes planned edits: each file is read once, gets its edits in order, and is written only when it changed.

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '../../core/logger';
-import { isSystemPath, shouldSkipDirectory } from '../../core/constants';
-import { hasCSharpExtension, recommendedCSharpExtension } from '../csharpExtensionCheck';
+import { logger } from '../../../core/logger';
+import { isSystemPath, shouldSkipDirectory } from '../../../core/constants';
+import { hasCSharpExtension, recommendedCSharpExtension } from '../../shared/csharpExtensionCheck';
 import { NamespaceService } from '../namespaceService';
 import { candidateFiles } from './syncPlan';
 import { SyncAction, SyncDeps, syncNamespaces, syncSummary } from './namespaceSync';

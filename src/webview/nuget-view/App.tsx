@@ -15,7 +15,7 @@ import { LabelledCheckbox } from './components/LabelledCheckbox';
 import { advisoryKey, ManagedSource, PackageAdvisories, PackageAdvisory, ProjectInfo } from '../../services/nuget/types';
 import { passesAdvisoryFilter } from './advisoryView';
 import { mappedSources } from '../../services/nuget/packageSourceMapping';
-import { VersionUtils } from '../../services/versionUtils';
+import { VersionUtils } from '../../services/shared/versionUtils';
 import { NuGetViewData, UICmd } from '../../types/commands/ui';
 import { canSetForProjectOnly, centralNote } from './versionLabels';
 

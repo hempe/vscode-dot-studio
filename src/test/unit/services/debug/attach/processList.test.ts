@@ -1,4 +1,4 @@
-import { parsePsOutput, parseWindowsProcesses } from '../../../../services/attach/processList';
+import { parsePsOutput, parseWindowsProcesses } from '../../../../../services/debug/attach/processList';
 
 describe('parsePsOutput', () => {
     it('parses pid, parent and the whole command line, spaces in the arguments included', () => {

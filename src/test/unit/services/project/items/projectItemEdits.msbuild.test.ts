@@ -2,8 +2,8 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { excludeEdit, includeEdit } from '../../../../services/projectItems/projectItemEdits';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { excludeEdit, includeEdit } from '../../../../../services/project/items/projectItemEdits';
+import { ProjectItemsService } from '../../../../../services/project/items/projectItemsService';
 
 /** The edits checked against real MSBuild: what the project contains after them, not just the text they write */
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? test : test.skip;

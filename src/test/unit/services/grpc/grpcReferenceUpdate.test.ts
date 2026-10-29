@@ -11,8 +11,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { GrpcHost, removeGrpcReference, updateGrpcReference } from '../../../../services/grpc/grpcReferenceService';
-import { parseMsbuildItems } from '../../../../services/projectItems/projectItems';
-import { ProjectItemsService } from '../../../../services/projectItems/projectItemsService';
+import { parseMsbuildItems } from '../../../../services/project/items/projectItems';
+import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
 
 const fixture = path.resolve(__dirname, '../../../../__fixtures__/grpc');
 const REMOTE_URL = 'https://raw.githubusercontent.com/grpc/grpc-dotnet/master/examples/Greeter/Proto/greet.proto';

@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
-import { cannotRun } from '../testSupport/cannotRun';
-import { analyzerAssemblies, generatedFiles, parseAnalyzerQuery, queryAnalyzers, sourceGenerators } from '../../../services/analyzers';
+import { cannotRun } from '../../testSupport/cannotRun';
+import { analyzerAssemblies, generatedFiles, parseAnalyzerQuery, queryAnalyzers, sourceGenerators } from '../../../../services/diagnostics/analyzers';
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
 

@@ -1,5 +1,5 @@
 // Versions compare the way NuGet compares them (review A4-11, A8-02)
-import { VersionUtils } from '../../../services/versionUtils';
+import { VersionUtils } from '../../../../services/shared/versionUtils';
 
 const newer = (latest: string, installed: string) => VersionUtils.isOutdated(installed, latest);
 

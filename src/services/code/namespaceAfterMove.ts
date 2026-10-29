@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '../core/logger';
+import { logger } from '../../core/logger';
 import { NamespaceService } from './namespaceService';
 
 const log = logger('NamespaceAfterMove');

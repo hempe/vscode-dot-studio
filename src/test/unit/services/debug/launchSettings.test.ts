@@ -3,7 +3,7 @@ jest.mock('vscode', () => ({}), { virtual: true });
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { defaultLaunchSettings, ensureLaunchSettings } from '../../../services/launchSettings';
+import { defaultLaunchSettings, ensureLaunchSettings } from '../../../../services/debug/launchSettings';
 
 describe('launch settings', () => {
     it('web projects get http and https profiles like `dotnet new web`', () => {

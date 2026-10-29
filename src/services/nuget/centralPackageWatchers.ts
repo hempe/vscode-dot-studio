@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { SolutionService } from '../solutionService';
-import { ProjectItemsService } from '../projectItems/projectItemsService';
+import { SolutionService } from '../solution/solutionService';
+import { ProjectItemsService } from '../project/items/projectItemsService';
 import { centralFiles } from './centralPackages';
 import { importChain } from './centralPackageFiles';
 import { Stamp, changedFiles, watchPlan } from './centralPackageWatch';
-import { OwnWrites } from '../ownWrites';
+import { OwnWrites } from '../shared/ownWrites';
 
 /**
  * Watches the props files the solution's central package versions come from, beyond `Directory.Packages.props`

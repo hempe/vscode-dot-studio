@@ -1,7 +1,7 @@
 jest.mock('vscode', () => ({}), { virtual: true });
 
 import { dependencyCategories, dependencyNodes, dependencyLabel, ProjectDependency } from '../../../core/dependencyNodes';
-import { NodeIdService } from '../../../services/nodeIdService';
+import { NodeIdService } from '../../../services/solution/nodeIdService';
 
 const project = '/w/App/App.csproj';
 const dependencies: ProjectDependency[] = [

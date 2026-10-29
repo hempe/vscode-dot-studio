@@ -2,7 +2,7 @@ import React from 'react';
 import { LoadingMessage } from '../../shared/LoadingBar';
 import { LocalNuGetPackage, ensureArray, formatAuthors } from '../shared';
 import { Checkbox } from 'vscrui';
-import { VersionUtils } from '../../../services/versionUtils';
+import { VersionUtils } from '../../../services/shared/versionUtils';
 import { isGlobal, versionLabel } from '../versionLabels';
 import { advisoryBadges } from '../advisoryView';
 import { PackageAdvisory } from '../../../services/nuget/types';

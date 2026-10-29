@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { itemsWithoutExcludes, newItemFor, parseNewItems } from '../../../../services/projectItems/defaultItems';
+import { itemsWithoutExcludes, newItemFor, parseNewItems } from '../../../../../services/project/items/defaultItems';
 
 const dir = path.resolve('/work/Web');
 const at = (...parts: string[]) => path.join(dir, ...parts);
