@@ -1,7 +1,7 @@
 name: CI
 
 # Typecheck, test and build on every push to master and every pull request.
-# Linux and Windows are both gates.
+# Linux, Windows and macOS are all gates.
 on:
   push:
     branches: [master]
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
 
