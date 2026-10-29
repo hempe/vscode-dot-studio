@@ -98,6 +98,7 @@ export class SolutionWebView {
                         .content {
                             flex: 1;
                             overflow: hidden;
+                            padding-block: 6px;
                         }
     
                         .tree-node {
