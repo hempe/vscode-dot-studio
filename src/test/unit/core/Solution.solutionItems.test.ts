@@ -81,3 +81,22 @@ describe('solution items with backslash paths', () => {
         expect(fs.existsSync(path.join(dir, 'docs', 'readme.md'))).toBe(true);
     });
 });
+
+describe('quick successive solution edits', () => {
+    it('keeps every edit when they start together', async () => {
+        const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-slnqueue-')));
+        try {
+            fs.writeFileSync(path.join(dir, 'App.sln'), SLN);
+            const solution = new Solution(path.join(dir, 'App.sln'));
+            await solution.ready;
+            await Promise.all(['One', 'Two', 'Three', 'Four'].map(name => solution.addSolutionFolder(name)));
+            const content = fs.readFileSync(path.join(dir, 'App.sln'), 'utf8');
+            for (const name of ['One', 'Two', 'Three', 'Four']) {
+                expect(content).toContain(`= "${name}", "${name}"`);
+            }
+            solution.dispose();
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});

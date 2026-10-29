@@ -464,9 +464,20 @@ export class Solution {
      * Reads the solution file's text, writes what `edit` returns and re-parses it, so the model is fresh on return
      */
     async editSolutionText(edit: (content: string, type: 'sln' | 'slnx') => string): Promise<void> {
-        const content = await this._handler.read();
-        await this._handler.write(edit(content, this.isSlnx ? 'slnx' : 'sln'));
-        await this.parseSolutionFile();
+        await this.queueEdit(async () => {
+            const content = await this._handler.read();
+            await this._handler.write(edit(content, this.isSlnx ? 'slnx' : 'sln'));
+            await this.parseSolutionFile();
+        });
+    }
+
+    private _editQueue: Promise<unknown> = Promise.resolve();
+
+    /** Runs the edit after the ones before it have finished: two quick edits must not read the same text and lose one */
+    private queueEdit<T>(operation: () => Promise<T>): Promise<T> {
+        const result = this._editQueue.then(operation, operation);
+        this._editQueue = result.catch(() => undefined);
+        return result;
     }
 
     /**
@@ -486,9 +497,11 @@ export class Solution {
 
     /** Reads the .sln, applies a line edit, writes it with the file's line endings and re-parses */
     private async editSlnLines(edit: (lines: string[]) => string[]): Promise<void> {
-        const content = await this._handler.read();
-        await this._handler.write(edit(content.split(/\r?\n/)).join(eolOf(content)));
-        await this.parseSolutionFile();
+        await this.queueEdit(async () => {
+            const content = await this._handler.read();
+            await this._handler.write(edit(content.split(/\r?\n/)).join(eolOf(content)));
+            await this.parseSolutionFile();
+        });
     }
 
     /**
@@ -543,10 +556,12 @@ export class Solution {
         const relative = (file: string) => path.relative(solutionDir, file).split(path.sep).join('/');
 
         await fs.promises.rename(projectPath, newPath);
-        const content = await this._handler.read();
-        await this._handler.write(this.isSlnx
-            ? renameProjectInSlnx(content, relative(projectPath), relative(newPath))
-            : renameProjectInSln(content, relative(projectPath), relative(newPath), name));
+        await this.queueEdit(async () => {
+            const content = await this._handler.read();
+            await this._handler.write(this.isSlnx
+                ? renameProjectInSlnx(content, relative(projectPath), relative(newPath))
+                : renameProjectInSln(content, relative(projectPath), relative(newPath), name));
+        });
 
         for (const project of this.getDotNetProjects()) {
             if (project.projectPath === projectPath || !fs.existsSync(project.projectPath)) {

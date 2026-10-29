@@ -53,8 +53,13 @@ export class SolutionFileParser {
             i++;
         }
 
-        // Parse projects
-        while (i < lines.length && lines[i].startsWith('Project(')) {
+        // Parse projects: like MSBuild, take every Project( line before Global, whatever stands between the blocks
+        while (i < lines.length && !lines[i].startsWith('Global')) {
+            if (!lines[i].startsWith('Project(')) {
+                log.debug(`Ignoring a line between projects: ${lines[i]}`);
+                i++;
+                continue;
+            }
             try {
                 const projectResult = this.parseProject(lines, i, solutionDir);
                 solution.projects.push(projectResult.project);
@@ -63,10 +68,12 @@ export class SolutionFileParser {
                 // One project that cannot be read does not take the solution with it
                 log.error(`Skipping a project of the solution: ${lines[i]}`, error);
                 i++;
-                while (i < lines.length && !lines[i].startsWith('EndProject')) {
+                while (i < lines.length && !lines[i].startsWith('EndProject') && !lines[i].startsWith('Project(') && !lines[i].startsWith('Global')) {
                     i++;
                 }
-                i++;
+                if (i < lines.length && lines[i].startsWith('EndProject')) {
+                    i++;
+                }
             }
         }
 
@@ -196,7 +203,8 @@ export class SolutionFileParser {
         let i = startIndex + 1;
 
         // Parse project sections and dependencies
-        while (i < lines.length && !lines[i].startsWith('EndProject')) {
+        // A block without EndProject ends where the next project or Global starts
+        while (i < lines.length && !lines[i].startsWith('EndProject') && !lines[i].startsWith('Project(') && !lines[i].startsWith('Global')) {
             const line = lines[i];
 
             if (line.startsWith('ProjectSection(')) {

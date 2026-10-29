@@ -193,4 +193,20 @@ describe('ProjectFileEditor items', () => {
             expect(ProjectFileEditor.removeRemoveItem(content, 'Old.cs')).toEqual({ content, removed: false });
         });
     });
+
+    describe('conditional groups and CDATA', () => {
+        it('removes an ItemGroup with a Condition or a Label when its last item goes', () => {
+            for (const open of ['<ItemGroup Condition="\'$(A)\' == \'>\'">', '<ItemGroup Label="x">']) {
+                const content = `<Project Sdk="Microsoft.NET.Sdk">\n  ${open}\n    <Compile Include="A.cs" />\n  </ItemGroup>\n</Project>\n`;
+                const start = content.indexOf('<Compile');
+                expect(ProjectFileEditor.deleteElement(content, start, content.indexOf('/>', start) + 2)).toBe('<Project Sdk="Microsoft.NET.Sdk">\n</Project>\n');
+            }
+        });
+
+        it('does not count an item inside CDATA', () => {
+            const content = '<Project>\n  <PropertyGroup><X><![CDATA[<Compile Remove="A.cs" />]]></X></PropertyGroup>\n</Project>\n';
+            const ranges = ProjectFileEditor.ignoredRanges(content);
+            expect(ProjectFileEditor.inRanges(ranges, content.indexOf('<Compile'))).toBe(true);
+        });
+    });
 });

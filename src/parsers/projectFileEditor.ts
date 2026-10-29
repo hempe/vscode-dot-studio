@@ -73,9 +73,9 @@ export class ProjectFileEditor {
     // Opening tag of an item: `<Compile Remove="x" />` (group 3 is the slash) or `<Compile Remove="x">`; attribute values may contain '>'
     private static readonly ITEM_OPEN_TAG_RE = /<([A-Za-z][\w-]*)\b((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
 
-    /** Comments and targets (also a self-closing `<Target ... />`, which has no end tag): their items are not part of the evaluation (targets add items when they run) */
+    /** Comments, CDATA sections and targets (also a self-closing `<Target ... />`, which has no end tag): their items are not part of the evaluation (targets add items when they run) */
     static ignoredRanges(content: string): [number, number][] {
-        return [...content.matchAll(/<!--[\s\S]*?-->|<Target\b(?:[^>"']|"[^"]*"|'[^']*')*?\/>|<Target\b[\s\S]*?<\/Target\s*>/g)]
+        return [...content.matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<Target\b(?:[^>"']|"[^"]*"|'[^']*')*?\/>|<Target\b[\s\S]*?<\/Target\s*>/g)]
             .map(match => [match.index!, match.index! + match[0].length]);
     }
 
@@ -255,7 +255,7 @@ export class ProjectFileEditor {
         const nextBreak = out.indexOf('\n', lineStart);
         const previous = out.slice(previousStart, lineStart);
         const next = out.slice(lineStart, nextBreak < 0 ? out.length : nextBreak);
-        if (previous.trim() === '<ItemGroup>' && next.trim() === '</ItemGroup>') {
+        if (/^<ItemGroup\b(?:[^>"']|"[^"]*"|'[^']*')*>$/.test(previous.trim()) && next.trim() === '</ItemGroup>') {
             out = out.slice(0, previousStart) + out.slice(nextBreak < 0 ? out.length : nextBreak + 1);
             // Two empty lines are left where the group was: keep one
             const blankAt = previousStart;

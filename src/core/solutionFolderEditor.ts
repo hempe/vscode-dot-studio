@@ -10,7 +10,6 @@ import { logger } from './logger';
 
 const log = logger('SolutionFolderEditor');
 const sameGuid = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
-const eolOf = (content: string) => content.includes('\r\n') ? '\r\n' : '\n';
 
 /** A node of the solution file that drag & drop moves to another solution folder */
 export type SolutionNodeMove =
@@ -76,62 +75,58 @@ export class SolutionFolderEditor {
                 return;
             }
 
-            // Read the current solution file
-            const solutionContent = await this.host.handler().read();
-            const lines = solutionContent.split(/\r?\n/);
+            // Edit the .sln lines (read, write and re-parse happen together, one edit at a time)
+            await this.host.editSlnLines(lines => {
 
-            // Generate a new GUID for the solution folder
-            const folderGuid = `{${crypto.randomUUID().toUpperCase()}}`;
-            const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
+                // Generate a new GUID for the solution folder
+                const folderGuid = `{${crypto.randomUUID().toUpperCase()}}`;
+                const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
 
-            // Create the solution folder entry
-            const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
-            const folderEndEntry = 'EndProject';
+                // Create the solution folder entry
+                const folderEntry = `Project("${solutionFolderTypeGuid}") = "${folderName}", "${folderName}", "${folderGuid}"`;
+                const folderEndEntry = 'EndProject';
 
-            // Find the right place to insert the solution folder (after other projects but before GlobalSection)
-            let insertIndex = -1;
+                // Find the right place to insert the solution folder (after other projects but before GlobalSection)
+                let insertIndex = -1;
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
 
-                if (line === 'Global' || line.startsWith('Global')) {
-                    insertIndex = i;
-                    break;
-                }
-            }
-
-            // If no Global section found, append at the end
-            if (insertIndex === -1) {
-                insertIndex = lines.length;
-            }
-
-            // Insert the solution folder
-            let newLines = [
-                ...lines.slice(0, insertIndex),
-                folderEntry,
-                folderEndEntry,
-                ...lines.slice(insertIndex)
-            ];
-
-            // If this is a nested folder, we need to add/update the NestedProjects section
-            if (parentNode) {
-                // Find the parent folder's GUID
-                if (!parentNode.guid) {
-                    throw new Error(`Parent solution folder "${parentNode.name}" not found`);
+                    if (line === 'Global' || line.startsWith('Global')) {
+                        insertIndex = i;
+                        break;
+                    }
                 }
 
-                // Add or update NestedProjects section
-                newLines = SolutionFileEditor.addNestedProjectEntry(newLines, folderGuid, parentNode?.guid);
-            }
+                // If no Global section found, append at the end
+                if (insertIndex === -1) {
+                    insertIndex = lines.length;
+                }
 
-            // Write the updated solution file
-            const updatedContent = newLines.join(eolOf(solutionContent));
-            await this.host.handler().write(updatedContent);
+                // Insert the solution folder
+                let newLines = [
+                    ...lines.slice(0, insertIndex),
+                    folderEntry,
+                    folderEndEntry,
+                    ...lines.slice(insertIndex)
+                ];
+
+                // If this is a nested folder, we need to add/update the NestedProjects section
+                if (parentNode) {
+                    // Find the parent folder's GUID
+                    if (!parentNode.guid) {
+                        throw new Error(`Parent solution folder "${parentNode.name}" not found`);
+                    }
+
+                    // Add or update NestedProjects section
+                    newLines = SolutionFileEditor.addNestedProjectEntry(newLines, folderGuid, parentNode?.guid);
+                }
+
+                return newLines;
+            });
 
             log.info(`Successfully added solution folder "${folderName}" to solution`);
 
-            // Re-parse the solution file to update internal state
-            await this.host.parse();
 
         } catch (error) {
             log.error(`Error adding solution folder to solution:`, error);
@@ -200,47 +195,40 @@ export class SolutionFolderEditor {
 
             // Note: folder info captured but not currently used for event firing
 
-            // Read the current solution file
-            const solutionContent = await this.host.handler().read();
-            const lines = solutionContent.split(/\r?\n/);
+            // Edit the .sln lines (read, write and re-parse happen together, one edit at a time)
+            await this.host.editSlnLines(lines => {
+                // Find all child items (projects and folders) that need to be removed recursively
+                const allItemsToRemove = this.findAllChildItemsRecursively(folderGuid);
+                log.info(`Found ${allItemsToRemove.length} child items to remove recursively`);
 
-            // Find all child items (projects and folders) that need to be removed recursively
-            const allItemsToRemove = this.findAllChildItemsRecursively(folderGuid);
-            log.info(`Found ${allItemsToRemove.length} child items to remove recursively`);
-
-            // Remove all child projects and folders recursively, of any project type (a SQL project is not a .NET one)
-            let newLines = lines;
-            for (const itemGuid of allItemsToRemove) {
-                const itemProject = this.host.solutionFile()?.projects.find(p => sameGuid(p.guid, itemGuid));
-                if (itemProject) {
-                    if (SolutionFileParser.isSolutionFolder(itemProject)) {
-                        newLines = SolutionFileEditor.removeSolutionFolderProject(newLines, itemProject.name, itemGuid);
-                        log.info(`Removed child solution folder: ${itemProject.name}`);
-                    } else {
-                        newLines = SolutionFileEditor.removeProjectByGuid(newLines, itemGuid);
-                        newLines = SolutionFileEditor.removeProjectConfigurationLines(newLines, itemGuid);
-                        log.info(`Removed child project: ${itemProject.name}`);
+                // Remove all child projects and folders recursively, of any project type (a SQL project is not a .NET one)
+                let newLines = lines;
+                for (const itemGuid of allItemsToRemove) {
+                    const itemProject = this.host.solutionFile()?.projects.find(p => sameGuid(p.guid, itemGuid));
+                    if (itemProject) {
+                        if (SolutionFileParser.isSolutionFolder(itemProject)) {
+                            newLines = SolutionFileEditor.removeSolutionFolderProject(newLines, itemProject.name, itemGuid);
+                            log.info(`Removed child solution folder: ${itemProject.name}`);
+                        } else {
+                            newLines = SolutionFileEditor.removeProjectByGuid(newLines, itemGuid);
+                            newLines = SolutionFileEditor.removeProjectConfigurationLines(newLines, itemGuid);
+                            log.info(`Removed child project: ${itemProject.name}`);
+                        }
                     }
                 }
-            }
 
-            // Remove the solution folder Project/EndProject block
-            newLines = SolutionFileEditor.removeSolutionFolderProject(newLines, folderName, folderGuid);
+                // Remove the solution folder Project/EndProject block
+                newLines = SolutionFileEditor.removeSolutionFolderProject(newLines, folderName, folderGuid);
 
-            // Remove all NestedProjects entries that reference this folder or any of its children
-            newLines = SolutionFileEditor.removeNestedProjectEntries(newLines, folderGuid);
-            for (const itemGuid of allItemsToRemove) {
-                newLines = SolutionFileEditor.removeNestedProjectEntries(newLines, itemGuid);
-            }
+                // Remove all NestedProjects entries that reference this folder or any of its children
+                newLines = SolutionFileEditor.removeNestedProjectEntries(newLines, folderGuid);
+                for (const itemGuid of allItemsToRemove) {
+                    newLines = SolutionFileEditor.removeNestedProjectEntries(newLines, itemGuid);
+                }
 
-            // Write the updated solution file
-            const updatedContent = newLines.join(eolOf(solutionContent));
-            await this.host.handler().write(updatedContent);
-
-            log.info(`Successfully removed solution folder "${folderName}" and ${allItemsToRemove.length} child items from solution`);
-
-            // Re-parse the solution file to update internal state
-            await this.host.parse();
+                log.info(`Successfully removed solution folder "${folderName}" and ${allItemsToRemove.length} child items from solution`);
+                return newLines;
+            });
 
             // File watcher will handle the tree update
 
@@ -270,35 +258,31 @@ export class SolutionFolderEditor {
                 return;
             }
 
-            // Read the current solution file
-            const solutionContent = await this.host.handler().read();
-            const lines = solutionContent.split(/\r?\n/);
+            // Edit the .sln lines (read, write and re-parse happen together, one edit at a time)
+            await this.host.editSlnLines(lines => {
 
-            // Find and update the Project line for this solution folder
-            const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
-            const updatedLines = lines.map(line => {
-                const trimmedLine = line.trim();
+                // Find and update the Project line for this solution folder
+                const solutionFolderTypeGuid = PROJECT_TYPE_GUIDS.SOLUTION_FOLDER;
+                const updatedLines = lines.map(line => {
+                    const trimmedLine = line.trim();
 
-                // Check if this is the Project line for our solution folder
-                if (trimmedLine.includes(`Project("${solutionFolderTypeGuid}")`) &&
-                    trimmedLine.includes(`"${oldName}"`) &&
-                    trimmedLine.includes(folderGuid)) {
-                    // Replace the old name with the new name in the Project line
-                    // Format: Project("{guid}") = "OldName", "OldName", "{folder-guid}"
-                    return line.split(`"${oldName}"`).join(`"${newName}"`);
-                }
+                    // Check if this is the Project line for our solution folder
+                    if (trimmedLine.includes(`Project("${solutionFolderTypeGuid}")`) &&
+                        trimmedLine.includes(`"${oldName}"`) &&
+                        trimmedLine.includes(folderGuid)) {
+                        // Replace the old name with the new name in the Project line
+                        // Format: Project("{guid}") = "OldName", "OldName", "{folder-guid}"
+                        return line.split(`"${oldName}"`).join(`"${newName}"`);
+                    }
 
-                return line;
+                    return line;
+                });
+
+                return updatedLines;
             });
-
-            // Write the updated solution file
-            const updatedContent = updatedLines.join(eolOf(solutionContent));
-            await this.host.handler().write(updatedContent);
 
             log.info(`Successfully renamed solution folder from "${oldName}" to "${newName}"`);
 
-            // Re-parse the solution file to update internal state
-            await this.host.parse();
 
             // File watcher will handle the tree update
 
@@ -331,21 +315,17 @@ export class SolutionFolderEditor {
                 return;
             }
 
-            // Read the current solution file
-            const solutionContent = await this.host.handler().read();
-            const lines = solutionContent.split(/\r?\n/);
+            // Edit the .sln lines (read, write and re-parse happen together, one edit at a time)
+            await this.host.editSlnLines(lines => {
 
-            // Find the solution folder's Project block and add the file to it
-            const updatedLines = SolutionFileEditor.addSolutionItemToFolder(lines, folderGuid, relativePath);
+                // Find the solution folder's Project block and add the file to it
+                const updatedLines = SolutionFileEditor.addSolutionItemToFolder(lines, folderGuid, relativePath);
 
-            // Write the updated solution file
-            const updatedContent = updatedLines.join(eolOf(solutionContent));
-            await this.host.handler().write(updatedContent);
+                return updatedLines;
+            });
 
             log.info(`Successfully added solution item "${path.basename(filePath)}" to folder "${folderGuid}"`);
 
-            // Re-parse the solution file to update internal state
-            await this.host.parse();
 
             // File watcher will handle the tree update
 
@@ -372,21 +352,17 @@ export class SolutionFolderEditor {
                 return;
             }
 
-            // Read the current solution file
-            const solutionContent = await this.host.handler().read();
-            const lines = solutionContent.split(/\r?\n/);
+            // Edit the .sln lines (read, write and re-parse happen together, one edit at a time)
+            await this.host.editSlnLines(lines => {
 
-            // Remove the file reference from the solution file
-            const updatedLines = SolutionFileEditor.removeSolutionItemFromFile(lines, relativePath);
+                // Remove the file reference from the solution file
+                const updatedLines = SolutionFileEditor.removeSolutionItemFromFile(lines, relativePath);
 
-            // Write the updated solution file
-            const updatedContent = updatedLines.join(eolOf(solutionContent));
-            await this.host.handler().write(updatedContent);
+                return updatedLines;
+            });
 
             log.info(`Successfully removed solution item "${path.basename(filePath)}" from solution`);
 
-            // Re-parse the solution file to update internal state
-            await this.host.parse();
 
             // File watcher will handle the tree update
 

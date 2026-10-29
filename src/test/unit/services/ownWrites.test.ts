@@ -33,3 +33,21 @@ describe('OwnWrites', () => {
         expect(OwnWrites.isOwn(file)).toBe(true);
     });
 });
+
+describe('OwnWrites with an edit of the same size', () => {
+    test('an external edit that keeps size and modification time is not ours', () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'own-writes-'));
+        try {
+            const file = path.join(dir, 'a.csproj');
+            fs.writeFileSync(file, '<Version>1.2.3</Version>');
+            const time = new Date(Math.floor(Date.now() / 1000) * 1000);
+            fs.utimesSync(file, time, time);
+            OwnWrites.record(file);
+            fs.writeFileSync(file, '<Version>1.2.4</Version>');
+            fs.utimesSync(file, time, time);
+            expect(OwnWrites.isOwn(file)).toBe(false);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
