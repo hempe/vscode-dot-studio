@@ -3,23 +3,19 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { logger } from '../core/logger';
-import { parseStringPromise } from 'xml2js';
-import { sortFrameworksByVersion } from './frameworkOrder';
 import { isNetFrameworkTarget } from '../parsers/targetFrameworks';
 import { parseJsonc, removeArrayItems, upsertArrayItem } from '../core/jsonc';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { activeProjectBuild } from './activeBuild';
-import { platformProperty } from './configurationManager/configurationManager';
 import { createDotnetTask, DOTNET_TASK_TYPE } from './dotnetTaskProvider';
 import { runTask } from './runTask';
-import { EMIT_GENERATED_FILES } from './analyzers';
-import { Settings } from './settings';
 import { solutionWorkspaceFolder } from './workspaceFolders';
 import { BuildConfiguration } from './buildConfiguration';
 import { checkDevCertificateBeforeStart } from './devCert/devCertCheck';
 
-const execFileAsync = promisify(execFile);
+import { compoundConfigurationNames, hasStartupProfileConfiguration, launchJsonHasSyntaxErrors, readStartupCompound, readStartupConfig, removeStartupProfileConfiguration, updateTasksJson, upsertJsoncArrayItem } from './launch/launchFiles';
+import { determineTargetFramework, extractTargetFrameworks, resolveTargetPath } from './launch/targetFramework';
+import { browserAction, LaunchProfile, readLaunchProfiles } from './launch/launchProfiles';
+export type { LaunchProfile } from './launch/launchProfiles';
 
 const log = logger('DebugConfigService');
 
@@ -36,6 +32,11 @@ export interface ProfileProjectLaunch {
 }
 
 export class DebugConfigService {
+
+    // The files and the framework lookups live in launch/; these are what the rest of the code calls
+    static readonly extractTargetFrameworks = extractTargetFrameworks;
+    static readonly removeStartupProfileConfiguration = removeStartupProfileConfiguration;
+    static readonly hasStartupProfileConfiguration = hasStartupProfileConfiguration;
     /**
      * The startup project: the project the "StartupPreBuild" task builds, as long as launch.json still
      * has the "Startup" configuration. The program path can't tell, MSBuild decides where the output goes.
@@ -69,7 +70,7 @@ export class DebugConfigService {
                 return undefined;
             }
             const vscodeFolder = path.join(workspacePath, '.vscode');
-            const startupConfig = this.readStartupConfig(path.join(vscodeFolder, 'launch.json'));
+            const startupConfig = readStartupConfig(path.join(vscodeFolder, 'launch.json'));
             if (!startupConfig || !['coreclr', 'clr', 'mono'].includes(startupConfig.type)) {
                 return undefined;
             }
@@ -155,19 +156,19 @@ export class DebugConfigService {
                 await this.launchConfiguration(absoluteProjectPath, workspacePath, framework, profile, 'Startup', 'StartupPreBuild');
 
             // A launch.json with syntax errors is not changed: switching only tasks.json would make F5 build one project and run another
-            if (this.launchJsonHasSyntaxErrors(launchJsonPath)) {
+            if (launchJsonHasSyntaxErrors(launchJsonPath)) {
                 vscode.window.showWarningMessage('.vscode/launch.json has syntax errors and was not updated. Fix them and select the startup project again.');
                 return false;
             }
 
             // tasks.json first: it names the startup project, which is read back when launch.json changes
-            await this.updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined, platform);
+            await updateTasksJson(tasksJsonPath, relativeProjectPath, configuration, selectedFramework || undefined, platform);
 
             // A compound and a configuration with the same name make VS Code refuse to start
-            this.removeStartupProfileConfiguration(launchJsonPath);
+            removeStartupProfileConfiguration(launchJsonPath);
 
             // A new "Startup" goes first so VS Code selects it by default; an existing one is updated where it is
-            this.upsertJsoncArrayItem(
+            upsertJsoncArrayItem(
                 launchJsonPath,
                 { version: '0.2.0', configurations: [] },
                 'configurations',
@@ -223,7 +224,7 @@ export class DebugConfigService {
 
             const configs: Array<{ name: string; noDebug?: boolean; presentation: { hidden: boolean } }> = [];
             for (const launch of launches) {
-                const profiles = this.readLaunchProfiles(path.dirname(launch.projectPath));
+                const profiles = readLaunchProfiles(path.dirname(launch.projectPath));
                 const profile = profiles.find(candidate => candidate.name === launch.launchProfile) ?? profiles[0];
                 const { config } = await this.launchConfiguration(launch.projectPath, workspacePath, launch.framework, profile, launch.name);
                 configs.push({ ...config, ...(launch.noDebug && { noDebug: true }), presentation: { hidden: true } });
@@ -244,10 +245,10 @@ export class DebugConfigService {
 
             // After the check: tasks.json names the build, and must not move on while launch.json stays
             const relativeTarget = path.relative(workspacePath, buildTarget);
-            await this.updateTasksJson(path.join(vscodeFolder, 'tasks.json'), relativeTarget.startsWith('..') ? buildTarget : relativeTarget,
+            await updateTasksJson(path.join(vscodeFolder, 'tasks.json'), relativeTarget.startsWith('..') ? buildTarget : relativeTarget,
                 BuildConfiguration.active, undefined, BuildConfiguration.activePlatform);
             const names = configs.map(config => config.name);
-            const previous = this.compoundConfigurationNames(value);
+            const previous = compoundConfigurationNames(value);
             // A configuration named Startup clashes with the compound; the entries the previous compound listed go only when we wrote them (hidden)
             let text = removeArrayItems(original, 'configurations', (config: any) =>
                 config?.name === 'Startup' || (previous.includes(config?.name) && !names.includes(config?.name) && config?.presentation?.hidden === true));
@@ -264,52 +265,6 @@ export class DebugConfigService {
         } catch (error) {
             log.error('Error updating the startup profile configuration:', error);
         }
-    }
-
-    /** Whether launch.json exists and cannot be parsed (VS Code reads it tolerantly, we do not edit it then) */
-    private static launchJsonHasSyntaxErrors(launchJsonPath: string): boolean {
-        return fs.existsSync(launchJsonPath) && parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).errors.length > 0;
-    }
-
-    /** Whether launch.json starts a multi-project profile (the "Startup" compound) */
-    static hasStartupProfileConfiguration(): boolean {
-        const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
-        return !!workspacePath && !!this.readStartupCompound(path.join(workspacePath, '.vscode', 'launch.json'));
-    }
-
-    /** Removes the "Startup" compound and the configurations it lists; a launch.json without it is left alone */
-    static removeStartupProfileConfiguration(launchJsonPath = path.join(solutionWorkspaceFolder()?.uri.fsPath ?? '', '.vscode', 'launch.json')): void {
-        if (!this.readStartupCompound(launchJsonPath)) {
-            return;
-        }
-        const original = fs.readFileSync(launchJsonPath, 'utf8');
-        const names = this.compoundConfigurationNames(parseJsonc(original).value);
-        // Only the configurations we wrote (hidden entries of the compound): a user's own "Startup" compound lists the
-        // user's own configurations, which stay
-        const text = removeArrayItems(
-            removeArrayItems(original, 'compounds', (item: any) => item?.name === 'Startup'),
-            'configurations', (config: any) => names.includes(config?.name) && config?.presentation?.hidden === true);
-        log.info(`Removing the startup profile from ${launchJsonPath}`);
-        fs.writeFileSync(launchJsonPath, text, 'utf8');
-    }
-
-    /** The configuration names the "Startup" compound of a parsed launch.json lists */
-    private static compoundConfigurationNames(launchJson: any): string[] {
-        const compound = Array.isArray(launchJson?.compounds) ? launchJson.compounds.find((item: any) => item?.name === 'Startup') : undefined;
-        return Array.isArray(compound?.configurations)
-            ? compound.configurations.map((item: any) => typeof item === 'string' ? item : item?.name).filter((name: unknown) => typeof name === 'string')
-            : [];
-    }
-
-    /** The "Startup" compound of launch.json, if any (undefined too when the file has syntax errors) */
-    private static readStartupCompound(launchJsonPath: string): any {
-        if (!fs.existsSync(launchJsonPath)) {
-            return undefined;
-        }
-        const { value, errors } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
-        return errors.length > 0 || !Array.isArray(value?.compounds)
-            ? undefined
-            : value.compounds.find((item: any) => item?.name === 'Startup');
     }
 
     /**
@@ -330,11 +285,11 @@ export class DebugConfigService {
         const relativeProjectDir = path.relative(workspacePath, projectDir);
 
         // Determine the best framework to use
-        const selectedFramework = await this.determineTargetFramework(projectPath, framework);
+        const selectedFramework = await determineTargetFramework(projectPath, framework);
         log.info(`Selected framework for ${projectPath}: ${selectedFramework}`);
 
         const { configuration, platform } = activeProjectBuild(projectPath);
-        const targetPath = await this.resolveTargetPath(projectPath, configuration, selectedFramework, platform);
+        const targetPath = await resolveTargetPath(projectPath, configuration, selectedFramework, platform);
         const relativeTargetPath = path.relative(workspacePath, targetPath);
         const program = relativeTargetPath.startsWith('..') || path.isAbsolute(relativeTargetPath)
             ? targetPath
@@ -371,7 +326,7 @@ export class DebugConfigService {
             console: 'integratedTerminal',
             ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
             ...(preLaunchTask && { preLaunchTask }),
-            ...(debugType !== 'mono' && profile?.launchBrowser && { serverReadyAction: this.browserAction(profile.launchUrl) })
+            ...(debugType !== 'mono' && profile?.launchBrowser && { serverReadyAction: browserAction(profile.launchUrl) })
         };
         return { config, framework: selectedFramework, configuration, platform };
     }
@@ -409,10 +364,10 @@ export class DebugConfigService {
      * undefined when the project has no profile `dotnet run` can use
      */
     static startLaunchProfile(projectPath: string): LaunchProfile | undefined {
-        const profiles = this.readLaunchProfiles(path.dirname(projectPath));
+        const profiles = readLaunchProfiles(path.dirname(projectPath));
         const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
         const currentProfile = workspacePath && this.getStartupProject() === projectPath
-            ? this.readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile
+            ? readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile
             : undefined;
         return profiles.find(p => p.name === currentProfile) ?? profiles[0];
     }
@@ -420,7 +375,7 @@ export class DebugConfigService {
     /** The framework Start New Instance runs: on the startup project its chosen one, else the newest; null when unknown */
     static startFramework(projectPath: string): Promise<string | null> {
         const preferred = this.getStartupProject() === projectPath ? this.getActiveFramework() ?? undefined : undefined;
-        return this.determineTargetFramework(projectPath, preferred);
+        return determineTargetFramework(projectPath, preferred);
     }
 
     /**
@@ -436,9 +391,9 @@ export class DebugConfigService {
             vscode.window.showInformationMessage('There is no startup project. Right-click a project in the Solution Explorer and choose "Set as Startup Project".');
             return;
         }
-        const startupConfig = this.readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'));
+        const startupConfig = readStartupConfig(path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json'));
         const startupType = startupConfig?.type;
-        const startupProfiles = this.readLaunchProfiles(path.dirname(this.getStartupProject()!));
+        const startupProfiles = readLaunchProfiles(path.dirname(this.getStartupProject()!));
         checkDevCertificateBeforeStart([startupProfiles.find(profile => profile.name === startupConfig?.launchSettingsProfile)]);
         if (startupType === 'mono' && !await ensureMonoDebugging()) {
             return;
@@ -449,11 +404,11 @@ export class DebugConfigService {
     /** Starts the "Startup" compound when launch.json has one; false when it has none */
     private static async startStartupProfile(workspaceFolder: vscode.WorkspaceFolder, noDebug: boolean): Promise<boolean> {
         const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
-        const compound = this.readStartupCompound(launchJsonPath);
+        const compound = readStartupCompound(launchJsonPath);
         if (!compound) {
             return false;
         }
-        const names = this.compoundConfigurationNames({ compounds: [compound] });
+        const names = compoundConfigurationNames({ compounds: [compound] });
         if (names.length === 0) {
             vscode.window.showInformationMessage('The startup profile starts no project. Set the Action of a project to Start or Start Without Debugging.');
             return true;
@@ -475,7 +430,7 @@ export class DebugConfigService {
             return undefined;
         }
         const projectDir = path.resolve(config.cwd.replace('${workspaceFolder}', workspacePath));
-        return this.readLaunchProfiles(projectDir).find(profile => profile.name === config.launchSettingsProfile);
+        return readLaunchProfiles(projectDir).find(profile => profile.name === config.launchSettingsProfile);
     }
 
     /**
@@ -488,204 +443,18 @@ export class DebugConfigService {
     }
 
     /**
-     * The assembly the project builds for a configuration and framework, as MSBuild evaluates it
-     * (`TargetPath`): respects OutputPath, AssemblyName, the artifacts layout and Directory.Build.props.
-     * Falls back to the default `bin/<configuration>/<framework>/<project>.dll` when evaluation fails.
-     */
-    private static async resolveTargetPath(projectPath: string, configuration: string, framework: string | null, platform?: string): Promise<string> {
-        const projectDir = path.dirname(projectPath);
-        const fallback = path.join(projectDir, 'bin', configuration, framework || 'net*',
-            `${path.basename(projectPath, path.extname(projectPath))}.${isNetFrameworkTarget(framework) ? 'exe' : 'dll'}`);
-        try {
-            const { stdout } = await execFileAsync('dotnet', [
-                'msbuild', projectPath, '-nologo', '-getProperty:TargetPath',
-                `-property:Configuration=${configuration}`,
-                ...platformProperty(platform),
-                ...(framework ? [`-property:TargetFramework=${framework}`] : []),
-            ], { cwd: projectDir, timeout: 60000 });
-            const targetPath = stdout.trim().split(/\r?\n/).pop()?.trim();
-            if (targetPath && path.isAbsolute(targetPath)) {
-                return targetPath;
-            }
-            log.warn(`MSBuild returned no TargetPath for ${projectPath}, using ${fallback}`);
-        } catch (error) {
-            log.warn(`Could not evaluate the output path of ${projectPath}, using ${fallback}:`, error);
-        }
-        return fallback;
-    }
-
-    /**
-     * Determines the best target framework for the project
-     */
-    private static async determineTargetFramework(projectPath: string, preferredFramework?: string): Promise<string | null> {
-        try {
-            // Parse the project file to get its target frameworks
-            const frameworks = await this.extractTargetFrameworks(projectPath);
-
-            if (!frameworks || frameworks.length === 0) {
-                log.warn(`No target frameworks found in project: ${projectPath}`);
-                return preferredFramework || null;
-            }
-
-            log.info(`Available frameworks in project: ${frameworks.join(', ')}`);
-
-            // If a specific framework is preferred and it exists in the project, use it
-            if (preferredFramework && preferredFramework !== 'auto' && frameworks.includes(preferredFramework)) {
-                log.info(`Using preferred framework: ${preferredFramework}`);
-                return preferredFramework;
-            }
-
-            // If preference is 'auto' or not specified, pick the highest version
-            const sortedFrameworks = sortFrameworksByVersion(frameworks);
-            const selectedFramework = sortedFrameworks[0]; // Highest version first
-
-            log.info(`Auto-selected highest framework version: ${selectedFramework}`);
-            return selectedFramework;
-        } catch (error) {
-            log.error('Error determining target framework:', error);
-            return preferredFramework || null;
-        }
-    }
-
-    /**
-     * Updates tasks.json with the StartupPreBuild task
-     */
-    private static async updateTasksJson(tasksJsonPath: string, projectPath: string, configuration: string, framework?: string | undefined, platform?: string): Promise<void> {
-        try {
-            // Create the StartupPreBuild task
-            const prebuildTask = {
-                label: 'StartupPreBuild',
-                command: 'dotnet',
-                type: 'process',
-                args: [
-                    'build',
-                    projectPath,
-                    ...(framework ? ['--framework', framework] : []),
-                    '--configuration', configuration,
-                    ...platformProperty(platform),
-                    '/property:GenerateFullPaths=true',
-                    '/consoleloggerparameters:NoSummary',
-                    ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])
-                ],
-                presentation: {
-                    reveal: 'silent'
-                },
-                problemMatcher: '$msCompile'
-            };
-
-            this.upsertJsoncArrayItem(
-                tasksJsonPath,
-                { version: '2.0.0', tasks: [] },
-                'tasks',
-                (task: any) => task?.label === 'StartupPreBuild',
-                prebuildTask,
-                'last'
-            );
-        } catch (error) {
-            log.error('Error updating tasks.json:', error);
-        }
-    }
-
-    /**
-     * Writes `item` into the array `arrayKey` of a launch.json/tasks.json-style file, replacing the entry
-     * matched by `isMatch`. Comments and all other content are kept; a file with syntax errors is left alone.
-     */
-    private static upsertJsoncArrayItem(
-        filePath: string,
-        emptyFile: Record<string, unknown>,
-        arrayKey: string,
-        isMatch: (item: any) => boolean,
-        item: unknown,
-        position: 'first' | 'last'
-    ): void {
-        const fileName = path.basename(filePath);
-
-        if (!fs.existsSync(filePath)) {
-            log.info(`Creating ${filePath}`);
-            fs.writeFileSync(filePath, JSON.stringify({ ...emptyFile, [arrayKey]: [item] }, null, 4) + '\n', 'utf8');
-            return;
-        }
-
-        const text = fs.readFileSync(filePath, 'utf8');
-        const { errors } = parseJsonc(text);
-        if (errors.length > 0) {
-            log.error(`Not updating ${filePath}, it has syntax errors:`, errors);
-            vscode.window.showWarningMessage(`.vscode/${fileName} has syntax errors and was not updated. Fix them and select the startup project again.`);
-            return;
-        }
-
-        const updated = upsertArrayItem(text, arrayKey, isMatch, item, position);
-        if (updated === text) {
-            log.info(`${fileName} already up to date`);
-            return;
-        }
-
-        log.info(`Writing ${filePath}`);
-        fs.writeFileSync(filePath, updated, 'utf8');
-    }
-
-    /**
-     * Extracts target frameworks from a project file
-     */
-    static async extractTargetFrameworks(projectPath: string): Promise<string[]> {
-        try {
-            if (!fs.existsSync(projectPath)) {
-                log.warn(`Project file does not exist: ${projectPath}`);
-                return [];
-            }
-
-            const projectXml = await fs.promises.readFile(projectPath, 'utf8');
-            const parsed = await parseStringPromise(projectXml);
-
-            const frameworks: string[] = [];
-
-            // Navigate through PropertyGroups to find TargetFramework(s)
-            if (parsed.Project && parsed.Project.PropertyGroup) {
-                const propertyGroups = Array.isArray(parsed.Project.PropertyGroup)
-                    ? parsed.Project.PropertyGroup
-                    : [parsed.Project.PropertyGroup];
-
-                for (const group of propertyGroups) {
-                    // Check for TargetFrameworks (plural) first
-                    if (group.TargetFrameworks) {
-                        const frameworksValue = Array.isArray(group.TargetFrameworks)
-                            ? group.TargetFrameworks[0]
-                            : group.TargetFrameworks;
-                        const multiple = frameworksValue.split(';')
-                            .map((f: string) => f.trim())
-                            .filter((f: string) => f);
-                        frameworks.push(...multiple);
-                    }
-                    // Then check for TargetFramework (singular)
-                    else if (group.TargetFramework) {
-                        const frameworkValue = Array.isArray(group.TargetFramework)
-                            ? group.TargetFramework[0]
-                            : group.TargetFramework;
-                        frameworks.push(frameworkValue.trim());
-                    }
-                }
-            }
-
-            return frameworks;
-        } catch (error) {
-            log.error(`Error extracting target frameworks from ${projectPath}:`, error);
-            return [];
-        }
-    }
-
-    /**
      * The launch profile for the "Startup" configuration: the user's pick when `ask` is set and the project
      * has several, else the profile already configured (if it still exists), else the first one.
      * `preferred` stands in for the configured profile when launch.json has no "Startup" configuration.
      * Returns undefined without profiles and null when the user cancels the pick.
      */
     private static async pickLaunchProfile(projectDir: string, launchJsonPath: string, ask: boolean, preferred?: string): Promise<LaunchProfile | undefined | null> {
-        const profiles = this.readLaunchProfiles(projectDir);
+        const profiles = readLaunchProfiles(projectDir);
         if (profiles.length <= 1) {
             return profiles[0];
         }
 
-        const current = this.readStartupConfig(launchJsonPath)?.launchSettingsProfile ?? preferred;
+        const current = readStartupConfig(launchJsonPath)?.launchSettingsProfile ?? preferred;
         if (ask) {
             const picked = await vscode.window.showQuickPick(
                 profiles.map(profile => ({
@@ -703,12 +472,12 @@ export class DebugConfigService {
 
     /** Whether the project has several launch profiles to choose from */
     static hasLaunchProfileChoice(projectPath: string): boolean {
-        return this.readLaunchProfiles(path.dirname(projectPath)).length > 1;
+        return readLaunchProfiles(path.dirname(projectPath)).length > 1;
     }
 
     /** The names of the launch profiles of the project that `dotnet run` can use, in the order of its launchSettings.json */
     static launchProfileNames(projectPath: string): string[] {
-        return this.readLaunchProfiles(path.dirname(projectPath)).map(profile => profile.name);
+        return readLaunchProfiles(path.dirname(projectPath)).map(profile => profile.name);
     }
 
     /** Asks for another launch profile of the startup project, keeping its framework */
@@ -719,67 +488,8 @@ export class DebugConfigService {
     /** The launch profile of the "Startup" configuration, if it has one */
     static getStartupLaunchProfile(): string | undefined {
         const workspacePath = solutionWorkspaceFolder()?.uri.fsPath;
-        const profile = workspacePath ? this.readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile : undefined;
+        const profile = workspacePath ? readStartupConfig(path.join(workspacePath, '.vscode', 'launch.json'))?.launchSettingsProfile : undefined;
         return typeof profile === 'string' ? profile : undefined;
     }
 
-    /** The "Startup" configuration currently in launch.json, if any */
-    private static readStartupConfig(launchJsonPath: string): any {
-        if (!fs.existsSync(launchJsonPath)) {
-            return undefined;
-        }
-        const { value } = parseJsonc(fs.readFileSync(launchJsonPath, 'utf8'));
-        return value?.configurations?.find((config: any) => config?.name === 'Startup');
-    }
-
-    /**
-     * Profiles of Properties/launchSettings.json that `dotnet run` can launch (`commandName: "Project"`);
-     * IIS Express, Docker and similar profiles don't apply
-     */
-    private static readLaunchProfiles(projectDir: string): LaunchProfile[] {
-        const launchSettingsPath = path.join(projectDir, 'Properties', 'launchSettings.json');
-        if (!fs.existsSync(launchSettingsPath)) {
-            return [];
-        }
-
-        const { value, errors } = parseJsonc(fs.readFileSync(launchSettingsPath, 'utf8'));
-        if (errors.length > 0 || !value?.profiles || typeof value.profiles !== 'object') {
-            log.warn(`Ignoring ${launchSettingsPath}: ${errors.join(', ') || 'no profiles'}`);
-            return [];
-        }
-
-        return Object.entries(value.profiles as Record<string, any>)
-            .filter(([, profile]) => profile?.commandName === 'Project')
-            .map(([name, profile]) => ({
-                name,
-                commandLineArgs: typeof profile.commandLineArgs === 'string' ? profile.commandLineArgs : undefined,
-                environmentVariables: profile.environmentVariables && typeof profile.environmentVariables === 'object'
-                    ? Object.fromEntries(Object.entries(profile.environmentVariables as Record<string, unknown>).map(([key, value]) => [key, String(value)]))
-                    : undefined,
-                applicationUrl: typeof profile.applicationUrl === 'string' ? profile.applicationUrl : undefined,
-                launchBrowser: profile.launchBrowser === true,
-                launchUrl: typeof profile.launchUrl === 'string' ? profile.launchUrl : undefined,
-            }));
-    }
-
-    /**
-     * Opens the browser once the app logs its first URL, like Visual Studio's launchBrowser:
-     * at `launchUrl` relative to that URL, or at `launchUrl` itself when it is absolute
-     */
-    private static browserAction(launchUrl: string | undefined) {
-        return {
-            action: 'openExternally',
-            pattern: '\\bNow listening on:\\s+(https?://\\S+)',
-            uriFormat: !launchUrl ? '%s' : /^https?:\/\//i.test(launchUrl) ? launchUrl : `%s/${launchUrl.replace(/^\//, '')}`,
-        };
-    }
-}
-
-export interface LaunchProfile {
-    readonly name: string;
-    readonly commandLineArgs?: string;
-    readonly environmentVariables?: Record<string, string>;
-    readonly applicationUrl?: string;
-    readonly launchBrowser: boolean;
-    readonly launchUrl?: string;
 }
