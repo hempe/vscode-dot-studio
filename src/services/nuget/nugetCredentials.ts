@@ -74,7 +74,7 @@ export function findCredential(files: { path: string; content: string }[], sourc
             continue;
         }
         const sectionStart = section.index + section[0].indexOf(section[1]);
-        const block = new RegExp(`<${element}\\b[^>]*>([\\s\\S]*?)</${element}\\s*>`, 'i').exec(section[1]);
+        const block = new RegExp(`<${element}(?=[\\s/>])[^>]*>([\\s\\S]*?)</${element}\\s*>`, 'i').exec(section[1]);
         if (!block) {
             continue;
         }
@@ -126,11 +126,21 @@ export function setClearTextPassword(content: string, sourceName: string, userna
     const nl = content.includes('\r\n') ? '\r\n' : '\n';
     const add = (key: string, value: string) => `<add key="${key}" value="${escapeXml(value)}" />`;
 
-    const block = new RegExp(`(<${element.replace(/[.]/g, '\\.')}\\b[^>]*>)([\\s\\S]*?)(</${element.replace(/[.]/g, '\\.')}\\s*>)`, 'i').exec(content);
-    const inSection = block && /<packageSourceCredentials\b/i.test(content.slice(0, block.index))
-        && /<\/packageSourceCredentials>/i.test(content.slice(block.index));
+    // Match on a copy without comments (same offsets), edit the original
+    const masked = withoutComments(content);
+    const escaped = element.replace(/[.]/g, '\\.');
+    const found = new RegExp(`(<${escaped}(?=[\\s/>])[^>]*>)([\\s\\S]*?)(</${escaped}\\s*>)`, 'i').exec(masked);
+    const block = found && {
+        index: found.index,
+        length: found[0].length,
+        open: content.slice(found.index, found.index + found[1].length),
+        inner: content.slice(found.index + found[1].length, found.index + found[1].length + found[2].length),
+        close: content.slice(found.index + found[0].length - found[3].length, found.index + found[0].length),
+    };
+    const inSection = block && /<packageSourceCredentials\b/i.test(masked.slice(0, block.index))
+        && /<\/packageSourceCredentials>/i.test(masked.slice(block.index));
     if (block && inSection) {
-        let inner = block[2];
+        let inner = block.inner;
         const existing = /<add\b[^>]*\bkey\s*=\s*"(ClearTextPassword|Password)"[^>]*>/gi;
         const replaced = inner.replace(existing, () => add('ClearTextPassword', token));
         // Keep a single password entry
@@ -144,13 +154,13 @@ export function setClearTextPassword(content: string, sourceName: string, userna
         });
         if (!seen) {
             const indent = /\n([ \t]*)<add\b/.exec(inner)?.[1] ?? '      ';
-            inner = `${inner.replace(/\s*$/, '')}${nl}${indent}${add('ClearTextPassword', token)}${nl}${/\n([ \t]*)$/.exec(block[2])?.[1] ?? '    '}`;
+            inner = `${inner.replace(/\s*$/, '')}${nl}${indent}${add('ClearTextPassword', token)}${nl}${/\n([ \t]*)$/.exec(block.inner)?.[1] ?? '    '}`;
         }
         if (!/\bkey\s*=\s*"Username"/i.test(inner)) {
             const indent = /\n([ \t]*)<add\b/.exec(inner)?.[1] ?? '      ';
-            inner = inner.replace(/(<add\b)/i, `${add('Username', username)}${nl}${indent}$1`);
+            inner = inner.replace(/<add\b/i, match => `${add('Username', username)}${nl}${indent}${match}`);
         }
-        return content.slice(0, block.index) + block[1] + inner + block[3] + content.slice(block.index + block[0].length);
+        return content.slice(0, block.index) + block.open + inner + block.close + content.slice(block.index + block.length);
     }
 
     const credentials = [
@@ -159,11 +169,11 @@ export function setClearTextPassword(content: string, sourceName: string, userna
         `      ${add('ClearTextPassword', token)}`,
         `    </${element}>`,
     ].join(nl);
-    const sectionEnd = /([ \t]*)<\/packageSourceCredentials>/i.exec(content);
+    const sectionEnd = /([ \t]*)<\/packageSourceCredentials>/i.exec(masked);
     if (sectionEnd) {
         return content.slice(0, sectionEnd.index) + credentials + nl + content.slice(sectionEnd.index);
     }
-    const configurationEnd = content.lastIndexOf('</configuration>');
+    const configurationEnd = masked.lastIndexOf('</configuration>');
     const section = `  <packageSourceCredentials>${nl}${credentials}${nl}  </packageSourceCredentials>${nl}`;
     return configurationEnd >= 0
         ? content.slice(0, configurationEnd) + section + content.slice(configurationEnd)

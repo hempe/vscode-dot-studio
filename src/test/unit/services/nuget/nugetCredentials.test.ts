@@ -198,3 +198,56 @@ describe('nugetConfigFiles and the solution-level .nuget/NuGet.Config', () => {
         }
     });
 });
+
+describe('feeds whose names start alike', () => {
+    const both = `<configuration>
+  <packageSourceCredentials>
+    <MyFeed-Preview>
+      <add key="Username" value="a" />
+      <add key="ClearTextPassword" value="PREVIEW_SECRET" />
+    </MyFeed-Preview>
+    <MyFeed>
+      <add key="Username" value="b" />
+      <add key="ClearTextPassword" value="MAIN_SECRET" />
+    </MyFeed>
+  </packageSourceCredentials>
+</configuration>`;
+
+    it('changes only the named feed', () => {
+        const result = setClearTextPassword(both, 'MyFeed', 'b', 'NEW');
+        expect(result).toContain('PREVIEW_SECRET');
+        expect(result).toContain('NEW');
+        expect(result).not.toContain('MAIN_SECRET');
+        expect(findCredential([{ path: 'x', content: result }], 'MyFeed-Preview')).toMatchObject({ password: 'PREVIEW_SECRET' });
+    });
+
+    it('does not read the password of a feed with a longer name', () => {
+        const onlyPreview = both.replace(/<MyFeed>[\s\S]*<\/MyFeed>/, '');
+        expect(findCredential([{ path: 'x', content: onlyPreview }], 'MyFeed')).toEqual({ kind: 'none' });
+    });
+});
+
+describe('setClearTextPassword input handling', () => {
+    it('leaves commented-out credentials alone and adds real ones', () => {
+        const content = `<configuration>
+  <packageSourceCredentials>
+    <!-- <MyFeed><add key="ClearTextPassword" value="old" /></MyFeed> -->
+  </packageSourceCredentials>
+</configuration>`;
+        const result = setClearTextPassword(content, 'MyFeed', 'u', 'tok');
+        expect(result).toContain('<!-- <MyFeed><add key="ClearTextPassword" value="old" /></MyFeed> -->');
+        expect(findCredential([{ path: 'x', content: result }], 'MyFeed')).toMatchObject({ username: 'u', password: 'tok' });
+    });
+
+    it('writes a user name with $ patterns literally', () => {
+        const content = `<configuration>
+  <packageSourceCredentials>
+    <MyFeed>
+      <add key="ClearTextPassword" value="old" />
+    </MyFeed>
+  </packageSourceCredentials>
+</configuration>`;
+        const result = setClearTextPassword(content, 'MyFeed', 'u$&x', 'tok');
+        expect(findCredential([{ path: 'x', content: result }], 'MyFeed')).toMatchObject({ username: 'u$&x', password: 'tok' });
+    });
+});

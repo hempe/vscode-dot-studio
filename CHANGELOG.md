@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed, feed credentials:** entering a token for a feed (`MyFeed`) no longer rewrites the credentials of a feed whose name starts the same (`MyFeed-Preview`) and removes the first feed's own password; a token is never written into a commented-out block; a user name containing `$&` is stored as typed. If the credentials sit in a NuGet.Config inside your workspace or a git checkout, you are asked before a new token is saved there, and can save it to your user NuGet.Config instead.
 - **Solution Explorer toolbar:** one ▷ Start button (its arrow lists Start Without Debugging, Start with Hot Reload and Attach to Process...) instead of three start buttons; Sync with Active Document has a clearer icon and tooltip; Open Solution... and Create New Project... are in the toolbar's `...` menu. The view's title bar reads "Solution Explorer" and has no buttons.
 
 ## 0.1.3

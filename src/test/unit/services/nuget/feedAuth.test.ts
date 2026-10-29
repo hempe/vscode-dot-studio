@@ -54,13 +54,22 @@ describe('rejected feed credentials', () => {
     afterEach(() => fs.rmSync(workspace.dir, { recursive: true, force: true }));
 
     it('names the feed and the file, and stores a new token there', async () => {
-        ui.choices = ['Enter New Token...'];
+        ui.choices = ['Enter New Token...', 'Save Here Anyway'];
         ui.inputs = ['me', 'fresh'];
         await reportRejectedCredentials('https://pkgs.dev.azure.com/contoso/_packaging/main/nuget/v3/query2?q=x', 401);
 
-        expect(ui.warnings).toEqual(["NuGet feed 'Contoso' rejected its credentials (401 Unauthorized): the token in nuget.config has probably expired."]);
+        expect(ui.warnings[0]).toBe("NuGet feed 'Contoso' rejected its credentials (401 Unauthorized): the token in nuget.config has probably expired.");
+        expect(ui.warnings[1]).toMatch(/part of your workspace/);
         expect(readSourceCredential('Contoso', workspace.dir)).toMatchObject({ kind: 'clearText', file: configFile, username: 'me', password: 'fresh' });
         expect(ui.infos[0]).toMatch(/^Saved the token for 'Contoso'/);
+    });
+
+    it('saves nothing when the warning about a tracked config is dismissed', async () => {
+        ui.choices = ['Enter New Token...', undefined];
+        ui.inputs = ['me', 'fresh'];
+        await reportRejectedCredentials('https://pkgs.dev.azure.com/contoso/_packaging/main/nuget/v3/query2?q=x', 401);
+
+        expect(readSourceCredential('Contoso', workspace.dir)).toMatchObject({ password: `expired-${token}` });
     });
 
     it('reports the same problem once a minute, and opens the config at the token', async () => {
