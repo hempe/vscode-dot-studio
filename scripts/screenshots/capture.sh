@@ -88,7 +88,7 @@ wants() { [[ " $SCENES " == *" $1 "* ]]; }
 # Tree navigation with the Solution Explorer's own keys: the first click focuses the tree, typing jumps to a node
 # (type-to-find), Right expands it
 # The y of the first tree row: below the view title and the toolbar row of the Solution Explorer
-TREE_TOP=108
+TREE_TOP=135
 tree_focus() { key ctrl+alt+l; pause 1; click 140 "$TREE_TOP"; }
 tree_open() { for name in "$@"; do type_text "$name"; pause 1.2; key Right; pause 1.5; done; }
 tree_select() { pause 1.2; type_text "$1"; pause 1.2; }
