@@ -41,6 +41,14 @@ function configurationItems(state: ToolbarState | null): MenuItem[] {
     ];
 }
 
+/** The framework menu: the startup project's target frameworks (Auto first), then the startup profiles */
+function frameworkItems(state: ToolbarState | null): MenuItem[] {
+    return [
+        ...(state?.frameworks ?? []).map(option => ({ id: `framework:${option.value}`, label: option.label, checked: option.checked })),
+        { id: 'startupProfile', label: 'Startup Profile...', separatorBefore: !!state?.frameworks?.length },
+    ];
+}
+
 /**
  * The Solution Explorer's toolbar, a row above the tree like Visual Studio's: the title bar of a narrow view (the secondary
  * side bar) hides its icons, a row inside the view wraps instead. Left: what is built and run (configuration, framework or
@@ -53,6 +61,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, onAction, onChoose }) =
             onChoose('setConfiguration', rest.join(':'));
         } else if (kind === 'platform') {
             onChoose('setPlatform', rest.join(':'));
+        } else if (kind === 'framework') {
+            onChoose('setFramework', rest.join(':'));
         } else {
             onAction(id as ToolbarAction);
         }
@@ -68,11 +78,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, onAction, onChoose }) =
                 <span>{state?.configuration ?? 'Debug'}</span>
                 {icon('chevron-down')}
             </MenuButton>
-            <button type="button" className="toolbar-button" title="Select Framework or Startup Profile" aria-label="Select Framework"
-                style={buttonStyle} onClick={() => onAction('framework')}>
+            <MenuButton label="Target Framework or Startup Profile" items={frameworkItems(state)} onSelect={pick} align="left" className="toolbar-button" style={buttonStyle}>
                 <span>{state?.startup ?? 'Auto'}</span>
                 {icon('chevron-down')}
-            </button>
+            </MenuButton>
             <span style={{ flex: 1 }} />
             <span style={{ display: 'inline-flex' }}>
                 <button type="button" className="toolbar-button" title="Start Debugging" aria-label="Start Debugging"

@@ -273,6 +273,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         await BuildConfiguration.set(value);
                     } else if (action === 'setPlatform' && BuildConfiguration.availablePlatforms.includes(value)) {
                         await BuildConfiguration.setPlatform(value);
+                    } else if (action === 'setFramework') {
+                        const option = this._frameworkService.getFrameworkOptions().find(candidate => (candidate.value ?? '') === value);
+                        if (option) {
+                            await this._frameworkService.setActiveFramework(option.value);
+                        }
                     }
                 } else if (message.payload?.action && TOOLBAR_ACTIONS.includes(message.payload.action)) {
                     await vscode.commands.executeCommand(TOOLBAR_COMMANDS[message.payload.action]);
@@ -478,6 +483,9 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 activeConfiguration: BuildConfiguration.active,
                 platforms: BuildConfiguration.availablePlatforms,
                 activePlatform: BuildConfiguration.activePlatform,
+                frameworks: this._frameworkService.getFrameworkOptions().map(option => ({
+                    value: option.value ?? '', label: option.label, checked: option.value === this._frameworkService.getActiveFramework(),
+                })),
                 ...(startup ? { startup } : {}),
                 showAllFiles: ShowAllFiles.isOn(),
             };

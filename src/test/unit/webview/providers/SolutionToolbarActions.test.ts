@@ -43,6 +43,17 @@ describe('toolbar messages on the host', () => {
         expect(mockSetPlatform).toHaveBeenCalledWith('x64');
     });
 
+    it('sets the framework the menu picked, only when the startup project has it', async () => {
+        const setActiveFramework = jest.fn(async () => { });
+        const instance = provider() as any;
+        instance._frameworkService = { getFrameworkOptions: () => [{ label: 'Auto', value: undefined }, { label: '.NET 10.0', value: 'net10.0' }], setActiveFramework };
+        const message = (payload: object) => instance._handleMessage({ type: 'toolbarAction', payload });
+        await message({ action: 'setFramework', value: 'net10.0' });
+        await message({ action: 'setFramework', value: '' });
+        await message({ action: 'setFramework', value: 'net1.0' });
+        expect(setActiveFramework.mock.calls).toEqual([['net10.0'], [undefined]]);
+    });
+
     it('ignores a configuration or platform the solution does not have, and an action that is no button', async () => {
         await send({ action: 'setConfiguration', value: 'Nope' });
         await send({ action: 'setPlatform', value: 'arm' });

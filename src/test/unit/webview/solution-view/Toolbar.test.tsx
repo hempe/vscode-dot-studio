@@ -4,7 +4,7 @@ import { Toolbar } from '../../../../webview/solution-view/components/Toolbar';
 import { TOOLBAR_ACTIONS, TOOLBAR_COMMANDS, ToolbarState } from '../../../../types/toolbar';
 
 const state = (changes: Partial<ToolbarState> = {}): ToolbarState => ({
-    configuration: 'Debug', configurations: ['Debug', 'Release'], activeConfiguration: 'Debug', platforms: ['Any CPU'], activePlatform: 'Any CPU',
+    configuration: 'Debug', configurations: ['Debug', 'Release'], activeConfiguration: 'Debug', platforms: ['Any CPU'], activePlatform: 'Any CPU', frameworks: [],
     showAllFiles: false, ...changes,
 });
 const show = (toolbarState: ToolbarState | null, onAction: (action: string) => void = () => { }, onChoose: (choice: string, value: string) => void = () => { }) =>
@@ -17,8 +17,8 @@ describe('Toolbar', () => {
     it('shows the configuration and the framework or startup profile as dropdowns: text and an arrow', () => {
         show(state({ configuration: 'Debug | x64', startup: 'Web and Worker' }));
         expect(screen.getByLabelText('Solution Configuration').textContent).toBe('Debug | x64');
-        expect(screen.getByLabelText('Select Framework').textContent).toBe('Web and Worker');
-        for (const label of ['Solution Configuration', 'Select Framework']) {
+        expect(screen.getByLabelText('Target Framework or Startup Profile').textContent).toBe('Web and Worker');
+        for (const label of ['Solution Configuration', 'Target Framework or Startup Profile']) {
             const icons = [...screen.getByLabelText(label).querySelectorAll('.codicon')].map(element => element.className);
             expect(icons).toEqual(['codicon codicon-chevron-down']);
         }
@@ -50,10 +50,24 @@ describe('Toolbar', () => {
         expect(actions).toEqual(['startupProfile', 'configurationManager']);
     });
 
+    it('the framework menu lists the frameworks (the active one checked) and the startup profiles, and a pick reports the framework', () => {
+        const actions: string[] = [];
+        const choices: string[] = [];
+        show(state({ startup: 'net10.0', frameworks: [{ value: '', label: 'Auto', checked: false }, { value: 'net10.0', label: '.NET 10.0', checked: true }] }),
+            action => actions.push(action), (choice, value) => choices.push(`${choice}:${value}`));
+        fireEvent.click(screen.getByLabelText('Target Framework or Startup Profile'));
+        expect(menuItems().map(item => `${item.getAttribute('aria-checked') === 'true' ? '✓ ' : ''}${item.textContent}`)).toEqual(['Auto', '✓ .NET 10.0', 'Startup Profile...']);
+        fireEvent.click(menuItem('Auto'));
+        fireEvent.click(screen.getByLabelText('Target Framework or Startup Profile'));
+        fireEvent.click(menuItem('Startup Profile...'));
+        expect(choices).toEqual(['setFramework:']);
+        expect(actions).toEqual(['startupProfile']);
+    });
+
     it('has one Start button, with the other ways to start and the rest in menus, and each reports its action', () => {
         const actions: string[] = [];
         show(null, action => actions.push(action));
-        for (const label of ['Select Framework', 'Start Debugging', 'Sync with Active Document', 'Show All Files', 'Collapse All']) {
+        for (const label of ['Start Debugging', 'Sync with Active Document', 'Show All Files', 'Collapse All']) {
             fireEvent.click(screen.getByLabelText(label));
         }
         for (const [menu, item] of [['More ways to start', 'Start Without Debugging'], ['More ways to start', 'Start with Hot Reload'], ['More ways to start', 'Attach to Process...'],
