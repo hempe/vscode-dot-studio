@@ -111,6 +111,26 @@ describe('central package operations (confirmations, edits, CLI, restore)', () =
         expect(read(extra())).toContain('Version="8.1.0"');
     });
 
+    test('a project updated with the CLI is restored once, after the update (the CLI itself does not restore)', async () => {
+        await changePackageVersions([{ id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] }], 'shared', host);
+        expect(host.restore.mock.calls).toEqual([[csproj('Legacy')]]);
+        expect(host.install.mock.invocationCallOrder[0]).toBeLessThan(host.restore.mock.invocationCallOrder[0]);
+
+        host.restore.mockClear();
+        host.install.mockResolvedValue({ success: false, message: 'failed' });
+        await changePackageVersions([{ id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] }], 'shared', host);
+        expect(host.restore).not.toHaveBeenCalled();
+    });
+
+    test('several projects changed by the CLI and by edits share one restore of the solution', async () => {
+        host.ask.mockResolvedValue('Update All Projects');
+        await changePackageVersions([
+            { id: 'Serilog', version: '4.0.0', projects: [csproj('App')] },
+            { id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] },
+        ], 'shared', host);
+        expect(host.restore.mock.calls).toEqual([[path.join(root, 'Central.slnx')]]);
+    });
+
     test('projects updated with the CLI are evaluated again; a failed CLI update is not', async () => {
         await changePackageVersions([{ id: 'Polly', version: '8.2.0', projects: [csproj('Legacy')] }], 'shared', host);
         expect(host.reevaluate).toHaveBeenCalledWith([csproj('Legacy')]);

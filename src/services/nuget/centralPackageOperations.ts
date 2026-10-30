@@ -24,6 +24,7 @@ export interface OperationsHost {
     ask(message: string, detail: string, ...buttons: string[]): Promise<string | undefined>;
     /** The projects of the solution (and the given ones) with their evaluated packages */
     states(include: readonly string[]): Promise<ProjectState[]>;
+    /** `dotnet add package` without its restore: `afterEdits` restores once for all the projects it changed */
     install(projectPath: string, id: string, version: string): Promise<PackageOperationResult>;
     uninstall(projectPath: string, id: string): Promise<PackageOperationResult>;
     restore(target: string): Promise<PackageOperationResult>;
@@ -58,7 +59,7 @@ export async function solutionProjectStates(include: readonly string[] = []): Pr
 export const vscodeHost: OperationsHost = {
     ask: (message, detail, ...buttons) => Promise.resolve(vscode.window.showWarningMessage(message, { modal: true, detail }, ...buttons)),
     states: solutionProjectStates,
-    install: (projectPath, id, version) => PackageOperationsService.installPackage({ packageId: id, version, projectPath }),
+    install: (projectPath, id, version) => PackageOperationsService.installPackage({ packageId: id, version, projectPath, noRestore: true }),
     uninstall: (projectPath, id) => PackageOperationsService.uninstallPackage(projectPath, id),
     restore: target => PackageOperationsService.restorePackages(target),
     solutionPath: () => SolutionService.getActiveSolution()?.solutionPath,
@@ -130,33 +131,33 @@ async function resolveVersionProperties(edits: readonly PackageEdit[], states: r
 }
 
 /**
- * After edits: restore (the whole solution when a props file changed, it reaches every project below it) and
- * evaluate the projects whose files or props files changed, those the CLI updated (`cliUpdated`) and those below a
- * file whose version property changed (`propertyFiles`)
+ * After edits: restore, and evaluate the projects whose files or props files changed, those the CLI updated (`cliUpdated`,
+ * which did not restore) and those below a file whose version property changed (`propertyFiles`).
+ * One restore for everything: the whole solution when a props file changed (it reaches every project below it) or when
+ * more than one project changed, else the one project. Restoring after each project's own edit restored the projects
+ * they reference again each time.
  */
 async function afterEdits(
     changed: readonly string[], states: readonly ProjectState[], host: OperationsHost, cliUpdated: readonly string[] = [],
     propertyFiles: readonly string[] = [],
 ): Promise<PackageOperationResult[]> {
-    if (changed.length === 0) {
-        if (cliUpdated.length > 0) {
-            await host.reevaluate([...new Set(cliUpdated)]);
-        }
+    if (changed.length === 0 && cliUpdated.length === 0) {
         return [];
     }
     const propsChanged = changed.filter(file => !isProjectFile(file));
-    const affected = states.filter(state => changed.some(file => same(file, state.path))
+    const affected = changed.length === 0 ? [] : states.filter(state => changed.some(file => same(file, state.path))
         || (!!state.packages && centralFiles(state.packages).some(file => propsChanged.some(changedFile => same(file, changedFile))))
         // A property used as a version is read by every project below its file (Directory.Build.props is no central file)
         || propertyFiles.some(file => reaches(file, state.path)));
+    const evaluate = affected.map(state => state.path);
+    const projects = [...evaluate, ...new Set(cliUpdated.filter(projectPath => !evaluate.some(candidate => same(candidate, projectPath))))];
     const solutionPath = host.solutionPath();
-    const targets = propsChanged.length > 0 && solutionPath ? [solutionPath] : affected.map(state => state.path);
+    const targets = solutionPath && (propsChanged.length > 0 || projects.length > 1) ? [solutionPath] : projects;
     const results: PackageOperationResult[] = [];
     for (const target of targets) {
         results.push(await host.restore(target));
     }
-    const evaluate = affected.map(state => state.path);
-    await host.reevaluate([...evaluate, ...new Set(cliUpdated.filter(projectPath => !evaluate.some(candidate => same(candidate, projectPath))))]);
+    await host.reevaluate(projects);
     return results;
 }
 
