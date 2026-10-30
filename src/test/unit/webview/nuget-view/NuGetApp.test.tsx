@@ -239,6 +239,27 @@ describe('NuGet manager: refresh and package source', () => {
             expect(names()).toEqual(['Newtonsoft.Json', 'WindowsAzure.Storage']);
         });
 
+        it('the Vulnerable checkbox lists the transitive packages that are vulnerable too, and opens that section', () => {
+            jest.useFakeTimers();
+            const { container } = render(<App />);
+            post({ type: 'nugetData', payload: {
+                installedPackages: [installed('Serilog', '4.0.0')],
+                transitivePackages: [{ ...installed('System.Text.Json', '8.0.0'), transitiveReferencedBy: ['Serilog'] }, { ...installed('Newtonsoft.Json', '12.0.1'), transitiveReferencedBy: ['Serilog'] }],
+                projects: [project], searchResults: [],
+            } });
+            post({ type: 'packageAdvisories', payload: { advisories: { 'newtonsoft.json|12.0.1': { vulnerabilities: [{ severity: 'High', url: 'https://github.com/advisories/x' }] } } } });
+            const shown = () => [...container.querySelectorAll('div[style*="cursor: pointer"] span')].map(span => span.textContent).filter(text => ['Serilog', 'System.Text.Json', 'Newtonsoft.Json'].includes(text ?? ''));
+            // collapsed to start with, as in Visual Studio
+            expect(shown()).toEqual(['Serilog']);
+
+            fireEvent.click(screen.getByText('Vulnerable'));
+
+            // only the vulnerable one, from the transitive section, which is open now
+            expect(shown()).toEqual(['Newtonsoft.Json']);
+            fireEvent.click(screen.getByText('Vulnerable'));
+            expect(shown()).toEqual(['Serilog']);
+        });
+
         it('the details of a vulnerable package link the advisory', () => {
             const { container } = open();
             post({ type: 'packageAdvisories', payload: { advisories: { 'newtonsoft.json|12.0.1': { vulnerabilities: [{ severity: 'High', url: 'https://github.com/advisories/GHSA-5crp-9r3c-p9vr' }] } } } });

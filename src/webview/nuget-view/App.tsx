@@ -113,7 +113,10 @@ export const App: React.FC = () => {
 
     // Compute filtered package lists
     const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm).filter(pkg => passesAdvisoryFilter(advisoryOf(pkg), advisoryFilter));
-    const filteredTransitive = filterPackages(ensureArray(data.transitivePackages), filterTerm);
+    const filteredTransitive = filterPackages(ensureArray(data.transitivePackages), filterTerm).filter(pkg => passesAdvisoryFilter(advisoryOf(pkg), advisoryFilter));
+    // The transitive section starts collapsed; with Vulnerable or Deprecated on it is open, or the flagged ones in it would stay out of sight
+    const advisoryFilterActive = advisoryFilter.vulnerable || advisoryFilter.deprecated;
+    const transitiveShown = transitiveExpanded || advisoryFilterActive;
     // The feed Updates and Consolidate show packages of ('' = all): the ones to update from your own feed, say
     const [listSource, setListSource] = useState('');
     const fromListSource = (pkg: LocalNuGetPackage) => !listSource || pkg.sourceName === listSource;
@@ -654,7 +657,7 @@ export const App: React.FC = () => {
                 // The list that is shown (the keys walk what the rows highlight)
                 return enhancedSearchResults;
             case 'installed':
-                return [...filteredPackages, ...(transitiveExpanded ? filteredTransitive : [])];
+                return [...filteredPackages, ...(transitiveShown ? filteredTransitive : [])];
             case 'updates':
                 return filteredUpdates;
             case 'consolidate':
@@ -887,7 +890,7 @@ export const App: React.FC = () => {
                         onPackageSelect={selectPackageWithDetails}
                         getPackageIconUrl={getPackageIconUrl}
                         title="Transitive packages"
-                        collapsed={!transitiveExpanded}
+                        collapsed={!transitiveShown}
                         onToggleCollapsed={() => setTransitiveExpanded(expanded => !expanded)}
                         indexOffset={filteredPackages.length}
                         getNote={pkg => pkg.transitiveReferencedBy && `Transitively referenced by ${pkg.transitiveReferencedBy.join(', ')}`}
