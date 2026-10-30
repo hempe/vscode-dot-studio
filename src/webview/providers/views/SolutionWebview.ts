@@ -64,6 +64,14 @@ export class SolutionWebView {
                             overflow-x: hidden;
                         }
     
+                        /* The scroll bar like VS Code's own lists: thin, a transparent track, the theme's slider colours */
+                        .solution-tree::-webkit-scrollbar { width: 10px; height: 10px; }
+                        .solution-tree::-webkit-scrollbar-track,
+                        .solution-tree::-webkit-scrollbar-corner { background: transparent; }
+                        .solution-tree::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }
+                        .solution-tree::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+                        .solution-tree::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground); }
+
                         .solution-tree:focus,
                         .solution-tree:focus-visible {
                             outline: none;
