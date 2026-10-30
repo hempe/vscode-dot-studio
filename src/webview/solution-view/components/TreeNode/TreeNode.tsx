@@ -33,7 +33,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     onNodeDragOver,
     onNodeDrop,
     onNodeDragEnd,
-    onNodeHover
+    onNodeHover,
+    onMarkerHover
 }) => {
     // The single-click action waits for a possible double click; a row removed meanwhile must not act
     const clickTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -297,10 +298,12 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isFocused = focusedNodeId === nodeIdentifier;
     const marker = markers?.[nodeIdentifier];
     const markerTitle = marker ? describeMarker(marker) : undefined;
-    // A click on the marker lists the problems in the Error List, narrowed to this node
+    // The mouse over the marker shows the problems in a hint (DiagnosticsHint); a click lists them in the Error List
     const markerProps = {
-        title: markerTitle ? `${markerTitle}\nClick to list them in the Error List` : undefined,
+        'aria-label': markerTitle,
         role: 'button',
+        onMouseEnter: (e: React.MouseEvent) => onMarkerHover?.(nodeIdentifier, (e.currentTarget as HTMLElement).getBoundingClientRect()),
+        onMouseLeave: () => onMarkerHover?.(nodeIdentifier, undefined),
         onClick: (e: React.MouseEvent) => {
             e.stopPropagation();
             onProjectAction({ action: 'showDiagnostics', nodeId: nodeIdentifier });
@@ -473,6 +476,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             onNodeDrop={onNodeDrop}
                             onNodeDragEnd={onNodeDragEnd}
                             onNodeHover={onNodeHover}
+                            onMarkerHover={onMarkerHover}
                         />
                     ))}
                 </div>

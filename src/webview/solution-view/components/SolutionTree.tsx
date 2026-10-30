@@ -10,6 +10,7 @@ import { ProjectActionCmd } from '../../../types/commands/project-action';
 import { UICmd } from '../../../types/commands/ui';
 import { sendToBackend } from '../../nuget-view/shared';
 import { canDrop, dropNodeIndex, DropNode, isDraggable } from '../../../core/dropRules';
+import { DiagnosticsHint } from './DiagnosticsHint';
 import { isCopyDrag } from '../../shared/dragCopyKey';
 
 const log = logger('SolutionTree');
@@ -17,6 +18,9 @@ const log = logger('SolutionTree');
 export const DRAG_DATA_TYPE = 'application/vnd.shinobi.solution-nodes';
 /** Hovering a collapsed folder this long while dragging expands it, as in Visual Studio */
 const AUTO_EXPAND_DELAY_MS = 700;
+const HINT_OPEN_DELAY_MS = 300;
+/** Time to move the mouse from the marker onto the hint */
+const HINT_CLOSE_DELAY_MS = 250;
 export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectAction, onExpandNode, onCollapseNode, markers }) => {
     const treeRef = useRef<HTMLDivElement>(null);
     // Backend controls all expansion state - no local expansion management
@@ -192,6 +196,21 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         hoveredElement.current?.classList.remove('hovered');
         hoveredElement.current = next;
         next?.classList.add('hovered');
+    };
+    // The hint over a marker: opens after a short delay, stays while the mouse is on the marker or on the hint
+    const [hint, setHint] = useState<{ nodeId: NodeIdString; anchor: DOMRect }>();
+    const hintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const scheduleHint = (action: () => void, delay: number) => {
+        clearTimeout(hintTimer.current);
+        hintTimer.current = setTimeout(action, delay);
+    };
+    useEffect(() => () => clearTimeout(hintTimer.current), []);
+    const handleMarkerHover = (nodeId: NodeIdString, anchor: DOMRect | undefined) => {
+        if (anchor && draggedIds.current.length === 0) {
+            scheduleHint(() => setHint({ nodeId, anchor }), HINT_OPEN_DELAY_MS);
+        } else {
+            scheduleHint(() => setHint(undefined), HINT_CLOSE_DELAY_MS);
+        }
     };
     const hoverPaused = useRef(false);
     const handleNodeHover = (nodeId: NodeIdString | undefined, e: React.MouseEvent) => {
@@ -594,6 +613,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                 }
             }}
             onMouseLeave={() => setHoveredNodeId(undefined)}
+            onScroll={() => setHint(undefined)}
             onDragLeave={e => {
                 // Leaving the tree, not just moving from one row to the next
                 if (!treeRef.current?.contains(e.relatedTarget as Node | null)) {
@@ -625,8 +645,17 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     onNodeDrop={handleNodeDrop}
                     onNodeDragEnd={endDrag}
                     onNodeHover={handleNodeHover}
+                    onMarkerHover={handleMarkerHover}
                 />
             ))}
+            {hint && (
+                <DiagnosticsHint
+                    nodeId={hint.nodeId}
+                    anchor={hint.anchor}
+                    onHover={over => over ? clearTimeout(hintTimer.current) : scheduleHint(() => setHint(undefined), HINT_CLOSE_DELAY_MS)}
+                    onShowAll={() => { setHint(undefined); handleProjectActionWrapper({ action: 'showDiagnostics', nodeId: hint.nodeId }); }}
+                />
+            )}
         </div>
     );
 };

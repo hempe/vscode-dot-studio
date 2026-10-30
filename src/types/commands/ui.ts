@@ -5,6 +5,7 @@ import { SourceMapping } from "../../services/nuget/packageSourceMapping"
 import { LocalNuGetPackage } from "../../webview/nuget-view/shared"
 import { NodeIdString } from "../nodeId"
 import { IconThemePayload } from "../iconTheme"
+import { ErrorListRow } from "../errorList"
 
 export declare type ErrorCmd = {
     readonly type: 'error',
@@ -176,6 +177,16 @@ export declare type DiagnosticsCmd = {
     }
 }
 
+/** The problems below a node, for the hint over its marker (the first ones; `total` counts all) */
+export declare type NodeDiagnosticsCmd = {
+    readonly type: 'nodeDiagnostics',
+    readonly payload: {
+        readonly nodeId: NodeIdString,
+        readonly rows: ErrorListRow[],
+        readonly total: number,
+    }
+}
+
 export declare type IconThemeCmd = {
     readonly type: 'iconTheme',
     readonly payload: {
@@ -208,6 +219,7 @@ export declare type UICmd =
     StartRenameCmd |
     SelectNodeCmd |
     DiagnosticsCmd |
+    NodeDiagnosticsCmd |
     IconThemeCmd |
     ToolbarStateCmd |
     PackageAdvisoriesCmd |

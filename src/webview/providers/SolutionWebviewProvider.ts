@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ShowAllFiles } from '../../services/solution/showAllFiles';
 import { TOOLBAR_ACTIONS, TOOLBAR_COMMANDS, ToolbarState } from '../../types/toolbar';
+import { nodeRows } from '../../services/diagnostics/errorList';
+import { readSeverityFilter } from '../../services/diagnostics/diagnosticsFilter';
 import { SolutionService } from '../../services/solution/solutionService';
 import { SolutionTreeService } from '../../services/solution/solutionTreeService';
 import { SolutionActionService } from '../../services/solution/solutionActionService';
@@ -35,6 +37,8 @@ const log = logger('SolutionWebviewProvider');
 
 /** How long after a drop the tree still looks for the moved nodes to select them (a moved file waits for MSBuild) */
 const DROP_REVEAL_MS = 10000;
+/** Problems the hint over a marker lists; the Error List has the rest */
+const MAX_HINT_ROWS = 12;
 
 
 export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
@@ -346,6 +350,27 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             case 'treeSelectionChanged':
                 this._selectedNodeIds = message.payload.nodeIds;
                 break;
+
+            case 'getNodeDiagnostics': {
+                const node = SolutionTreeService.findNodeById(message.payload.nodeId, this._cachedSolutionData ?? []);
+                const projects = [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])]
+                    .map(projectPath => ({ name: path.basename(projectPath, path.extname(projectPath)), path: projectPath }));
+                const rows = node
+                    ? nodeRows(this._diagnostics.files, scopeOf(node, projectPath => ProjectItemsService.instance.get(projectPath)?.linkedEntries() ?? []), readSeverityFilter(), projects)
+                    : [];
+                sendToUi(this.webview, {
+                    type: 'nodeDiagnostics',
+                    payload: { nodeId: message.payload.nodeId, rows: rows.slice(0, MAX_HINT_ROWS).map(row => ({ ...row, message: row.message.split('\n')[0] })), total: rows.length },
+                });
+                break;
+            }
+
+            case 'openDiagnostic': {
+                const { filePath, line, column } = message.payload;
+                const position = new vscode.Position(Math.max(0, line - 1), Math.max(0, column - 1));
+                await vscode.window.showTextDocument(vscode.Uri.file(filePath), { selection: new vscode.Range(position, position) });
+                break;
+            }
 
             case 'treeFocusChanged':
                 this._focusedNodeId = message.payload.nodeId;

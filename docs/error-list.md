@@ -17,7 +17,7 @@ Visual Studio's Error List, in the panel next to Problems, Output and Terminal: 
 
 ## Problems of one node
 
-Click the count or the dot next to a node in the Solution Explorer: the Error List opens with only the problems of the files that node's marker adds up (a file, a folder, a project, a solution folder). A chip with the node's name appears in the toolbar; click it to show the whole solution again. The toggles' counts then are the node's.
+Click the count or the dot next to a node in the Solution Explorer (or the link in the box that opens when the mouse rests on it): the Error List opens with only the problems of the files that node's marker adds up (a file, a folder, a project, a solution folder). A chip with the node's name appears in the toolbar; click it to show the whole solution again. The toggles' counts then are the node's.
 
 ## Where the entries come from
 
