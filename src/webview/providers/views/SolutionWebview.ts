@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getNonce } from './nonce';
-import { scrollbarCss } from './scrollbar';
+import { allScrollbarsCss } from './scrollbar';
 export class SolutionWebView {
 
     public static getHtmlForWebview(
@@ -65,7 +65,7 @@ export class SolutionWebView {
                             overflow-x: hidden;
                         }
     
-                        ${scrollbarCss('.solution-tree')}
+                        ${allScrollbarsCss()}
 
                         .solution-tree:focus,
                         .solution-tree:focus-visible {

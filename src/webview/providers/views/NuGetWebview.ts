@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { allScrollbarsCss } from './scrollbar';
 import { getNonce } from './nonce';
 export class NuGetWebview {
 
@@ -27,6 +28,7 @@ export class NuGetWebview {
     <title>NuGet Package Manager</title>
     <link href="${codiconsCss}" rel="stylesheet">
     <style>
+        ${allScrollbarsCss()}
         @keyframes loading-progress {
             0% {
                 transform: translateX(-100%);

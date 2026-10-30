@@ -1,4 +1,4 @@
-import { scrollbarCss } from '../../../../webview/providers/views/scrollbar';
+import { allScrollbarsCss, scrollbarCss } from '../../../../webview/providers/views/scrollbar';
 
 describe('scrollbarCss', () => {
     const css = scrollbarCss('.tree');
@@ -13,5 +13,11 @@ describe('scrollbarCss', () => {
         expect(css).toContain('var(--vscode-scrollbarSlider-background)');
         expect(css).toContain('var(--vscode-scrollbarSlider-hoverBackground)');
         expect(css).toContain('var(--vscode-scrollbarSlider-activeBackground)');
+    });
+
+    it('covers the whole page for every webview', () => {
+        const all = allScrollbarsCss();
+        expect(all).toContain(':root { scrollbar-width: auto; scrollbar-color: auto; }');
+        expect(all).toContain(':root *::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }');
     });
 });

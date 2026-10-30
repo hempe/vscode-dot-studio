@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { allScrollbarsCss } from './scrollbar';
 import { getNonce } from './nonce';
 
 export class TemplateWizardWebview {
@@ -16,6 +17,7 @@ export class TemplateWizardWebview {
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}'; font-src ${webview.cspSource}; form-action 'none'; base-uri 'none';">
     <title>${title.replace(/[<>&"]/g, '')}</title>
     <style>
+        ${allScrollbarsCss()}
         body { padding: 0 20px 20px; color: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
         #root { max-width: 1200px; }
         h1 { font-size: 1.4em; font-weight: 400; margin: 16px 0; }
