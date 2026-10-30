@@ -245,14 +245,14 @@ describe('Test Explorer with dotnet', () => {
             cannotRun('dotnet or the test packages are not available');
             return;
         }
-        const project = await evaluateTestProject(projectPath, 'Debug');
         const framework = pickTestFramework(['net472', 'net8.0', 'net10.0'], await installedRuntimeMajors());
+        const project = await evaluateTestProject(projectPath, 'Debug', framework);
         expect(project).toMatchObject({ testingPlatform: false, targetFramework: framework });
         expect(project!.targetPath).toContain(`${path.sep}${framework}${path.sep}`);
 
         const explorer = new TestExplorer({ projects: () => [projectPath] });
         await explorer.refresh(true);
-        const item = mock.controller.items.get(projectPath);
+        const item = mock.controller.items.get(`${projectPath}|${framework}`);
         expect(item.error).toBeUndefined();
         const labels = (items: any): string[] => { const all: string[] = []; items.forEach((i: any) => all.push(i.label, ...labels(i.children))); return all; };
         expect(labels(item.children)).toContain('Runs');
@@ -275,9 +275,9 @@ describe('Test Explorer with dotnet', () => {
         const project = await evaluateTestProject(projectPath, 'Debug', 'net472');
         expect(project).toMatchObject({ testingPlatform: false, targetFramework: 'net472', frameworkReason: 'the selected framework', netFramework: true });
 
-        const explorer = new TestExplorer({ projects: () => [projectPath], selectedFramework: () => 'net472' });
+        const explorer = new TestExplorer({ projects: () => [projectPath] });
         await explorer.refresh(true);
-        const item = mock.controller.items.get(projectPath);
+        const item = mock.controller.items.get(`${projectPath}|net472`);
         if (item.error?.includes('Could not download')) {
             explorer.dispose();
             cannotRun(`vstest.console.exe for Mono could not be downloaded: ${item.error}`);

@@ -14,7 +14,7 @@ import { EMIT_GENERATED_FILES } from '../diagnostics/analyzers';
 import { Settings } from '../shared/settings';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
-import { evaluateTestProject, isTestProjectCandidate, projectTextWithBuildProps, testAppCommand, TestProject } from './testProjects';
+import { evaluateTestProject, isTestProjectCandidate, testFrameworks, projectTextWithBuildProps, testAppCommand, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
 import { testingPlatformRunSettings, vstestRunSettings } from './runSettings';
@@ -27,10 +27,10 @@ export interface TestExplorerDeps {
     /** Project files of the active solution */
     projects(): string[];
     readProject(projectPath: string): string;
-    /** MSBuild's view of a test project; a multi-targeted one for `selectedFramework` when it targets it */
-    evaluate(projectPath: string, configuration: string, selectedFramework?: string): Promise<TestProject | undefined>;
-    /** The solution's framework from Select Framework (the Startup launch configuration); undefined for Auto */
-    selectedFramework(): string | undefined;
+    /** The target frameworks of a multi-targeted project; none for a project with one */
+    frameworks(projectPath: string): Promise<string[]>;
+    /** MSBuild's view of a test project, for `framework` when it is multi-targeted */
+    evaluate(projectPath: string, configuration: string, framework?: string): Promise<TestProject | undefined>;
     platform(): NodeJS.Platform;
     /** Builds the project (for one framework of a multi-targeted project); false when the build failed or `signal` stopped it */
     build(projectPath: string, configuration: string, output: (text: string) => void, targetFramework?: string, signal?: AbortSignal): Promise<boolean>;
@@ -117,8 +117,8 @@ async function attachToTestHost(project: TestProject, processId: number): Promis
 const defaultDeps: TestExplorerDeps = {
     projects: () => [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])],
     readProject: projectPath => projectTextWithBuildProps(projectPath),
+    frameworks: testFrameworks,
     evaluate: evaluateTestProject,
-    selectedFramework: () => SolutionService.getActiveSolution()?.getActiveFramework() ?? undefined,
     platform: () => process.platform,
     build: (projectPath, configuration, output, targetFramework, signal) => new Promise(resolve => {
         execFile('dotnet', ['build', projectPath, '--configuration', configuration, ...(targetFramework ? ['--framework', targetFramework] : []), '-nologo', '-consoleLoggerParameters:NoSummary', ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])],
@@ -177,6 +177,9 @@ const terminal = (text: string) => text.replace(/\r?\n/g, '\r\n');
 /** The description of a test project item whose test app isn't built: nothing to discover yet */
 export const NOT_BUILT = 'not built yet: Run or refresh builds it';
 
+/** One test item per project, and per target framework when the project has several */
+const stateKey = (project: TestProject) => project.targetFramework ? `${project.projectPath}|${project.targetFramework}` : project.projectPath;
+
 interface ProjectState {
     project: TestProject;
     item: vscode.TestItem;
@@ -199,8 +202,6 @@ export class TestExplorer implements vscode.Disposable {
     private readonly vstestCases = new Map<string, VsTestCase>();
     private readonly disposables: vscode.Disposable[] = [];
     private refreshing: Promise<void> | undefined;
-    /** The selected framework the test projects were last evaluated for */
-    private evaluatedFor: string | undefined;
 
     constructor(deps: Partial<TestExplorerDeps> = {}) {
         this.deps = { ...defaultDeps, ...deps };
@@ -286,7 +287,6 @@ export class TestExplorer implements vscode.Disposable {
 
     private async doRefresh(build: boolean): Promise<void> {
         const configuration = BuildConfiguration.active;
-        this.evaluatedFor = this.deps.selectedFramework();
         const candidates = this.deps.projects().filter(projectPath => {
             try {
                 return isTestProjectCandidate(this.deps.readProject(projectPath));
@@ -295,45 +295,65 @@ export class TestExplorer implements vscode.Disposable {
             }
         });
 
-        for (const projectPath of [...this.states.keys()].filter(p => !candidates.includes(p))) {
-            const gone = this.controller.items.get(projectPath);
-            if (gone) {
-                this.forgetChildren(gone);
+        for (const [key, { project }] of [...this.states]) {
+            if (!candidates.includes(project.projectPath)) {
+                this.dropState(key);
             }
-            this.controller.items.delete(projectPath);
-            this.states.delete(projectPath);
         }
 
         // A few test projects at a time: each step starts dotnet (MSBuild, the build, the test app)
         await Promise.all(candidates.map(projectPath => dotnetQueue.next(async () => {
-            const project = await this.deps.evaluate(projectPath, configuration, this.evaluatedFor);
-            if (!project) {
-                return;
+            const frameworks = await this.deps.frameworks(projectPath);
+            const kept = new Set<string>();
+            // Every target framework is tested, as in Visual Studio. Their builds share obj/, so one after the other
+            for (const framework of frameworks.length > 0 ? frameworks : [undefined]) {
+                const project = await this.deps.evaluate(projectPath, configuration, framework);
+                if (!project) {
+                    continue;
+                }
+                if (project.targetFramework) {
+                    log.info(`${path.basename(projectPath)}: testing ${project.targetFramework}`);
+                }
+                if (!project.testingPlatform && !project.vstestConsolePath) {
+                    log.info(`${path.basename(projectPath)} uses VSTest, but MSBuild doesn't say where vstest.console is`);
+                    continue;
+                }
+                const key = stateKey(project);
+                kept.add(key);
+                let state = this.states.get(key);
+                if (!state || state.project.targetPath !== project.targetPath) {
+                    const name = path.parse(projectPath).name;
+                    const item = this.controller.createTestItem(key, project.targetFramework ? `${name} (${project.targetFramework})` : name, vscode.Uri.file(projectPath));
+                    this.controller.items.add(item);
+                    state = { project, item };
+                    this.states.set(key, state);
+                }
+                if (build) {
+                    let output = '';
+                    if (!await this.deps.build(projectPath, configuration, text => { output += text; }, project.targetFramework)) {
+                        state.item.error = buildFailure(output);
+                        log.info(`${path.basename(projectPath)}: ${buildFailure(output)}`);
+                        continue;
+                    }
+                }
+                await this.discoverIfChanged(state);
             }
-            if (project.targetFramework) {
-                log.info(`${path.basename(projectPath)}: testing ${project.targetFramework} (${project.frameworkReason})`);
-            }
-            if (!project.testingPlatform && !project.vstestConsolePath) {
-                log.info(`${path.basename(projectPath)} uses VSTest, but MSBuild doesn't say where vstest.console is`);
-                return;
-            }
-            let state = this.states.get(projectPath);
-            if (!state || state.project.targetPath !== project.targetPath) {
-                const item = this.controller.createTestItem(projectPath, path.parse(projectPath).name, vscode.Uri.file(projectPath));
-                this.controller.items.add(item);
-                state = { project, item };
-                this.states.set(projectPath, state);
-            }
-            if (build) {
-                let output = '';
-                if (!await this.deps.build(projectPath, configuration, text => { output += text; }, project.targetFramework)) {
-                    state.item.error = buildFailure(output);
-                    log.info(`${path.basename(projectPath)}: ${buildFailure(output)}`);
-                    return;
+            // A framework taken out of the project file
+            for (const [key, { project }] of [...this.states]) {
+                if (project.projectPath === projectPath && !kept.has(key)) {
+                    this.dropState(key);
                 }
             }
-            await this.discoverIfChanged(state);
         })));
+    }
+
+    private dropState(key: string): void {
+        const gone = this.controller.items.get(key);
+        if (gone) {
+            this.forgetChildren(gone);
+        }
+        this.controller.items.delete(key);
+        this.states.delete(key);
     }
 
     /**
@@ -433,8 +453,7 @@ export class TestExplorer implements vscode.Disposable {
     private async run(request: vscode.TestRunRequest, token: vscode.CancellationToken, debug: boolean): Promise<void> {
         // The refresh on load may still be adding test projects: run all of them, not those found so far
         await this.refreshing;
-        // Select Framework changed since: multi-targeted projects now run on another framework
-        if (this.states.size === 0 || this.deps.selectedFramework() !== this.evaluatedFor) {
+        if (this.states.size === 0) {
             await this.refresh(false);
         }
         const exclude = request.exclude ?? [];

@@ -11,7 +11,7 @@ Test projects of the solution show in VS Code's **Testing** view (the flask icon
 
 Which kind a project is, MSBuild decides (`IsTestingPlatformApplication`).
 
-A multi-targeted test project (`<TargetFrameworks>`) is built and run for one framework: the one picked with **Select Framework** in the Solution Explorer's toolbar (the same choice F5 uses, see [Run and debug](run-and-debug.md)) when the project targets it, `net472` included. Otherwise (Auto, or a framework the project doesn't target) the highest .NET version an installed runtime supports (else the highest .NET version, else the first framework, e.g. `net472`). A new choice takes effect with the next run or refresh. The **Shinobi .NET Studio** output says which framework each test project runs on and why.
+A multi-targeted test project (`<TargetFrameworks>`) is tested for every target framework, as in Visual Studio: the Testing view shows one item per framework (`MyTests (net8.0)`, `MyTests (net10.0)`), each with its own discovery, run and results; Run Tests on the project runs all of them. Their builds run one after the other. Select Framework (which framework F5 starts) doesn't matter for tests. A framework whose runtime isn't installed shows the error of `dotnet` on its item. The **Shinobi .NET Studio** output lists the framework each item tests.
 
 ## .NET Framework test projects (net472, net48, ...)
 
@@ -19,7 +19,7 @@ On Windows they run like any other VSTest project. On Linux and macOS they run u
 
 - The .NET SDK for Linux and macOS has no .NET Framework test host, so `dotnet test` fails there (`Cannot open assembly '.../TestHostNetFramework/testhost.net472.exe'`). The Test Explorer instead runs the tests through the .NET Framework `vstest.console.exe` of the `Microsoft.TestPlatform.Portable` package under Mono. The first run downloads that package (about 13 MB) into the NuGet packages folder and copies its runner to the temp folder.
 - Microsoft.Testing.Platform apps that target .NET Framework (xUnit v3 `net472`) are started as their own `.exe`: on Windows directly, elsewhere with `mono`; no download is needed.
-- Without Mono the project shows why in the Testing view and in the run output (`.NET Framework test projects need Mono outside Windows ...`); install Mono, or pick a modern framework with Select Framework.
+- Without Mono the project shows why in the Testing view and in the run output (`.NET Framework test projects need Mono outside Windows ...`); install Mono; the other frameworks of the project are tested without it.
 - Debugging .NET Framework tests is not supported outside Windows: the C# debugger (`coreclr`) cannot attach to Mono processes. Debug Tests says so; run them instead, or debug them on a modern framework.
 - Building needs no Developer Pack: the SDK references `Microsoft.NETFramework.ReferenceAssemblies` by itself.
 

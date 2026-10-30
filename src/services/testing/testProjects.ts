@@ -205,6 +205,11 @@ export function testProjectFrom(projectPath: string, msbuildJson: string, framew
  * A multi-targeted project has no TargetPath as a whole: it is evaluated again for the framework chooseTestFramework
  * chooses, the solution's selected framework (`selectedFramework`) when the project targets it.
  */
+/** The target frameworks of a multi-targeted project; none for a project with one */
+export async function testFrameworks(projectPath: string): Promise<string[]> {
+    return multiTargetFrameworks(await getTestProperties(projectPath, 'Debug', ['-getProperty:TargetFramework', '-getProperty:TargetFrameworks']));
+}
+
 export async function evaluateTestProject(projectPath: string, configuration: string, selectedFramework?: string): Promise<TestProject | undefined> {
     let output = await getTestProperties(projectPath, configuration, ['-getProperty:TargetFramework', '-getProperty:TargetFrameworks']);
     let framework = targetFrameworkProperty(output);

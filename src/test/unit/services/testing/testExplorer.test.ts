@@ -105,6 +105,7 @@ function explorer(overrides: Record<string, unknown> = {}) {
     return new TestExplorer({
         projects: () => [projectPath, '/repo/Lib/Lib.csproj'],
         readProject: p => p === projectPath ? '<Project><ItemGroup><PackageReference Include="xunit.v3" /></ItemGroup></Project>' : '<Project />',
+        frameworks: async () => [],
         evaluate: async p => ({ projectPath: p, targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: true }),
         build: async () => true,
         start: async (_project, args) => replayApp(args),
@@ -622,32 +623,48 @@ describe('TestExplorer', () => {
         });
     });
 
-    it('tests multi-targeted projects on the framework selected for the solution', async () => {
-        const asked: unknown[][] = [];
-        await explorer({
-            selectedFramework: () => 'net472',
-            evaluate: async (...args: unknown[]) => { asked.push(args); return { projectPath: args[0], targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: true }; },
-        }).refresh(false);
-        expect(asked).toEqual([[projectPath, 'Debug', 'net472']]);
-    });
+    describe('multi-targeted projects', () => {
+        const perFramework = (frameworks: () => string[]) => ({
+            frameworks: async () => frameworks(),
+            evaluate: async (p: string, _configuration: string, framework?: string) =>
+                ({ projectPath: p, targetPath: `/repo/X3/bin/Debug/${framework}/X3.dll`, testingPlatform: true, targetFramework: framework }),
+        });
+        const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) };
 
-    it('runs on the newly selected framework after Select Framework changed', async () => {
-        let selected = 'net8.0';
-        const asked: unknown[] = [];
-        await explorer({
-            selectedFramework: () => selected,
-            evaluate: async (p: string, _configuration: string, framework?: string) => {
-                asked.push(framework);
-                return { projectPath: p, targetPath: `/repo/X3/bin/Debug/${framework}/X3.dll`, testingPlatform: true, targetFramework: framework, frameworkReason: 'the selected framework' };
-            },
-        }).refresh(false);
-        const before = mock.controller.items.get(projectPath);
-        selected = 'net10.0';
-        const [run] = mock.controller.profiles;
+        it('lists the project once per target framework', async () => {
+            await explorer(perFramework(() => ['net8.0', 'net10.0'])).refresh(false);
+            const labels: string[] = [];
+            mock.controller.items.forEach((item: any) => labels.push(item.label));
+            expect(labels).toEqual(['X3 (net8.0)', 'X3 (net10.0)']);
+        });
 
-        await run.handler({ include: [before], exclude: [] }, { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => { } }) });
+        it('builds each framework on its own, one after the other', async () => {
+            const built: unknown[] = [];
+            await explorer({ ...perFramework(() => ['net8.0', 'net10.0']), build: async (_p: string, _c: string, _o: unknown, framework?: string) => { built.push(framework); return true; } }).refresh(true);
+            expect(built).toEqual(['net8.0', 'net10.0']);
+        });
 
-        expect(asked).toEqual(['net8.0', 'net10.0']);
-        expect(mock.runs[0].events).toEqual(expect.arrayContaining(['passed Adds', 'failed Fails']));
+        it('runs the tests of the framework asked for', async () => {
+            const started: string[] = [];
+            await explorer({
+                ...perFramework(() => ['net8.0', 'net10.0']),
+                start: async (project: { targetFramework?: string }, args: string[]) => { started.push(project.targetFramework ?? ''); return replayApp(args); },
+            }).refresh(false);
+            started.length = 0;
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: [mock.controller.items.get(`${projectPath}|net10.0`)], exclude: [] }, token);
+            expect(new Set(started)).toEqual(new Set(['net10.0']));
+        });
+
+        it('drops the item of a framework taken out of the project', async () => {
+            let frameworks = ['net8.0', 'net10.0'];
+            const tests = explorer(perFramework(() => frameworks));
+            await tests.refresh(false);
+            frameworks = ['net10.0'];
+            await tests.refresh(false);
+            const labels: string[] = [];
+            mock.controller.items.forEach((item: any) => labels.push(item.label));
+            expect(labels).toEqual(['X3 (net10.0)']);
+        });
     });
 });
