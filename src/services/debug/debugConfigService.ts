@@ -14,6 +14,7 @@ import { checkDevCertificateBeforeStart } from './devCert/devCertCheck';
 
 import { compoundConfigurationNames, hasStartupProfileConfiguration, launchJsonHasSyntaxErrors, readStartupCompound, readStartupConfig, removeStartupProfileConfiguration, updateTasksJson, upsertJsoncArrayItem } from './launch/launchFiles';
 import { determineTargetFramework, extractTargetFrameworks, resolveTargetPath } from './launch/targetFramework';
+import { Settings } from '../shared/settings';
 import { browserAction, LaunchProfile, readLaunchProfiles } from './launch/launchProfiles';
 export type { LaunchProfile } from './launch/launchProfiles';
 
@@ -323,7 +324,7 @@ export class DebugConfigService {
             program,
             ...profileSettings,
             cwd: `\${workspaceFolder}/${relativeProjectDir}`,
-            console: 'integratedTerminal',
+            console: Settings.debugConsole(),
             ...(debugType !== 'mono' && { stopAtEntry: false }), // mono type doesn't support stopAtEntry
             ...(preLaunchTask && { preLaunchTask }),
             ...(debugType !== 'mono' && profile?.launchBrowser && { serverReadyAction: browserAction(profile.launchUrl) })

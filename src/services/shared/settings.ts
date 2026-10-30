@@ -3,6 +3,11 @@ import type { FileNestingMode } from '../solution/fileNesting';
 
 /** This extension's settings (package.json `contributes.configuration`, documented in docs/settings.md) */
 export const Settings = {
+    /** Where a started project's console input and output go: the integrated terminal, a console window of its own, or the Debug Console */
+    debugConsole: () => {
+        const value = vscode.workspace.getConfiguration('shinobi.debug').get<string>('console', 'integratedTerminal');
+        return value === 'externalTerminal' || value === 'internalConsole' ? value : 'integratedTerminal';
+    },
     /** Visual Studio's File Nesting button: off, default or web */
     fileNesting: () => vscode.workspace.getConfiguration('shinobi.solutionExplorer').get<FileNestingMode>('fileNesting', 'default'),
     /** Visual Studio's "Track Active Item in Solution Explorer" */

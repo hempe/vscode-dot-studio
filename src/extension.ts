@@ -347,6 +347,10 @@ export function activate(context: vscode.ExtensionContext) {
                 await SolutionService.getActiveSolution()?.forceRefreshAllProjects();
                 solutionWebviewProvider.refresh();
             }
+            // The Startup configuration in launch.json carries the console: write it again
+            if (event.affectsConfiguration('shinobi.debug.console')) {
+                await DebugConfigService.refreshStartupConfiguration();
+            }
         }),
         // Builds write new source generator output (Dependencies > Analyzers), restores a new package graph
         vscode.tasks.onDidEndTaskProcess(event => {

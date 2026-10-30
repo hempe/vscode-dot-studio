@@ -10,6 +10,8 @@ const env = {
     pick: undefined as string | undefined,
     pickItems: undefined as undefined | { label: string; description?: string }[],
     configuration: 'Debug',
+    /** The setting shinobi.debug.console; undefined: its default */
+    console: undefined as string | undefined,
 };
 
 const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.skip;
@@ -17,7 +19,7 @@ const withDotnet = spawnSync('dotnet', ['--version']).status === 0 ? it : it.ski
 jest.mock('vscode', () => ({
     workspace: {
         get workspaceFolders() { return [{ uri: { fsPath: env.workspacePath } }]; },
-        getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }),
+        getConfiguration: () => ({ get: (key: string, fallback: unknown) => key === 'console' ? (env.console ?? fallback) : fallback }),
     },
     window: {
         showWarningMessage: async (message: string) => { env.warnings.push(message); },
@@ -46,6 +48,7 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         env.pick = undefined;
         env.pickItems = undefined;
         env.configuration = 'Debug';
+        env.console = undefined;
         fs.mkdirSync(path.join(env.workspacePath, '.vscode'));
         fs.mkdirSync(path.join(env.workspacePath, 'App'));
         projectPath = path.join(env.workspacePath, 'App', 'App.csproj');
@@ -94,6 +97,17 @@ describe('DebugConfigService.updateStartupConfiguration', () => {
         expect(fs.existsSync(`${launchJsonPath}.backup`)).toBe(false);
         expect(DebugConfigService.getStartupProject()).toBe(projectPath);
         expect(DebugConfigService.getActiveFramework()).toBe('net10.0');
+    });
+
+    it.each([
+        [undefined, 'integratedTerminal'],
+        ['externalTerminal', 'externalTerminal'],
+        ['internalConsole', 'internalConsole'],
+        ['nonsense', 'integratedTerminal'],
+    ])('the Startup configuration uses the console setting (%s): %s', async (setting, expected) => {
+        env.console = setting;
+        await DebugConfigService.updateStartupConfiguration(projectPath);
+        expect(parseJsonc(fs.readFileSync(launchJsonPath, 'utf8')).value.configurations[0].console).toBe(expected);
     });
 
     it('writes in the order asked for when the earlier one is slower (review A5-7)', async () => {

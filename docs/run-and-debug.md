@@ -31,6 +31,8 @@ IIS Express, Docker and similar profiles don't apply.
 | **Debug > Start Without Debugging** | The same without the debugger |
 | **Debug > Start with Hot Reload** | Runs the project with `dotnet watch`: code changes apply while it runs, see [Hot Reload](#hot-reload) |
 
+**Where the console goes.** The program's input and output are in a VS Code terminal. The setting `shinobi.debug.console` (see [Settings](settings.md#run--debug)) switches that to `externalTerminal`, a console window of its own as in Visual Studio's console applications, or to `internalConsole`, the Debug Console (which has no input). It applies to the next start: the `Startup` configuration in `launch.json` is rewritten when you change it, and the startup profiles use it when they start; a configuration you wrote yourself keeps its own `console`.
+
 Start New Instance uses the project's first launch profile and newest framework; on the startup project, its chosen profile and framework. If the build fails, nothing starts.
 
 ## Startup profiles (several startup projects)

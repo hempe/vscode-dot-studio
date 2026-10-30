@@ -26,6 +26,7 @@ Settings > Extensions > Shinobi .NET Studio, grouped as below.
 
 | Setting | Default | |
 |---|---|---|
+| `shinobi.debug.console` | `integratedTerminal` | Where the program started by F5, Ctrl+F5, Start New Instance and startup profiles reads and writes the console: `integratedTerminal` (a VS Code terminal), `externalTerminal` (a console window of its own, like Visual Studio's console applications) or `internalConsole` (the Debug Console, which has no input). Applies to the next start |
 | `shinobi.debug.checkDevCertificate` | `true` | When a project with an `https://` launch profile starts, check once per session whether the HTTPS development certificate is trusted and offer to trust it. Off: nothing is checked (the *Trust HTTPS Development Certificate* command still works) |
 
 ### Build

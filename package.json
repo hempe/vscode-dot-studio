@@ -148,6 +148,17 @@
       {
         "title": "Run & Debug",
         "properties": {
+          "shinobi.debug.console": {
+            "type": "string",
+            "enum": ["integratedTerminal", "externalTerminal", "internalConsole"],
+            "enumDescriptions": [
+              "The program's input and output are in a VS Code terminal.",
+              "The program gets a console window of its own, like Visual Studio's console applications.",
+              "Output goes to the Debug Console, which has no input (Console.ReadLine gets nothing)."
+            ],
+            "default": "integratedTerminal",
+            "markdownDescription": "Where the program started by F5, Ctrl+F5, Start New Instance and startup profiles reads and writes the console. Applies to the next start."
+          },
           "shinobi.debug.checkDevCertificate": {
             "type": "boolean",
             "default": true,
