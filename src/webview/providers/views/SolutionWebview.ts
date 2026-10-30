@@ -204,7 +204,7 @@ export class SolutionWebView {
                             font-weight: bold;
                         }
 
-                        /* Squiggles like the editor's: wavy for errors and warnings, dotted for infos/suggestions */
+                        /* Squiggles like the editor's: wavy for errors, warnings and infos */
                         .node-name.diagnostic-error,
                         .node-name.diagnostic-warning,
                         .node-name.diagnostic-info {
@@ -226,7 +226,6 @@ export class SolutionWebView {
                         }
 
                         .node-name.diagnostic-info {
-                            text-decoration-style: dotted;
                             text-decoration-color: var(--vscode-editorInfo-foreground);
                         }
 
