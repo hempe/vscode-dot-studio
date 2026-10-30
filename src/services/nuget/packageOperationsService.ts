@@ -47,7 +47,7 @@ export class PackageOperationsService {
             const errorMessage = cliFailureReason(error);
             // dotnet exits with an error for NU1301 (feed not reachable / unauthorized)
             void reportRejectedInOutput(`${error instanceof Error ? error.message : ''}\n${(error as { stdout?: string }).stdout ?? ''}\n${(error as { stderr?: string }).stderr ?? ''}`);
-            log.error(`Error installing package ${options.packageId} in ${path.basename(options.projectPath)}: ${errorMessage}`);
+            log.warn(`Could not install ${options.packageId} in ${path.basename(options.projectPath)}: ${errorMessage}`);
             return {
                 success: false,
                 message: `Error installing ${options.packageId}: ${errorMessage}`,
