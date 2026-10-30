@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ProjectFileParser } from '../parsers/projectFileParser';
 import { isExecutableProject, usesEntityFramework } from '../parsers/projectKind';
 import { parseTargetFrameworks } from '../parsers/targetFrameworks';
-import { isTestProjectCandidate, projectTextWithBuildProps } from '../services/testing/testProjects';
+import { confirmTestProject, isTestProjectCandidate, projectTextWithBuildProps } from '../services/testing/testProjects';
 import { CONNECTED_SERVICES, serviceFolderKind } from '../services/serviceReferences/connectedService';
 import { grpcReferenceNodes } from '../services/grpc/grpcNodes';
 import { SolutionProject } from '../types/solution';
@@ -303,6 +303,15 @@ export class Project {
             this._isExecutable = isExecutableProject(projectXml);
             const withProps = projectTextWithBuildProps(this._projectPath);
             this._isTestProject = isTestProjectCandidate(withProps);
+            if (this._isTestProject && !isTestProjectCandidate(projectXml)) {
+                // The test packages come from a props file, maybe under a condition: MSBuild says whether this project is one
+                void confirmTestProject(this._projectPath).then(confirmed => {
+                    if (!confirmed && this._isTestProject) {
+                        this._isTestProject = false;
+                        this._changeEmitter.fire();
+                    }
+                });
+            }
             this._usesEntityFramework = usesEntityFramework(withProps);
             this._isSdkStyle = /<Project\b[^>]*\bSdk\s*=/.test(projectXml) || /<Sdk\s+Name\s*=/.test(projectXml);
 

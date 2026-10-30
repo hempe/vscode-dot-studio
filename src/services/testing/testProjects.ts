@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
+import { RequestQueue } from '../../core/requestQueue';
 import { isNetFrameworkTarget } from '../../parsers/targetFrameworks';
 
 const TEST_PACKAGES = ['xunit.v3', 'xunit', 'MSTest', 'MSTest.TestFramework', 'TUnit', 'NUnit', 'Microsoft.Testing.Platform', 'Microsoft.NET.Test.Sdk'];
@@ -32,6 +33,19 @@ export function projectTextWithBuildProps(projectPath: string, readFile: (file: 
         }
     }
     return texts.join('\n');
+}
+
+const msbuildQueue = new RequestQueue(4);
+
+/**
+ * Whether MSBuild itself calls the project a test project (`IsTestProject`, or a Microsoft.Testing.Platform app): the text check
+ * also takes every project below a props file that names test packages under a condition. True when MSBuild doesn't answer.
+ */
+export function confirmTestProject(projectPath: string): Promise<boolean> {
+    return msbuildQueue.next(() => new Promise<boolean>(resolve => {
+        execFile('dotnet', ['msbuild', projectPath, '-nologo', '-getProperty:IsTestProject', '-getProperty:IsTestingPlatformApplication'],
+            { cwd: path.dirname(projectPath), timeout: 60000 }, (_error, stdout) => resolve(!parseTestProperties(stdout ?? '').notTestProject));
+    }));
 }
 
 export interface TestProject {
