@@ -63,7 +63,7 @@ Open an issue at [github.com/hempe/vscode-dot-studio/issues](https://github.com/
 
 - Encrypted NuGet passwords (Windows DPAPI) can't be read outside Windows; the NuGet manager stores a new token as clear text, or use the Azure Artifacts Credential Provider.
 - Publish targets other than Folder (Azure, container registries, FTP, IIS) are listed but not published yet.
-- .NET Framework 4.x: SDK-style projects that target it (`net48`, or `net48;net10.0`) show in the tree, build and use the NuGet manager like any other, on Linux too (the SDK supplies the reference assemblies). On Linux and macOS they run and debug with Mono and the Mono Debug extension ([Run & Debug](run-and-debug.md#net-framework-projects-on-linux-and-macos)); on Windows, and for ASP.NET on .NET Framework, use Visual Studio. Test projects that target .NET Framework aren't run by the Test Explorer.
+- .NET Framework 4.x: SDK-style projects that target it (`net48`, or `net48;net10.0`) show in the tree, build and use the NuGet manager like any other, on Linux too (the SDK supplies the reference assemblies). On Linux and macOS they run and debug with Mono and the Mono Debug extension ([Run & Debug](run-and-debug.md#net-framework-projects-on-linux-and-macos)); on Windows, and for ASP.NET on .NET Framework, use Visual Studio.
 - Old-style (non-SDK) project files and `packages.config` aren't supported.
 
 Planned features are in the [roadmap](roadmap.md).

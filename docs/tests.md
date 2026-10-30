@@ -18,6 +18,7 @@ A multi-targeted test project (`<TargetFrameworks>`) is built and run for one fr
 On Windows they run like any other VSTest project. On Linux and macOS they run under [Mono](https://www.mono-project.com/) (the `mono` command must work):
 
 - The .NET SDK for Linux and macOS has no .NET Framework test host, so `dotnet test` fails there (`Cannot open assembly '.../TestHostNetFramework/testhost.net472.exe'`). The Test Explorer instead runs the tests through the .NET Framework `vstest.console.exe` of the `Microsoft.TestPlatform.Portable` package under Mono. The first run downloads that package (about 13 MB) into the NuGet packages folder and copies its runner to the temp folder.
+- Microsoft.Testing.Platform apps that target .NET Framework (xUnit v3 `net472`) are started as their own `.exe`: on Windows directly, elsewhere with `mono`; no download is needed.
 - Without Mono the project shows why in the Testing view and in the run output (`.NET Framework test projects need Mono outside Windows ...`); install Mono, or pick a modern framework with Select Framework.
 - Debugging .NET Framework tests is not supported outside Windows: the C# debugger (`coreclr`) cannot attach to Mono processes. Debug Tests says so; run them instead, or debug them on a modern framework.
 - Building needs no Developer Pack: the SDK references `Microsoft.NETFramework.ReferenceAssemblies` by itself.

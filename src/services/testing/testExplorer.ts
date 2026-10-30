@@ -14,7 +14,7 @@ import { EMIT_GENERATED_FILES } from '../diagnostics/analyzers';
 import { Settings } from '../shared/settings';
 import { connectTestApp, TestApp, TestNode, TestSession } from './testingPlatformClient';
 import { buildTestTree, outcomeOf, TreeEntry } from './testTree';
-import { evaluateTestProject, isTestProjectCandidate, projectTextWithBuildProps, TestProject } from './testProjects';
+import { evaluateTestProject, isTestProjectCandidate, projectTextWithBuildProps, testAppCommand, TestProject } from './testProjects';
 import { connectVsTest, VsTestCase, vstestCaseNode, vstestResultNode, VsTestSession } from './vstestClient';
 import { MONO_DEBUG_UNSUPPORTED, monoVsTestConsole, needsMono } from './monoVsTest';
 import { testingPlatformRunSettings, vstestRunSettings } from './runSettings';
@@ -51,9 +51,8 @@ export interface TestExplorerDeps {
 }
 
 function startProcess(project: TestProject, args: string[], environment: Readonly<Record<string, string>>): Promise<TestApp> {
-    // A .NET Framework test app is an exe of its own; `dotnet` would look for a runtimeconfig.json and hostpolicy.dll
-    const exe = /\.exe$/i.test(project.targetPath);
-    const child = spawn(exe ? project.targetPath : 'dotnet', exe ? args : [project.targetPath, ...args], {
+    const start = testAppCommand(project, args);
+    const child = spawn(start.command, start.args, {
         cwd: path.dirname(project.projectPath),
         env: { ...process.env, TESTINGPLATFORM_TELEMETRY_OPTOUT: '1', ...environment },
     });

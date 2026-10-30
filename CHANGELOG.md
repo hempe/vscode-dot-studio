@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Fixed, Test Explorer:** a .NET Framework test app (`net472`) is started as its own exe, not through `dotnet`, which failed on Windows with "hostpolicy.dll not found"; libraries below a `Directory.Build.props` that names test packages (even only under a `Condition`) are no longer listed as test projects: MSBuild's `IsTestProject` decides.
+- **Fixed, Test Explorer:** a .NET Framework test app (`net472`, e.g. xUnit v3) is started as its own exe (with `mono` on Linux and macOS), not through `dotnet`, which failed with "hostpolicy.dll not found"; libraries below a `Directory.Build.props` that names test packages (even only under a `Condition`) are no longer listed as test projects: MSBuild's `IsTestProject` decides.
 - **Fixed, Solution Explorer:** the wavy underline of nodes with warnings and errors was clipped to a dotted line by the name's `overflow: hidden`; messages (infos) get the wavy line too, not a dotted one.
 - **Added, Solution Explorer:** click the count or dot next to a node to list its problems in the Error List, narrowed to that node (a chip clears the narrowing).
 - **Changed:** the Output log no longer holds a line per expanded tree node.

@@ -66,6 +66,15 @@ export interface TestProject {
     readonly netFramework?: boolean;
 }
 
+/** The command and arguments that start the test app: a .NET Framework exe is its own program (Windows) or runs under Mono; else `dotnet app.dll` */
+export function testAppCommand(project: TestProject, args: string[], platform: NodeJS.Platform = process.platform): { command: string; args: string[] } {
+    // `dotnet` would look for a runtimeconfig.json and hostpolicy.dll that a .NET Framework app doesn't have
+    if (!/\.exe$/i.test(project.targetPath)) {
+        return { command: 'dotnet', args: [project.targetPath, ...args] };
+    }
+    return platform === 'win32' ? { command: project.targetPath, args } : { command: 'mono', args: [project.targetPath, ...args] };
+}
+
 export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; notTestProject?: true; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
     try {
         const properties = JSON.parse(msbuildJson).Properties ?? {};

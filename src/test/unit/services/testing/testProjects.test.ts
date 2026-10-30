@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { chooseTestFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, projectTextWithBuildProps, testProjectFrom } from '../../../../services/testing/testProjects';
+import { chooseTestFramework, isTestProjectCandidate, multiTargetFrameworks, parseRuntimeMajors, parseTestProperties, pickTestFramework, projectTextWithBuildProps, testAppCommand, testProjectFrom, TestProject } from '../../../../services/testing/testProjects';
 
 const project = (items: string, properties = '') =>
     `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>${properties}</PropertyGroup><ItemGroup>${items}</ItemGroup></Project>`;
@@ -153,5 +153,20 @@ describe('test packages from Directory.Build.props (review A5-10)', () => {
 
     it('reads single-quoted package references in the project itself', () => {
         expect(isTestProjectCandidate("<Project><ItemGroup><PackageReference Include='NUnit' Version='4' /></ItemGroup></Project>")).toBe(true);
+    });
+});
+
+describe('testAppCommand', () => {
+    const exe = { projectPath: '/r/T.csproj', targetPath: '/r/bin/net472/T.exe', testingPlatform: true, netFramework: true } as TestProject;
+    const dll = { projectPath: '/r/T.csproj', targetPath: '/r/bin/net10.0/T.dll', testingPlatform: true } as TestProject;
+
+    it('starts a .NET Framework app on its own on Windows and under Mono elsewhere', () => {
+        expect(testAppCommand(exe, ['--server'], 'win32')).toEqual({ command: '/r/bin/net472/T.exe', args: ['--server'] });
+        expect(testAppCommand(exe, ['--server'], 'linux')).toEqual({ command: 'mono', args: ['/r/bin/net472/T.exe', '--server'] });
+        expect(testAppCommand(exe, ['--server'], 'darwin')).toEqual({ command: 'mono', args: ['/r/bin/net472/T.exe', '--server'] });
+    });
+
+    it('starts a .NET app with dotnet', () => {
+        expect(testAppCommand(dll, ['--server'], 'win32')).toEqual({ command: 'dotnet', args: ['/r/bin/net10.0/T.dll', '--server'] });
     });
 });
