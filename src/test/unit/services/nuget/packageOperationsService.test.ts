@@ -32,7 +32,8 @@ describe('PackageOperationsService', () => {
             const result = await PackageOperationsService.installPackage({ projectPath: '/w/App.csproj', packageId: 'X' });
 
             expect(result).toMatchObject({ success: false, packageId: 'X', projectPath: '/w/App.csproj' });
-            expect(result.message).toContain('Command failed');
+            // the reason from the CLI's output, not only "Command failed"
+            expect(result.message).toBe('Error installing X: NU1301: Unable to load the service index');
             expect((reportRejectedInOutput as jest.Mock).mock.calls[0][0]).toContain('NU1301');
         });
     });

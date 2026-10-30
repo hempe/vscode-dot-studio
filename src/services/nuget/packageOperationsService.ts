@@ -7,6 +7,18 @@ import { execDotnet } from './dotnetCli';
 const log = logger('PackageOperationsService');
 
 /**
+ * Why a dotnet command failed, in one line: the `error:` lines of its output (the CLI prints them to stdout, and the
+ * message of the exception then has only "Command failed: dotnet add ..."), else the exception's first line
+ */
+export function cliFailureReason(error: unknown): string {
+    const { stdout = '', stderr = '', message = '' } = (error ?? {}) as { stdout?: string; stderr?: string; message?: string };
+    const errors = `${stderr}\n${stdout}`.split(/\r?\n/)
+        .map(line => /^\s*(?:error|fail)\b\s*:?\s*(.+)$/i.exec(line)?.[1]?.replace(/\s+-\s*$/, '').trim())
+        .filter((line): line is string => !!line);
+    return errors.length > 0 ? [...new Set(errors)].join(' ') : (message.split(/\r?\n/)[0] || 'Unknown error');
+}
+
+/**
  * NuGet package operations (install, uninstall, restore) with the dotnet CLI. A command that fails exits with an error
  * code, which `execDotnet` turns into a rejection: the output of a successful run is not searched for "error" (a folder
  * `error-pages`, a package named so).
@@ -32,10 +44,10 @@ export class PackageOperationsService {
                 projectPath: options.projectPath
             };
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorMessage = cliFailureReason(error);
             // dotnet exits with an error for NU1301 (feed not reachable / unauthorized)
-            void reportRejectedInOutput(`${errorMessage}\n${(error as { stdout?: string }).stdout ?? ''}\n${(error as { stderr?: string }).stderr ?? ''}`);
-            log.error(`Error installing package ${options.packageId}:`, error);
+            void reportRejectedInOutput(`${error instanceof Error ? error.message : ''}\n${(error as { stdout?: string }).stdout ?? ''}\n${(error as { stderr?: string }).stderr ?? ''}`);
+            log.error(`Error installing package ${options.packageId} in ${path.basename(options.projectPath)}: ${errorMessage}`);
             return {
                 success: false,
                 message: `Error installing ${options.packageId}: ${errorMessage}`,

@@ -198,7 +198,13 @@ export class NuGetV3Service {
                     }
 
                     if (response.statusCode !== 200) {
-                        log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode}`);
+                        // A 404 is the feed not having the package, which is the usual answer of a private feed for a public package
+                        const note = `No package details for ${packageId} on ${packageSource.name}, status code: ${response.statusCode}`;
+                        if (response.statusCode === 404) {
+                            log.debug(note);
+                        } else {
+                            log.warn(note);
+                        }
                         break;
                     }
 
