@@ -30,6 +30,8 @@ export class ErrorListWebview {
         th { text-align: left; font-weight: 600; padding: 3px 6px; position: sticky; top: 31px; background: var(--vscode-panel-background);
             border-bottom: 1px solid var(--vscode-panel-border); white-space: nowrap; user-select: none; z-index: 1; }
         th .sort { cursor: pointer; }
+        th .resizer { position: absolute; top: 0; bottom: 0; right: 0; width: 5px; cursor: col-resize; }
+        th .resizer:hover { background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)); }
         th .filter { margin-left: 4px; cursor: pointer; opacity: 0.6; border: none; background: none; color: inherit; padding: 0 2px; }
         th .filter.active { opacity: 1; color: var(--vscode-focusBorder); }
         td { padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

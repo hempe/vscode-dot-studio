@@ -97,12 +97,16 @@ const COLUMNS: { column: Column; label: string; width: string; filter?: FilterCo
     { column: 'line', label: 'Line', width: '60px' },
 ];
 
+const MIN_COLUMN_WIDTH = 30;
+
 const ICONS: Record<ErrorListRow['severity'], string> = { error: 'error', warning: 'warning', info: 'info' };
 
 export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
     const [data, setData] = useState<{ rows: ErrorListRow[]; filter: ErrorListFilter; summary: ErrorListSummary; hasSolution: boolean; scope?: string }>();
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState<{ column: Column; descending: boolean }>();
+    /** Widths the user dragged the column borders to, in px; the others keep their default */
+    const [widths, setWidths] = useState<Partial<Record<Column, number>>>({});
     const [excluded, setExcluded] = useState<Partial<Record<FilterColumn, Set<string>>>>({});
 
     useEffect(() => {
@@ -131,6 +135,23 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
         </button>
     );
     const open = (row: ErrorListRow) => api.postMessage({ type: 'open', filePath: row.filePath, line: row.line, column: row.column });
+    const startResize = (column: Column, event: React.MouseEvent<HTMLElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const startX = event.clientX;
+        const startWidth = event.currentTarget.parentElement?.getBoundingClientRect().width ?? 0;
+        const move = (moved: MouseEvent) => setWidths(current => ({ ...current, [column]: Math.max(MIN_COLUMN_WIDTH, startWidth + moved.clientX - startX) }));
+        const stop = () => {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', stop);
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', stop);
+    };
+    const resetWidth = (column: Column) => setWidths(current => {
+        const { [column]: _removed, ...rest } = current;
+        return rest;
+    });
     const sortBy = (column: Column) => setSort(current => current?.column === column ? { column, descending: !current.descending } : { column, descending: false });
 
     const hiddenBySeverity = data.rows.filter(row => !filter[SHOWN[row.severity]]).length;
@@ -156,7 +177,7 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
                 </span>
             </div>
             <table>
-                <colgroup>{COLUMNS.map(c => <col key={c.column} style={{ width: c.width }} />)}</colgroup>
+                <colgroup>{COLUMNS.map(c => <col key={c.column} style={{ width: widths[c.column] !== undefined ? `${widths[c.column]}px` : c.width }} />)}</colgroup>
                 <thead>
                     <tr>
                         {COLUMNS.map(c => (
@@ -165,6 +186,8 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
                                     {c.label}
                                     {sort?.column === c.column && <span className={`codicon codicon-chevron-${sort.descending ? 'down' : 'up'}`} />}
                                 </span>
+                                <span className="resizer" role="separator" aria-orientation="vertical" aria-label={`Resize ${c.label || 'severity'} column`}
+                                    title="Drag to resize, double-click to reset" onMouseDown={e => startResize(c.column, e)} onDoubleClick={() => resetWidth(c.column)} />
                                 {c.filter && (
                                     <ColumnFilter column={c.filter} values={valuesOf(c.filter)} excluded={excluded[c.filter]}
                                         onChange={next => setExcluded(current => ({ ...current, [c.filter!]: next }))} />

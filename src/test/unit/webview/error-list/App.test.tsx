@@ -111,4 +111,19 @@ describe('visibleRows', () => {
         receive({ type: 'rows', rows: [], filter: allShown, summary: { errors: 0, warnings: 0, infos: 0 }, hasSolution: true, scope: 'Api' });
         expect(screen.getByText('No errors, warnings or messages in Api.')).toBeInTheDocument();
     });
+
+    it('resizes a column by dragging its border, and resets it on a double click', () => {
+        renderList();
+        const width = () => (document.querySelectorAll('col')[1] as HTMLElement).style.width;
+        expect(width()).toBe('110px');
+        const handle = screen.getByLabelText('Resize Code column');
+        fireEvent.mouseDown(handle, { clientX: 100 });
+        fireEvent.mouseMove(document, { clientX: 160 });
+        fireEvent.mouseUp(document);
+        expect(width()).toBe('60px');
+        fireEvent.mouseMove(document, { clientX: 400 });
+        expect(width()).toBe('60px');
+        fireEvent.doubleClick(handle);
+        expect(width()).toBe('110px');
+    });
 });

@@ -12,6 +12,7 @@ Visual Studio's Error List, in the panel next to Problems, Output and Terminal: 
 
 - **Errors / Warnings / Messages** toggles show or hide each severity. Messages are infos and suggestions (the editor's `···` hints), which VS Code's Problems panel never shows; they are off by default. The toggles are the settings `shinobi.diagnostics.showErrors`, `showWarnings` and `showInfos`, and also decide which markers the [Solution Explorer](solution-explorer.md#errors-in-the-tree) shows.
 - **Sort** by any column (click its header), **search** all columns, and **filter** Code, Project and File by their values (the filter icon in the header), like Visual Studio's column filters.
+- **Resize** a column by dragging the right border of its header; a double click on the border sets the width back. The widths are kept while the panel is open, not across restarts.
 - The tab badge shows the number of errors.
 
 ## Problems of one node
