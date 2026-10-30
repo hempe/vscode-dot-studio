@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getNonce } from './nonce';
+import { scrollbarCss } from './scrollbar';
 
 export class ErrorListWebview {
 
@@ -16,7 +17,7 @@ export class ErrorListWebview {
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}'; font-src ${webview.cspSource}; form-action 'none'; base-uri 'none';">
     <link href="${codiconsCss}" rel="stylesheet">
     <style>
-        html { scrollbar-color: var(--vscode-scrollbarSlider-background) transparent; }
+        ${scrollbarCss('html')}
         body { padding: 0; margin: 0; color: var(--vscode-foreground); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
         .toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; position: sticky; top: 0; background: var(--vscode-panel-background); z-index: 2; }
         .toolbar .search { flex: 1; max-width: 360px; margin-left: auto; }

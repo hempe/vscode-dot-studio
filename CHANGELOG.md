@@ -8,7 +8,7 @@
 - **Added, Error List:** columns can be resized by dragging the border of their header (double-click resets).
 - **Changed, Test Explorer:** a multi-targeted test project is tested for every target framework (`MyTests (net8.0)`, `MyTests (net10.0)`), not only the one Select Framework or the automatic pick chose.
 - **Fixed, Solution Explorer:** the tree scrolls again (touchpad, wheel, scroll bar) when it is taller than the view: its container cut the rows off instead of letting the tree scroll.
-- **Changed, Solution Explorer and Error List:** the scroll bars are thin with the theme's slider colours, like VS Code's own lists.
+- **Changed, Solution Explorer and Error List:** the scroll bars are thin, without arrow buttons, with a transparent track and a translucent thumb in the theme's slider colours, like VS Code's own lists.
 - **Changed:** the Output log no longer holds a line per expanded tree node.
 
 ## 0.2.0

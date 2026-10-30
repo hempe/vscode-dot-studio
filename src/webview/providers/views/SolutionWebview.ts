@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getNonce } from './nonce';
+import { scrollbarCss } from './scrollbar';
 export class SolutionWebView {
 
     public static getHtmlForWebview(
@@ -64,19 +65,7 @@ export class SolutionWebView {
                             overflow-x: hidden;
                         }
     
-                        /* TEST: extremely visible, to see what is applied. VS Code's webview stylesheet may set scrollbar-color on the page, and where
-                           it is not auto Chromium ignores the ::-webkit-scrollbar rules: reset it here so these win */
-                        .solution-tree {
-                            scrollbar-width: auto;
-                            scrollbar-color: auto;
-                        }
-                        .solution-tree::-webkit-scrollbar { width: 20px; height: 20px; background: lime; }
-                        .solution-tree::-webkit-scrollbar-track { background: lime; }
-                        .solution-tree::-webkit-scrollbar-corner { background: yellow; }
-                        .solution-tree::-webkit-scrollbar-button { display: block; height: 16px; background: cyan; }
-                        .solution-tree::-webkit-scrollbar-thumb { background: hotpink; border: 3px solid red; }
-                        .solution-tree::-webkit-scrollbar-thumb:hover { background: blue; }
-                        .solution-tree::-webkit-scrollbar-thumb:active { background: orange; }
+                        ${scrollbarCss('.solution-tree')}
 
                         .solution-tree:focus,
                         .solution-tree:focus-visible {
