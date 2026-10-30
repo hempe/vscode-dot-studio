@@ -7,7 +7,7 @@ import { nodeIdToKey } from '../../../shared/nodeIdUtils';
 import { sln } from '../../../../core/utils';
 import { ENTITY_FRAMEWORK_PROJECT, IN_TEST_PROJECT } from '../../../../core/contextMenus';
 import { isDraggable } from '../../../../core/dropRules';
-import { describeMarker, markerCount } from './diagnosticMarker';
+import { describeMarker } from './diagnosticMarker';
 import { IconThemeContext, themeFontFamily } from './IconThemeContext';
 import { fontGlyph, resolveThemeIcon } from '../../../shared/iconTheme';
 
@@ -298,11 +298,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isFocused = focusedNodeId === nodeIdentifier;
     const marker = markers?.[nodeIdentifier];
     const markerTitle = marker ? describeMarker(marker) : undefined;
-    // The mouse over the marker opens a hint (DiagnosticsHint) with a link to the Error List; the marker itself does nothing
+    // A node with problems has the squiggle and, instead of the native tooltip, a hint (DiagnosticsHint) with its name and a link to the Error List
     const markerProps = {
-        'aria-label': markerTitle,
-        onMouseEnter: (e: React.MouseEvent) => onMarkerHover?.(nodeIdentifier, (e.currentTarget as HTMLElement).getBoundingClientRect()),
-        onMouseLeave: () => onMarkerHover?.(nodeIdentifier, undefined),
+        'aria-label': markerTitle ? `${node.name}, ${markerTitle}` : node.name,
+        onMouseEnter: (e: React.MouseEvent) => onMarkerHover?.(nodeIdentifier, (e.currentTarget as HTMLElement).getBoundingClientRect(), node.name),
+        onMouseLeave: () => onMarkerHover?.(nodeIdentifier, undefined, node.name),
     };
 
     // Memoize icon configuration to prevent multiple calls during render
@@ -436,11 +436,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                     <>
                         <span
                             className={`node-name ${node.isStartupProject ? 'startup-project' : ''} ${marker ? `diagnostic-${marker.severity}` : ''}`}
-                            title={markerTitle ? `${node.name}\n${markerTitle}` : node.name}
+                            {...(marker ? markerProps : { title: node.name })}
                         >{node.isUnloaded ? `${node.name} (unloaded)` : node.name}</span>
-                        {marker && (node.type === 'file' || node.type === 'solutionItem'
-                            ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} {...markerProps}>{markerCount(marker)}</span>
-                            : <span className={`diagnostic-dot diagnostic-${marker.severity}`} {...markerProps} />)}
                     </>
                 )}
             </div>

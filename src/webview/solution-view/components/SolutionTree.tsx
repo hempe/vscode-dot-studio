@@ -199,16 +199,16 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         next?.classList.add('hovered');
     };
     // The hint over a marker: opens after a short delay, stays while the mouse is on the marker or on the hint
-    const [hint, setHint] = useState<{ nodeId: NodeIdString; anchor: DOMRect }>();
+    const [hint, setHint] = useState<{ nodeId: NodeIdString; anchor: DOMRect; name: string }>();
     const hintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const scheduleHint = (action: () => void, delay: number) => {
         clearTimeout(hintTimer.current);
         hintTimer.current = setTimeout(action, delay);
     };
     useEffect(() => () => clearTimeout(hintTimer.current), []);
-    const handleMarkerHover = (nodeId: NodeIdString, anchor: DOMRect | undefined) => {
+    const handleMarkerHover = (nodeId: NodeIdString, anchor: DOMRect | undefined, name: string) => {
         if (anchor && draggedIds.current.length === 0) {
-            scheduleHint(() => setHint({ nodeId, anchor }), HINT_OPEN_DELAY_MS);
+            scheduleHint(() => setHint({ nodeId, anchor, name }), HINT_OPEN_DELAY_MS);
         } else {
             scheduleHint(() => setHint(undefined), HINT_CLOSE_DELAY_MS);
         }
@@ -651,6 +651,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             ))}
             {hint && (
                 <DiagnosticsHint
+                    name={hint.name}
                     text={markers?.[hint.nodeId] ? describeMarker(markers[hint.nodeId]) : ''}
                     anchor={hint.anchor}
                     onHover={over => over ? clearTimeout(hintTimer.current) : scheduleHint(() => setHint(undefined), HINT_CLOSE_DELAY_MS)}

@@ -178,9 +178,7 @@ export class SolutionWebView {
 
                         .node-icon,
                         .expand-icon,
-                        .expand-icon-placeholder,
-                        .diagnostic-badge,
-                        .diagnostic-dot {
+                        .expand-icon-placeholder {
                             flex-shrink: 0;
                         }
 
@@ -244,9 +242,10 @@ export class SolutionWebView {
                             padding: 2px 0;
                             max-width: calc(100vw - 16px);
                         }
+                        .diagnostics-hint-name { padding: 3px 10px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                         .diagnostics-hint-link {
                             display: block;
-                            padding: 3px 10px;
+                            padding: 1px 10px 3px;
                             border: none;
                             background: none;
                             color: var(--vscode-textLink-foreground);
@@ -256,41 +255,6 @@ export class SolutionWebView {
                         }
                         .diagnostics-hint-link:hover { text-decoration: underline; }
 
-                        .diagnostic-badge,
-                        .diagnostic-dot {
-                            margin-left: auto;
-                            padding-left: 8px;
-                            margin-right: 8px;
-                            flex-shrink: 0;
-                        }
-
-                        .diagnostic-badge {
-                            font-size: 11px;
-                        }
-
-                        .diagnostic-dot {
-                            width: 6px;
-                            height: 6px;
-                            padding-left: 0;
-                            border-radius: 50%;
-                            background-color: currentColor;
-                        }
-
-                        .diagnostic-badge.diagnostic-error,
-                        .diagnostic-dot.diagnostic-error {
-                            color: var(--vscode-editorError-foreground);
-                        }
-
-                        .diagnostic-badge.diagnostic-warning,
-                        .diagnostic-dot.diagnostic-warning {
-                            color: var(--vscode-editorWarning-foreground);
-                        }
-
-                        .diagnostic-badge.diagnostic-info,
-                        .diagnostic-dot.diagnostic-info {
-                            color: var(--vscode-editorInfo-foreground);
-                        }
-    
                         .expand-icon {
                             margin-right: 4px;
                             font-size: 12px;

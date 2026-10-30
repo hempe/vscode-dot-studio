@@ -23,44 +23,39 @@ const markers = {
 } as unknown as DiagnosticMarkers;
 
 describe('TreeNode diagnostics markers', () => {
-    test('a file shows its colour and a count badge for the most severe state', () => {
+    test('a node with problems gets the squiggle of its most severe state, and no count or dot', () => {
         const { container } = render(<TreeNode {...props} node={fileNode} markers={markers} />);
         expect(screen.getByText('Program.cs')).toHaveClass('diagnostic-error');
-        const badge = container.querySelector('.diagnostic-badge');
-        expect(badge).toHaveTextContent('3');
-        expect(badge).toHaveAttribute('aria-label', '3 errors, 2 warnings');
-        expect(container.querySelector('.diagnostic-dot')).toBeNull();
+        expect(container.querySelector('.diagnostic-badge, .diagnostic-dot')).toBeNull();
+        const folder = render(<TreeNode {...props} node={folderNode} markers={markers} />);
+        expect(folder.getByText('Controllers')).toHaveClass('diagnostic-warning');
     });
 
-    test('a folder shows a dot instead of a count', () => {
-        const { container } = render(<TreeNode {...props} node={folderNode} markers={markers} />);
-        expect(screen.getByText('Controllers')).toHaveClass('diagnostic-warning');
-        expect(container.querySelector('.diagnostic-dot')).toHaveAttribute('aria-label', '1 warning');
-        expect(container.querySelector('.diagnostic-badge')).toBeNull();
+    test('the name of such a node has no native tooltip (its hint replaces it) but says its problems to screen readers', () => {
+        render(<TreeNode {...props} node={fileNode} markers={markers} />);
+        const name = screen.getByText('Program.cs');
+        expect(name).not.toHaveAttribute('title');
+        expect(name).toHaveAttribute('aria-label', 'Program.cs, 3 errors, 2 warnings');
     });
 
-    test('a click on the marker does nothing, not even select the row', () => {
-        const onProjectAction = jest.fn();
-        const { container } = render(<TreeNode {...props} onProjectAction={onProjectAction} node={folderNode} markers={markers} />);
-        fireEvent.click(container.querySelector('.diagnostic-dot')!);
-        expect(onProjectAction).not.toHaveBeenCalled();
-        expect(container.querySelector('.diagnostic-dot')).not.toHaveAttribute('role', 'button');
-    });
-
-    test('the mouse over the marker reports it with its box, and leaving reports that', () => {
+    test('the mouse over the name reports it with its box and the name, and leaving reports that', () => {
         const onMarkerHover = jest.fn();
-        const { container } = render(<TreeNode {...props} onMarkerHover={onMarkerHover} node={folderNode} markers={markers} />);
-        const dot = container.querySelector('.diagnostic-dot')!;
-        fireEvent.mouseEnter(dot);
-        fireEvent.mouseLeave(dot);
-        expect(onMarkerHover.mock.calls.map(call => call[0])).toEqual(['folder-1', 'folder-1']);
+        render(<TreeNode {...props} onMarkerHover={onMarkerHover} node={folderNode} markers={markers} />);
+        const name = screen.getByText('Controllers');
+        fireEvent.mouseEnter(name);
+        fireEvent.mouseLeave(name);
+        expect(onMarkerHover.mock.calls.map(call => [call[0], call[2]])).toEqual([['folder-1', 'Controllers'], ['folder-1', 'Controllers']]);
         expect(onMarkerHover.mock.calls[1][1]).toBeUndefined();
     });
 
-    test('nodes without a marker render as before', () => {
-        const { container } = render(<TreeNode {...props} node={fileNode} markers={{} as DiagnosticMarkers} />);
-        expect(screen.getByText('Program.cs').className).not.toMatch(/diagnostic-/);
-        expect(container.querySelector('.diagnostic-badge, .diagnostic-dot')).toBeNull();
+    test('nodes without problems keep the native tooltip with their name and open no hint', () => {
+        const onMarkerHover = jest.fn();
+        render(<TreeNode {...props} onMarkerHover={onMarkerHover} node={fileNode} markers={{} as DiagnosticMarkers} />);
+        const name = screen.getByText('Program.cs');
+        expect(name.className).not.toMatch(/diagnostic-/);
+        expect(name).toHaveAttribute('title', 'Program.cs');
+        fireEvent.mouseEnter(name);
+        expect(onMarkerHover).not.toHaveBeenCalled();
     });
 
     test('children receive their markers', () => {

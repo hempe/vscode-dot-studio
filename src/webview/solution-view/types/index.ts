@@ -33,8 +33,8 @@ export interface TreeNodeProps {
     /** The row under the mouse: a class, not CSS :hover, which Chromium moves to a wrong row after a drop */
     /** A mouseover or mousemove on the row */
     onNodeHover?: (nodeId: NodeIdString, e: MouseEvent) => void;
-    /** The mouse enters (with the marker's box) or leaves a diagnostic marker: its hint opens and closes */
-    onMarkerHover?: (nodeId: NodeIdString, anchor: DOMRect | undefined) => void;
+    /** The mouse enters (with the name's box) or leaves the name of a node with problems: its hint opens and closes */
+    onMarkerHover?: (nodeId: NodeIdString, anchor: DOMRect | undefined, name: string) => void;
 }
 
 export interface SolutionTreeProps {
