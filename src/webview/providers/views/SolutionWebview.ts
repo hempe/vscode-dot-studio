@@ -95,9 +95,14 @@ export class SolutionWebView {
                             font-size: 11px;
                         }
     
+                        /* A flex column with min-height 0, so .solution-tree gets the height that is left and scrolls (with overflow: hidden here
+                           the tree was as tall as its rows and the rest was cut off) */
                         .content {
                             flex: 1;
-                            overflow: hidden;
+                            min-height: 0;
+                            display: flex;
+                            flex-direction: column;
+                            overflow: auto;
                             padding-block: 6px;
                         }
     
