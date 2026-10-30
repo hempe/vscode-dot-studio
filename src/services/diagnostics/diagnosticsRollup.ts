@@ -95,3 +95,48 @@ function toMarker(counts: DiagnosticCounts): NodeMarker | undefined {
     const severity = counts.errors ? 'error' : counts.warnings ? 'warning' : counts.infos ? 'info' : undefined;
     return severity && { severity, ...counts };
 }
+
+/** The files a tree node stands for, as the markers count them: folders by prefix, files by exact path (both `normalizePath`ed) */
+export interface DiagnosticScope {
+    readonly prefixes: readonly string[];
+    readonly files: readonly string[];
+}
+
+/** The files whose diagnostics the node's marker adds up */
+export function scopeOf(node: ProjectNode, linkedOf: LinkedFilesOf = () => []): DiagnosticScope {
+    const prefixes: string[] = [];
+    const files: string[] = [];
+    const collect = (current: ProjectNode, projectPath: string | undefined) => {
+        const nodeId = NodeIdService.tryParse(current.nodeId);
+        const owner = nodeId?.type === 'project' ? nodeId.path : projectPath;
+        const linked = owner ? linkedOf(owner) : [];
+        const addDirectory = (directory: string) => {
+            const prefix = normalizePath(directory + path.sep);
+            prefixes.push(prefix);
+            for (const item of linked) {
+                if (normalizePath(item.virtualPath).startsWith(prefix) && !normalizePath(item.fullPath).startsWith(prefix)) {
+                    files.push(normalizePath(item.fullPath));
+                }
+            }
+        };
+        switch (nodeId?.type) {
+            case 'file':
+            case 'solutionItem':
+                files.push(normalizePath(nodeId.path));
+                break;
+            case 'folder':
+                addDirectory(nodeId.path);
+                return;
+            case 'project':
+                addDirectory(path.dirname(nodeId.path));
+                return;
+        }
+        (current.children ?? []).forEach(child => collect(child, owner));
+    };
+    collect(node, undefined);
+    return { prefixes, files };
+}
+
+export function inScope(normalizedFile: string, scope: DiagnosticScope): boolean {
+    return scope.files.includes(normalizedFile) || scope.prefixes.some(prefix => normalizedFile.startsWith(prefix));
+}

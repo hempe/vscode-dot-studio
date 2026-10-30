@@ -284,6 +284,7 @@ export class SolutionActionService {
             case 'addFolder':
             case 'addNewItem':
             case 'cancelTemporaryNode':
+            case 'showDiagnostics':
                 // These actions are handled by the webview provider, not here
                 log.info(`${cmd.action} action is handled by webview provider`);
                 break;

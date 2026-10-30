@@ -6,6 +6,7 @@ import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProv
 import { DiagnosticsService } from './services/diagnostics/diagnosticsService';
 import { IconThemeService } from './services/shared/iconThemeService';
 import { DotnetTaskProvider, DOTNET_TASK_TYPE } from './services/build/dotnetTaskProvider';
+import type { DiagnosticScope } from './services/diagnostics/diagnosticsRollup';
 import { ErrorListViewProvider, ERROR_LIST_VIEW } from './webview/providers/ErrorListViewProvider';
 import { registerNativeContextMenuCommands } from './webview/providers/nativeContextMenu';
 import { NuGetCustomEditorProvider } from './webview/providers/NuGetCustomEditorProvider';
@@ -324,6 +325,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('shinobi.startupProjects.open', () => StartupProjectsPanel.show()),
         vscode.commands.registerCommand('shinobi.codeCleanup.file', () => runCodeCleanupOnActiveFile()),
         vscode.commands.registerCommand('shinobi.solution.new', () => openNewSolutionWizard()),
+        vscode.commands.registerCommand('shinobi.internal.errorList.showScope', (name: string, scope: DiagnosticScope) => errorList.showScope(name, scope)),
         vscode.commands.registerCommand('shinobi.errorList.show', () => vscode.commands.executeCommand(`${ERROR_LIST_VIEW}.focus`)),
         vscode.commands.registerCommand('shinobi.internal.refreshSolution', () => {
             // Clear cache to force fresh data rebuild (needed for startup project changes)

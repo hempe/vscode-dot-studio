@@ -30,11 +30,12 @@ export interface ErrorListFilter {
 
 /** Extension → webview */
 export type ErrorListMessage =
-    | { readonly type: 'rows'; readonly rows: ErrorListRow[]; readonly filter: ErrorListFilter; readonly summary: ErrorListSummary; readonly hasSolution: boolean };
+    | { readonly type: 'rows'; readonly rows: ErrorListRow[]; readonly filter: ErrorListFilter; readonly summary: ErrorListSummary; readonly hasSolution: boolean; /** Name of the node the list is narrowed to */ readonly scope?: string };
 
 /** Webview → extension */
 export type ErrorListRequest =
     | { readonly type: 'ready' }
+    | { readonly type: 'clearScope' }
     | { readonly type: 'open'; readonly filePath: string; readonly line: number; readonly column: number }
     | { readonly type: 'toggle'; readonly severity: keyof ErrorListFilter }
     | { readonly type: 'openUrl'; readonly url: string };

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { TreeNode } from '../../../../../webview/solution-view/components/TreeNode/TreeNode';
 import { describeMarker } from '../../../../../webview/solution-view/components/TreeNode/diagnosticMarker';
 import { NodeIdString } from '../../../../../types/nodeId';
@@ -28,15 +28,24 @@ describe('TreeNode diagnostics markers', () => {
         expect(screen.getByText('Program.cs')).toHaveClass('diagnostic-error');
         const badge = container.querySelector('.diagnostic-badge');
         expect(badge).toHaveTextContent('3');
-        expect(badge).toHaveAttribute('title', '3 errors, 2 warnings');
+        expect(badge).toHaveAttribute('title', '3 errors, 2 warnings\nClick to list them in the Error List');
         expect(container.querySelector('.diagnostic-dot')).toBeNull();
     });
 
     test('a folder shows a dot instead of a count', () => {
         const { container } = render(<TreeNode {...props} node={folderNode} markers={markers} />);
         expect(screen.getByText('Controllers')).toHaveClass('diagnostic-warning');
-        expect(container.querySelector('.diagnostic-dot')).toHaveAttribute('title', '1 warning');
+        expect(container.querySelector('.diagnostic-dot')).toHaveAttribute('title', '1 warning\nClick to list them in the Error List');
         expect(container.querySelector('.diagnostic-badge')).toBeNull();
+    });
+
+    test('a click on the marker asks for the Error List narrowed to the node, without selecting the row', () => {
+        const onProjectAction = jest.fn();
+        const onNodeClick = jest.fn();
+        const { container } = render(<TreeNode {...props} onProjectAction={onProjectAction} onNodeClick={onNodeClick} node={folderNode} markers={markers} />);
+        fireEvent.click(container.querySelector('.diagnostic-dot')!);
+        expect(onProjectAction).toHaveBeenCalledWith({ action: 'showDiagnostics', nodeId: 'folder-1' });
+        expect(onNodeClick).not.toHaveBeenCalled();
     });
 
     test('nodes without a marker render as before', () => {

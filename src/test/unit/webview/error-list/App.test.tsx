@@ -97,4 +97,18 @@ describe('visibleRows', () => {
         expect(visibleRows(rows, { errors: true, warnings: true, infos: false }, 'program', { code: new Set(['CS0103']) }).map(r => r.code)).toEqual([]);
         expect(visibleRows(rows, allShown, '', { file: new Set(['Program.cs']) }).map(r => r.code)).toEqual(['CS0168', 'CA1822']);
     });
+
+    it('shows the node the list is narrowed to and clears it on a click', () => {
+        const { sent, receive } = renderList();
+        receive({ type: 'rows', rows: [rows[0]], filter: allShown, summary: { errors: 1, warnings: 0, infos: 0 }, hasSolution: true, scope: 'Api' });
+        fireEvent.click(screen.getByTitle('Show the whole solution again'));
+        expect(sent).toContainEqual({ type: 'clearScope' });
+        expect(screen.getByTitle('Show the whole solution again')).toHaveTextContent('Api');
+    });
+
+    it('says so when nothing is listed for the node', () => {
+        const { receive } = renderList();
+        receive({ type: 'rows', rows: [], filter: allShown, summary: { errors: 0, warnings: 0, infos: 0 }, hasSolution: true, scope: 'Api' });
+        expect(screen.getByText('No errors, warnings or messages in Api.')).toBeInTheDocument();
+    });
 });

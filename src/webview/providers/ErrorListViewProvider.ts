@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { DiagnosticsService } from '../../services/diagnostics/diagnosticsService';
+import { DiagnosticScope, inScope } from '../../services/diagnostics/diagnosticsRollup';
 import { buildErrorRows, summarizeErrorList } from '../../services/diagnostics/errorList';
 import { affectsSeverityFilter, readSeverityFilter, toggleSeverity } from '../../services/diagnostics/diagnosticsFilter';
 import { SolutionService } from '../../services/solution/solutionService';
@@ -13,6 +14,7 @@ export const ERROR_LIST_VIEW = 'shinobi.errorList';
 export class ErrorListViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
     private _view?: vscode.WebviewView;
     private readonly _disposables: vscode.Disposable[] = [];
+    private _scope?: { readonly name: string; readonly scope: DiagnosticScope };
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -43,19 +45,33 @@ export class ErrorListViewProvider implements vscode.WebviewViewProvider, vscode
         }
         const projects = [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])]
             .map(projectPath => ({ name: path.basename(projectPath, path.extname(projectPath)), path: projectPath }));
+        const scope = this._scope?.scope;
+        const files = scope ? new Map([...this._diagnostics.files].filter(([file]) => inScope(file, scope))) : this._diagnostics.files;
         const message: ErrorListMessage = {
             type: 'rows',
-            rows: buildErrorRows(this._diagnostics.files, projects),
+            rows: buildErrorRows(files, projects),
             filter: readSeverityFilter(),
-            summary: summarizeErrorList(this._diagnostics.files),
+            summary: summarizeErrorList(files),
             hasSolution: projects.length > 0,
+            ...(this._scope ? { scope: this._scope.name } : {}),
         };
         void this._view.webview.postMessage(message);
+    }
+
+    /** Narrows the list to the files of a Solution Explorer node and shows it */
+    async showScope(name: string, scope: DiagnosticScope): Promise<void> {
+        this._scope = { name, scope };
+        this.refresh();
+        await vscode.commands.executeCommand(`${ERROR_LIST_VIEW}.focus`);
     }
 
     private async _handle(request: ErrorListRequest): Promise<void> {
         switch (request.type) {
             case 'ready':
+                this.refresh();
+                break;
+            case 'clearScope':
+                this._scope = undefined;
                 this.refresh();
                 break;
             case 'open': {

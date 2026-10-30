@@ -232,6 +232,7 @@ export class SolutionWebView {
 
                         .diagnostic-badge,
                         .diagnostic-dot {
+                            cursor: pointer;
                             margin-left: auto;
                             padding-left: 8px;
                             margin-right: 8px;

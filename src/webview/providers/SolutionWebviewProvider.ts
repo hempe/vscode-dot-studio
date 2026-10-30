@@ -19,7 +19,7 @@ import { ProjectActionCmd } from '../../types/commands/project-action';
 import { sln } from '../../core/utils';
 import { FOCUSED_NODE_TYPE_CONTEXT, MenuCommandAction, menuCommands, nodeTypesWithAction } from '../../core/contextMenus';
 import { DiagnosticsService } from '../../services/diagnostics/diagnosticsService';
-import { computeMarkers } from '../../services/diagnostics/diagnosticsRollup';
+import { computeMarkers, scopeOf } from '../../services/diagnostics/diagnosticsRollup';
 import { ProjectItemsService } from '../../services/project/items/projectItemsService';
 import { IconThemeService } from '../../services/shared/iconThemeService';
 import { BuildConfiguration, solutionConfigurations, solutionPlatforms } from '../../services/build/buildConfiguration';
@@ -299,6 +299,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                             await handleCreateFileAction(message.payload.nodeId, message.payload.data.name, this._newItemHost);
                         } else {
                             await handleAddFileAction(message.payload.nodeId, this._newItemHost);
+                        }
+                    } else if (message.payload.action === 'showDiagnostics') {
+                        const node = SolutionTreeService.findNodeById(message.payload.nodeId, this._cachedSolutionData ?? []);
+                        if (node) {
+                            const scope = scopeOf(node, projectPath => ProjectItemsService.instance.get(projectPath)?.linkedEntries() ?? []);
+                            await vscode.commands.executeCommand('shinobi.internal.errorList.showScope', node.name, scope);
                         }
                     } else if (message.payload.action === 'addNewItem') {
                         await handleAddNewItemAction(message.payload.nodeId);

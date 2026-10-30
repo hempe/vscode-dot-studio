@@ -6,6 +6,12 @@ export declare type OpenFileActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+/** Marker click: the Error List narrowed to the files the node's marker counts */
+export declare type ShowDiagnosticsActionCmd = {
+    readonly action: 'showDiagnostics';
+    readonly nodeId: NodeIdString;
+}
+
 export declare type RevealInExplorerActionCmd = {
     readonly action: 'revealInExplorer';
     readonly nodeId: NodeIdString;
@@ -334,6 +340,7 @@ export declare type StartupProjectsActionCmd = {
  */
 export type ProjectActionCmd =
     | OpenFileActionCmd
+    | ShowDiagnosticsActionCmd
     | RevealInExplorerActionCmd
     | BuildActionCmd
     | RebuildActionCmd

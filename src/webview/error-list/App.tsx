@@ -100,7 +100,7 @@ const COLUMNS: { column: Column; label: string; width: string; filter?: FilterCo
 const ICONS: Record<ErrorListRow['severity'], string> = { error: 'error', warning: 'warning', info: 'info' };
 
 export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
-    const [data, setData] = useState<{ rows: ErrorListRow[]; filter: ErrorListFilter; summary: ErrorListSummary; hasSolution: boolean }>();
+    const [data, setData] = useState<{ rows: ErrorListRow[]; filter: ErrorListFilter; summary: ErrorListSummary; hasSolution: boolean; scope?: string }>();
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState<{ column: Column; descending: boolean }>();
     const [excluded, setExcluded] = useState<Partial<Record<FilterColumn, Set<string>>>>({});
@@ -108,8 +108,8 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
     useEffect(() => {
         const listener = (event: MessageEvent<ErrorListMessage>) => {
             if (event.data.type === 'rows') {
-                const { rows, filter, summary, hasSolution } = event.data;
-                setData({ rows, filter, summary, hasSolution });
+                const { rows, filter, summary, hasSolution, scope } = event.data;
+                setData({ rows, filter, summary, hasSolution, ...(scope !== undefined ? { scope } : {}) });
             }
         };
         window.addEventListener('message', listener);
@@ -135,7 +135,7 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
 
     const hiddenBySeverity = data.rows.filter(row => !filter[SHOWN[row.severity]]).length;
     const empty = data.rows.length === 0
-        ? 'No errors, warnings or messages. Build the solution to check every file.'
+        ? data.scope !== undefined ? `No errors, warnings or messages in ${data.scope}.` : 'No errors, warnings or messages. Build the solution to check every file.'
         : rows.length === 0
             ? hiddenBySeverity === data.rows.length ? `${hiddenBySeverity} ${hiddenBySeverity === 1 ? 'entry' : 'entries'} hidden by the toggles.` : 'No entries match the search or the filters.'
             : undefined;
@@ -146,6 +146,11 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
                 {toggle('errors', 'error', summary.errors, 'Error')}
                 {toggle('warnings', 'warning', summary.warnings, 'Warning')}
                 {toggle('infos', 'info', summary.infos, 'Message')}
+                {data.scope !== undefined && (
+                    <button className="toggle scope" onClick={() => api.postMessage({ type: 'clearScope' })} title="Show the whole solution again">
+                        {data.scope}<span className="codicon codicon-close" />
+                    </button>
+                )}
                 <span className="search">
                     <input type="text" placeholder="Search Error List" aria-label="Search Error List" value={search} onChange={e => setSearch(e.target.value)} />
                 </span>

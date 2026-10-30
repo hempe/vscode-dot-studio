@@ -297,6 +297,16 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isFocused = focusedNodeId === nodeIdentifier;
     const marker = markers?.[nodeIdentifier];
     const markerTitle = marker ? describeMarker(marker) : undefined;
+    // A click on the marker lists the problems in the Error List, narrowed to this node
+    const markerProps = {
+        title: markerTitle ? `${markerTitle}\nClick to list them in the Error List` : undefined,
+        role: 'button',
+        onClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onProjectAction({ action: 'showDiagnostics', nodeId: nodeIdentifier });
+        },
+        onDoubleClick: (e: React.MouseEvent) => e.stopPropagation(),
+    };
 
     // Memoize icon configuration to prevent multiple calls during render
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -432,8 +442,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                             title={markerTitle ? `${node.name}\n${markerTitle}` : node.name}
                         >{node.isUnloaded ? `${node.name} (unloaded)` : node.name}</span>
                         {marker && (node.type === 'file' || node.type === 'solutionItem'
-                            ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} title={markerTitle}>{markerCount(marker)}</span>
-                            : <span className={`diagnostic-dot diagnostic-${marker.severity}`} title={markerTitle} />)}
+                            ? <span className={`diagnostic-badge diagnostic-${marker.severity}`} {...markerProps}>{markerCount(marker)}</span>
+                            : <span className={`diagnostic-dot diagnostic-${marker.severity}`} {...markerProps} />)}
                     </>
                 )}
             </div>

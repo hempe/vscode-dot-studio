@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { computeMarkers, normalizePath } from '../../../../services/diagnostics/diagnosticsRollup';
+import { computeMarkers, inScope, normalizePath, scopeOf } from '../../../../services/diagnostics/diagnosticsRollup';
 import { NodeIdService } from '../../../../services/solution/nodeIdService';
 import { DiagnosticCounts, ProjectNode } from '../../../../types';
 
@@ -124,5 +124,30 @@ describe('normalizePath', () => {
             fileCounts({ [inside]: counts(1, 0) }),
             () => [{ fullPath: inside, virtualPath: p('App', 'Alias', 'A.cs') }]);
         expect(markers[NodeIdService.generateProjectId(p('App', 'App.csproj'))]).toMatchObject({ errors: 1 });
+    });
+});
+
+describe('scopeOf', () => {
+    const covers = (node: ProjectNode, ...files: string[]) => files.map(f => inScope(normalizePath(f), scopeOf(node)));
+
+    test('a file is its own scope', () => {
+        expect(covers(file(p('Api', 'Program.cs')), p('Api', 'Program.cs'), p('Api', 'Other.cs'))).toEqual([true, false]);
+    });
+
+    test('a folder and a project cover everything below their directory', () => {
+        expect(covers(folder(p('Api', 'Controllers')), p('Api', 'Controllers', 'A.cs'), p('Api', 'Program.cs'))).toEqual([true, false]);
+        expect(covers(project(p('Api', 'Api.csproj')), p('Api', 'Controllers', 'A.cs'), p('Web', 'B.cs'))).toEqual([true, false]);
+    });
+
+    test('a solution folder covers the projects in it, not the others', () => {
+        const node = solutionFolder('Libs', [project(p('Lib', 'Lib.csproj'))]);
+        expect(covers(node, p('Lib', 'A.cs'), p('Api', 'A.cs'))).toEqual([true, false]);
+    });
+
+    test('files linked into a project from outside count for it', () => {
+        const node = project(p('Api', 'Api.csproj'));
+        const scope = scopeOf(node, () => [{ fullPath: p('Shared', 'Link.cs'), virtualPath: p('Api', 'Link.cs') }]);
+        expect(inScope(normalizePath(p('Shared', 'Link.cs')), scope)).toBe(true);
+        expect(inScope(normalizePath(p('Shared', 'Other.cs')), scope)).toBe(false);
     });
 });
