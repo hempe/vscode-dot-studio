@@ -137,6 +137,12 @@ describe('test packages from Directory.Build.props (review A5-10)', () => {
         expect(isTestProjectCandidate(projectTextWithBuildProps(app))).toBe(false);
     });
 
+    it('ignores test packages a props file adds only under a Condition', () => {
+        write('Directory.Build.props', "<Project><ItemGroup Condition=\"'$(IsTestProject)' == 'true'\"><PackageReference Include='xunit' Version='2.9.0' /></ItemGroup><ItemGroup><PackageReference Include='MSTest' Version='3' Condition=\"'$(IsTestProject)' == 'true'\" /></ItemGroup></Project>");
+        const app = write('src/App/App.csproj', '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+        expect(isTestProjectCandidate(projectTextWithBuildProps(app))).toBe(false);
+    });
+
     it('reads single-quoted package references in the project itself', () => {
         expect(isTestProjectCandidate("<Project><ItemGroup><PackageReference Include='NUnit' Version='4' /></ItemGroup></Project>")).toBe(true);
     });

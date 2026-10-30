@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed, Test Explorer:** a .NET Framework test app (`net472`) is started as its own exe, not through `dotnet`, which failed on Windows with "hostpolicy.dll not found"; test packages that a `Directory.Build.props` adds only under a `Condition` no longer make every project below it a test project.
+- **Changed:** the Output log no longer holds a line per expanded tree node.
+
 ## 0.2.0
 
 The first stable release: the Solution Explorer toolbar, feed credential and solution file fixes, a NuGet manager that fills the editor, and a tidier code base.

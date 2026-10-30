@@ -51,7 +51,9 @@ export interface TestExplorerDeps {
 }
 
 function startProcess(project: TestProject, args: string[], environment: Readonly<Record<string, string>>): Promise<TestApp> {
-    const child = spawn('dotnet', [project.targetPath, ...args], {
+    // A .NET Framework test app is an exe of its own; `dotnet` would look for a runtimeconfig.json and hostpolicy.dll
+    const exe = /\.exe$/i.test(project.targetPath);
+    const child = spawn(exe ? project.targetPath : 'dotnet', exe ? args : [project.targetPath, ...args], {
         cwd: path.dirname(project.projectPath),
         env: { ...process.env, TESTINGPLATFORM_TELEMETRY_OPTOUT: '1', ...environment },
     });

@@ -19,10 +19,14 @@ export function isTestProjectCandidate(projectXml: string): boolean {
  */
 export function projectTextWithBuildProps(projectPath: string, readFile: (file: string) => string = file => fs.readFileSync(file, 'utf8')): string {
     const texts = [readFile(projectPath)];
+    // A package a props file adds only under a Condition (`'$(IsTestProject)' == 'true'`) says nothing about the projects below it
+    const unconditional = (xml: string) => xml
+        .replace(/<ItemGroup\b[^>]*\bCondition\s*=[^>]*>[\s\S]*?<\/ItemGroup>/gi, '')
+        .replace(/<PackageReference\b[^>]*\bCondition\s*=[^>]*?(?:\/>|>[\s\S]*?<\/PackageReference>)/gi, '');
     for (let dir = path.dirname(path.resolve(projectPath)); ; dir = path.dirname(dir)) {
         for (const name of ['Directory.Build.props', 'Directory.Build.targets']) {
             try {
-                texts.push(readFile(path.join(dir, name)));
+                texts.push(unconditional(readFile(path.join(dir, name))));
             } catch {
                 // not there
             }

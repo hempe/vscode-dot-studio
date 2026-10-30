@@ -377,7 +377,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'expandNode':
                 if (message.payload.nodeId) {
-                    log.info('Handling expandNode request:', message.payload.nodeId);
+                    log.debug('Handling expandNode request:', message.payload.nodeId);
                     await SolutionExpansionService.handleExpandNode(
                         message.payload.nodeId!,
                         this._cachedSolutionData || null,
