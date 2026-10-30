@@ -53,11 +53,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const canDrag = isDraggable(node) && !renamingNodeId && !node.isLoading;
 
     const handleClick = (e: React.MouseEvent) => {
-        log.info(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
+        log.debug(`Single click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
 
         // Don't handle clicks if node is loading or is temporary
         if (node.isLoading || node.isTemporary) {
-            log.info(`Node ${node.name} is loading or temporary, ignoring click`);
+            log.debug(`Node ${node.name} is loading or temporary, ignoring click`);
             return;
         }
 
@@ -71,18 +71,18 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Set up debounced single click action
         const timeout = setTimeout(() => {
-            log.info(`Executing single click action for: ${node.name}`);
+            log.debug(`Executing single click action for: ${node.name}`);
 
             // If has children, expand/collapse AND focus the item
             if (node.children?.length || node.hasChildren) {
-                log.info(`Toggling expansion for: ${node.name}`);
+                log.debug(`Toggling expansion for: ${node.name}`);
                 onToggleExpand(nodeIdentifier, node.type);
                 // Also focus the item so it gets the blue border
-                log.info(`Focusing expanded node: ${node.name}`);
+                log.debug(`Focusing expanded node: ${node.name}`);
                 onNodeClick(nodeIdentifier);
             } else {
                 // If no children, select and focus the item
-                log.info(`Node ${node.name} has no children, selecting it`);
+                log.debug(`Node ${node.name} has no children, selecting it`);
                 onNodeClick(nodeIdentifier);
             }
 
@@ -93,11 +93,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     };
 
     const handleDoubleClick = () => {
-        log.info(`Double click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
+        log.debug(`Double click on ${node.type}: ${node.name} (nodeId: ${nodeIdentifier})`);
 
         // Don't handle clicks if node is loading or is temporary
         if (node.isLoading || node.isTemporary) {
-            log.info(`Node ${node.name} is loading or temporary, ignoring double click`);
+            log.debug(`Node ${node.name} is loading or temporary, ignoring double click`);
             return;
         }
 
@@ -106,13 +106,13 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
         // Double click opens file for file types, project files, and solution files
         if (node.type === 'file' || node.type === 'generatedFile' || node.type === 'solutionItem' || node.type === 'project' || node.type === 'solution' || node.type === 'grpcReference') {
-            log.info(`Opening file: ${node.name}`);
+            log.debug(`Opening file: ${node.name}`);
             onProjectAction({
                 action: 'openFile',
                 nodeId: nodeIdentifier
             });
         } else {
-            log.info(`Double click on ${node.type} - no action needed`);
+            log.debug(`Double click on ${node.type} - no action needed`);
         }
     };
 
@@ -129,7 +129,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
 
     const handleRenameConfirmLocal = (newName: string) => {
         if (node.isTemporary) {
-            log.info(`Creating new ${node.type}: ${newName}`);
+            log.debug(`Creating new ${node.type}: ${newName}`);
             if (node.type === 'file') {
                 onProjectAction({
                     action: 'addFile',
@@ -150,21 +150,21 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                 });
             }
         } else {
-            log.info(`Renaming ${node.name} to ${newName}`);
+            log.debug(`Renaming ${node.name} to ${newName}`);
             onRenameConfirm(newName, nodeIdentifier, node.type, node.name);
         }
     };
 
     const handleRenameCancelLocal = () => {
         if (node.isTemporary) {
-            log.info(`Cancelling creation of temporary ${node.type}: ${node.name}`);
+            log.debug(`Cancelling creation of temporary ${node.type}: ${node.name}`);
             // For temporary nodes, trigger removal action
             onProjectAction({
                 action: 'cancelTemporaryNode',
                 nodeId: node.nodeId
             });
         } else {
-            log.info(`Cancelling rename for: ${node.name}`);
+            log.debug(`Cancelling rename for: ${node.name}`);
             onRenameCancel();
         }
     };

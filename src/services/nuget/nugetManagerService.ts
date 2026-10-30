@@ -36,7 +36,7 @@ export class NuGetManagerService {
         includePrerelease: boolean
     ): { consolidatePackages: LocalNuGetPackage[] } {
         try {
-            log.info(`Getting consolidation data from ${flatPackages.length} flat packages...`);
+            log.debug(`Getting consolidation data from ${flatPackages.length} flat packages...`);
 
             // Group packages by ID to find version conflicts
             const packageGroups = new Map<string, (BasicInstalledPackage & { projectInfo: ProjectInfo })[]>();
@@ -47,7 +47,7 @@ export class NuGetManagerService {
                 packageGroups.set(pkg.id, existingGroup);
             }
 
-            log.info(`Grouped into ${packageGroups.size} unique package IDs`);
+            log.debug(`Grouped into ${packageGroups.size} unique package IDs`);
 
             const consolidatePackages: LocalNuGetPackage[] = [];
 
@@ -59,7 +59,7 @@ export class NuGetManagerService {
                 log.debug(`Package ${packageId}: ${packages.length} instances with versions [${Array.from(versions).join(', ')}]`);
 
                 if (versions.size > 1) {
-                    log.info(`Package ${packageId} needs consolidation: versions ${Array.from(versions).join(', ')}`);
+                    log.debug(`Package ${packageId} needs consolidation: versions ${Array.from(versions).join(', ')}`);
 
                     // This package needs consolidation
                     const versionGroups = new Map<string, ProjectInfo[]>();
@@ -93,7 +93,7 @@ export class NuGetManagerService {
                 }
             }
 
-            log.info(`Found ${consolidatePackages.length} packages needing consolidation (from ${flatPackages.length} flat packages)`);
+            log.debug(`Found ${consolidatePackages.length} packages needing consolidation (from ${flatPackages.length} flat packages)`);
 
             return {
                 consolidatePackages
@@ -112,7 +112,7 @@ export class NuGetManagerService {
      */
     static async getSolutionNuGetData(solutionPath: string, includePrerelease: boolean) {
         try {
-            log.info(`Getting solution NuGet data for: ${solutionPath}`);
+            log.debug(`Getting solution NuGet data for: ${solutionPath}`);
 
             // Only get projects from active solution - no fallback to expensive dotnet commands
             const allProjects = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
@@ -136,7 +136,7 @@ export class NuGetManagerService {
 
             // Get outdated packages by filtering installed packages (much faster than dotnet list --outdated)
             const outdatedPackages = await this.getGroupedOutdatedPackages(includePrerelease, solutionPath, false, allProjects);
-            log.info(`Found ${outdatedPackages.length} outdated packages`);
+            log.debug(`Found ${outdatedPackages.length} outdated packages`);
 
             // Get consolidation data from flat package list (before grouping)
             const allProjectsData = await PackageInstalledService.getAllProjectsInfoFromActiveSolution();
@@ -148,7 +148,7 @@ export class NuGetManagerService {
 
             // Enrich consolidate packages with metadata (like authors, description, etc.)
             const consolidatePackages = await PackageSharedService.enrichWithBrowseMetadata(rawConsolidatePackages);
-            log.info(`Found ${consolidatePackages.length} packages needing consolidation (enriched with metadata)`);
+            log.debug(`Found ${consolidatePackages.length} packages needing consolidation (enriched with metadata)`);
 
             return {
                 context: 'solution',
@@ -182,11 +182,11 @@ export class NuGetManagerService {
             // Group by package ID and create projects array
             const packageMap = new Map<string, (InstalledPackage & { projects: ProjectInfo[] })>();
 
-            log.info(`Grouping ${installedPackages.length} packages for UI`);
+            log.debug(`Grouping ${installedPackages.length} packages for UI`);
 
             // Count how many packages have metadata
             const packagesWithMetadata = installedPackages.filter(pkg => pkg.description);
-            log.info(`${packagesWithMetadata.length}/${installedPackages.length} packages have metadata`);
+            log.debug(`${packagesWithMetadata.length}/${installedPackages.length} packages have metadata`);
 
             for (const pkg of installedPackages) {
                 // Log first package to debug the structure
@@ -247,7 +247,7 @@ export class NuGetManagerService {
                 ? await this.getGroupedInstalledPackages(targetPath!, true, allProjects)
                 : await this.getGroupedInstalledPackages(targetPath, false, allProjects);
 
-            log.info(`Filtering ${installedPackages.length} installed packages for updates...`);
+            log.debug(`Filtering ${installedPackages.length} installed packages for updates...`);
 
             // Filter packages that have newer versions available
             const outdatedPackages: (UpdateablePackage & { projects: ProjectInfo[] })[] = [];
@@ -266,7 +266,7 @@ export class NuGetManagerService {
                 }
             }
 
-            log.info(`Found ${outdatedPackages.length} outdated packages (filtered from ${installedPackages.length} installed)`);
+            log.debug(`Found ${outdatedPackages.length} outdated packages (filtered from ${installedPackages.length} installed)`);
 
             return outdatedPackages;
 
@@ -322,7 +322,7 @@ export class NuGetManagerService {
      */
     static async getProjectNuGetData(projectPath: string, includePrerelease: boolean) {
         try {
-            log.info(`Getting project NuGet data for: ${projectPath}`);
+            log.debug(`Getting project NuGet data for: ${projectPath}`);
 
             // First get project info
             const projectInfo = await PackageInstalledService.getProjectInfo(projectPath);

@@ -30,7 +30,7 @@ export class SolutionTreeService {
 
         // Get the startup project path from cache
         const startupProjectPath = solution.getStartupProject();
-        log.info(`Startup project path from cache: ${startupProjectPath}`);
+        log.debug(`Startup project path from cache: ${startupProjectPath}`);
 
         // Create project hierarchy map
         const hierarchy = new Map<string, SolutionProject[]>();
@@ -47,7 +47,7 @@ export class SolutionTreeService {
             hierarchy.get(key)!.push(project);
         }
 
-        log.info(`Building lazy-loaded tree structure for: ${solutionPath}`);
+        log.debug(`Building lazy-loaded tree structure for: ${solutionPath}`);
 
 
         // Add the solution as the root node
@@ -61,7 +61,7 @@ export class SolutionTreeService {
 
         // Get root level projects and solution folders from hierarchy
         const rootProjects = hierarchy.get('ROOT') || [];
-        log.info(`Found ${rootProjects.length} root-level items`);
+        log.debug(`Found ${rootProjects.length} root-level items`);
 
         // Build tree using lazy loading approach
         solutionNode.children = await this.buildLazyHierarchicalNodes(rootProjects, hierarchy, solution, solutionNode.nodeId, startupProjectPath);
@@ -103,11 +103,11 @@ export class SolutionTreeService {
         for (const project of projects) {
             // Determine the item type based on typeGuid
             const itemType = this.getItemType(project.typeGuid);
-            log.info(`Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
+            log.debug(`Processing ${itemType}: ${project.name}, type GUID: ${project.typeGuid}`);
 
             // Ensure path is absolute (for both projects and solution items)
             const absolutePath = this.resolveAbsolutePath(project.path || '', solution.solutionPath);
-            log.info(`Path resolution: ${project.path} -> ${absolutePath}`);
+            log.debug(`Path resolution: ${project.path} -> ${absolutePath}`);
 
             // Generate expansion ID based on node type
             let nodeId: NodeIdString;
@@ -155,7 +155,7 @@ export class SolutionTreeService {
                     if (projectInstance) {
                         const hasFiles = await projectInstance.hasAnyChildren();
                         itemNode.hasChildren = hasFiles;
-                        log.info(`Project ${project.name} has children: ${hasFiles}`);
+                        log.debug(`Project ${project.name} has children: ${hasFiles}`);
                         if (itemNode.isStartupProject) {
                             itemNode.contextValue = DebugConfigService.hasLaunchProfileChoice(absolutePath)
                                 ? STARTUP_PROJECT_WITH_PROFILES
@@ -183,7 +183,7 @@ export class SolutionTreeService {
             // Handle solution folders - add their children recursively like the original
             else if (itemType === 'solutionFolder') {
                 const childProjects = hierarchy.get(project.guid) || [];
-                log.info(`Solution folder ${project.name} has ${childProjects.length} children`);
+                log.debug(`Solution folder ${project.name} has ${childProjects.length} children`);
 
                 if (childProjects.length > 0) {
                     itemNode.children = await this.buildLazyHierarchicalNodes(childProjects, hierarchy, solution, nodeId, startupProjectPath);
@@ -191,7 +191,7 @@ export class SolutionTreeService {
 
                 // Add solution items (files directly in the solution folder)
                 const solutionItems = solution.getSolutionItems(project);
-                log.info(`Solution folder ${project.name} has ${solutionItems.length} solution items`);
+                log.debug(`Solution folder ${project.name} has ${solutionItems.length} solution items`);
 
                 if (!itemNode.children) {
                     itemNode.children = [];

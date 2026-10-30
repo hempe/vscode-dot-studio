@@ -195,7 +195,7 @@ export const useVsCodeApi = () => {
     const [iconTheme, setIconTheme] = useState<IconThemePayload | null>(null);
 
     useEffect(() => {
-        log.info('Hook initialized, requesting solution data');
+        log.debug('Hook initialized, requesting solution data');
 
         // Request initial solution data
         sendToBackend({ type: 'getSolutionData' });
@@ -218,16 +218,16 @@ export const useVsCodeApi = () => {
                     setRefreshing(false);
                     break;
                 case 'error':
-                    log.info('Received error:', message.payload.message);
+                    log.debug('Received error:', message.payload.message);
                     setLoadError(message.payload.message);
                     setLoading(false);
                     break;
                 case 'addTemporaryNode':
-                    log.info('Adding temporary node:', message);
+                    log.debug('Adding temporary node:', message);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         const parentNodeId = message.payload.parentNodeId;
-                        log.info('findNodeIdFromPath result for path:', message.payload.parentNodeId, 'nodeId:', parentNodeId);
+                        log.debug('findNodeIdFromPath result for path:', message.payload.parentNodeId, 'nodeId:', parentNodeId);
                         if (parentNodeId) {
                             return addTemporaryNodeToTree(prev, parentNodeId, message.payload.nodeId, message.payload.nodeType);
                         } else {
@@ -237,7 +237,7 @@ export const useVsCodeApi = () => {
                     });
                     break;
                 case 'removeTemporaryNodes':
-                    log.info('Removing temporary nodes from parent:', message.payload.parentPath);
+                    log.debug('Removing temporary nodes from parent:', message.payload.parentPath);
                     setSolutionData(prev => {
                         if (!prev) return prev;
                         const parentNodeId = message.payload.parentPath;
@@ -257,19 +257,19 @@ export const useVsCodeApi = () => {
                     setIconTheme(message.payload.theme);
                     break;
                 default:
-                    log.info('Unknown message command:', message.payload);
+                    log.debug('Unknown message command:', message.payload);
             }
         };
 
         window.addEventListener('message', handleMessage);
         return () => {
-            log.info('Cleaning up message listener');
+            log.debug('Cleaning up message listener');
             window.removeEventListener('message', handleMessage);
         };
     }, []);
 
     const handleProjectAction = useCallback((cmd: ProjectActionCmd) => {
-        log.info('Project action requested:', cmd);
+        log.debug('Project action requested:', cmd);
 
         if (cmd.action === 'cancelTemporaryNode') {
             // Handle temporary node cancellation locally
@@ -286,12 +286,12 @@ export const useVsCodeApi = () => {
     }, []);
 
     const expandNode = useCallback((nodeId: NodeIdString) => {
-        log.info('Expanding node:', nodeId);
+        log.debug('Expanding node:', nodeId);
         sendToBackend({ type: 'expandNode', payload: { nodeId: nodeId } });
     }, []);
 
     const collapseNode = useCallback((nodeId: NodeIdString) => {
-        log.info('Collapsing node:', nodeId);
+        log.debug('Collapsing node:', nodeId);
         sendToBackend({ type: 'collapseNode', payload: { nodeId: nodeId } });
     }, []);
 

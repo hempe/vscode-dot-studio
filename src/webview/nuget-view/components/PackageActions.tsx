@@ -78,7 +78,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                         if (!initializing && !loading) {
                             const projectsList = Array.from(selectedProjects);
                             const versionToInstall = selectedVersion || selectedPackage.currentVersion;
-                            log.info('Install/Update action:', {
+                            log.debug('Install/Update action:', {
                                 package: selectedPackage.id,
                                 version: versionToInstall,
                                 projects: projectsList
@@ -132,7 +132,7 @@ export const PackageActions: React.FC<PackageActionsProps> = ({
                     onClick={() => {
                         if (!initializing && !loading) {
                             const projectsList = Array.from(selectedProjects);
-                            log.info('Uninstall action:', {
+                            log.debug('Uninstall action:', {
                                 package: selectedPackage.id,
                                 projects: projectsList
                             });

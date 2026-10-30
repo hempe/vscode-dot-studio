@@ -75,7 +75,7 @@ export class Solution {
         this._handler = createSolutionFileHandler(_solutionPath);
         // Initialize debouncer for launch.json changes
         this._launchJsonDebouncer = new SimpleDebounceManager(async () => {
-            log.info('launch.json changed, refreshing startup project and framework cache...');
+            log.debug('launch.json changed, refreshing startup project and framework cache...');
 
             try {
                 await this.refreshLaunchJsonCache();
@@ -190,12 +190,12 @@ export class Solution {
     }
 
     private async handleLaunchJsonChanged(): Promise<void> {
-        log.info('launch.json change detected, debouncing...');
+        log.debug('launch.json change detected, debouncing...');
         this._launchJsonDebouncer.trigger();
     }
 
     private handleLaunchJsonDeleted(): void {
-        log.info('launch.json deleted, clearing cache');
+        log.debug('launch.json deleted, clearing cache');
         this._cachedStartupProject = null;
         this._cachedFramework = null;
 
@@ -215,7 +215,7 @@ export class Solution {
             this._cachedStartupProject = startupProject;
             this._cachedFramework = framework;
 
-            log.info(`Refreshed launch.json cache - startup project: ${startupProject}, framework: ${framework}`);
+            log.debug(`Refreshed launch.json cache - startup project: ${startupProject}, framework: ${framework}`);
             log.debug(`Cached startup project is now: ${this._cachedStartupProject}`);
         } catch (error) {
             log.error('Error refreshing launch.json cache:', error);
@@ -225,7 +225,7 @@ export class Solution {
     }
 
     private async handleSolutionFileChanged(): Promise<void> {
-        log.info('Solution file changed, reparsing...');
+        log.debug('Solution file changed, reparsing...');
 
         try {
             await this.parseSolutionFile();
@@ -242,7 +242,7 @@ export class Solution {
     }
 
     private handleSolutionFileDeleted(): void {
-        log.info('Solution file deleted');
+        log.debug('Solution file deleted');
         this.dispose();
     }
 
@@ -343,7 +343,7 @@ export class Solution {
 
         // Wait for all projects to initialize
         await Promise.all(projectPromises);
-        log.info(`All ${projectPromises.length} projects initialized`);
+        log.debug(`All ${projectPromises.length} projects initialized`);
     }
 
     /**
@@ -510,7 +510,7 @@ export class Solution {
      * create solution folders mirroring the project's directories.
      */
     async addProject(projectPath: string, solutionFolderPath?: string): Promise<void> {
-        log.info(`Adding project to solution: ${projectPath}${solutionFolderPath ? ` (folder ${solutionFolderPath})` : ''}`);
+        log.debug(`Adding project to solution: ${projectPath}${solutionFolderPath ? ` (folder ${solutionFolderPath})` : ''}`);
 
         try {
             const solutionDir = path.dirname(this._solutionPath);
@@ -524,7 +524,7 @@ export class Solution {
             const { promisify } = require('util');
             await promisify(execFile)('dotnet', args, { cwd: solutionDir, timeout: 60000 });
 
-            log.info(`Successfully added project to solution: ${projectPath}`);
+            log.debug(`Successfully added project to solution: ${projectPath}`);
 
             // Re-parse the solution file and re-initialize projects
             await this.parseSolutionFile();
@@ -574,7 +574,7 @@ export class Solution {
             }
         }
 
-        log.info(`Renamed project ${projectPath} to ${newPath}`);
+        log.debug(`Renamed project ${projectPath} to ${newPath}`);
         await this.parseSolutionFile();
         await this.initializeProjects();
         return newPath;
@@ -584,7 +584,7 @@ export class Solution {
      * Removes a project from the solution file
      */
     async removeProject(projectPath: string): Promise<void> {
-        log.info(`Removing project from solution: ${projectPath}`);
+        log.debug(`Removing project from solution: ${projectPath}`);
 
         try {
             // Use the dotnet CLI command to remove the project; no shell, so `$(...)` in the path is just text
@@ -596,7 +596,7 @@ export class Solution {
             const { promisify } = require('util');
             await promisify(execFile)('dotnet', args, { cwd: solutionDir, timeout: 60000 });
 
-            log.info(`Successfully removed project from solution: ${projectPath}`);
+            log.debug(`Successfully removed project from solution: ${projectPath}`);
 
             // Re-parse the solution file and re-initialize projects
             await this.parseSolutionFile();
@@ -645,13 +645,13 @@ export class Solution {
     }
 
     async refresh(): Promise<void> {
-        log.info('Forcing refresh...');
+        log.debug('Forcing refresh...');
         await this.parseSolutionFile();
         await this.initializeProjects();
     }
 
     dispose(): void {
-        log.info(`Disposing solution: ${path.basename(this._solutionPath)}`);
+        log.debug(`Disposing solution: ${path.basename(this._solutionPath)}`);
 
         // Dispose debounce manager
         this._launchJsonDebouncer.dispose();
@@ -701,16 +701,16 @@ export class Solution {
             }
 
             // Update launch.json with the new startup project (this is now the source of truth)
-            log.info(`About to update launch.json with startup project: ${projectPath}`);
+            log.debug(`About to update launch.json with startup project: ${projectPath}`);
             if (await DebugConfigService.updateStartupConfiguration(projectPath, undefined, true)) {
                 // Like Visual Studio, a single startup project replaces a multi-project startup profile
                 await StartupChoice.chooseSingle(this.solutionPath);
             }
-            log.info(`Finished updating launch.json`);
+            log.debug(`Finished updating launch.json`);
 
             // Note: No need to emit change event here - the launch.json file watcher will handle UI updates
 
-            log.info(`Set startup project: ${projectPath} (${project.guid})`);
+            log.debug(`Set startup project: ${projectPath} (${project.guid})`);
         } catch (error) {
             log.error('Error setting startup project:', error);
             throw error;
@@ -745,7 +745,7 @@ export class Solution {
      * Forces a refresh of all project file trees
      */
     async forceRefreshAllProjects(): Promise<void> {
-        log.info('Forcing refresh of all project file trees');
+        log.debug('Forcing refresh of all project file trees');
 
         const refreshPromises: Promise<void>[] = [];
         for (const project of this._projects.values()) {
@@ -753,6 +753,6 @@ export class Solution {
         }
 
         await Promise.all(refreshPromises);
-        log.info('All project file trees refreshed');
+        log.debug('All project file trees refreshed');
     }
 }

@@ -7,6 +7,8 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** Where logs go once the extension runs: VS Code's "Shinobi .NET Studio" log channel (a `vscode.LogOutputChannel`) */
 export interface LogSink {
+    /** Whether the channel keeps messages of this level: when it doesn't, the message (and the dump of its objects) is not even built */
+    enabled?(level: 'trace' | 'debug' | 'info' | 'warn' | 'error'): boolean;
     trace(message: string): void;
     debug(message: string): void;
     info(message: string): void;
@@ -67,6 +69,9 @@ class BackendConsoleLogger implements Logger {
 
     debug(message: string, ...args: any[]): void {
         if (sink) {
+            if (sink.enabled?.('debug') === false) {
+                return;
+            }
             sink.debug(this.channelMessage(message, args));
         } else {
             console.debug(this.formatMessage("debug", message), ...args);
@@ -75,6 +80,9 @@ class BackendConsoleLogger implements Logger {
 
     info(message: string, ...args: any[]): void {
         if (sink) {
+            if (sink.enabled?.('info') === false) {
+                return;
+            }
             sink.info(this.channelMessage(message, args));
         } else {
             console.log(this.formatMessage("info", message), ...args);
@@ -83,6 +91,9 @@ class BackendConsoleLogger implements Logger {
 
     warn(message: string, ...args: any[]): void {
         if (sink) {
+            if (sink.enabled?.('warn') === false) {
+                return;
+            }
             sink.warn(this.channelMessage(message, args));
         } else {
             console.warn(this.formatMessage("warn", message), ...args);
@@ -91,6 +102,9 @@ class BackendConsoleLogger implements Logger {
 
     error(message: string, ...args: any[]): void {
         if (sink) {
+            if (sink.enabled?.('error') === false) {
+                return;
+            }
             sink.error(this.channelMessage(message, args));
         } else {
             console.error(this.formatMessage("error", message), ...args);
@@ -101,6 +115,9 @@ class BackendConsoleLogger implements Logger {
     // Even if not currently used, keep this method for future debugging sessions
     shotgun(message: string, ...args: any[]): void {
         if (sink) {
+            if (sink.enabled?.('trace') === false) {
+                return;
+            }
             sink.trace(this.channelMessage(`🔫 SHOTGUN ${message}`, args));
         } else {
             console.log(`🔫 SHOTGUN [${this.name}]: ${message}`, ...args);

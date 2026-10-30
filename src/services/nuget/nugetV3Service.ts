@@ -73,7 +73,7 @@ export class NuGetV3Service {
             maxEntries: 5000
         });
 
-        log.info(`Initialized caching system with directory: ${cacheDir}`);
+        log.debug(`Initialized caching system with directory: ${cacheDir}`);
     }
 
     /** Drops every cached response (memory and disk), so the next requests ask the feeds again (the refresh button) */
@@ -106,7 +106,7 @@ export class NuGetV3Service {
         accessToken?: string
     ): Promise<NuGetPackage[]> {
         try {
-            log.info(`Searching NuGet V3 feed: ${sourceUrl}`);
+            log.debug(`Searching NuGet V3 feed: ${sourceUrl}`);
 
             // Get service index to find search endpoint
             const serviceIndex = await this.fetchServiceIndex(sourceUrl, accessToken);
@@ -119,7 +119,7 @@ export class NuGetV3Service {
 
             // Build search URL with parameters
             const searchUrl = this.buildSearchUrl(searchServiceUrl, options);
-            log.info(`V3 API search URL: ${searchUrl}`);
+            log.debug(`V3 API search URL: ${searchUrl}`);
 
             // Make authenticated request
             const response = await this.makeRequest(searchUrl, accessToken);
@@ -151,7 +151,7 @@ export class NuGetV3Service {
         const cacheKey = `${packageId}`;
         const cached = this.packageCache.get(cacheKey);
         if (cached && (now - cached.timestamp) < 10 * 60 * 1000) { // 10 minutes cache
-            log.info(`Using cached package details for ${packageId}`);
+            log.debug(`Using cached package details for ${packageId}`);
             return cached.request;
         }
 
@@ -262,7 +262,7 @@ export class NuGetV3Service {
             }
         }
 
-        log.info(`Fetching V3 service index from: ${sourceUrl}`);
+        log.debug(`Fetching V3 service index from: ${sourceUrl}`);
 
         const request = this.makeRequest(sourceUrl, accessToken)
             .then(response => {

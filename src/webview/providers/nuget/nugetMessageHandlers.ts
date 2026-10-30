@@ -21,7 +21,7 @@ export async function ensureActiveSolution(): Promise<void> {
     }
     const solution = await SolutionService.discoverAndInitializeSolution();
     if (solution) {
-        log.info(`Active solution initialized: ${solution.solutionPath}`);
+        log.debug(`Active solution initialized: ${solution.solutionPath}`);
     } else {
         log.warn('Failed to initialize active solution');
     }
@@ -193,7 +193,7 @@ export async function handleInstallPackage(message: InstallPackageCmd, webview: 
             return;
         }
 
-        log.info(`Installing package ${installPackage.id} version ${installVersion} to projects:`, installProjects);
+        log.debug(`Installing package ${installPackage.id} version ${installVersion} to projects:`, installProjects);
 
         // Central Package Management edits Directory.Packages.props (asking when that reaches other projects);
         // projects without it go through dotnet add package
@@ -260,7 +260,7 @@ export async function handleUninstallPackage(message: UnInstallPackageCmd, webvi
             return;
         }
 
-        log.info(`Uninstalling package ${uninstallPackage.id} from projects:`, uninstallProjects);
+        log.debug(`Uninstalling package ${uninstallPackage.id} from projects:`, uninstallProjects);
 
         // dotnet remove package per project; a global package is removed or opted out in the props/project files
         const { cancelled, results } = await uninstallPackages(uninstallPackage.id, uninstallProjects);
@@ -321,7 +321,7 @@ export async function handleBulkUpdatePackages(message: BulkUpdatePackagesCmd, w
             return;
         }
 
-        log.info(`Bulk updating ${packages.length} packages`);
+        log.debug(`Bulk updating ${packages.length} packages`);
 
         // One change per package (central versions are edited once, not once per project), one confirmation for all
         const changes = packages.flatMap(pkg => {
@@ -392,7 +392,7 @@ export async function handleBulkConsolidatePackages(message: BulkConsolidatePack
             return;
         }
 
-        log.info(`Bulk consolidating ${packages.length} packages`);
+        log.debug(`Bulk consolidating ${packages.length} packages`);
 
         if (context.type !== 'solution') {
             vscode.window.showWarningMessage('Consolidation needs the solution, not a single project');

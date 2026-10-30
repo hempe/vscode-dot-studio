@@ -24,7 +24,7 @@ export class PackageSharedService {
             return [];
         }
 
-        log.info(`Enriching ${basicPackages.length} packages with browse metadata`);
+        log.debug(`Enriching ${basicPackages.length} packages with browse metadata`);
 
         // Get unique package IDs to avoid duplicate API calls
         const uniquePackageIds = [...new Set(basicPackages.map(pkg => pkg.id))];

@@ -115,7 +115,7 @@ export class PersistentCache<T> {
                     .filter(file => file.endsWith('.json'))
                     .map(file => fs.promises.unlink(path.join(this.cacheDir, file)))
             );
-            log.info(`Cleared all cache entries from ${this.cacheDir}`);
+            log.debug(`Cleared all cache entries from ${this.cacheDir}`);
         } catch (error) {
             log.error('Failed to clear cache:', error);
         }
@@ -125,7 +125,7 @@ export class PersistentCache<T> {
         try {
             if (!fs.existsSync(this.cacheDir)) {
                 fs.mkdirSync(this.cacheDir, { recursive: true, mode: 0o700 });
-                log.info(`Created cache directory: ${this.cacheDir}`);
+                log.debug(`Created cache directory: ${this.cacheDir}`);
             }
         } catch (error) {
             log.error(`Failed to create cache directory ${this.cacheDir}:`, error);
@@ -173,7 +173,7 @@ export class PersistentCache<T> {
             await Promise.all(toDelete.map(({ file }) => fs.promises.unlink(path.join(this.cacheDir, file)).catch(() => undefined)));
 
             if (toDelete.length > 0) {
-                log.info(`Cleaned up ${toDelete.length} old cache entries`);
+                log.debug(`Cleaned up ${toDelete.length} old cache entries`);
             }
 
         } catch (error) {

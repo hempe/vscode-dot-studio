@@ -45,7 +45,7 @@ export class BackgroundRefreshQueue {
                 return;
             }
 
-            log.info(`Enqueuing background refresh for: ${url}`);
+            log.debug(`Enqueuing background refresh for: ${url}`);
             // Add to list
             this.tasks.set(key, {
                 url,

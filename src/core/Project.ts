@@ -158,7 +158,7 @@ export class Project {
 
             this._isInitialized = true;
             void this.evaluateItems();
-            log.info(`Initialized project: ${this.name}`);
+            log.debug(`Initialized project: ${this.name}`);
         } catch (error) {
             log.error(`Failed to initialize project ${this.name}:`, error);
             throw error;
@@ -217,7 +217,7 @@ export class Project {
         }
 
         if (fileName === path.basename(this._projectPath)) {
-            log.info(`Project file changed: ${fileName}`);
+            log.debug(`Project file changed: ${fileName}`);
             await this.parseProjectFile();
             this._changeEmitter.fire(); // Simple event - just notify change
             await this.reevaluateItemsIfProjectFileChanged();
@@ -237,7 +237,7 @@ export class Project {
 
         if (filePath === this._projectPath) {
             // Project file itself was deleted
-            log.info(`Project file deleted: ${this.name}`);
+            log.debug(`Project file deleted: ${this.name}`);
             this.dispose();
         } else {
             // Other file deleted - update file tree
@@ -257,7 +257,7 @@ export class Project {
             const parentDir = path.dirname(filePath);
             const parentNode = this.findNodeById(parentDir);
             if (parentNode) {
-                log.info(`Invalidating cache for folder: ${parentDir}`);
+                log.debug(`Invalidating cache for folder: ${parentDir}`);
                 parentNode.isLoaded = false;
                 parentNode.children = [];
             }
@@ -575,7 +575,7 @@ export class Project {
                         child.name.endsWith('.vbproj') ||
                         child.name.endsWith('.fsproj')
                     )) {
-                        log.info(`Filtering out project file: ${child.name}`);
+                        log.debug(`Filtering out project file: ${child.name}`);
                         continue;
                     }
 
@@ -599,7 +599,7 @@ export class Project {
                 });
             }
 
-            log.info(`getRootChildren for ${this.name}: ${items.length} items`);
+            log.debug(`getRootChildren for ${this.name}: ${items.length} items`);
             return items;
 
         } catch (error) {
@@ -681,7 +681,7 @@ export class Project {
                 items.push(...grpcReferenceNodes(this._projectPath));
             }
 
-            log.info(`getFolderChildren for ${folderPath}: ${items.length} items`);
+            log.debug(`getFolderChildren for ${folderPath}: ${items.length} items`);
             return items;
 
         } catch (error) {
@@ -847,7 +847,7 @@ export class Project {
      * Forces a refresh of the project (re-parse project file and refresh loaded tree areas)
      */
     async refresh(): Promise<void> {
-        log.info(`Forcing refresh of project: ${this.name}`);
+        log.debug(`Forcing refresh of project: ${this.name}`);
 
         await this.parseProjectFile();
 
@@ -861,11 +861,11 @@ export class Project {
      */
     public createFolderWatcher(folderPath: string): void {
         if (this._folderWatchers.has(folderPath)) {
-            log.info(`Folder watcher already exists for: ${folderPath}`);
+            log.debug(`Folder watcher already exists for: ${folderPath}`);
             return;
         }
 
-        log.info(`Creating lazy folder watcher for: ${folderPath}`);
+        log.debug(`Creating lazy folder watcher for: ${folderPath}`);
 
         try {
             // Watch the specific folder for file/directory changes
@@ -875,12 +875,12 @@ export class Project {
 
             // Set up event handlers
             watcher.onDidCreate((uri) => {
-                log.info(`File created in watched folder: ${uri.fsPath}`);
+                log.debug(`File created in watched folder: ${uri.fsPath}`);
                 void this.handleFileCreated(uri);
             }, this, this._disposables);
 
             watcher.onDidChange((uri) => {
-                log.info(`File changed in watched folder: ${uri.fsPath}`);
+                log.debug(`File changed in watched folder: ${uri.fsPath}`);
                 void this.handleFileChanged(uri);
             }, this, this._disposables);
 
@@ -893,7 +893,7 @@ export class Project {
             this._folderWatchers.set(folderPath, watcher);
             this._disposables.push(watcher);
 
-            log.info(`Folder watcher created for: ${folderPath}`);
+            log.debug(`Folder watcher created for: ${folderPath}`);
         } catch (error) {
             log.error(`Failed to create folder watcher for ${folderPath}:`, error);
         }
@@ -903,10 +903,10 @@ export class Project {
      * Disposes all folder watchers
      */
     private _disposeAllFolderWatchers(): void {
-        log.info(`Disposing ${this._folderWatchers.size} folder watchers`);
+        log.debug(`Disposing ${this._folderWatchers.size} folder watchers`);
 
         for (const [folderPath, watcher] of this._folderWatchers) {
-            log.info(`Disposing folder watcher: ${folderPath}`);
+            log.debug(`Disposing folder watcher: ${folderPath}`);
             watcher.dispose();
         }
 
@@ -914,7 +914,7 @@ export class Project {
     }
 
     dispose(): void {
-        log.info(`Disposing project: ${this.name}`);
+        log.debug(`Disposing project: ${this.name}`);
 
         if (this._reevaluateTimer) {
             clearTimeout(this._reevaluateTimer);

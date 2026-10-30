@@ -30,14 +30,14 @@ export default function ProjectList({
         if (projects && projects.length > 0) {
             // If there's only one project, always auto-select it
             if (projects.length === 1 && !selectedProjects.has(projects[0].path)) {
-                log.info('Auto-selecting single project:', projects[0].name);
+                log.debug('Auto-selecting single project:', projects[0].name);
                 setSelectedProjects(new Set([projects[0].path]));
             }
             // If opening from project context, auto-select the current project
             else if (projectPath) {
                 const currentProject = projects.find(p => p.path === projectPath);
                 if (currentProject && !selectedProjects.has(currentProject.path)) {
-                    log.info('Auto-selecting current project:', currentProject.name);
+                    log.debug('Auto-selecting current project:', currentProject.name);
                     setSelectedProjects(new Set([currentProject.path]));
                 }
             }

@@ -9,7 +9,8 @@
 - **Changed, Test Explorer:** a multi-targeted test project is tested for every target framework (`MyTests (net8.0)`, `MyTests (net10.0)`), not only the one Select Framework or the automatic pick chose.
 - **Fixed, Solution Explorer:** the tree scrolls again (touchpad, wheel, scroll bar) when it is taller than the view: its container cut the rows off instead of letting the tree scroll.
 - **Changed, all views:** the scroll bars are thin, without arrow buttons, with a transparent track and a translucent thumb in the theme's slider colours, like VS Code's own lists.
-- **Changed:** the Output log no longer holds a line per expanded tree node.
+- **Changed, log:** the Output log holds what happened (opening a solution, installing a package, a failure), not a line per tree node, file change, cached package or tab click; the rest is at debug level (Developer: Set Log Level). A message below the channel's level is no longer built at all, so an object in a debug line (the whole solution, a NuGet data message) is not dumped for nothing.
+- **Fixed, NuGet manager:** a burst of changes (every project's first evaluation at start, one per project after an update) started a full refresh each, on top of each other (about 20 in 40 seconds on a 50-project solution); now one refresh runs at a time and the requests that come meanwhile share one more. The list of package sources is read once for a few seconds instead of by one `dotnet nuget list source` process per few packages (178 in 80 seconds).
 
 ## 0.2.0
 

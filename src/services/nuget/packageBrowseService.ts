@@ -15,6 +15,8 @@ import { Settings } from '../shared/settings';
 
 const execAsync = promisify(exec);
 const log = logger('PackageBrowseService');
+/** How long the list of sources is shared between callers */
+const SOURCES_SHARE_MS = 5000;
 
 /** The sources in the output of `dotnet nuget list source --format detailed` (English) */
 export function parseSourceList(stdout: string): PackageSource[] {
@@ -86,7 +88,7 @@ export class PackageBrowseService {
             return [];
         }
 
-        log.info(`Searching packages across configured sources for: ${options.query}`);
+        log.debug(`Searching packages across configured sources for: ${options.query}`);
         return this.searchAcrossConfiguredSources(options);
     }
 
@@ -124,6 +126,24 @@ export class PackageBrowseService {
      * Searches in: root/.nuget/nuget.config, project folders, and global configs
      */
     static async getPackageSources(): Promise<PackageSource[]> {
+        // The manager asks for every package it enriches (hundreds per refresh): `dotnet nuget list source` runs once per few seconds, not for each
+        const key = configStartDir();
+        if (this.sourcesCache && this.sourcesCache.key === key && Date.now() - this.sourcesCache.at < SOURCES_SHARE_MS) {
+            return this.sourcesCache.result;
+        }
+        const result = this.readPackageSources();
+        this.sourcesCache = { key, at: Date.now(), result };
+        return result;
+    }
+
+    private static sourcesCache: { key: string; at: number; result: Promise<PackageSource[]> } | undefined;
+
+    /** The sources changed (added, removed, enabled, disabled): the next call reads them again */
+    static invalidateSources(): void {
+        this.sourcesCache = undefined;
+    }
+
+    private static async readPackageSources(): Promise<PackageSource[]> {
         try {
             // First try to get sources using dotnet CLI (respects all nuget.config files)
             // plus those of the solution-level .nuget/NuGet.Config, which Visual Studio reads and the CLI does not
@@ -175,7 +195,7 @@ export class PackageBrowseService {
             });
 
             const sources = parseSourceList(stdout);
-            log.info(`Found ${sources.length} package sources from dotnet CLI`);
+            log.debug(`Found ${sources.length} package sources from dotnet CLI`);
             return sources;
 
         } catch (error) {
@@ -205,7 +225,7 @@ export class PackageBrowseService {
         for (const configPath of configPaths) {
             try {
                 if (fs.existsSync(configPath)) {
-                    log.info(`Parsing nuget.config: ${configPath}`);
+                    log.debug(`Parsing nuget.config: ${configPath}`);
                     const configSources = await this.parseNugetConfig(configPath);
                     sources.push(...configSources);
                 }
@@ -289,7 +309,7 @@ export class PackageBrowseService {
                 }
             }
 
-            log.info(`Parsed ${sources.length} sources from ${configPath}`);
+            log.debug(`Parsed ${sources.length} sources from ${configPath}`);
 
         } catch (error) {
             log.error(`Error parsing nuget.config ${configPath}:`, error);
@@ -306,7 +326,7 @@ export class PackageBrowseService {
         try {
             // Get all configured sources from nuget.config
             const sources = await this.getPackageSources();
-            log.info(`Found ${sources.length} configured package sources`);
+            log.debug(`Found ${sources.length} configured package sources`);
 
             const allResults: NuGetPackage[] = [];
             const searchPromises: Promise<NuGetPackage[]>[] = [];
@@ -317,7 +337,7 @@ export class PackageBrowseService {
             const chosen = options.source ? sources.filter(source => source.name === options.source) : searchableSources(sources).slice(0, 3);
             for (const source of chosen) {
                 if (source.enabled && !source.isLocal) {
-                    log.info(`Searching source: ${source.name} (${source.url})`);
+                    log.debug(`Searching source: ${source.name} (${source.url})`);
                     searchPromises.push(this.searchSingleSource(source, options));
                 }
             }
@@ -335,7 +355,7 @@ export class PackageBrowseService {
 
             // Remove duplicates based on package ID
             const uniquePackages = this.deduplicatePackages(allResults);
-            log.info(`Found ${uniquePackages.length} unique packages across all sources`);
+            log.debug(`Found ${uniquePackages.length} unique packages across all sources`);
 
             return uniquePackages.slice(0, options.take || 20);
 
@@ -362,7 +382,7 @@ export class PackageBrowseService {
             // Upgrade nuget.org V2 URLs to V3 for better functionality
             const upgradedUrl = upgradeNuGetOrgUrl(source.url);
 
-            log.info(`Using NuGet V3 API for: ${source.name}`);
+            log.debug(`Using NuGet V3 API for: ${source.name}`);
             const found = await NuGetV3Service.searchPackages(upgradedUrl, options, accessToken);
             return found.map(pkg => ({ ...pkg, source: source.name }));
 

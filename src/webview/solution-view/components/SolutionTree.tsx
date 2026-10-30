@@ -53,7 +53,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     }, []);
 
     const handleNodeClick = (nodeId: NodeIdString, modifiers?: { toggle?: boolean; range?: boolean }) => {
-        log.info(`Node clicked: ${nodeId}`);
+        log.debug(`Node clicked: ${nodeId}`);
         setFocusedNodeId(nodeId);
         if (modifiers?.range && selectionAnchor) {
             const ids = flatNodes.map(item => item.node.nodeId);
@@ -79,7 +79,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     };
 
     const handleNodeFocus = (nodeId: NodeIdString) => {
-        log.info(`Setting focus to: ${nodeId}`);
+        log.debug(`Setting focus to: ${nodeId}`);
         setFocusedNodeId(nodeId);
     };
 
@@ -107,7 +107,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     }, []);
 
     const handleRenameConfirm = (newName: string, nodeId: NodeIdString, nodeType: NodeType, oldName: string) => {
-        log.info(`Rename confirmed: ${oldName} -> ${newName}`);
+        log.debug(`Rename confirmed: ${oldName} -> ${newName}`);
         setRenamingNodeId(undefined);
         onProjectAction({
             nodeId,
@@ -121,7 +121,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     };
 
     const handleRenameCancel = () => {
-        log.info(`Rename cancelled`);
+        log.debug(`Rename cancelled`);
         setRenamingNodeId(undefined);
     };
 
@@ -151,7 +151,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
     const treeNodes = React.useMemo(() => buildTreeNodes(projects), [buildTreeNodes, projects]);
 
     const handleToggleExpand = useCallback((nodeId: NodeIdString, _nodeType: NodeType) => {
-        log.info(`Toggle expand request for nodeId: ${nodeId}`);
+        log.debug(`Toggle expand request for nodeId: ${nodeId}`);
 
         // Find the node to check its current state
         const node = findNodeById(nodeId, treeNodes);
@@ -161,10 +161,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
         }
 
         if (node.expanded) {
-            log.info(`Requesting collapse: ${nodeId}`);
+            log.debug(`Requesting collapse: ${nodeId}`);
             onCollapseNode?.(nodeId);
         } else {
-            log.info(`Requesting expand: ${nodeId}`);
+            log.debug(`Requesting expand: ${nodeId}`);
             onExpandNode?.(nodeId);
         }
     }, [findNodeById, treeNodes, onCollapseNode, onExpandNode]);
@@ -343,7 +343,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                         if (allNodes[i].level === currentLevel - 1) {
                             const parentNode = allNodes[i].node;
                             if (parentNode.children && parentNode.expanded) {
-                                log.info(`Collapsing parent: ${parentNode.name}`);
+                                log.debug(`Collapsing parent: ${parentNode.name}`);
                                 handleToggleExpand(parentNode.nodeId, parentNode.type);
                             }
                             break;
@@ -585,7 +585,7 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
                     if (node && (node.expanded || node.isLoading === false)) {
                         newSet.delete(path);
                         hasChanges = true;
-                        log.info(`Clearing local loading state for: ${path}`);
+                        log.debug(`Clearing local loading state for: ${path}`);
                     }
                 }
 

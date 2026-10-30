@@ -81,7 +81,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 log.debug('Debounced updateView triggered');
 
                 // Load data asynchronously to prevent blocking
-                log.info('Loading solution data...');
+                log.debug('Loading solution data...');
 
                 const solutionData = await this._getSolutionData();
 
@@ -285,7 +285,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             case 'getSolutionData':
-                log.info('Handling getSolutionData request');
+                log.debug('Handling getSolutionData request');
                 await this._sendCachedData();
                 break;
 
@@ -323,7 +323,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                         if (solutionFileOperations.includes(message.payload.action)) {
                             const solution = SolutionService.getActiveSolution();
                             if (solution) {
-                                log.info(`Triggering immediate file change handling after ${message.payload.action} operation`);
+                                log.debug(`Triggering immediate file change handling after ${message.payload.action} operation`);
                                 this.handleFileChange(solution.solutionPath, 'changed');
                             }
                         }
@@ -395,7 +395,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
 
             case 'collapseNode':
                 if (message.payload.nodeId) {
-                    log.info('Handling collapseNode request:', message.payload.nodeId);
+                    log.debug('Handling collapseNode request:', message.payload.nodeId);
                     await SolutionExpansionService.handleCollapseNode(
                         message.payload.nodeId!,
                         this._cachedSolutionData || null,
@@ -406,31 +406,31 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
                 break;
 
             default:
-                log.info('Unknown message command:', message);
+                log.debug('Unknown message command:', message);
         }
     }
 
     private async _getSolutionData(): Promise<ProjectNode[]> {
-        log.info('Getting solution data...');
+        log.debug('Getting solution data...');
 
         const workspaceRoot = solutionWorkspaceFolder()?.uri.fsPath || '';
-        log.info('Workspace root:', workspaceRoot);
+        log.debug('Workspace root:', workspaceRoot);
 
         // First check if we already have an active solution for the same workspace
         let solution = SolutionService.getActiveSolution();
 
         // A loaded solution stays, also one opened from outside the workspace folder (Open Solution...)
         if (!solution || !solution.solutionPath) {
-            log.info('No active solution, discovering solution...');
+            log.debug('No active solution, discovering solution...');
             solution = await SolutionService.discoverAndInitializeSolution() || undefined;
         } else {
-            log.info('Reusing existing active solution:', solution.solutionPath);
+            log.debug('Reusing existing active solution:', solution.solutionPath);
         }
         if (solution) {
             ShowAllFiles.setSolution(solution.solutionPath);
         }
         if (!solution) {
-            log.info('No solution found or failed to initialize');
+            log.debug('No solution found or failed to initialize');
             return [];
         }
 
@@ -451,7 +451,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
             // a refresh does not touch the solution file, so this does not loop)
             this._solutionParseListener = solution.onDidParse(() => void refreshStartup());
             this._solutionChangeListener = solution.onDidChange(() => {
-                log.info('Solution changed (including launch.json), updating tree...');
+                log.debug('Solution changed (including launch.json), updating tree...');
                 this._updateViewDebouncer.trigger();
             });
         }
@@ -461,11 +461,11 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         // Get solution file data
         const solutionData = solution.solutionFile;
         if (!solutionData) {
-            log.info('Failed to get solution data');
+            log.debug('Failed to get solution data');
             return [];
         }
 
-        log.info('Got solution data:', solutionData);
+        log.debug('Got solution data:', solutionData);
 
         this._frameworkService.setSolution(solution);
         this._updateDescription(solution);
@@ -527,12 +527,12 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
         log.debug('Sending cached data to webview (no reload)');
 
         if (!this._view) {
-            log.info('No webview available, skipping send');
+            log.debug('No webview available, skipping send');
             return;
         }
 
         if (!this._cachedSolutionData) {
-            log.info('No cached data available, falling back to full reload');
+            log.debug('No cached data available, falling back to full reload');
             return this._updateViewDebouncer.trigger();
         }
 
@@ -661,7 +661,7 @@ export class SolutionWebviewProvider implements vscode.WebviewViewProvider {
      */
     private async _triggerImmediateTreeRefresh(reason: string): Promise<void> {
         try {
-            log.info(`Triggering immediate tree refresh: ${reason}`);
+            log.debug(`Triggering immediate tree refresh: ${reason}`);
 
             // Force all projects to refresh their file trees (this will reload folder contents)
             const solution = SolutionService.getActiveSolution();

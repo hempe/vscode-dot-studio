@@ -57,7 +57,16 @@ async function startDebugWithStartupProject(): Promise<void> {
 export function activate(context: vscode.ExtensionContext) {
     // All logs go to Output > "Shinobi .NET Studio"; "Developer: Set Log Level" picks how much
     const logChannel = vscode.window.createOutputChannel('Shinobi .NET Studio', { log: true });
-    setLogSink(logChannel);
+    // Messages below the channel's level are dropped before they are built: an object in a debug line is not dumped for nothing
+    const levels = { trace: vscode.LogLevel.Trace, debug: vscode.LogLevel.Debug, info: vscode.LogLevel.Info, warn: vscode.LogLevel.Warning, error: vscode.LogLevel.Error };
+    setLogSink({
+        enabled: level => logChannel.logLevel !== vscode.LogLevel.Off && logChannel.logLevel <= levels[level],
+        trace: message => logChannel.trace(message),
+        debug: message => logChannel.debug(message),
+        info: message => logChannel.info(message),
+        warn: message => logChannel.warn(message),
+        error: message => logChannel.error(message),
+    });
     context.subscriptions.push(
         logChannel,
         { dispose: () => setLogSink(undefined) },
@@ -78,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const filePath = uri.fsPath;
         const fileName = filePath.split('/').pop() || '';
-        logger.info(`File ${changeType}: ${fileName}`);
+        logger.debug(`File ${changeType}: ${fileName}`);
 
         // The **/*.sln* watcher also sees the startup profiles (.slnLaunch, .slnLaunch.user)
         void startupProfilesChanged(filePath).then(changed => changed && solutionWebviewProvider.refresh());

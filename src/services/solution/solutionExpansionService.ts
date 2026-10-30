@@ -77,7 +77,7 @@ export class SolutionExpansionService {
                 // Solution is always expanded when loaded, but check if we need to restore state
                 const existingNode = SolutionTreeService.findNodeById(nodeId, cachedSolutionData || []);
                 if (existingNode?.children) {
-                    log.info(`Re-expanding solution node: ${nodeId}`);
+                    log.debug(`Re-expanding solution node: ${nodeId}`);
 
                     // Restore expansion states for all projects
                     for (const child of existingNode.children) {
@@ -540,7 +540,7 @@ export class SolutionExpansionService {
             }
 
 
-            log.info(`Restoring expansion states for ${expansionPaths.size} nodes:`);
+            log.debug(`Restoring expansion states for ${expansionPaths.size} nodes:`);
 
             // Filter out broken/old nodeIds and track valid ones
             const validExpansionPaths = new Set<NodeIdString>();
@@ -578,7 +578,7 @@ export class SolutionExpansionService {
 
             // Clean up broken nodeIds from saved state
             if (brokenNodeIds.length > 0) {
-                log.info(`Cleaning up ${brokenNodeIds.length} broken/outdated nodeIds from expansion state`);
+                log.debug(`Cleaning up ${brokenNodeIds.length} broken/outdated nodeIds from expansion state`);
                 this.saveExpansionState(validExpansionPaths, context);
             }
 
@@ -586,7 +586,7 @@ export class SolutionExpansionService {
             for (const expandedId of validExpansionPaths) {
                 const nodeType = NodeIdService.parse(expandedId).type;
                 if (nodeType) {
-                    log.info(`Restoring expansion for: ${expandedId} (${nodeType})`);
+                    log.debug(`Restoring expansion for: ${expandedId} (${nodeType})`);
 
                     // Set expanded = true in the tree
                     const updateSuccess = SolutionTreeService.updateNodeInTree(treeData, expandedId, { expanded: true });
@@ -598,7 +598,7 @@ export class SolutionExpansionService {
                     // Load children for the expanded node
                     await this._loadChildrenForNode(expandedId, nodeType, treeData);
 
-                    log.info(`Successfully restored and loaded children for: ${expandedId}`);
+                    log.debug(`Successfully restored and loaded children for: ${expandedId}`);
                 }
             }
 
@@ -627,7 +627,7 @@ export class SolutionExpansionService {
                     continue;
                 }
 
-                log.info(`Refreshing expanded folder: ${path}`);
+                log.debug(`Refreshing expanded folder: ${path}`);
                 try {
                     // Get fresh folder contents
                     const folderChildren = await project.getFolderChildren(path);
@@ -708,12 +708,12 @@ export class SolutionExpansionService {
                     return;
                 }
 
-                log.info(`Loading children for dependencies node. ProjectPath: ${path}`);
+                log.debug(`Loading children for dependencies node. ProjectPath: ${path}`);
                 const project = solution.getProject(path);
                 if (project) {
                     const dependencies = project.getDependencies();
                     children = SolutionTreeService.convertProjectChildrenToProjectNodes(dependencies);
-                    log.info(`Loaded ${children.length} dependency categories for ${path}`);
+                    log.debug(`Loaded ${children.length} dependency categories for ${path}`);
                 } else {
                     log.warn(`Could not find project for dependencies: ${path}`);
                 }
@@ -725,14 +725,14 @@ export class SolutionExpansionService {
                     return;
                 }
 
-                log.info(`Loading children for dependency category node. ProjectPath: ${path}, CategoryId: ${nodeId}`);
+                log.debug(`Loading children for dependency category node. ProjectPath: ${path}, CategoryId: ${nodeId}`);
                 const project = solution.getProject(path);
                 if (project) {
                     try {
                         const nodeData = NodeIdService.parse(nodeId);
                         const categoryDependencies = project.getDependenciesByCategory(nodeData);
                         children = SolutionTreeService.convertProjectChildrenToProjectNodes(categoryDependencies);
-                        log.info(`Loaded ${children.length} dependencies for category ${nodeId}`);
+                        log.debug(`Loaded ${children.length} dependencies for category ${nodeId}`);
                     } catch (error) {
                         log.error(`Failed to parse nodeId for dependency category: ${nodeId}`, error);
                     }

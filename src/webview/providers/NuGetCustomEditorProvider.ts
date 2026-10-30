@@ -208,13 +208,51 @@ export class NuGetCustomEditorProvider implements vscode.CustomTextEditorProvide
         }
     }
 
-    private async _updateWebview(
+    // Per editor: the refresh that is running, and the one queued behind it (it reads everything again, so one is enough)
+    private readonly _running = new Map<vscode.Webview, Promise<void>>();
+    private readonly _queued = new Map<vscode.Webview, { context: { type: 'project' | 'solution', target: string }; includePrerelease: boolean; done: Promise<void> }>();
+
+    /**
+     * Sends the editor its data. One refresh runs at a time per editor; requests that come meanwhile (a burst of evaluations
+     * at start, one per project after an update) share one more refresh afterwards, with the newest arguments. Each
+     * refresh enriches every installed package, so refreshes on top of each other only slow each other down.
+     */
+    private _updateWebview(
         webview: vscode.Webview | null | undefined,
         context: { type: 'project' | 'solution', target: string },
-        includePrerelease: boolean) {
+        includePrerelease: boolean): Promise<void> {
         if (!webview) {
-            return;
+            return Promise.resolve();
         }
+        const running = this._running.get(webview);
+        if (!running) {
+            const run = this._sendData(webview, context, includePrerelease).finally(() => {
+                if (this._running.get(webview) === run) {
+                    this._running.delete(webview);
+                }
+            });
+            this._running.set(webview, run);
+            return run;
+        }
+        const queued = this._queued.get(webview);
+        if (queued) {
+            queued.context = context;
+            queued.includePrerelease = includePrerelease;
+            return queued.done;
+        }
+        const entry = { context, includePrerelease, done: Promise.resolve() };
+        entry.done = running.then(() => {
+            this._queued.delete(webview);
+            return this._updateWebview(webview, entry.context, entry.includePrerelease);
+        });
+        this._queued.set(webview, entry);
+        return entry.done;
+    }
+
+    private async _sendData(
+        webview: vscode.Webview,
+        context: { type: 'project' | 'solution', target: string },
+        includePrerelease: boolean) {
 
         try {
             // Get NuGet data based on context (project vs solution)

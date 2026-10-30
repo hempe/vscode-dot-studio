@@ -125,6 +125,28 @@ describe('NuGetCustomEditorProvider refreshes', () => {
         expect(installedVersions(webview)).toEqual(['2.0.0']);
     });
 
+    test('requests that come while a refresh runs share one more refresh, with the newest choice', async () => {
+        const { webview, receive } = await openEditor(new NuGetCustomEditorProvider({} as any, {} as any));
+        const data = { installedPackages: [{ id: 'Serilog', currentVersion: '1.0.0' }], outdatedPackages: [], transitivePackages: [], consolidatePackages: [], projects: [] };
+        let finish: () => void = () => { };
+        const slow = new Promise<typeof data>(resolve => { finish = () => resolve(data); });
+        (NuGetManagerService.getSolutionNuGetData as jest.Mock).mockClear();
+        (NuGetManagerService.getSolutionNuGetData as jest.Mock).mockImplementationOnce(() => slow).mockResolvedValue(data);
+        webview.postMessage.mockClear();
+
+        const first = receive({ type: 'getNuGetData', payload: { includePrerelease: false } });
+        const others = [1, 2, 3, 4].map(i => receive({ type: 'getNuGetData', payload: { includePrerelease: i % 2 === 0 } }));
+        await flush();
+        expect(NuGetManagerService.getSolutionNuGetData).toHaveBeenCalledTimes(1);
+
+        finish();
+        await Promise.all([first, ...others]);
+        // The running refresh and one more for the four that came meanwhile, with the last one's choice
+        expect(NuGetManagerService.getSolutionNuGetData).toHaveBeenCalledTimes(2);
+        expect((NuGetManagerService.getSolutionNuGetData as jest.Mock).mock.calls[1]).toEqual(['/repo/App.sln', true]);
+        expect(webview.postMessage.mock.calls.filter(([message]) => message.type === 'nugetData')).toHaveLength(2);
+    });
+
     test('coming to the front re-checks the props files no watcher sees', async () => {
         const onFocus = jest.fn().mockResolvedValue(undefined);
         const { viewState } = await openEditor(new NuGetCustomEditorProvider({} as any, {} as any, onFocus));

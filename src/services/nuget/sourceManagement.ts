@@ -70,6 +70,7 @@ export async function listManagedSources(startDir = configStartDir()): Promise<M
 async function run(args: string[], cwd: string): Promise<void> {
     try {
         await execDotnet(args, { cwd, timeout: 60000 });
+        PackageBrowseService.invalidateSources();
     } catch (error) {
         const output = error as { stdout?: string; stderr?: string; message?: string };
         throw new Error((output.stderr || output.stdout || output.message || 'dotnet nuget failed').trim().split(/\r?\n/).slice(-3).join(' '));

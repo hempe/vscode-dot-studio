@@ -83,7 +83,7 @@ export class PackageInstalledService {
             const projectArg = path.relative(workingDir, absoluteProjectPath) || absoluteProjectPath;
 
             const args = ['list', projectArg, 'package', '--format', 'json'];
-            log.info(`Getting packages for project: dotnet ${args.join(' ')} (cwd: ${workingDir})`);
+            log.debug(`Getting packages for project: dotnet ${args.join(' ')} (cwd: ${workingDir})`);
 
             const { stdout, stderr } = await execDotnet(args, { cwd: workingDir, timeout: 15000 });
 
@@ -117,14 +117,14 @@ export class PackageInstalledService {
 
             // Fallback: try to get packages from active solution
             try {
-                log.info(`Attempting fallback: getting packages from active solution for ${projectPath}`);
+                log.debug(`Attempting fallback: getting packages from active solution for ${projectPath}`);
                 const allProjects = await this.getAllProjectsInfoFromActiveSolution();
                 const project = allProjects.find(p =>
                     p.path === projectPath ||
                     path.resolve(p.path) === path.resolve(projectPath)
                 );
                 if (project) {
-                    log.info(`Fallback found ${project.packages.length} packages for project`);
+                    log.debug(`Fallback found ${project.packages.length} packages for project`);
                     return project.packages;
                 }
             } catch (fallbackError) {
@@ -158,22 +158,22 @@ export class PackageInstalledService {
             const pollInterval = 500; // Increased to 500ms to reduce CPU usage
 
             // Debug: Log initial state
-            log.info(`Initial check - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
+            log.debug(`Initial check - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
             if (activeSolution) {
-                log.info(`Solution path: ${activeSolution.solutionPath}, projects count: ${activeSolution.projects.size}`);
+                log.debug(`Solution path: ${activeSolution.solutionPath}, projects count: ${activeSolution.projects.size}`);
             }
 
             while (!activeSolution || !activeSolution.isInitialized) {
                 if (waitTime % 5000 === 0) { // Log every 5 seconds instead of every poll
-                    log.info(`Waiting for active solution to initialize... (${waitTime}ms elapsed)`);
-                    log.info(`Current state - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
+                    log.debug(`Waiting for active solution to initialize... (${waitTime}ms elapsed)`);
+                    log.debug(`Current state - activeSolution: ${activeSolution ? 'exists' : 'null'}, initialized: ${activeSolution?.isInitialized ? 'yes' : 'no'}`);
                 }
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
                 waitTime += pollInterval;
                 activeSolution = SolutionService.getActiveSolution();
             }
 
-            log.info('Getting project info from active solution...');
+            log.debug('Getting project info from active solution...');
 
             const projectInfos: ProjectInfo[] = [];
             const projects = Array.from(activeSolution.projects.values());
@@ -181,7 +181,7 @@ export class PackageInstalledService {
             // per project, usually done already for the tree (unloaded projects are skipped)
             await Promise.all(projects.map(project => project.evaluateItems()));
 
-            log.info(`Processing ${projects.length} projects from active solution...`);
+            log.debug(`Processing ${projects.length} projects from active solution...`);
 
             for (const project of projects) {
                 try {
@@ -216,7 +216,7 @@ export class PackageInstalledService {
             }
 
             const duration = Date.now() - startTime;
-            log.info(`Completed processing ${projects.length} projects from active solution in ${duration}ms (${projectInfos.length} successful)`);
+            log.debug(`Completed processing ${projects.length} projects from active solution in ${duration}ms (${projectInfos.length} successful)`);
 
             return projectInfos;
 

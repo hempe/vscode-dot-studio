@@ -155,7 +155,7 @@ export const App: React.FC = () => {
                         // For Browse tab, we need to check the enhanced search results too
                         const freshEnhancedResults = enhanceWithInstalledInfo(safeData.searchResults, safeData.installedPackages);
 
-                        log.info('NuGet React: Looking for package in refresh data:', {
+                        log.debug('NuGet React: Looking for package in refresh data:', {
                             selectedPackageId: selectedPackageRef.current.id,
                             installedPackagesCount: safeData.installedPackages?.length ?? 0,
                             installedPackageIds: safeData.installedPackages?.map(p => p.id) ?? []
@@ -168,7 +168,7 @@ export const App: React.FC = () => {
                             safeData.updatesAvailable?.find(pkg => pkg.id === selectedPackageRef.current!.id);
 
                         if (updatedPackage) {
-                            log.info('NuGet React: Preserving selection after data refresh:', {
+                            log.debug('NuGet React: Preserving selection after data refresh:', {
                                 packageId: updatedPackage.id,
                                 oldVersion: selectedPackageRef.current.currentVersion,
                                 newVersion: updatedPackage.currentVersion
@@ -184,7 +184,7 @@ export const App: React.FC = () => {
                         }
                     } else if (safeData.installedPackages && safeData.installedPackages.length > 0) {
                         // Auto-select first installed package when data loads initially
-                        log.info('NuGet React: Auto-selecting package:', safeData.installedPackages[0]);
+                        log.debug('NuGet React: Auto-selecting package:', safeData.installedPackages[0]);
                         setSelectedPackage(safeData.installedPackages[0]);
                     }
 
@@ -193,7 +193,7 @@ export const App: React.FC = () => {
                     break;
                 case 'searchResults':
                     const searchResults = message.payload?.searchResults;
-                    log.info('NuGet React: Setting searchResults to:', searchResults);
+                    log.debug('NuGet React: Setting searchResults to:', searchResults);
                     setData(prev => ({ ...prev, searchResults: ensureArray(searchResults) }));
                     setLoading(false);
                     setHasSearched(true);
@@ -227,11 +227,11 @@ export const App: React.FC = () => {
                                 newMap.set(packageKey, message.payload.iconUri!);
                                 return newMap;
                             });
-                            log.info(`Icon received for ${iconKey}: success`);
+                            log.debug(`Icon received for ${iconKey}: success`);
                         } else {
                             // Mark this package as having no icon to avoid future requests
                             setFailedIcons(prev => new Set(prev).add(packageKey));
-                            log.info(`Icon failed for ${iconKey} - won't retry`);
+                            log.debug(`Icon failed for ${iconKey} - won't retry`);
                         }
                     }
                     break;
@@ -246,9 +246,9 @@ export const App: React.FC = () => {
                                 newMap.set(packageKey, message.payload.readmeUrl!);
                                 return newMap;
                             });
-                            log.info(`README URL received for ${readmeKey}: ${message.payload.readmeUrl}`);
+                            log.debug(`README URL received for ${readmeKey}: ${message.payload.readmeUrl}`);
                         } else {
-                            log.info(`README not available for ${readmeKey}`);
+                            log.debug(`README not available for ${readmeKey}`);
                         }
                     }
                     break;
@@ -256,14 +256,14 @@ export const App: React.FC = () => {
                 case 'uninstallComplete':
                     // Clear loading state when install/uninstall operations complete
                     setLoading(false);
-                    log.info(`NuGet React: ${message.type} - success: ${message.payload.success}`);
+                    log.debug(`NuGet React: ${message.type} - success: ${message.payload.success}`);
 
                     // The host sends fresh data after a successful change
                     break;
                 case 'bulkUpdateComplete':
                     // Handle bulk update completion
                     setLoading(false);
-                    log.info(`NuGet React: Bulk update complete - success: ${message.payload.success}`);
+                    log.debug(`NuGet React: Bulk update complete - success: ${message.payload.success}`);
 
                     // Refresh data and clear selections after successful bulk update
                     if (message.payload.success) {
@@ -278,11 +278,11 @@ export const App: React.FC = () => {
                 case 'bulkConsolidateComplete':
                     // Handle bulk consolidate completion
                     setLoading(false);
-                    log.info(`NuGet React: Bulk consolidate complete - success: ${message.payload.success}`);
+                    log.debug(`NuGet React: Bulk consolidate complete - success: ${message.payload.success}`);
 
                     // Refresh data and clear selections after successful bulk consolidate
                     if (message.payload.success) {
-                        log.info(`NuGet React: Refreshing data after successful bulk consolidate`);
+                        log.debug(`NuGet React: Refreshing data after successful bulk consolidate`);
                         // Reset consolidate loaded state to trigger a fresh reload
                         setConsolidateLoaded(false);
                         // Clear all selections after successful consolidation
@@ -339,7 +339,7 @@ export const App: React.FC = () => {
 
     const handleSearch = (source: string = selectedSource) => {
         if (searchTerm.trim()) {
-            log.info('Frontend: Starting search for:', searchTerm);
+            log.debug('Frontend: Starting search for:', searchTerm);
             setLoading(true);
             setErrorMessage(null);
             sendToBackend({
@@ -349,7 +349,7 @@ export const App: React.FC = () => {
                     ...(source ? { source } : {}),
                 }
             });
-            log.info('Frontend: Search message sent to backend');
+            log.debug('Frontend: Search message sent to backend');
         }
     };
 
