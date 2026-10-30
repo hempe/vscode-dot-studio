@@ -11,6 +11,7 @@ import { UICmd } from '../../../types/commands/ui';
 import { sendToBackend } from '../../nuget-view/shared';
 import { canDrop, dropNodeIndex, DropNode, isDraggable } from '../../../core/dropRules';
 import { DiagnosticsHint } from './DiagnosticsHint';
+import { describeMarker } from './TreeNode/diagnosticMarker';
 import { isCopyDrag } from '../../shared/dragCopyKey';
 
 const log = logger('SolutionTree');
@@ -650,10 +651,10 @@ export const SolutionTree: React.FC<SolutionTreeProps> = ({ projects, onProjectA
             ))}
             {hint && (
                 <DiagnosticsHint
-                    nodeId={hint.nodeId}
+                    text={markers?.[hint.nodeId] ? describeMarker(markers[hint.nodeId]) : ''}
                     anchor={hint.anchor}
                     onHover={over => over ? clearTimeout(hintTimer.current) : scheduleHint(() => setHint(undefined), HINT_CLOSE_DELAY_MS)}
-                    onShowAll={() => { setHint(undefined); handleProjectActionWrapper({ action: 'showDiagnostics', nodeId: hint.nodeId }); }}
+                    onShow={() => { setHint(undefined); handleProjectActionWrapper({ action: 'showDiagnostics', nodeId: hint.nodeId }); }}
                 />
             )}
         </div>

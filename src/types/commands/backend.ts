@@ -137,24 +137,6 @@ export declare type TreeFocusChangedCmd = {
     }
 }
 
-/** The hint over a marker asks for the first problems below the node */
-export declare type GetNodeDiagnosticsCmd = {
-    readonly type: 'getNodeDiagnostics',
-    readonly payload: {
-        readonly nodeId: NodeIdString,
-    }
-}
-
-/** A problem in the hint: open its file at the line */
-export declare type OpenDiagnosticCmd = {
-    readonly type: 'openDiagnostic',
-    readonly payload: {
-        readonly filePath: string,
-        readonly line: number,
-        readonly column: number,
-    }
-}
-
 /** The nodes selected in the tree (Ctrl/Shift+click), for commands that act on all of them */
 export declare type TreeSelectionChangedCmd = {
     readonly type: 'treeSelectionChanged',
@@ -201,8 +183,6 @@ export declare type BackendCmd =
     ExpandNodeCmd |
     CollapseNodeCmd |
     TreeFocusChangedCmd |
-    GetNodeDiagnosticsCmd |
-    OpenDiagnosticCmd |
     TreeSelectionChangedCmd |
     MoveNodesCmd |
     ToolbarActionCmd |

@@ -126,7 +126,7 @@ Every project has a Dependencies node, also one without packages or references (
 
 ## Errors in the tree
 
-Files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Hold the mouse over a count or a dot: a box lists the first problems below that node (code, message, file and line). The box stays while the mouse is on it; click a problem to open its file at the line, or the link at the bottom to list them in the [Error List](error-list.md#problems-of-one-node), narrowed to that node. Clicking the count or dot itself does the same as that link.
+Files with errors or warnings get a red or yellow squiggly underline and a count; folders, projects, solution folders and the solution show a dot when anything below them has problems. Hold the mouse over a count or a dot: a small box says what it counts ("1 error, 3 infos"). The box stays while the mouse is on it, and clicking its text lists those problems in the [Error List](error-list.md#problems-of-one-node), narrowed to that node. The count or dot itself has no click action.
 
 The markers come from the last build, as in Visual Studio, plus the C# language server's live errors for open files. Which severities are marked follows the Error List's Errors / Warnings / Messages toggles. See [Error List](error-list.md).
 

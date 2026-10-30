@@ -237,59 +237,27 @@ export class SolutionWebView {
                         /* The hint over a marker: fixed to the view, so the tree's scrolling does not clip it */
                         .diagnostics-hint {
                             position: fixed;
-                            left: 8px;
-                            right: 8px;
                             z-index: 20;
-                            overflow-y: auto;
                             background: var(--vscode-editorHoverWidget-background);
-                            color: var(--vscode-editorHoverWidget-foreground);
                             border: 1px solid var(--vscode-editorHoverWidget-border);
                             box-shadow: 0 2px 8px var(--vscode-widget-shadow);
                             padding: 2px 0;
+                            max-width: calc(100vw - 16px);
                         }
-                        .diagnostics-hint-row {
-                            display: flex;
-                            gap: 6px;
-                            align-items: center;
-                            padding: 2px 8px;
-                            cursor: pointer;
-                            min-width: 0;
-                        }
-                        .diagnostics-hint-row:hover,
-                        .diagnostics-hint-row:focus {
-                            background: var(--vscode-list-hoverBackground);
-                            outline: none;
-                        }
-                        .diagnostics-hint-row .error { color: var(--vscode-problemsErrorIcon-foreground); }
-                        .diagnostics-hint-row .warning { color: var(--vscode-problemsWarningIcon-foreground); }
-                        .diagnostics-hint-row .info { color: var(--vscode-problemsInfoIcon-foreground); }
-                        .diagnostics-hint-text {
-                            flex: 1;
-                            min-width: 0;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            white-space: nowrap;
-                        }
-                        .diagnostics-hint-code { opacity: 0.7; margin-right: 6px; }
-                        .diagnostics-hint-where { flex-shrink: 0; opacity: 0.7; }
-                        .diagnostics-hint-empty { padding: 4px 8px; opacity: 0.8; }
-                        .diagnostics-hint-all {
+                        .diagnostics-hint-link {
                             display: block;
-                            width: 100%;
-                            text-align: left;
-                            padding: 3px 8px;
+                            padding: 3px 10px;
                             border: none;
-                            border-top: 1px solid var(--vscode-editorHoverWidget-border);
                             background: none;
                             color: var(--vscode-textLink-foreground);
                             font: inherit;
                             cursor: pointer;
+                            text-align: left;
                         }
-                        .diagnostics-hint-all:hover { text-decoration: underline; }
+                        .diagnostics-hint-link:hover { text-decoration: underline; }
 
                         .diagnostic-badge,
                         .diagnostic-dot {
-                            cursor: pointer;
                             margin-left: auto;
                             padding-left: 8px;
                             margin-right: 8px;

@@ -298,17 +298,11 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     const isFocused = focusedNodeId === nodeIdentifier;
     const marker = markers?.[nodeIdentifier];
     const markerTitle = marker ? describeMarker(marker) : undefined;
-    // The mouse over the marker shows the problems in a hint (DiagnosticsHint); a click lists them in the Error List
+    // The mouse over the marker opens a hint (DiagnosticsHint) with a link to the Error List; the marker itself does nothing
     const markerProps = {
         'aria-label': markerTitle,
-        role: 'button',
         onMouseEnter: (e: React.MouseEvent) => onMarkerHover?.(nodeIdentifier, (e.currentTarget as HTMLElement).getBoundingClientRect()),
         onMouseLeave: () => onMarkerHover?.(nodeIdentifier, undefined),
-        onClick: (e: React.MouseEvent) => {
-            e.stopPropagation();
-            onProjectAction({ action: 'showDiagnostics', nodeId: nodeIdentifier });
-        },
-        onDoubleClick: (e: React.MouseEvent) => e.stopPropagation(),
     };
 
     // Memoize icon configuration to prevent multiple calls during render

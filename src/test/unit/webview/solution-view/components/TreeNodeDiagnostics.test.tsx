@@ -39,13 +39,12 @@ describe('TreeNode diagnostics markers', () => {
         expect(container.querySelector('.diagnostic-badge')).toBeNull();
     });
 
-    test('a click on the marker asks for the Error List narrowed to the node, without selecting the row', () => {
+    test('a click on the marker does nothing, not even select the row', () => {
         const onProjectAction = jest.fn();
-        const onNodeClick = jest.fn();
-        const { container } = render(<TreeNode {...props} onProjectAction={onProjectAction} onNodeClick={onNodeClick} node={folderNode} markers={markers} />);
+        const { container } = render(<TreeNode {...props} onProjectAction={onProjectAction} node={folderNode} markers={markers} />);
         fireEvent.click(container.querySelector('.diagnostic-dot')!);
-        expect(onProjectAction).toHaveBeenCalledWith({ action: 'showDiagnostics', nodeId: 'folder-1' });
-        expect(onNodeClick).not.toHaveBeenCalled();
+        expect(onProjectAction).not.toHaveBeenCalled();
+        expect(container.querySelector('.diagnostic-dot')).not.toHaveAttribute('role', 'button');
     });
 
     test('the mouse over the marker reports it with its box, and leaving reports that', () => {

@@ -1,7 +1,6 @@
 import * as path from 'path';
 import type { CollectedDiagnostics, ListedSeverity } from './diagnosticsService';
-import { DiagnosticScope, inScope, normalizePath } from './diagnosticsRollup';
-import type { SeverityFilter } from './diagnosticsFilter';
+import { normalizePath } from './diagnosticsRollup';
 import type { ErrorListRow, ErrorListSummary } from '../../types/errorList';
 
 /** Project column for files that belong to no project, as in Visual Studio */
@@ -49,18 +48,6 @@ export function buildErrorRows(
         || a.file.localeCompare(b.file)
         || a.line - b.line
         || a.column - b.column);
-}
-
-/** The rows of the files a node's marker adds up, for the severities the filter shows (the Error List's order) */
-export function nodeRows(
-    files: CollectedDiagnostics,
-    scope: DiagnosticScope,
-    filter: SeverityFilter,
-    projects: readonly { readonly name: string; readonly path: string }[]
-): ErrorListRow[] {
-    const inside = new Map([...files].filter(([file]) => inScope(file, scope)));
-    const shown = { error: filter.errors, warning: filter.warnings, info: filter.infos };
-    return buildErrorRows(inside, projects).filter(row => shown[row.severity]);
 }
 
 /** Total errors, warnings and messages, whatever the filter */

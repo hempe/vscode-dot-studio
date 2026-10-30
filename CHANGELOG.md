@@ -4,7 +4,7 @@
 
 - **Fixed, Test Explorer:** a .NET Framework test app (`net472`, e.g. xUnit v3) is started as its own exe (with `mono` on Linux and macOS), not through `dotnet`, which failed with "hostpolicy.dll not found"; libraries below a `Directory.Build.props` that names test packages (even only under a `Condition`) are no longer listed as test projects: MSBuild's `IsTestProject` decides.
 - **Fixed, Solution Explorer:** the wavy underline of nodes with warnings and errors was clipped to a dotted line by the name's `overflow: hidden`; messages (infos) get the wavy line too, not a dotted one.
-- **Added, Solution Explorer:** the mouse over the count or dot next to a node opens a box with the first problems below it; a click on a problem opens its file at the line, the link at the bottom (and a click on the count or dot) lists them in the Error List, narrowed to that node (a chip clears the narrowing).
+- **Added, Solution Explorer:** the mouse over the count or dot next to a node opens a small box saying what it counts ("1 error, 3 infos"); a click on its text shows those problems in the Error List, narrowed to that node (a chip clears the narrowing). The count or dot itself has no click action.
 - **Added, Error List:** columns can be resized by dragging the border of their header (double-click resets).
 - **Changed, Test Explorer:** a multi-targeted test project is tested for every target framework (`MyTests (net8.0)`, `MyTests (net10.0)`), not only the one Select Framework or the automatic pick chose.
 - **Fixed, Solution Explorer:** the tree scrolls again (touchpad, wheel, scroll bar) when it is taller than the view: its container cut the rows off instead of letting the tree scroll.

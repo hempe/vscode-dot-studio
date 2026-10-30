@@ -1,8 +1,6 @@
 import * as path from 'path';
-import { buildErrorRows, MISCELLANEOUS_FILES, nodeRows, summarizeErrorList } from '../../../../services/diagnostics/errorList';
-import { normalizePath, scopeOf } from '../../../../services/diagnostics/diagnosticsRollup';
-import { NodeIdService } from '../../../../services/solution/nodeIdService';
-import { ProjectNode } from '../../../../types';
+import { buildErrorRows, MISCELLANEOUS_FILES, summarizeErrorList } from '../../../../services/diagnostics/errorList';
+import { normalizePath } from '../../../../services/diagnostics/diagnosticsRollup';
 import { FileDiagnostics, ListedDiagnostic, ListedSeverity } from '../../../../services/diagnostics/diagnosticsService';
 
 const root = path.resolve('/repo');
@@ -54,20 +52,5 @@ describe('summarizeErrorList', () => {
     test('counts every severity', () => {
         expect(summarizeErrorList(files({ [p('Api', 'A.cs')]: [diag('error', 1), diag('info', 2), diag('info', 3)] })))
             .toEqual({ errors: 1, warnings: 0, infos: 2 });
-    });
-});
-
-describe('nodeRows', () => {
-    const all = { errors: true, warnings: true, infos: true };
-    const entries = files({
-        [p('Api', 'Controllers', 'Values.cs')]: [diag('warning', 1), diag('info', 2)],
-        [p('Domain', 'User.cs')]: [diag('error', 3)],
-    });
-    const folder = { type: 'folder', name: 'Controllers', nodeId: NodeIdService.generateFolderId(p('Api', 'Controllers')) } as ProjectNode;
-
-    test('only the files below the node, for the severities the filter shows', () => {
-        const scope = scopeOf(folder);
-        expect(nodeRows(entries, scope, all, projects).map(r => r.severity)).toEqual(['warning', 'info']);
-        expect(nodeRows(entries, scope, { ...all, infos: false }, projects).map(r => r.severity)).toEqual(['warning']);
     });
 });
