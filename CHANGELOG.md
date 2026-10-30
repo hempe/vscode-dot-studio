@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Fixed, Test Explorer:** a .NET Framework test app (`net472`) is started as its own exe, not through `dotnet`, which failed on Windows with "hostpolicy.dll not found"; test packages that a `Directory.Build.props` adds only under a `Condition` no longer make every project below it a test project.
+- **Fixed, Solution Explorer:** the wavy underline of nodes with warnings and errors was clipped to a dotted line by the name's `overflow: hidden`.
 - **Changed:** the Output log no longer holds a line per expanded tree node.
 
 ## 0.2.0
