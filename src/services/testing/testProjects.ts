@@ -19,14 +19,10 @@ export function isTestProjectCandidate(projectXml: string): boolean {
  */
 export function projectTextWithBuildProps(projectPath: string, readFile: (file: string) => string = file => fs.readFileSync(file, 'utf8')): string {
     const texts = [readFile(projectPath)];
-    // A package a props file adds only under a Condition (`'$(IsTestProject)' == 'true'`) says nothing about the projects below it
-    const unconditional = (xml: string) => xml
-        .replace(/<ItemGroup\b[^>]*\bCondition\s*=[^>]*>[\s\S]*?<\/ItemGroup>/gi, '')
-        .replace(/<PackageReference\b[^>]*\bCondition\s*=[^>]*?(?:\/>|>[\s\S]*?<\/PackageReference>)/gi, '');
     for (let dir = path.dirname(path.resolve(projectPath)); ; dir = path.dirname(dir)) {
         for (const name of ['Directory.Build.props', 'Directory.Build.targets']) {
             try {
-                texts.push(unconditional(readFile(path.join(dir, name))));
+                texts.push(readFile(path.join(dir, name)));
             } catch {
                 // not there
             }
@@ -56,11 +52,14 @@ export interface TestProject {
     readonly netFramework?: boolean;
 }
 
-export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
+export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; notTestProject?: true; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
     try {
         const properties = JSON.parse(msbuildJson).Properties ?? {};
+        const testingPlatform = String(properties.IsTestingPlatformApplication).toLowerCase() === 'true';
         return {
-            testingPlatform: String(properties.IsTestingPlatformApplication).toLowerCase() === 'true',
+            testingPlatform,
+            // MSBuild answered IsTestProject and it is not true: a library below a props file that mentions test packages (VSTestConsolePath is set for every project)
+            ...('IsTestProject' in properties && !testingPlatform && String(properties.IsTestProject).toLowerCase() !== 'true' ? { notTestProject: true } : {}),
             ...(properties.TargetPath ? { targetPath: properties.TargetPath } : {}),
             ...(properties.VSTestConsolePath ? { vstestConsolePath: properties.VSTestConsolePath } : {}),
             ...(properties.RunSettingsFilePath ? { runSettingsPath: properties.RunSettingsFilePath } : {}),
@@ -154,7 +153,7 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
     return new Promise(resolve => {
         execFile('dotnet', [
             'msbuild', projectPath, '-nologo',
-            '-getProperty:IsTestingPlatformApplication', '-getProperty:TargetPath', '-getProperty:VSTestConsolePath', '-getProperty:RunSettingsFilePath',
+            '-getProperty:IsTestProject', '-getProperty:IsTestingPlatformApplication', '-getProperty:TargetPath', '-getProperty:VSTestConsolePath', '-getProperty:RunSettingsFilePath',
             `-property:Configuration=${configuration}`, ...extra,
         ], { cwd: path.dirname(projectPath), timeout: 60000 }, (_error, stdout) => resolve(stdout ?? ''));
     });
@@ -165,8 +164,8 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
  * a relative `RunSettingsFilePath` is relative to the project folder
  */
 export function testProjectFrom(projectPath: string, msbuildJson: string, framework?: string, choice?: { framework: string; reason: string }): TestProject | undefined {
-    const { testingPlatform, targetPath, vstestConsolePath, runSettingsPath } = parseTestProperties(msbuildJson);
-    return targetPath
+    const { testingPlatform, notTestProject, targetPath, vstestConsolePath, runSettingsPath } = parseTestProperties(msbuildJson);
+    return targetPath && !notTestProject
         ? {
             projectPath, targetPath, testingPlatform,
             ...(vstestConsolePath ? { vstestConsolePath } : {}),

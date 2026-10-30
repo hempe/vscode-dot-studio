@@ -115,6 +115,20 @@ describe('the run settings file of a test project', () => {
     });
 });
 
+describe('projects MSBuild says are no test project', () => {
+    const json = (isTestProject: string, platform = '') => JSON.stringify({ Properties: { IsTestProject: isTestProject, IsTestingPlatformApplication: platform, TargetPath: '/r/A.dll', VSTestConsolePath: '/sdk/vstest.console.dll' } });
+
+    it('drops a library that only sits below a props file naming test packages', () => {
+        expect(testProjectFrom('/r/Lib/Lib.csproj', json(''))).toBeUndefined();
+        expect(testProjectFrom('/r/Lib/Lib.csproj', json('false'))).toBeUndefined();
+    });
+
+    it('keeps projects MSBuild calls test projects, or Microsoft.Testing.Platform apps', () => {
+        expect(testProjectFrom('/r/T/T.csproj', json('true'))).toBeDefined();
+        expect(testProjectFrom('/r/T/T.csproj', json('', 'true'))).toBeDefined();
+    });
+});
+
 describe('test packages from Directory.Build.props (review A5-10)', () => {
     let dir: string;
     const write = (relative: string, content: string) => {
@@ -133,12 +147,6 @@ describe('test packages from Directory.Build.props (review A5-10)', () => {
 
     it('does not take a project that is not below that props file', () => {
         write('tests/Directory.Build.props', "<Project><ItemGroup><PackageReference Include='xunit' Version='2.9.0' /></ItemGroup></Project>");
-        const app = write('src/App/App.csproj', '<Project Sdk="Microsoft.NET.Sdk"></Project>');
-        expect(isTestProjectCandidate(projectTextWithBuildProps(app))).toBe(false);
-    });
-
-    it('ignores test packages a props file adds only under a Condition', () => {
-        write('Directory.Build.props', "<Project><ItemGroup Condition=\"'$(IsTestProject)' == 'true'\"><PackageReference Include='xunit' Version='2.9.0' /></ItemGroup><ItemGroup><PackageReference Include='MSTest' Version='3' Condition=\"'$(IsTestProject)' == 'true'\" /></ItemGroup></Project>");
         const app = write('src/App/App.csproj', '<Project Sdk="Microsoft.NET.Sdk"></Project>');
         expect(isTestProjectCandidate(projectTextWithBuildProps(app))).toBe(false);
     });
