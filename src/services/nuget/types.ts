@@ -85,6 +85,8 @@ export interface NuGetPackage {
     readonly versions?: string[];
     /** Package source URL or name where this package was found */
     readonly source?: string;
+    /** Name of the configured source that gave these details (the first one that has the package), for the feed filter of Updates and Consolidate */
+    readonly sourceName?: string;
     /** Per version, the packages it depends on (all target frameworks together); from the registration data */
     readonly dependencies?: Readonly<Record<string, readonly PackageDependency[]>>;
 }

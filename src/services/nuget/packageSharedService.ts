@@ -64,7 +64,8 @@ export class PackageSharedService {
                     tags: metadata.tags,
                     totalDownloads: metadata.totalDownloads,
                     versions: metadata.versions,
-                    source: metadata.source
+                    source: metadata.source,
+                    sourceName: metadata.sourceName
                 };
             }
             return pkg;

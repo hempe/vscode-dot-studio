@@ -237,7 +237,8 @@ export class NuGetV3Service {
                         return null;
                     }
 
-                    return this.parsePackageDetails(allItems, packageUrl);
+                    const details = this.parsePackageDetails(allItems, packageUrl);
+                    return details && { ...details, sourceName: packageSource.name };
 
                 } catch (error) {
                     await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff

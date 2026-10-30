@@ -114,7 +114,10 @@ export const App: React.FC = () => {
     // Compute filtered package lists
     const filteredPackages = filterPackages(ensureArray(data.installedPackages), filterTerm).filter(pkg => passesAdvisoryFilter(advisoryOf(pkg), advisoryFilter));
     const filteredTransitive = filterPackages(ensureArray(data.transitivePackages), filterTerm);
-    const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm);
+    // The feed Updates and Consolidate show packages of ('' = all): the ones to update from your own feed, say
+    const [listSource, setListSource] = useState('');
+    const fromListSource = (pkg: LocalNuGetPackage) => !listSource || pkg.sourceName === listSource;
+    const filteredUpdates = filterPackages(ensureArray(data.updatesAvailable), filterTerm).filter(fromListSource);
 
     // Fetch data when includePrerelease changes
     useEffect(() => {
@@ -589,7 +592,8 @@ export const App: React.FC = () => {
     };
 
     const handleBulkUpdate = () => {
-        const selectedPackages = ensureArray(data.updatesAvailable).filter(pkg => pkg.selected);
+        // What is shown: a package the filter hides is not updated
+        const selectedPackages = filteredUpdates.filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
             sendToBackend({
@@ -603,7 +607,7 @@ export const App: React.FC = () => {
     };
 
     // Consolidate package selection management
-    const filteredConsolidate = filterPackages(ensureArray(data.consolidatePackages || []), filterTerm);
+    const filteredConsolidate = filterPackages(ensureArray(data.consolidatePackages || []), filterTerm).filter(fromListSource);
 
     const handleSelectAllConsolidate = (checked: boolean) => {
         // Only select/deselect the filtered packages
@@ -625,7 +629,7 @@ export const App: React.FC = () => {
     };
 
     const handleBulkConsolidate = () => {
-        const selectedPackages = ensureArray(data.consolidatePackages).filter(pkg => pkg.selected);
+        const selectedPackages = filteredConsolidate.filter(pkg => pkg.selected);
         if (selectedPackages.length > 0) {
             setLoading(true);
             sendToBackend({
@@ -652,9 +656,9 @@ export const App: React.FC = () => {
             case 'installed':
                 return [...filteredPackages, ...(transitiveExpanded ? filteredTransitive : [])];
             case 'updates':
-                return filterPackages(ensureArray(data.updatesAvailable), filterTerm);
+                return filteredUpdates;
             case 'consolidate':
-                return filterPackages(ensureArray(data.consolidatePackages || []), filterTerm);
+                return filteredConsolidate;
             default:
                 return [];
         }
@@ -708,6 +712,15 @@ export const App: React.FC = () => {
         </span>
     );
     const sourceOptions = [{ value: '', label: 'All' }, ...[...(data.sources ?? [])].map(source => ({ value: source.name, label: source.name }))];
+
+    // Package source for Updates and Consolidate: filters the lists to the packages that feed gives (no new search)
+    const listSourceSelect = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <label htmlFor="nuget-list-source" style={{ fontSize: '13px', color: 'var(--vscode-foreground)' }}>Package source:</label>
+            <Select id="nuget-list-source" aria-label="Package source filter" value={listSource} options={sourceOptions} disabled={initializing}
+                onChange={setListSource} />
+        </span>
+    );
 
     const browseView = (
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -947,7 +960,7 @@ export const App: React.FC = () => {
                         disabled={
                             initializing ||
                             loading ||
-                            !ensureArray(data.updatesAvailable).some(pkg => pkg.selected)
+                            !filteredUpdates.some(pkg => pkg.selected)
                         }
                         appearance="primary"
                     >
@@ -956,6 +969,7 @@ export const App: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {listSourceSelect}
                         <LabelledCheckbox checked={includePrerelease} onChange={setIncludePrerelease} disabled={initializing}>Include prerelease</LabelledCheckbox>
                     {refreshButton}
                     </div>
@@ -1169,7 +1183,7 @@ export const App: React.FC = () => {
                             initializing ||
                             loading ||
                             consolidateLoading ||
-                            !ensureArray(data.consolidatePackages).some(pkg => pkg.selected)
+                            !filteredConsolidate.some(pkg => pkg.selected)
                         }
                         appearance="primary"
                     >
@@ -1177,6 +1191,7 @@ export const App: React.FC = () => {
                     </Button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {listSourceSelect}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Checkbox
                             checked={getSelectAllConsolidateState()}

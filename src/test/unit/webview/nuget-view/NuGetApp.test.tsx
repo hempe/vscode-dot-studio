@@ -128,6 +128,53 @@ describe('NuGet manager: refresh and package source', () => {
         expect(sent).toContainEqual({ type: 'searchPackages', payload: { query: 'serilog', source: 'birs' } });
     });
 
+    describe('the package source filter of Updates and Consolidate', () => {
+        const update = (id: string, sourceName: string) => ({ id, currentVersion: '1.0.0', versions: ['2.0.0', '1.0.0'], sourceName, projects: [{ name: 'P', path: 'P.csproj' }] });
+        const openLists = () => {
+            render(<App />);
+            post({
+                type: 'nugetData',
+                payload: {
+                    installedPackages: [], projects: [project, { ...project, name: 'Q', path: 'Q.csproj' }], searchResults: [], sources: [{ name: 'nuget.org' }, { name: 'birs' }],
+                    updatesAvailable: [update('Serilog', 'nuget.org'), update('Cirrus.Logging', 'birs'), update('Cirrus.Core', 'birs')],
+                    consolidatePackages: [update('Serilog', 'nuget.org'), update('Cirrus.Logging', 'birs')],
+                },
+            });
+        };
+        const choose = (name: string) => {
+            fireEvent.click(screen.getByLabelText('Package source filter'));
+            fireEvent.click(screen.getByRole('option', { name }));
+        };
+
+        it('lists only the packages of the chosen feed, and Select all and Update Selected follow what is shown', () => {
+            openLists();
+            fireEvent.click(screen.getByRole('tab', { name: 'Updates' }));
+            expect(screen.getByText('Serilog')).toBeTruthy();
+            sent.length = 0;
+
+            choose('birs');
+            expect(screen.queryByText('Serilog')).toBeNull();
+            expect(screen.getByText('Cirrus.Logging')).toBeTruthy();
+            fireEvent.click(screen.getByText('Select all'));
+            fireEvent.click(screen.getByText('Update Selected'));
+
+            const update = sent.find(message => message.type === 'bulkUpdatePackages');
+            expect(update.payload.packages.map((p: { id: string }) => p.id).sort()).toEqual(['Cirrus.Core', 'Cirrus.Logging']);
+            // no new search or reload for a filter
+            expect(sent.some(message => message.type === 'searchPackages' || message.type === 'getNuGetData')).toBe(false);
+        });
+
+        it('All shows every package again; Consolidate has the filter too', () => {
+            openLists();
+            fireEvent.click(screen.getByRole('tab', { name: 'Consolidate' }));
+            choose('nuget.org');
+            expect(screen.queryByText('Cirrus.Logging')).toBeNull();
+            expect(screen.getByText('Serilog')).toBeTruthy();
+            choose('All');
+            expect(screen.getByText('Cirrus.Logging')).toBeTruthy();
+        });
+    });
+
     it('All searches without a source', () => {
         open();
         fireEvent.click(screen.getByRole('tab', { name: 'Browse' }));
