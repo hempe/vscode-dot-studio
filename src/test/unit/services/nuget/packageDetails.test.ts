@@ -80,3 +80,49 @@ describe('NuGetV3Service.getPackageDetails', () => {
         expect(Date.now() - started).toBeLessThan(1500);
     });
 });
+
+describe('NuGetV3Service.getPackageDetails: what is logged', () => {
+    const { setLogSink } = jest.requireActual('../../../../core/logger') as typeof import('../../../../core/logger');
+    let lines: [string, string][];
+    beforeEach(() => {
+        lines = [];
+        const record = (level: string) => (message: string) => { lines.push([level, message]); };
+        setLogSink({ trace: record('trace'), debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error') });
+        (NuGetV3Service as any).packageCache.clear();
+    });
+    afterEach(() => { setLogSink(undefined); jest.restoreAllMocks(); });
+
+    const index = (host: string) => ({ resources: [{ '@type': 'RegistrationsBaseUrl', '@id': `https://${host}/reg/` }] });
+    const source = (name: string, host: string) => ({ name, url: `https://${host}/index.json`, enabled: true } as any);
+    const serve = (answers: Record<string, { statusCode: number; body?: unknown }>) =>
+        jest.spyOn(NuGetV3Service as any, 'makeRequest').mockImplementation(async (url: any) => {
+            const answer = answers[url] ?? { statusCode: 404 };
+            return { statusCode: answer.statusCode, body: JSON.stringify(answer.body ?? {}) };
+        });
+
+    it('a 404 from the first feed is expected when the next one has the package: nothing above debug', async () => {
+        serve({
+            'https://private/index.json': { statusCode: 200, body: index('private') },
+            'https://public/index.json': { statusCode: 200, body: index('public') },
+            'https://public/reg/serilog/index.json': { statusCode: 200, body: { items: [{ '@id': 'p0', lower: '1.0.0', upper: '2.0.0', items: [entry('2.0.0', 'x')] }] } },
+        });
+
+        const details = await NuGetV3Service.getPackageDetails('Serilog', [source('birs', 'private'), source('nuget.org', 'public')]);
+
+        expect(details?.currentVersion).toBe('2.0.0');
+        expect(details?.sourceName).toBe('nuget.org');
+        expect(lines.filter(([level]) => level !== 'debug')).toEqual([]);
+    });
+
+    it('no source has the package: one warning that says what each answered', async () => {
+        serve({
+            'https://private/index.json': { statusCode: 200, body: index('private') },
+            'https://public/index.json': { statusCode: 200, body: index('public') },
+        });
+
+        const details = await NuGetV3Service.getPackageDetails('Nope', [source('birs', 'private'), source('nuget.org', 'public')]);
+
+        expect(details).toBeNull();
+        expect(lines.filter(([level]) => level !== 'debug')).toEqual([['warn', '[NuGetV3Service] No package details for Nope (birs: not found; nuget.org: not found)']]);
+    });
+});

@@ -1,17 +1,11 @@
 import { logger } from './logger';
+import { errorReason } from './errorReason';
 
 const log = logger('BackgroundRefreshQueue');
 interface RefreshTask {
     readonly url: string;
     readonly accessToken?: string;
 }
-
-/** What went wrong in one line (an AggregateError from a failed connection has no message of its own, its errors do) */
-const reasonOf = (error: unknown): string => {
-    const { message, errors } = (error ?? {}) as { message?: string; errors?: { code?: string; message?: string }[] };
-    const inner = [...new Set((errors ?? []).map(e => e.code ?? e.message).filter(Boolean))].join(', ');
-    return message || inner || String(error);
-};
 
 type TimeoutID = ReturnType<typeof setTimeout>; // number
 const DELAY = 5_000; // wait before a refresh is queued, so a burst of stale reads asks once
@@ -133,7 +127,7 @@ export class BackgroundRefreshQueue {
         try {
             await this.refreshFunction(url, accessToken);
         } catch (error) {
-            log.warn(`Refresh failed for ${url}: ${reasonOf(error)}`);
+            log.warn(`Refresh failed for ${url}: ${errorReason(error)}`);
             throw error;
         }
     }

@@ -39,7 +39,7 @@ export class PackageSharedService {
                         metadataMap.set(packageId.toLowerCase(), metadata);
                         log.debug(`Got metadata for ${packageId}: description=${!!metadata.description}, authors=${metadata.authors?.length || 0}`);
                     } else {
-                        log.warn(`No metadata found for ${packageId}`);
+                        log.debug(`No metadata found for ${packageId}`);
                     }
                     return;
                 } catch (error) {

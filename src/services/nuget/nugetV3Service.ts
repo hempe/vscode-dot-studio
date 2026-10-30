@@ -10,6 +10,8 @@ import * as os from 'os';
 import { reportRejectedCredentials } from './feedAuth';
 import { NuGetCredentialManager } from './nugetCredentialManager';
 
+import { errorReason } from '../../core/errorReason';
+
 const log = logger('NuGetV3Service');
 
 /** The dependencies of a registration catalog entry, every target framework's group in turn */
@@ -161,7 +163,8 @@ export class NuGetV3Service {
             return await request;
 
         } catch (error) {
-            log.error(`Error getting V3 package details for ${packageId}:`, error);
+            // Every source failed: the one line that says so
+            log.warn(error instanceof Error ? error.message : `Error getting V3 package details for ${packageId}: ${String(error)}`);
             this.packageCache.delete(cacheKey);
             return null;
         }
@@ -172,10 +175,14 @@ export class NuGetV3Service {
         packageSources: PackageSource[],
     ): Promise<NuGetPackage | null> {
 
+        // What each source answered: one line when none of them had the package, not one per source (a private feed saying 404
+        // for a public package is the normal case, a source that cannot be reached is not)
+        const outcomes: string[] = [];
         for (const packageSource of packageSources) {
             // A folder of packages has no registration service: skipping it saves three tries and their waits
             if (!packageSource.enabled || packageSource.isLocal) continue;
             const accessToken = await NuGetCredentialManager.getSourceToken(packageSource);
+            let outcome = 'no answer';
 
             for (let i = 0; i < 3; i++) {
                 try {
@@ -192,19 +199,14 @@ export class NuGetV3Service {
                     const response = await this.makeRequest(packageUrl, accessToken);
 
                     if (response.statusCode >= 500 || !response.statusCode) {
-                        log.warn(`Failed to get package details for ${packageId}, status code: ${response.statusCode} retry....`);
+                        outcome = `status ${response.statusCode}`;
+                        log.debug(`Package details for ${packageId} from ${packageSource.name}: ${outcome}, trying again`);
                         await new Promise(r => setTimeout(r, 100));
                         continue;
                     }
 
                     if (response.statusCode !== 200) {
-                        // A 404 is the feed not having the package, which is the usual answer of a private feed for a public package
-                        const note = `No package details for ${packageId} on ${packageSource.name}, status code: ${response.statusCode}`;
-                        if (response.statusCode === 404) {
-                            log.debug(note);
-                        } else {
-                            log.warn(note);
-                        }
+                        outcome = response.statusCode === 404 ? 'not found' : `status ${response.statusCode}`;
                         break;
                     }
 
@@ -247,13 +249,15 @@ export class NuGetV3Service {
                     return details && { ...details, sourceName: packageSource.name };
 
                 } catch (error) {
+                    outcome = errorReason(error);
+                    log.debug(`Package details for ${packageId} from ${packageSource.name} failed (${outcome}), trying again`);
                     await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
-                    log.error(`Error getting V3 package details for ${packageId}:`, error);
                 }
             }
+            outcomes.push(`${packageSource.name}: ${outcome}`);
         }
 
-        throw new Error(`Failed to get package details for ${packageId} after multiple attempts`);
+        throw new Error(`No package details for ${packageId} (${outcomes.join('; ') || 'no source to ask'})`);
     }
 
     private static serviceIndexCache: Map<string, { timestamp: number, request: Promise<any> }> = new Map();
