@@ -13,6 +13,8 @@ import { NuGetCredentialManager } from './nugetCredentialManager';
 import { errorReason } from '../../core/errorReason';
 
 const log = logger('NuGetV3Service');
+/** How long a feed's 404 for a package is remembered (in memory) */
+const NOT_FOUND_CACHE_MS = 60 * 60 * 1000;
 
 /** The dependencies of a registration catalog entry, every target framework's group in turn */
 function dependenciesOf(entry: { dependencyGroups?: { dependencies?: { id?: string; range?: string }[] }[] }): PackageDependency[] {
@@ -27,7 +29,7 @@ function dependenciesOf(entry: { dependencyGroups?: { dependencies?: { id?: stri
  */
 export class NuGetV3Service {
     // In-memory cache (existing)
-    private static requestCache: Map<string, { timestamp: number, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
+    private static requestCache: Map<string, { timestamp: number, notFound?: boolean, promise: Promise<{ body: string, statusCode: number }> }> = new Map();
 
     /** Counts the times the caches were cleared: an answer to a request from before must not be stored after it */
     private static cacheGeneration = 0;
@@ -353,14 +355,16 @@ export class NuGetV3Service {
 
         // 1. Check in-memory cache first
         const memoryCache = this.requestCache.get(cacheKey);
-        if (memoryCache && (Date.now() - memoryCache.timestamp) < allowedCacheTime) {
+        // A 404 (the feed does not have the package) is remembered longer than an answer: a private feed answers it for every public
+        // package of a solution, and updating several projects asks again and again. Refresh drops it, for a package published meanwhile.
+        if (memoryCache && (Date.now() - memoryCache.timestamp) < (memoryCache.notFound ? NOT_FOUND_CACHE_MS : allowedCacheTime)) {
             log.debug(`Using fresh in-memory cache for ${url}`);
             return memoryCache.promise;
         }
 
         // Callers that ask for the same URL within moments share one lookup and one request: the entry is stored
         // before anything is awaited, not after the disk cache answered (two callers would both find nothing)
-        const entry: { timestamp: number; promise: Promise<{ body: string, statusCode: number }> } = { timestamp: Date.now(), promise: undefined as never };
+        const entry: { timestamp: number; notFound?: boolean; promise: Promise<{ body: string, statusCode: number }> } = { timestamp: Date.now(), promise: undefined as never };
         entry.promise = this.loadRequest(url, accessToken, cacheKey, entry);
         this.requestCache.set(cacheKey, entry);
         return entry.promise;
@@ -368,7 +372,7 @@ export class NuGetV3Service {
 
     /** Answers a request from the disk cache (refreshing a stale entry in the background) or from the feed */
     private static async loadRequest(url: string, accessToken: string | undefined, cacheKey: string,
-        entry: { timestamp: number; promise: Promise<{ body: string, statusCode: number }> }): Promise<{ body: string, statusCode: number }> {
+        entry: { timestamp: number; notFound?: boolean; promise: Promise<{ body: string, statusCode: number }> }): Promise<{ body: string, statusCode: number }> {
         const allowedCacheTime = 5 * 60 * 1000;
 
         // 2. Check persistent cache
@@ -413,7 +417,10 @@ export class NuGetV3Service {
                     // The caches were cleared (Refresh) while this was on its way: the caller gets the answer, nothing keeps it
                     return result;
                 }
-                if (result.statusCode === 200) {
+                if (result.statusCode === 404) {
+                    entry.notFound = true;
+                    entry.timestamp = Date.now();
+                } else if (result.statusCode === 200) {
                     await this.persistentCache?.set(cacheKey, result, url, this.extractETag(result));
                 } else if (result.statusCode === 304) {
                     // Not modified - this should only happen when we have a persistentEntry

@@ -126,3 +126,46 @@ describe('NuGetV3Service.getPackageDetails: what is logged', () => {
         expect(lines.filter(([level]) => level !== 'debug')).toEqual([['warn', '[NuGetV3Service] No package details for Nope (birs: not found; nuget.org: not found)']]);
     });
 });
+
+describe('NuGetV3Service: a 404 is remembered', () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    let dir: string;
+    let requests: string[];
+    let now: jest.SpyInstance;
+
+    beforeEach(async () => {
+        await NuGetV3Service.clearCaches();
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nuget-404-'));
+        NuGetV3Service.initializeCache(dir);
+        requests = [];
+        now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        jest.spyOn(NuGetV3Service as any, '_makeHttpRequestWithETag').mockImplementation(async (url: any) => {
+            requests.push(url);
+            return { statusCode: 404, body: '' };
+        });
+    });
+    afterEach(() => { jest.restoreAllMocks(); fs.rmSync(dir, { recursive: true, force: true }); });
+
+    const ask = () => (NuGetV3Service as any).makeRequest('https://private/reg/serilog/index.json');
+
+    it('asks the feed once for the projects of an update, and again only after an hour', async () => {
+        await ask();
+        await ask();
+        now.mockReturnValue(1_000_000 + 30 * 60 * 1000);
+        await ask();
+        expect(requests).toHaveLength(1);
+
+        now.mockReturnValue(1_000_000 + 61 * 60 * 1000);
+        await ask();
+        expect(requests).toHaveLength(2);
+    });
+
+    it('Refresh forgets it, for a package published meanwhile', async () => {
+        await ask();
+        await NuGetV3Service.clearCaches();
+        await ask();
+        expect(requests).toHaveLength(2);
+    });
+});
