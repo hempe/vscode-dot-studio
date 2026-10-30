@@ -71,8 +71,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ state, onAction, onChoose }) =
     const pressed = !!state?.showAllFiles;
     return (
         <div role="toolbar" aria-label="Solution Explorer" style={{
-            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', padding: '6px', margin: '6px 0px', flexShrink: 0,
-            borderTop: '1px solid var(--vscode-panel-border)', borderBottom: '1px solid var(--vscode-panel-border)', background: 'var(--vscode-sideBar-background)',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', padding: '0px 6px', flexShrink: 0,
+            background: 'var(--vscode-sideBar-background)',
         }}>
             <MenuButton label="Solution Configuration" items={configurationItems(state)} onSelect={pick} align="left" className="toolbar-button" style={buttonStyle}>
                 <span>{state?.configuration ?? 'Debug'}</span>
