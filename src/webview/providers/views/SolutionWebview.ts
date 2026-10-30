@@ -213,8 +213,8 @@ export class SolutionWebView {
                             text-decoration-skip-ink: none;
                             text-underline-offset: 2px;
                             /* overflow: hidden (for the ellipsis) clips the wave at the line box: make room below the text */
-                            padding-bottom: 4px;
-                            margin-bottom: -4px;
+                            padding-bottom: 6px;
+                            margin-bottom: -6px;
                         }
 
                         .node-name.diagnostic-error {
