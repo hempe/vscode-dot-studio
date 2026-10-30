@@ -1,6 +1,7 @@
 /**
  * Scroll bars like VS Code's own: thin, no arrow buttons, a transparent track and a translucent grey thumb in the theme's
- * slider colours (darker on hover and while dragging).
+ * slider colours (darker on hover and while dragging). The thumb shows while the mouse is over the scrolled area, as VS Code's
+ * does (without its fade: Chromium cannot animate a scroll bar part).
  *
  * VS Code's webview stylesheet sets `scrollbar-color` on the page, and where `scrollbar-color` or `scrollbar-width` is not
  * `auto` Chromium ignores the `::-webkit-scrollbar` rules, so both are reset on the scrolling element first.
@@ -12,7 +13,8 @@ export function scrollbarCss(selectors: string | string[]): string {
         ${selector}::-webkit-scrollbar-track,
         ${selector}::-webkit-scrollbar-corner { background: transparent; }
         ${selector}::-webkit-scrollbar-button { display: none; }
-        ${selector}::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }
+        ${selector}::-webkit-scrollbar-thumb { background: transparent; }
+        ${selector}:hover::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }
         ${selector}::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
         ${selector}::-webkit-scrollbar-thumb:active { background: var(--vscode-scrollbarSlider-activeBackground); }`).join('');
 }
