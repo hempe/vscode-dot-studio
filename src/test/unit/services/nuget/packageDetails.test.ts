@@ -150,14 +150,14 @@ describe('NuGetV3Service: a 404 is remembered', () => {
 
     const ask = () => (NuGetV3Service as any).makeRequest('https://private/reg/serilog/index.json');
 
-    it('asks the feed once for the projects of an update, and again only after an hour', async () => {
+    it('asks the feed once for the projects of an update, and again only after five minutes', async () => {
         await ask();
         await ask();
-        now.mockReturnValue(1_000_000 + 30 * 60 * 1000);
+        now.mockReturnValue(1_000_000 + 4 * 60 * 1000);
         await ask();
         expect(requests).toHaveLength(1);
 
-        now.mockReturnValue(1_000_000 + 61 * 60 * 1000);
+        now.mockReturnValue(1_000_000 + 6 * 60 * 1000);
         await ask();
         expect(requests).toHaveLength(2);
     });
