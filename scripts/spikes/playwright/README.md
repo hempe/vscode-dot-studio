@@ -57,3 +57,6 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-hover.mjs`: the Solution Explorer's `.tree-node.hovered` (a class, not CSS :hover): under the mouse, moving, gone when the mouse leaves (activity
   bar, below the rows) and after a real drag and drop (mouse down, moves, up) until it moves again. Leaving onto another webview does not clear it
   under Playwright's synthetic mouse; not known whether that happens for a real mouse.
+- `check-drag-drop.mjs`: plain files dragged with the real mouse: refusals (a file on a solution folder or on Dependencies, a folder on its own
+  subfolder), Dependencies not draggable, a collapsed folder opening after 0.7 s of hovering, a Ctrl+click selection moving together, an unselected row
+  moving alone (a second start: after moves the open folders show no children, a known bug).
