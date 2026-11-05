@@ -399,11 +399,11 @@ export class TestExplorer implements vscode.Disposable {
         } catch (error) {
             log.error(`Discovering the tests of ${state.project.projectPath} failed:`, error);
             state.item.error = `Discovering tests failed: ${error instanceof Error ? error.message : error}`;
-            state.item.description = undefined;
+            state.item.description = ''; // not undefined: VS Code keeps the old description when it is set to undefined
             return false;
         }
         state.item.error = undefined;
-        state.item.description = undefined;
+        state.item.description = '';
         // The old tree goes: its items and their nodes would otherwise stay in the maps for good (one tree per discovery)
         this.forgetChildren(state.item);
         state.item.children.replace(buildTestTree(discovered).map(entry => this.toItem(entry)));

@@ -41,3 +41,8 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-emit-generated.mjs`: `shinobi.build.emitGeneratedFiles` on and off: builds the sample with the default build task (Ctrl+Shift+B,
   needs the .NET SDK and the sample's packages in the NuGet cache) and looks at the generators under Shop.Core > Dependencies > Analyzers
   (files to expand, or none). About 30 s. Row names are matched by their full text (`normalize-space(.)`), not the first text node.
+- `check-discover-after-build.mjs`: `shinobi.tests.discoverAfterBuild` on (the tests show after Ctrl+Shift+B) and off (they stay "not built yet"
+  until the refresh button, which builds and discovers). Found two bugs in the Test Explorer on the way (both fixed): three test projects were
+  built at once, and the "not built yet" description stayed after discovery because VS Code ignores `description = undefined`.
+- `PW_LOG=shinobi.dotnet-studio=trace ./run.sh ...` starts VS Code with that log level; the extension's log is then in
+  `<work>/profile/logs/*/window1/exthost/shinobi.dotnet-studio/` (the work folder is in /tmp, printed by `prepareWorkspace` users on failure).

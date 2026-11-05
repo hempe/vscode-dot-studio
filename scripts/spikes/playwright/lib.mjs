@@ -33,7 +33,7 @@ export async function launch({ work, folder }) {
         executablePath: process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
         args: [
             process.env.CODE_MAIN ?? '/usr/lib/code/code.mjs',
-            '--disable-gpu', '--no-sandbox',
+            '--disable-gpu', '--no-sandbox', ...(process.env.PW_LOG ? [`--log=${process.env.PW_LOG}`] : []),
             `--user-data-dir=${work}/profile`, `--extensions-dir=${work}/extensions`,
             `--extensionDevelopmentPath=${repo}`,
             '--disable-workspace-trust', '--new-window', folder,

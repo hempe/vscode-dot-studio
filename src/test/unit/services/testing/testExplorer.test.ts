@@ -222,7 +222,7 @@ describe('TestExplorer', () => {
 
             expect(passedOrFailed(mock.runs[0])).toEqual(['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2']);
             expect(mock.runs[0].events).toContain('enqueued Adds');
-            expect(project.description).toBeUndefined();
+            expect(project.description).toBe(''); // undefined would leave "not built yet" showing
             expect(outline(mock.controller.items)).toContain('      Adds :4');
         });
 
