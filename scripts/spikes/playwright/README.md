@@ -54,3 +54,6 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-transitive-packages.mjs`: Shop.Web > Dependencies > Packages > Microsoft.EntityFrameworkCore.Sqlite expanding to a third level; the NuGet manager
   of the solution with the collapsed "Transitive packages (N)" section, a transitive package's marks and no uninstall. A row name ending in `*`
   matches the start of the text (package rows carry their version). The manager loads from nuget.org: allow up to a minute.
+- `check-hover.mjs`: the Solution Explorer's `.tree-node.hovered` (a class, not CSS :hover): under the mouse, moving, gone when the mouse leaves (activity
+  bar, below the rows) and after a real drag and drop (mouse down, moves, up) until it moves again. Leaving onto another webview does not clear it
+  under Playwright's synthetic mouse; not known whether that happens for a real mouse.
