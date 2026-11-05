@@ -46,3 +46,5 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
   built at once, and the "not built yet" description stayed after discovery because VS Code ignores `description = undefined`.
 - `PW_LOG=shinobi.dotnet-studio=trace ./run.sh ...` starts VS Code with that log level; the extension's log is then in
   `<work>/profile/logs/*/window1/exthost/shinobi.dotnet-studio/` (the work folder is in /tmp, printed by `prepareWorkspace` users on failure).
+- `check-include-prerelease.mjs`: `shinobi.nuget.includePrerelease` on and off: the NuGet manager (opened from the command palette) shows
+  "Include prerelease" checked or unchecked. The manager is a custom editor, so its webview is one more frame of the window.
