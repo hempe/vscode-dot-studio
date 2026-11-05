@@ -1,7 +1,7 @@
 // Helpers to drive the real VS Code through Playwright: a throwaway profile, a copy of the sample solution, the Solution
 // Explorer's webview frame. Run a check through run.sh (own Xvfb display).
 import { _electron as electron } from 'playwright-core';
-import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -21,8 +21,14 @@ export function prepareWorkspace(settings = {}, files = {}) {
     return { work, folder };
 }
 
-/** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }. */
+const template = join(tmpdir(), 'shinobi-pw-profile-template');
+
+/** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }.
+ *  The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
+ *  later runs start from a copy of it and need no dialog (about 10 s less). */
 export async function launch({ work, folder }) {
+    const warm = existsSync(template);
+    if (warm) cpSync(template, join(work, 'profile'), { recursive: true });
     const app = await electron.launch({
         executablePath: process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
         args: [
@@ -37,11 +43,14 @@ export async function launch({ work, folder }) {
     });
     const win = await app.firstWindow();
     await win.waitForLoadState('domcontentloaded');
-    // The first-run welcome dialog (sign in to Copilot, then pick a theme) covers the window in a fresh profile
-    // (it opens a few seconds after the window, so wait for it)
-    for (const name of ['Continue without Signing In', 'Get Started']) {
-        const b = win.getByText(name, { exact: true });
-        if (await b.waitFor({ timeout: 20000 }).then(() => true, () => false)) await b.click();
+    if (!warm) {
+        // The first-run welcome dialog (sign in to Copilot, then pick a theme) covers the window in a fresh profile
+        // (it opens a few seconds after the window, so wait for it)
+        for (const name of ['Continue without Signing In', 'Get Started']) {
+            const b = win.getByText(name, { exact: true });
+            if (await b.waitFor({ timeout: 20000 }).then(() => true, () => false)) await b.click();
+        }
+        app.once('close', () => { try { cpSync(join(work, 'profile'), template, { recursive: true }); } catch { /* no template then */ } });
     }
     return { app, win };
 }
@@ -89,9 +98,14 @@ export async function expandPath(win, frame, names) {
     for (const name of names) {
         const row = rowByName(frame, name);
         await row.waitFor({ timeout: 30000 });
-        await row.click();
-        const collapsed = await row.locator('.expand-icon').first().evaluate(e => e.style.transform.includes('rotate(0deg)')).catch(() => false);
-        if (collapsed) { await win.keyboard.press('ArrowRight'); await win.waitForTimeout(600); }
+        // A row that is open already is left alone (a click on a selected row can toggle it)
+        const collapsed = () => row.locator('.expand-icon').first().evaluate(e => e.style.transform.includes('rotate(0deg)')).catch(() => false);
+        if (!await collapsed()) continue;
+        // The tree is rebuilt now and then (a setting, a file change): a click on a row that went away is tried again
+        for (let attempt = 1; ; attempt++) {
+            try { await row.click({ timeout: 4000 }); break; } catch (e) { if (attempt >= 5) throw e; await win.waitForTimeout(1000); }
+        }
+        if (await collapsed()) { await win.keyboard.press('ArrowRight'); await win.waitForTimeout(600); }
     }
 }
 
@@ -103,4 +117,24 @@ export async function rowInfo(frame, name) {
         depth: parseFloat(getComputedStyle(e).paddingLeft) || 0,
         expandable: (e.querySelector('.expand-icon')?.style.visibility ?? '') !== 'hidden' && !!e.querySelector('.expand-icon'),
     }));
+}
+
+/** Waits until the rows have not changed for a while (the tree is rebuilt after a setting or a file change). */
+export async function settle(win, frame, quietMs = 2000, timeout = 30000) {
+    const snap = () => frame.locator('.tree-node').allTextContents().then(t => t.join('|'), () => '');
+    let last = await snap(), since = Date.now();
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+        await win.waitForTimeout(300);
+        const now = await snap();
+        if (now !== last) { last = now; since = Date.now(); } else if (Date.now() - since >= quietMs) return;
+    }
+}
+
+/** Closes and opens a row again (its children are read anew). */
+export async function reopen(win, frame, name) {
+    const row = rowByName(frame, name);
+    await row.click();
+    await win.keyboard.press('ArrowLeft'); await win.waitForTimeout(400);
+    await win.keyboard.press('ArrowRight'); await win.waitForTimeout(800);
 }

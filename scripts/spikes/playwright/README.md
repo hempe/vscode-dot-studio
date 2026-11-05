@@ -16,6 +16,13 @@ What the spike found (2026-11-05, Code - OSS 1.136.1 with Electron 42 from Arch)
   when `aria-expanded` is not `true`.
 - Webviews are frames of the window: `vscode-webview://.../index.html` (outer) and `fake.html` (the content, where `[data-vscode-context]`
   rows are). Locators work in that frame; the keyboard is the window's (`win.keyboard`), not the frame's.
+- Startup is the cost: ~25 s with a fresh profile (most of it waiting for the welcome dialog), ~7 s from a warm one. `launch` keeps the
+  profile of the first run as a template in `/tmp/shinobi-pw-profile-template` and copies it for every later run (delete it to start cold).
+- One VS Code for several checks (changing the workspace settings file while it runs) was tried and dropped: after a change of
+  `fileNesting` the rows that were open show an open chevron without their children (`wwwroot` without `js`, see the roadmap's known bugs),
+  so each setting value gets its own start; checks that need the same settings can share one.
+- `run.sh` waits for the previous Xvfb to be gone; started right after another run, the new server did not get the display and every
+  second run failed with "Missing X server or $DISPLAY".
 - Everything stops cleanly on `app.close()`; no process is left behind.
 
 Not tried yet: the C# extension in the profile (needed for refactorings, rename, debugging), native context menus (not reachable
@@ -28,4 +35,4 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 
 - `check-file-nesting.mjs`: the `fileNesting` setting (`default`, `off`, `web`) on the Shop.Web sample, from the "new settings" entry of
   [manual-testing.md](../../../docs/manual-testing.md). A tree row is `.tree-node` (padding-left is its depth, a `.expand-icon` means
-  it has children, `rotate(90deg)` means open); each check starts its own VS Code, about 40 s.
+  it has children, `rotate(90deg)` means open); each setting value starts its own VS Code, about 20 s for the three.
