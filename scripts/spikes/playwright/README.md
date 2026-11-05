@@ -36,3 +36,5 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-file-nesting.mjs`: the `fileNesting` setting (`default`, `off`, `web`) on the Shop.Web sample, from the "new settings" entry of
   [manual-testing.md](../../../docs/manual-testing.md). A tree row is `.tree-node` (padding-left is its depth, a `.expand-icon` means
   it has children, `rotate(90deg)` means open); each setting value starts its own VS Code, about 20 s for the three.
+- `check-tracking.mjs`: `trackActiveItem` on (a file opened with Ctrl+P is selected in the tree, a nested one is revealed, the editor keeps
+  the focus) and off (nothing is selected), and Ctrl+Alt+L focusing the Solution Explorer. Files are opened by keyboard, as a user does.
