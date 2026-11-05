@@ -167,6 +167,9 @@ const defaultDeps: TestExplorerDeps = {
 /** Test projects processed at once when refreshing, so a solution with many doesn't start dozens of dotnet processes */
 const dotnetQueue = new RequestQueue(4);
 
+/** Builds one at a time: test projects share the projects they reference, and two builds writing the same `bin/` and `obj/` fail with "file in use" */
+const buildQueue = new RequestQueue(1);
+
 /** The first error lines of a build's output ("Build failed: x.cs(1,1): error CS1002: ; expected"), which no Problems panel shows for MSBuild and NuGet errors */
 export function buildFailure(output: string): string {
     const errors = output.split(/\r?\n/).filter(line => /:\s*error\s+\w+:/i.test(line)).map(line => line.trim());
@@ -331,7 +334,7 @@ export class TestExplorer implements vscode.Disposable {
                 }
                 if (build) {
                     let output = '';
-                    if (!await this.deps.build(projectPath, configuration, text => { output += text; }, project.targetFramework)) {
+                    if (!await buildQueue.next(() => this.deps.build(projectPath, configuration, text => { output += text; }, project.targetFramework))) {
                         state.item.error = buildFailure(output);
                         log.info(`${path.basename(projectPath)}: ${buildFailure(output)}`);
                         continue;

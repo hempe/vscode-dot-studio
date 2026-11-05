@@ -644,6 +644,18 @@ describe('TestExplorer', () => {
             expect(built).toEqual(['net8.0', 'net10.0']);
         });
 
+        it('builds the test projects one at a time, since they share the projects they reference', async () => {
+            let running = 0;
+            let most = 0;
+            const tests = explorer({
+                projects: () => ['/repo/A/A.csproj', '/repo/B/B.csproj', '/repo/C/C.csproj'],
+                readProject: () => '<Project><ItemGroup><PackageReference Include="xunit.v3" /></ItemGroup></Project>',
+                build: async () => { most = Math.max(most, ++running); await new Promise(resolve => setTimeout(resolve, 20)); running--; return true; },
+            });
+            await tests.refresh(true);
+            expect(most).toBe(1);
+        });
+
         it('runs the tests of the framework asked for', async () => {
             const started: string[] = [];
             await explorer({
