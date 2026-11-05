@@ -60,3 +60,5 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-drag-drop.mjs`: plain files dragged with the real mouse: refusals (a file on a solution folder or on Dependencies, a folder on its own
   subfolder), Dependencies not draggable, a collapsed folder opening after 0.7 s of hovering, a Ctrl+click selection moving together, an unselected row
   moving alone (a second start: after moves the open folders show no children, a known bug).
+- `check-test-explorer.mjs`: the Testing view (native, so plain DOM: `.pane-body .monaco-list-row`, state in the `testing-*-icon` class) with the three sample
+  test projects: refresh builds and discovers, Test: Run All Tests from the palette, the states, messages, parameterized cases, double-click to the line.
