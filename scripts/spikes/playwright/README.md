@@ -51,3 +51,6 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-error-list.mjs`: the Error List after a build: rows, counts, sort, search, code link, double-click to the line (editor tab and the status
   bar's `Ln 15`), the Warnings toggle also emptying the tree's markers (`.node-name.diagnostic-warning`). Opened from the palette ("Show Error List"); its
   webview and the tree's are both `fake.html` frames, told apart by their content. Not covered: the column filters.
+- `check-transitive-packages.mjs`: Shop.Web > Dependencies > Packages > Microsoft.EntityFrameworkCore.Sqlite expanding to a third level; the NuGet manager
+  of the solution with the collapsed "Transitive packages (N)" section, a transitive package's marks and no uninstall. A row name ending in `*`
+  matches the start of the text (package rows carry their version). The manager loads from nuget.org: allow up to a minute.
