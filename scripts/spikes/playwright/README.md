@@ -38,3 +38,6 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
   it has children, `rotate(90deg)` means open); each setting value starts its own VS Code, about 20 s for the three.
 - `check-tracking.mjs`: `trackActiveItem` on (a file opened with Ctrl+P is selected in the tree, a nested one is revealed, the editor keeps
   the focus) and off (nothing is selected), and Ctrl+Alt+L focusing the Solution Explorer. Files are opened by keyboard, as a user does.
+- `check-emit-generated.mjs`: `shinobi.build.emitGeneratedFiles` on and off: builds the sample with the default build task (Ctrl+Shift+B,
+  needs the .NET SDK and the sample's packages in the NuGet cache) and looks at the generators under Shop.Core > Dependencies > Analyzers
+  (files to expand, or none). About 30 s. Row names are matched by their full text (`normalize-space(.)`), not the first text node.

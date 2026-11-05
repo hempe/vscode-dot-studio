@@ -91,7 +91,7 @@ export function check(name, ok, detail = '') {
     if (!ok) process.exitCode = 1;
 }
 
-const rowByName = (frame, name) => frame.locator('.tree-node').filter({ has: frame.locator(`xpath=.//*[normalize-space(text())="${name}"]`) }).first();
+const rowByName = (frame, name) => frame.locator('.tree-node').filter({ has: frame.locator(`xpath=.//*[normalize-space(.)="${name}"]`) }).first();
 
 /** Expands the rows on a path of names from the top (each name is searched among the visible rows; a collapsed one is opened with Right). */
 export async function expandPath(win, frame, names) {
