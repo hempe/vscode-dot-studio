@@ -1,6 +1,6 @@
 # Playwright spike: driving VS Code
 
-`./run.sh` starts its own Xvfb display (`PW_DISPLAY`, default 93; never the desktop), launches the real VS Code (Code - OSS) through
+`./run.sh [script.mjs]` (default `spike.mjs`) starts its own Xvfb display (`PW_DISPLAY`, default 93; never the desktop), launches the real VS Code (Code - OSS) through
 Playwright's `_electron.launch` with this extension loaded (`--extensionDevelopmentPath`, so `npm run build:dev` first), a throwaway
 profile in `/tmp` and a copy of the sample solution, opens the Solution Explorer, expands the tree with the keyboard and prints the rows.
 
@@ -20,3 +20,12 @@ What the spike found (2026-11-05, Code - OSS 1.136.1 with Electron 42 from Arch)
 
 Not tried yet: the C# extension in the profile (needed for refactorings, rename, debugging), native context menus (not reachable
 from the DOM), the editor area's refactoring forms, the NuGet custom editor.
+
+## Checks
+
+`lib.mjs` holds the helpers (workspace copy with settings and extra files, launch, the welcome dialog, the view's frame, `expandPath`,
+`rowInfo`); a check is a script that uses them and prints PASS/FAIL (exit code 1 on a failure):
+
+- `check-file-nesting.mjs`: the `fileNesting` setting (`default`, `off`, `web`) on the Shop.Web sample, from the "new settings" entry of
+  [manual-testing.md](../../../docs/manual-testing.md). A tree row is `.tree-node` (padding-left is its depth, a `.expand-icon` means
+  it has children, `rotate(90deg)` means open); each check starts its own VS Code, about 40 s.

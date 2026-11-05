@@ -8,4 +8,4 @@ XVFB=$!
 trap 'kill $XVFB 2>/dev/null || true' EXIT
 sleep 1
 unset WAYLAND_DISPLAY
-DISPLAY=":$D" node spike.mjs
+DISPLAY=":$D" node "${1:-spike.mjs}"
