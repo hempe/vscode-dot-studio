@@ -1,8 +1,8 @@
 // Helpers to drive the real VS Code through Playwright: a throwaway profile, a copy of the sample solution, the Solution
 // Explorer's webview frame. Run a check through run.sh (own Xvfb display).
 import { _electron as electron } from 'playwright-core';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const repo = resolve(import.meta.dirname, '../../..');
@@ -24,11 +24,23 @@ export function prepareWorkspace(settings = {}, files = {}) {
 const template = join(tmpdir(), 'shinobi-pw-profile-template');
 
 /** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }.
- *  The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
+ *  { csharp: true } adds the C# extension (the language server takes a while to start). The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
  *  later runs start from a copy of it and need no dialog (about 10 s less). */
-export async function launch({ work, folder }) {
+export async function launch({ work, folder }, { csharp = false } = {}) {
+    if (csharp) {
+        // The installed C# extension (and the .NET runtime extension it needs) are linked into the profile's extensions folder, as capture.sh does
+        mkdirSync(join(work, 'extensions'), { recursive: true });
+        for (const [dir, prefix] of [['.vscode-oss', 'muhammad-sammy.csharp-'], ['.vscode', 'ms-dotnettools.csharp-'], ['.vscode-oss', 'ms-dotnettools.vscode-dotnet-runtime-'], ['.vscode', 'ms-dotnettools.vscode-dotnet-runtime-']]) {
+            const root = join(homedir(), dir, 'extensions');
+            const found = existsSync(root) ? readdirSync(root).filter(n => n.startsWith(prefix)).sort().pop() : undefined;
+            if (found && !existsSync(join(work, 'extensions', found))) symlinkSync(join(root, found), join(work, 'extensions', found));
+        }
+    }
     const warm = existsSync(template);
     if (warm) cpSync(template, join(work, 'profile'), { recursive: true });
+    // Modal questions (Update All / Skip) must be in the page, not native dialogs that Playwright cannot see
+    mkdirSync(join(work, 'profile/User'), { recursive: true });
+    writeFileSync(join(work, 'profile/User/settings.json'), JSON.stringify({ 'window.dialogStyle': 'custom' }, null, 2));
     const app = await electron.launch({
         executablePath: process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
         args: [

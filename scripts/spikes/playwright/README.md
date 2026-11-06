@@ -62,3 +62,9 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
   moving alone (a second start: after moves the open folders show no children, a known bug).
 - `check-test-explorer.mjs`: the Testing view (native, so plain DOM: `.pane-body .monaco-list-row`, state in the `testing-*-icon` class) with the three sample
   test projects: refresh builds and discovers, Test: Run All Tests from the palette, the states, messages, parameterized cases, double-click to the line.
+- `check-namespace-after-move.mjs`: needs the installed C# extension, which `launch(ws, { csharp: true })` links into the profile (with the .NET runtime
+  extension) and the language server needs ~20 s to load the projects. The modal question is an HTML dialog because `lib.mjs` sets
+  `window.dialogStyle: custom` (a native dialog is invisible to Playwright); the per-file questions of Review Each are notifications. Found: the
+  files that use a moved type do not follow in this run ("the server offers no fix": the Change namespace code action was not offered, also with
+  `analyzerDiagnosticsScope: fullSolution` and IDE0130 in `.editorconfig`); the declarations are changed by the text fallback. Not known whether
+  that is the run (timing right after the move) or a real gap; check by hand.
