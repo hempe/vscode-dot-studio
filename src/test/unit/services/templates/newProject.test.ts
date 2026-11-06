@@ -23,7 +23,7 @@ describe('new project defaults', () => {
     });
 
     it('validates names', () => {
-        expect(isValidProjectName('Cirrus.Voucher.PayLoop')).toBe(true);
+        expect(isValidProjectName('Contoso.Voucher.CardService')).toBe(true);
         expect(isValidProjectName('My_App2')).toBe(true);
         expect(isValidProjectName('')).toBe(false);
         expect(isValidProjectName('a/b')).toBe(false);

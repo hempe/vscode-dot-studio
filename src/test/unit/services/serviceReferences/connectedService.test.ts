@@ -6,8 +6,8 @@ import {
     requiredPackages, serializeServiceReference, serviceFolderKind, suggestReferenceName, toSvcutilParams,
 } from '../../../../services/serviceReferences/connectedService';
 
-const payLoop = path.join(__dirname, '../../../../__fixtures__/service-references/PayLoop');
-const cardOperations = path.join(payLoop, CONNECTED_SERVICES, 'CardOperations');
+const cardService = path.join(__dirname, '../../../../__fixtures__/service-references/CardService');
+const cardOperations = path.join(cardService, CONNECTED_SERVICES, 'CardOperations');
 
 describe('connected service metadata', () => {
     it('reads Visual Studio references', () => {
@@ -77,16 +77,16 @@ describe('connected service metadata', () => {
 
 describe('service folders', () => {
     it('recognizes Connected Services and the reference folders in it', () => {
-        expect(serviceFolderKind(payLoop, path.join(payLoop, CONNECTED_SERVICES))).toBe('connectedServices');
-        expect(serviceFolderKind(payLoop, cardOperations)).toBe('serviceReference');
-        expect(serviceFolderKind(payLoop, path.join(payLoop, 'Properties'))).toBeUndefined();
-        expect(serviceFolderKind(payLoop, path.join(payLoop, CONNECTED_SERVICES, 'Nothing'))).toBeUndefined();
+        expect(serviceFolderKind(cardService, path.join(cardService, CONNECTED_SERVICES))).toBe('connectedServices');
+        expect(serviceFolderKind(cardService, cardOperations)).toBe('serviceReference');
+        expect(serviceFolderKind(cardService, path.join(cardService, 'Properties'))).toBeUndefined();
+        expect(serviceFolderKind(cardService, path.join(cardService, CONNECTED_SERVICES, 'Nothing'))).toBeUndefined();
     });
 });
 
 describe('reference names', () => {
     it('suggests a name from URLs and files', () => {
-        expect(suggestReferenceName('http://test.payloop.com/CardsWebFront/Services/CardOperations.asmx?WSDL', [])).toBe('CardOperations');
+        expect(suggestReferenceName('http://localhost/CardService/Services/CardOperations.asmx?WSDL', [])).toBe('CardOperations');
         expect(suggestReferenceName('https://x/Service.svc?singleWsdl', [])).toBe('Service');
         expect(suggestReferenceName('/home/me/My Service-v2.wsdl', [])).toBe('My_Service_v2');
         expect(suggestReferenceName('https://x/', [])).toBe('ServiceReference');

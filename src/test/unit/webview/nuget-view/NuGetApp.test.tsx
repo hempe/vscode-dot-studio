@@ -148,8 +148,8 @@ describe('NuGet manager: refresh and package source', () => {
                 type: 'nugetData',
                 payload: {
                     installedPackages: [], projects: [project, { ...project, name: 'Q', path: 'Q.csproj' }], searchResults: [], sources: [{ name: 'nuget.org' }, { name: 'birs' }],
-                    updatesAvailable: [update('Serilog', 'nuget.org'), update('Cirrus.Logging', 'birs'), update('Cirrus.Core', 'birs')],
-                    consolidatePackages: [update('Serilog', 'nuget.org'), update('Cirrus.Logging', 'birs')],
+                    updatesAvailable: [update('Serilog', 'nuget.org'), update('Acme.Logging', 'birs'), update('Acme.Core', 'birs')],
+                    consolidatePackages: [update('Serilog', 'nuget.org'), update('Acme.Logging', 'birs')],
                 },
             });
         };
@@ -166,12 +166,12 @@ describe('NuGet manager: refresh and package source', () => {
 
             choose('birs');
             expect(screen.queryByText('Serilog')).toBeNull();
-            expect(screen.getByText('Cirrus.Logging')).toBeTruthy();
+            expect(screen.getByText('Acme.Logging')).toBeTruthy();
             fireEvent.click(screen.getByText('Select all'));
             fireEvent.click(screen.getByText('Update Selected'));
 
             const update = sent.find(message => message.type === 'bulkUpdatePackages');
-            expect(update.payload.packages.map((p: { id: string }) => p.id).sort()).toEqual(['Cirrus.Core', 'Cirrus.Logging']);
+            expect(update.payload.packages.map((p: { id: string }) => p.id).sort()).toEqual(['Acme.Core', 'Acme.Logging']);
             // no new search or reload for a filter
             expect(sent.some(message => message.type === 'searchPackages' || message.type === 'getNuGetData')).toBe(false);
         });
@@ -180,10 +180,10 @@ describe('NuGet manager: refresh and package source', () => {
             openLists();
             fireEvent.click(screen.getByRole('tab', { name: 'Consolidate' }));
             choose('nuget.org');
-            expect(screen.queryByText('Cirrus.Logging')).toBeNull();
+            expect(screen.queryByText('Acme.Logging')).toBeNull();
             expect(screen.getByText('Serilog')).toBeTruthy();
             choose('All');
-            expect(screen.getByText('Cirrus.Logging')).toBeTruthy();
+            expect(screen.getByText('Acme.Logging')).toBeTruthy();
         });
     });
 
@@ -294,7 +294,7 @@ describe('NuGet manager: refresh and package source', () => {
             const { container } = render(<App />);
             post({ type: 'nugetData', payload: {
                 installedPackages: [installed('Serilog', '4.0.0')],
-                transitivePackages: [{ ...installed('System.Text.Json', '8.0.0'), transitiveReferencedBy: ['Cirrus.Core (project) (Cirrus.AspNetCore.Hosting)', 'Serilog (Cirrus.EfCore)'], projects: [project], projectVersions: { 'P.csproj': ['8.0.0'] } }],
+                transitivePackages: [{ ...installed('System.Text.Json', '8.0.0'), transitiveReferencedBy: ['Acme.Core (project) (Acme.AspNetCore.Hosting)', 'Serilog (Acme.EfCore)'], projects: [project], projectVersions: { 'P.csproj': ['8.0.0'] } }],
                 projects: [project], searchResults: [],
             } });
             fireEvent.click(screen.getByText('Vulnerable'));
@@ -304,7 +304,7 @@ describe('NuGet manager: refresh and package source', () => {
 
             expect(container.textContent).toContain('Only referenced through other packages');
             expect(container.textContent).not.toContain('Transitively referenced by');
-            expect(container.textContent).not.toContain('Cirrus.Core (project) (Cirrus.AspNetCore.Hosting)');
+            expect(container.textContent).not.toContain('Acme.Core (project) (Acme.AspNetCore.Hosting)');
             expect(container.textContent).toContain('8.0.0 (transitive)');
         });
 

@@ -8,7 +8,7 @@ const CONFIG = `<?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
     <clear />
-    <add key="Cirrus" value="https://pkgs.dev.azure.com/contoso/_packaging/Cirrus/nuget/v3/index.json" />
+    <add key="Acme" value="https://pkgs.dev.azure.com/contoso/_packaging/Acme/nuget/v3/index.json" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
     <add key="Local" value="../packages" />
     <add key="Off" value="https://example.com/off/index.json" />
@@ -45,7 +45,7 @@ describe('legacy solution-level NuGet.Config', () => {
 
     it('reads its sources with the disabled ones marked', () => {
         expect(legacyConfigSources(CONFIG)).toEqual([
-            { name: 'Cirrus', url: 'https://pkgs.dev.azure.com/contoso/_packaging/Cirrus/nuget/v3/index.json', enabled: true, isLocal: false },
+            { name: 'Acme', url: 'https://pkgs.dev.azure.com/contoso/_packaging/Acme/nuget/v3/index.json', enabled: true, isLocal: false },
             { name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, isLocal: false },
             { name: 'Local', url: '../packages', enabled: true, isLocal: true },
             { name: 'Off', url: 'https://example.com/off/index.json', enabled: false, isLocal: false },
@@ -56,7 +56,7 @@ describe('legacy solution-level NuGet.Config', () => {
         legacy();
         const cli = [{ name: 'nuget.org', url: 'https://api.nuget.org/v3/index.json', enabled: true, isLocal: false }];
         const merged = applyLegacyConfig(cli, dir);
-        expect(merged.map(source => source.name)).toEqual(['nuget.org', 'Cirrus', 'Local', 'Off']);
+        expect(merged.map(source => source.name)).toEqual(['nuget.org', 'Acme', 'Local', 'Off']);
         // already moved: the CLI lists them itself
         fs.writeFileSync(path.join(dir, 'nuget.config'), CONFIG);
         expect(applyLegacyConfig(cli, dir)).toEqual(cli);

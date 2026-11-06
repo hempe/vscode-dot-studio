@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectFileEditor } from '../../../parsers/projectFileEditor';
 
-const fixture = path.join(__dirname, '../../../__fixtures__/service-references/PayLoop/PayLoop.csproj');
+const fixture = path.join(__dirname, '../../../__fixtures__/service-references/CardService/CardService.csproj');
 
 const sdkProject = `<Project Sdk="Microsoft.NET.Sdk">
 

@@ -64,7 +64,7 @@ describe('package advisories', () => {
         const source = (url: string, enabled = true, isLocal = false) => ({ name: url, url, enabled, isLocal });
 
         it('a V2 URL of nuget.org has no vulnerability data (the CLI then finds none): ask nuget.org V3', () => {
-            expect(advisorySourceArgs([source('https://birs.pkgs.visualstudio.com/_packaging/CIRRUS/nuget/v3/index.json'), source('https://www.nuget.org/api/v2/')]))
+            expect(advisorySourceArgs([source('https://birs.pkgs.visualstudio.com/_packaging/ACME/nuget/v3/index.json'), source('https://www.nuget.org/api/v2/')]))
                 .toEqual(['--source', 'https://api.nuget.org/v3/index.json']);
             expect(advisorySourceArgs([source('https://www.nuget.org/api/v2')])).toEqual(['--source', 'https://api.nuget.org/v3/index.json']);
         });

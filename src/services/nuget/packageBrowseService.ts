@@ -38,7 +38,7 @@ export function parseSourceList(stdout: string): PackageSource[] {
     for (const line of lines) {
         const trimmedLine = line.trim();
 
-        // Source number and name (e.g., "1.  CIRRUS [Enabled]" or "2.  nuget.org [Disabled]")
+        // Source number and name (e.g., "1.  ACME [Enabled]" or "2.  nuget.org [Disabled]")
         const sourceMatch = trimmedLine.match(/^(\d+)\.\s+(.+?)\s+\[(Enabled|Disabled)\]$/);
         if (sourceMatch) {
             flush();

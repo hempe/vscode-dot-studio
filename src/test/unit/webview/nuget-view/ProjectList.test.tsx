@@ -61,14 +61,14 @@ describe('ProjectList: the version each project uses', () => {
             act(() => {
                 window.dispatchEvent(new MessageEvent('message', { data: { type: 'dependencyPaths', payload: {
                     projectPath: '/repo/Through/Through.csproj', packageId: 'System.Security.Cryptography.Pkcs',
-                    paths: [{ framework: 'net10.0', hops: ['Cirrus.Core.Localisation (project)', 'Microsoft.Data.SqlClient 6.1.4', 'System.Security.Cryptography.Pkcs 9.0.11'] }],
+                    paths: [{ framework: 'net10.0', hops: ['Acme.Core.Localisation (project)', 'Microsoft.Data.SqlClient 6.1.4', 'System.Security.Cryptography.Pkcs 9.0.11'] }],
                 } } }));
             });
 
             const text = screen.getByRole('tooltip').textContent!;
             expect(text).toContain('net10.0');
             expect(text).toContain('Through');
-            expect(text).toContain('Cirrus.Core.Localisation (project)');
+            expect(text).toContain('Acme.Core.Localisation (project)');
             expect(text).toContain('Microsoft.Data.SqlClient 6.1.4');
             expect(text).toContain('System.Security.Cryptography.Pkcs 9.0.11');
             fireEvent.mouseLeave(label);
@@ -88,7 +88,7 @@ describe('ProjectList: the version each project uses', () => {
 
             fireEvent.mouseEnter(screen.getByText('Not installed'));
             expect(mockSent).toHaveLength(1);
-            expect(screen.queryByText('Cirrus')).toBeNull();
+            expect(screen.queryByText('Acme')).toBeNull();
         });
     });
 

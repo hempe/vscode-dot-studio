@@ -4,7 +4,7 @@
 
 # Visual Studio writes CRLF; tests read these as CRLF.
 src/__fixtures__/configurations/Sample.sln text eol=crlf
-src/__fixtures__/service-references/PayLoop/Connected[[:space:]]Services/CardOperations/CardOperations.wsdl text eol=crlf
+src/__fixtures__/service-references/CardService/Connected[[:space:]]Services/CardOperations/CardOperations.wsdl text eol=crlf
 
 *.png binary
 *.gif binary

@@ -49,16 +49,16 @@ describe('Solution.getProject', () => {
     beforeEach(async () => {
         dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'dotstudio-getproject-')));
         // `dotnet sln add` writes the project that was added first first: Foo before Foo.Tests, and Outer before Outer/Inner
-        project('Cirrus.Packager/Cirrus.Packager.csproj');
-        project('Cirrus.Packager.Tests/Cirrus.Packager.Tests.csproj');
+        project('Acme.Packager/Acme.Packager.csproj');
+        project('Acme.Packager.Tests/Acme.Packager.Tests.csproj');
         project('Outer/Outer.csproj');
         project('Outer/Inner/Inner.csproj');
-        fs.mkdirSync(path.join(dir, 'Cirrus.Packager.Tests', 'Sub'), { recursive: true });
-        fs.mkdirSync(path.join(dir, 'Cirrus.Packager', 'Sub'), { recursive: true });
+        fs.mkdirSync(path.join(dir, 'Acme.Packager.Tests', 'Sub'), { recursive: true });
+        fs.mkdirSync(path.join(dir, 'Acme.Packager', 'Sub'), { recursive: true });
         fs.mkdirSync(path.join(dir, 'Outer', 'Inner', 'Deep'), { recursive: true });
         fs.writeFileSync(path.join(dir, 'App.slnx'), `<Solution>
-  <Project Path="Cirrus.Packager/Cirrus.Packager.csproj" />
-  <Project Path="Cirrus.Packager.Tests/Cirrus.Packager.Tests.csproj" />
+  <Project Path="Acme.Packager/Acme.Packager.csproj" />
+  <Project Path="Acme.Packager.Tests/Acme.Packager.Tests.csproj" />
   <Project Path="Outer/Outer.csproj" />
   <Project Path="Outer/Inner/Inner.csproj" />
 </Solution>
@@ -75,17 +75,17 @@ describe('Solution.getProject', () => {
     const nameOf = (folder: string) => solution.getProject(path.join(dir, folder))?.name;
 
     it('finds a project by its project file', () => {
-        expect(nameOf('Cirrus.Packager.Tests/Cirrus.Packager.Tests.csproj')).toBe('Cirrus.Packager.Tests');
+        expect(nameOf('Acme.Packager.Tests/Acme.Packager.Tests.csproj')).toBe('Acme.Packager.Tests');
     });
 
     it('finds the project of a folder inside it', () => {
-        expect(nameOf('Cirrus.Packager/Sub')).toBe('Cirrus.Packager');
+        expect(nameOf('Acme.Packager/Sub')).toBe('Acme.Packager');
     });
 
     it('does not take a project whose folder name is only the start of another project folder name', () => {
-        // The folder of Cirrus.Packager.Tests starts with the folder of Cirrus.Packager: the folders of the tests expanded empty
-        expect(nameOf('Cirrus.Packager.Tests/Sub')).toBe('Cirrus.Packager.Tests');
-        expect(nameOf('Cirrus.Packager.Tests')).toBe('Cirrus.Packager.Tests');
+        // The folder of Acme.Packager.Tests starts with the folder of Acme.Packager: the folders of the tests expanded empty
+        expect(nameOf('Acme.Packager.Tests/Sub')).toBe('Acme.Packager.Tests');
+        expect(nameOf('Acme.Packager.Tests')).toBe('Acme.Packager.Tests');
     });
 
     it('takes the innermost project of a nested folder structure', () => {

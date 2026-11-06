@@ -4,7 +4,7 @@ import * as path from 'path';
 import { explainSvcutilFailure, generateServiceReference, removeServiceReference, Svcutil } from '../../../../services/serviceReferences/serviceReferenceGenerator';
 import { newServiceReference, readServiceReference } from '../../../../services/serviceReferences/connectedService';
 
-const fixtureProject = path.join(__dirname, '../../../../__fixtures__/service-references/PayLoop');
+const fixtureProject = path.join(__dirname, '../../../../__fixtures__/service-references/CardService');
 
 /** Writes Reference.cs like svcutil and, like svcutil, adds 4.10.* packages to the project */
 const fakeSvcutil = (calls: string[][], fail = false): Svcutil => async (args, cwd) => {
@@ -28,7 +28,7 @@ describe('generateServiceReference', () => {
     beforeEach(() => {
         project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcgen-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
-        projectPath = path.join(project, 'PayLoop.csproj');
+        projectPath = path.join(project, 'CardService.csproj');
         fs.writeFileSync(projectPath, fs.readFileSync(projectPath, 'utf8').replace('net471', 'net10.0'));
         added = [];
     });
@@ -149,7 +149,7 @@ describe('removeServiceReference', () => {
     it('deletes the folder, and Connected Services with WCFMetadata when it was the last one', async () => {
         const project = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'svcrm-')));
         fs.cpSync(fixtureProject, project, { recursive: true });
-        const projectPath = path.join(project, 'PayLoop.csproj');
+        const projectPath = path.join(project, 'CardService.csproj');
 
         await removeServiceReference(projectPath, path.join(project, 'Connected Services', 'CardOperations'));
 

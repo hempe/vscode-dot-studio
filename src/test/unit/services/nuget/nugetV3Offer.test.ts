@@ -16,7 +16,7 @@ const config = (nugetOrg: string) => `<?xml version="1.0" encoding="utf-8"?>
   <packageSources>
     <!-- remove any machine-wide sources with <clear/> -->
     <clear />
-    <add key="birs" value="https://birs.pkgs.visualstudio.com/_packaging/CIRRUS/nuget/v3/index.json" />
+    <add key="birs" value="https://birs.pkgs.visualstudio.com/_packaging/ACME/nuget/v3/index.json" />
     <!-- <add key="old" value="https://www.nuget.org/api/v2/" /> -->
     <add key="nuget.org" value="${nugetOrg}" />
   </packageSources>
@@ -35,7 +35,7 @@ describe('nuget.org addresses', () => {
     });
 
     it('leaves the service index, other feeds and what is not an address alone', () => {
-        for (const url of ['https://api.nuget.org/v3/index.json', 'https://birs.pkgs.visualstudio.com/_packaging/CIRRUS/nuget/v3/index.json',
+        for (const url of ['https://api.nuget.org/v3/index.json', 'https://birs.pkgs.visualstudio.com/_packaging/ACME/nuget/v3/index.json',
             'https://www.myget.org/F/x/api/v2', '/home/me/packages', '', 'https://www.nuget.org/packages']) {
             expect(isLegacyNuGetOrgUrl(url)).toBe(false);
         }

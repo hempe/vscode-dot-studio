@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://example.com/cards" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" targetNamespace="http://example.com/cards" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://example.com/cards">
+      <s:element name="CheckBalance">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="language" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="currencyNumericCode" nillable="true" type="s:short" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CheckBalanceResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="CheckBalanceResult" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="balance" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="currencyName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Redeem">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="merchantID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="cardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="pinCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="amount" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="reference" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="RedeemResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="RedeemResult" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="remaining" type="s:decimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="errorText" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="CheckBalanceSoapIn">
+    <wsdl:part name="parameters" element="tns:CheckBalance" />
+  </wsdl:message>
+  <wsdl:message name="CheckBalanceSoapOut">
+    <wsdl:part name="parameters" element="tns:CheckBalanceResponse" />
+  </wsdl:message>
+  <wsdl:message name="RedeemSoapIn">
+    <wsdl:part name="parameters" element="tns:Redeem" />
+  </wsdl:message>
+  <wsdl:message name="RedeemSoapOut">
+    <wsdl:part name="parameters" element="tns:RedeemResponse" />
+  </wsdl:message>
+  <wsdl:portType name="CardOperationsSoap">
+    <wsdl:operation name="CheckBalance">
+      <wsdl:documentation>Returns the balance of a card.</wsdl:documentation>
+      <wsdl:input message="tns:CheckBalanceSoapIn" />
+      <wsdl:output message="tns:CheckBalanceSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Redeem">
+      <wsdl:documentation>Takes an amount off a card.</wsdl:documentation>
+      <wsdl:input message="tns:RedeemSoapIn" />
+      <wsdl:output message="tns:RedeemSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="CardOperationsSoap" type="tns:CardOperationsSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="CheckBalance">
+      <soap:operation soapAction="http://example.com/cards/CheckBalance" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Redeem">
+      <soap:operation soapAction="http://example.com/cards/Redeem" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="CardOperationsSoap12" type="tns:CardOperationsSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="CheckBalance">
+      <soap12:operation soapAction="http://example.com/cards/CheckBalance" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Redeem">
+      <soap12:operation soapAction="http://example.com/cards/Redeem" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="CardOperations">
+    <wsdl:port name="CardOperationsSoap" binding="tns:CardOperationsSoap">
+      <soap:address location="http://localhost:5000/CardService/Services/CardOperations.asmx" />
+    </wsdl:port>
+    <wsdl:port name="CardOperationsSoap12" binding="tns:CardOperationsSoap12">
+      <soap12:address location="http://localhost:5000/CardService/Services/CardOperations.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

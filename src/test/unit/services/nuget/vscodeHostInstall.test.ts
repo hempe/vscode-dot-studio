@@ -17,11 +17,11 @@ describe('cliFailureReason', () => {
     const { cliFailureReason } = jest.requireActual('../../../../services/nuget/dotnetCli') as typeof import('../../../../services/nuget/dotnetCli');
 
     it('gives the error line of the output: the CLI prints it to stdout, the exception only says "Command failed"', () => {
-        const error = Object.assign(new Error('Command failed: dotnet add X.csproj package Cirrus.RuleSet --no-restore\n'), {
-            stdout: "info : Adding PackageReference for package 'Cirrus.RuleSet' into project 'X.csproj'.\nwarn : --no-restore flag was used.\nerror: Error while performing Update for package 'Cirrus.RuleSet'. Cannot edit items in imported files - \n",
+        const error = Object.assign(new Error('Command failed: dotnet add X.csproj package Acme.RuleSet --no-restore\n'), {
+            stdout: "info : Adding PackageReference for package 'Acme.RuleSet' into project 'X.csproj'.\nwarn : --no-restore flag was used.\nerror: Error while performing Update for package 'Acme.RuleSet'. Cannot edit items in imported files - \n",
             stderr: '',
         });
-        expect(cliFailureReason(error)).toBe("Error while performing Update for package 'Cirrus.RuleSet'. Cannot edit items in imported files");
+        expect(cliFailureReason(error)).toBe("Error while performing Update for package 'Acme.RuleSet'. Cannot edit items in imported files");
     });
 
     it('keeps the code of an MSBuild style error, and falls back to the first line of the message', () => {

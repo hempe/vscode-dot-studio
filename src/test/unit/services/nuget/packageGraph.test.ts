@@ -137,19 +137,19 @@ describe('packageGraph', () => {
             expect(older).toBeDefined();
         });
 
-        describe('as Cirrus.Core has them: several frameworks and project references', () => {
+        describe('as Acme.Core has them: several frameworks and project references', () => {
             // Localisation targets net471 and net10.0: Microsoft.Data.SqlClient (and so Pkcs) only exists for net10.0
             const multi = assets({
                 net471: {
                     'Some.Lib/1.0.0': { type: 'package' },
                     'System.Text.Encodings.Web/4.5.0': { type: 'package' },
-                    'Cirrus.Core/1.0.0': { type: 'project', dependencies: { 'System.Text.Encodings.Web': '4.5.0' } },
+                    'Acme.Core/1.0.0': { type: 'project', dependencies: { 'System.Text.Encodings.Web': '4.5.0' } },
                 },
                 'net10.0': {
                     'Some.Lib/1.0.0': { type: 'package' },
                     'Microsoft.Data.SqlClient/6.1.4': { type: 'package', dependencies: { 'System.Security.Cryptography.Pkcs': '9.0.11' } },
                     'System.Security.Cryptography.Pkcs/9.0.11': { type: 'package' },
-                    'Cirrus.Core/1.0.0': { type: 'project', dependencies: { 'Newtonsoft.Json': '13.0.3' } },
+                    'Acme.Core/1.0.0': { type: 'project', dependencies: { 'Newtonsoft.Json': '13.0.3' } },
                     'Newtonsoft.Json/13.0.3': { type: 'package' },
                 },
             }, { net471: ['Some.Lib'], 'net10.0': ['Some.Lib', 'Microsoft.Data.SqlClient'] });
@@ -171,8 +171,8 @@ describe('packageGraph', () => {
             it('a package that only a referenced project brings in is transitive, referenced by that project', () => {
                 const transitive = collectTransitivePackages(parsePackageGraphs(multi).map(graph => ({ project: lib, graph })));
                 expect(transitive.map(pkg => [pkg.id, pkg.transitiveReferencedBy])).toEqual(expect.arrayContaining([
-                    ['System.Text.Encodings.Web', ['Cirrus.Core (project)']],
-                    ['Newtonsoft.Json', ['Cirrus.Core (project)']],
+                    ['System.Text.Encodings.Web', ['Acme.Core (project)']],
+                    ['Newtonsoft.Json', ['Acme.Core (project)']],
                 ]));
                 // Referenced by the project itself: top-level, never transitive
                 expect(transitive.map(pkg => pkg.id)).not.toContain('Some.Lib');
@@ -232,12 +232,12 @@ describe('dependencyPaths (how a project gets a package)', () => {
 
     it('starts at a referenced project when that is what brings the package in', () => {
         const graph = assetsWith({
-            'Cirrus.Core.Localisation/1.0.0': { type: 'project', dependencies: { 'Microsoft.Data.SqlClient': '6.1.4' } },
+            'Acme.Core.Localisation/1.0.0': { type: 'project', dependencies: { 'Microsoft.Data.SqlClient': '6.1.4' } },
             'Microsoft.Data.SqlClient/6.1.4': { type: 'package', dependencies: { 'System.Security.Cryptography.Pkcs': '9.0.11' } },
             'System.Security.Cryptography.Pkcs/9.0.11': { type: 'package' },
         }, []);
         expect(dependencyPaths(graph, 'System.Security.Cryptography.Pkcs').map(path => path.hops)).toEqual([
-            ['Cirrus.Core.Localisation (project)', 'Microsoft.Data.SqlClient 6.1.4', 'System.Security.Cryptography.Pkcs 9.0.11'],
+            ['Acme.Core.Localisation (project)', 'Microsoft.Data.SqlClient 6.1.4', 'System.Security.Cryptography.Pkcs 9.0.11'],
         ]);
     });
 
