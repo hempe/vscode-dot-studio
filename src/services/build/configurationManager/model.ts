@@ -114,43 +114,40 @@ function renamePairs(model: ConfigurationModel, part: 'configuration' | 'platfor
     return { ...model, mappings };
 }
 
-/** `copyFrom`: the existing configuration whose project mappings the new one starts with, like Visual Studio's "Copy settings from" */
-export function addConfiguration(model: ConfigurationModel, name: string, copyFrom?: string): ConfigurationModel {
+/**
+ * `copyFrom`: the existing configuration whose project mappings the new one starts with, like Visual Studio's "Copy settings from".
+ * A project without an explicit mapping builds in `copyFrom` itself, so the new configuration says that: without it the new name
+ * would point at a project configuration of its own name, which the projects do not have.
+ */
+export function addConfiguration(model: ConfigurationModel, name: string, copyFrom?: string, projects: readonly string[] = []): ConfigurationModel {
     name = validName(name);
     ensureNew(model.configurations, name, 'configuration');
-    const mappings = { ...model.mappings };
-    if (copyFrom) {
-        for (const [project, pairs] of Object.entries(model.mappings)) {
-            const added: Record<string, ProjectMapping> = {};
-            for (const [key, mapping] of Object.entries(pairs)) {
-                const [configuration, platform] = key.split('|');
-                if (configuration === copyFrom) {
-                    added[pairKey(name, platform)] = { ...mapping };
-                }
-            }
-            mappings[project] = { ...pairs, ...added };
-        }
-    }
-    return { ...model, configurations: [...model.configurations, name], mappings };
+    return { ...model, configurations: [...model.configurations, name], mappings: copyMappings(model, 'configuration', copyFrom, name, projects) };
 }
 
-export function addPlatform(model: ConfigurationModel, name: string, copyFrom?: string): ConfigurationModel {
+export function addPlatform(model: ConfigurationModel, name: string, copyFrom?: string, projects: readonly string[] = []): ConfigurationModel {
     name = validName(name);
     ensureNew(model.platforms, name, 'platform');
+    return { ...model, platforms: [...model.platforms, name], mappings: copyMappings(model, 'platform', copyFrom, name, projects) };
+}
+
+/** The mappings of every pair that has `copyFrom` as its configuration (or platform), also the implicit ones, under the new name */
+function copyMappings(model: ConfigurationModel, part: 'configuration' | 'platform', copyFrom: string | undefined, name: string, projects: readonly string[]): ConfigurationModel['mappings'] {
     const mappings = { ...model.mappings };
-    if (copyFrom) {
-        for (const [project, pairs] of Object.entries(model.mappings)) {
-            const added: Record<string, ProjectMapping> = {};
-            for (const [key, mapping] of Object.entries(pairs)) {
-                const [configuration, platform] = key.split('|');
-                if (platform === copyFrom) {
-                    added[pairKey(configuration, name)] = { ...mapping };
-                }
-            }
-            mappings[project] = { ...pairs, ...added };
-        }
+    if (!copyFrom) {
+        return mappings;
     }
-    return { ...model, platforms: [...model.platforms, name], mappings };
+    const others = part === 'configuration' ? model.platforms : model.configurations;
+    for (const project of new Set([...Object.keys(model.mappings), ...projects])) {
+        const added: Record<string, ProjectMapping> = {};
+        for (const other of others) {
+            const [fromConfiguration, fromPlatform] = part === 'configuration' ? [copyFrom, other] : [other, copyFrom];
+            const [toConfiguration, toPlatform] = part === 'configuration' ? [name, other] : [other, name];
+            added[pairKey(toConfiguration, toPlatform)] = { ...resolveMapping(model, project, fromConfiguration, fromPlatform) };
+        }
+        mappings[project] = { ...model.mappings[project], ...added };
+    }
+    return mappings;
 }
 
 export function renameConfiguration(model: ConfigurationModel, from: string, to: string, projects: readonly string[]): ConfigurationModel {

@@ -32,6 +32,17 @@ describe('configuration and platform lists', () => {
         expect(resolveMapping(model, project, 'Staging', 'Any CPU')).toEqual({ configuration: 'Debug', platform: 'x64', build: false });
     });
 
+    it('a configuration copied from one without explicit mappings builds the projects in that one', () => {
+        const model = addConfiguration(emptyModel(), 'Staging', 'Release', [project]);
+        expect(resolveMapping(model, project, 'Staging', 'Any CPU')).toEqual({ configuration: 'Release', platform: 'Any CPU', build: true });
+    });
+
+    it('a platform copied from the default one builds the projects on it', () => {
+        const model = addPlatform(emptyModel(), 'x64', 'Any CPU', [project]);
+        expect(resolveMapping(model, project, 'Debug', 'x64')).toEqual({ configuration: 'Debug', platform: 'Any CPU', build: true });
+        expect(resolveMapping(model, project, 'Release', 'x64')).toEqual({ configuration: 'Release', platform: 'Any CPU', build: true });
+    });
+
     it('refuses a duplicate name, ignoring case', () => {
         expect(() => addConfiguration(emptyModel(), 'debug')).toThrow('already exists');
     });

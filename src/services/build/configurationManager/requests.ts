@@ -7,10 +7,10 @@ import {
 export function applyRequest(model: ConfigurationModel, request: ConfigurationManagerRequest, projects: readonly string[]): ConfigurationModel {
     switch (request.type) {
         case 'setMapping': return setMapping(model, request.project, request.configuration, request.platform, request.mapping);
-        case 'addConfiguration': return addConfiguration(model, request.name, request.copyFrom);
+        case 'addConfiguration': return addConfiguration(model, request.name, request.copyFrom, projects);
         case 'renameConfiguration': return renameConfiguration(model, request.from, request.to, projects);
         case 'removeConfiguration': return removeConfiguration(model, request.name);
-        case 'addPlatform': return addPlatform(model, request.name, request.copyFrom);
+        case 'addPlatform': return addPlatform(model, request.name, request.copyFrom, projects);
         case 'renamePlatform': return renamePlatform(model, request.from, request.to, projects);
         case 'removePlatform': return removePlatform(model, request.name);
         default: return model;

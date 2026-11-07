@@ -43,14 +43,14 @@ try {
     await cm.getByRole('button', { name: 'Add', exact: true }).click();
     await settle();
     check('Staging is added to the list', await cm.getByLabel('Rename Staging').count() === 1);
-    check('and to the file, whose other lines stay', /Staging/.test(slnx()) && original.split('\n').filter(l => l.trim()).every(l => slnx().includes(l)), slnx());
+    check('and to the file, which keeps every folder, project and file of the solution', /Staging/.test(slnx()) && (original.match(/(Path|Name)="[^"]+"/g) ?? []).every(a => slnx().includes(a)), slnx());
     await cm.getByLabel('Rename Staging').click();
     await cm.getByLabel('New name for Staging').fill('Qa');
     await cm.getByLabel('New name for Staging').press('Enter');
     await settle();
-    // the projects keep their own configuration name (Project="Staging"), only the solution side changes, as in Visual Studio
+    // the projects keep their own configuration name (Project="Debug", copied from the active one), only the solution side changes, as in Visual Studio
     const renamed = await cm.getByLabel('Rename Qa').count() === 1 && /Solution="Qa\|/.test(slnx()) && !/Solution="Staging\|/.test(slnx());
-    check('rename works (the solution side is Qa, the projects keep Staging)', renamed, `${await cm.locator('.names').innerText().catch(() => '')} | ${slnx().slice(-300)}`);
+    check('rename works (the solution side is Qa, the projects keep building in the configuration it was copied from)', renamed, `${await cm.locator('.names').innerText().catch(() => '')} | ${slnx().slice(-300)}`);
     await cm.getByLabel(renamed ? 'Remove Qa' : 'Remove Staging').click();
     await win.waitForTimeout(800);
     // a confirmation may follow
