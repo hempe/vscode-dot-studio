@@ -1,7 +1,7 @@
 // manual-testing.md, "Configuration Manager": opens from the palette; with only Any CPU there is no solution platform; the grid's Build checkbox decides
-// what `dotnet build` of the solution builds; configurations can be added, renamed and removed (the last one cannot), the .slnx keeps its
-// formatting; The sample is a .slnx.
-// Not covered: platforms, the refresh after an edit of the file on disk, the same on a `.sln`, the solution's context menu and the title bar's menu (native), Select Solution Platform and F5/Pack mapping.
+// what `dotnet build` of the solution builds; configurations and platforms can be added, renamed and removed (the last one cannot), the .slnx keeps its
+// formatting; the tab follows an edit of the solution file on disk. The sample is a .slnx.
+// Not covered: the same on a `.sln`, the solution's context menu and the title bar's menu (native), Select Solution Platform and F5/Pack mapping.
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -57,4 +57,28 @@ try {
     for (const name of ['Remove', 'Delete', 'Yes']) { const b = win.getByRole('button', { name, exact: true }); if (await b.count()) { await b.first().click(); break; } }
     await settle();
     check('removing it takes it out of the list and the file', await cm.getByLabel(/Remove (Qa|Staging)/).count() === 0 && !/Solution="(Qa|Staging)\|/.test(slnx()), slnx().slice(-300));
+
+    // Platforms: add (a dropdown appears), rename, remove
+    await cm.getByRole('button', { name: 'Edit Platforms...' }).click();
+    await cm.getByLabel('New platform name').fill('x64');
+    await cm.getByRole('button', { name: 'Add', exact: true }).last().click();
+    await settle();
+    check('x64 is added to the list', await cm.getByLabel('Rename x64').count() === 1);
+    check('and to the file', /Platform Name="x64"/.test(slnx()), slnx().slice(0, 600));
+    check('and the platform dropdown appears', await cm.getByLabel('Active solution platform').count() > 0);
+    await cm.getByLabel('Rename x64').click();
+    await cm.getByLabel('New name for x64').fill('arm64');
+    await cm.getByLabel('New name for x64').press('Enter');
+    await settle();
+    check('platform rename works', await cm.getByLabel('Rename arm64').count() === 1 && /Platform Name="arm64"/.test(slnx()) && !/Platform Name="x64"/.test(slnx()), slnx().slice(-300));
+    await cm.getByLabel('Remove arm64').click();
+    await win.waitForTimeout(800);
+    for (const name of ['Remove', 'Delete', 'Yes']) { const b = win.getByRole('button', { name, exact: true }); if (await b.count()) { await b.first().click(); break; } }
+    await settle();
+    check('removing the platform takes it out of the list and the file', await cm.getByLabel('Rename arm64').count() === 0 && !/arm64/.test(slnx()), slnx().slice(-300));
+
+    // The tab follows an edit of the file on disk
+    writeFileSync(slnxPath, original.replace('<Solution>', '<Solution>\n  <Configurations>\n    <BuildType Name="Debug" />\n    <BuildType Name="Disk" />\n  </Configurations>'));
+    await win.waitForTimeout(5000);
+    check('the tab follows an edit of the solution file on disk', await cm.getByLabel('Rename Disk').count() === 1, (await cm.locator('.names').first().innerText().catch(() => '')).replace(/\s+/g, ' ') + ' | file has Disk: ' + /Disk/.test(slnx()));
 } finally { await app.close(); }
