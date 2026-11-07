@@ -114,6 +114,22 @@ describe('NuGetV3Service.getPackageDetails: what is logged', () => {
         expect(lines.filter(([level]) => level !== 'debug')).toEqual([]);
     });
 
+    it('Refresh forgets the details of a package, for a version published meanwhile', async () => {
+        let newest = '1.0.0';
+        jest.spyOn(NuGetV3Service as any, 'makeRequest').mockImplementation(async (url: any) => {
+            const body = url === 'https://public/index.json' ? index('public')
+                : { items: [{ '@id': 'p0', lower: '1.0.0', upper: newest, items: [entry(newest, 'x')] }] };
+            return { statusCode: 200, body: JSON.stringify(body) };
+        });
+        const feeds = [source('nuget.org', 'public')];
+
+        expect((await NuGetV3Service.getPackageDetails('Serilog', feeds))?.currentVersion).toBe('1.0.0');
+        newest = '2.0.0';
+        expect((await NuGetV3Service.getPackageDetails('Serilog', feeds))?.currentVersion).toBe('1.0.0');
+        await NuGetV3Service.clearCaches();
+        expect((await NuGetV3Service.getPackageDetails('Serilog', feeds))?.currentVersion).toBe('2.0.0');
+    });
+
     it('no source has the package: one warning that says what each answered', async () => {
         serve({
             'https://private/index.json': { statusCode: 200, body: index('private') },

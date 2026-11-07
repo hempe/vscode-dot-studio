@@ -82,6 +82,9 @@ export class NuGetV3Service {
     static async clearCaches(): Promise<void> {
         this.cacheGeneration++;
         this.requestCache.clear();
+        // The details of a package (its versions) and the feeds' service indexes are kept for minutes: Refresh must not keep serving them
+        this.packageCache.clear();
+        this.serviceIndexCache.clear();
         await this.persistentCache?.clear();
     }
 

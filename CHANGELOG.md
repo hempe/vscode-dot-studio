@@ -11,6 +11,7 @@ Our own refactorings in the Ctrl+. menu (a pre-release: they have been tried on 
 - **Added, refactorings:** Change Signature (Ctrl+. on a method, constructor or local function, or on a call): reorder, add, remove, rename and retype parameters; callers, overrides, implementations, renamed uses and `<param>` tags follow, the result is compiled before it is applied.
 - **Added, rename:** a file renamed in VS Code's Explorer offers to rename the type named after it (and its references), like the Solution Explorer already did; F2 on a type in a C# file named after it offers to rename the file afterwards.
 - **Added, Solution Explorer:** file nesting puts `Order.Lines.cs` under `Order.cs` (parts of a partial class, also what Extract Members to Partial Class writes); `fileNesting: off` shows them flat.
+- **Fixed, NuGet manager:** Refresh did not show a version published after the package was first read (the details of a package were kept for ten minutes and Refresh left them); it clears them now.
 - **Fixed, refactorings:** Extract Members to Partial Class keeps the modifiers of the type (`internal`, `static`, `sealed`...) on the new part.
 - **Fixed, launch profiles:** a `launchSettings.json` that starts with a byte order mark (Visual Studio writes it that way) was ignored with "InvalidSymbol at offset 0"; it is read.
 - **Fixed, Solution Explorer:** expanded folders are restored parents first, and a folder that is gone is no error line on every refresh.

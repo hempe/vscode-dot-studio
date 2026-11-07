@@ -1,6 +1,8 @@
 // Helpers to drive the real VS Code through Playwright: a throwaway profile, a copy of the sample solution, the Solution
 // Explorer's webview frame. Run a check through run.sh (own Xvfb display).
 import { _electron as electron } from 'playwright-core';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -150,4 +152,78 @@ export async function reopen(win, frame, name) {
     await row.click();
     await win.keyboard.press('ArrowLeft'); await win.waitForTimeout(400);
     await win.keyboard.press('ArrowRight'); await win.waitForTimeout(800);
+}
+
+/** Gives the run its own HOME (the user's NuGet.Config, the package cache) so nothing of the real one is read or written; call before launch(). */
+export function isolateHome(ws) {
+    process.env.HOME = join(ws.work, 'home');
+    mkdirSync(process.env.HOME, { recursive: true });
+    return process.env.HOME;
+}
+
+/** Runs a shell command in the workspace folder, without blocking (a feed served by this process keeps answering) (with the isolated HOME when isolateHome was called); returns the output, also of a failing command. */
+export async function sh(ws, command) {
+    try { return (await promisify(exec)(command, { cwd: ws.folder, encoding: 'utf8', env: process.env })).stdout; } catch (e) { return `${e.stdout ?? ''}${e.stderr ?? ''}`; }
+}
+
+/** The frame (webview) whose text matches, waiting for it. */
+export async function findFrame(win, pattern, seconds = 60) {
+    for (let i = 0; i < seconds * 2; i++) {
+        for (const f of win.frames()) {
+            const text = await f.locator('body').innerText({ timeout: 1000 }).catch(() => '');
+            if (pattern.test(text)) return f;
+        }
+        await win.waitForTimeout(500);
+    }
+    return undefined;
+}
+
+/** Opens the NuGet manager for the solution (palette) and returns its frame once the tabs are there. */
+export async function openNuGetManager(win) {
+    await win.keyboard.press('Control+Shift+p');
+    await win.keyboard.type('Open NuGet Package Manager for Solution');
+    await win.waitForTimeout(1000);
+    await win.keyboard.press('Enter');
+    return findFrame(win, /Browse\s+Installed\s+Updates/);
+}
+
+/** A minimal NuGet V3 feed over a folder of Id.Version.nupkg files (search, registration, flat container); read per request, so a package packed later shows up. Returns { url, close }. */
+export async function startFeed(dir) {
+    const { createServer } = await import('node:http');
+    const { readdirSync: ls, readFileSync: read } = await import('node:fs');
+    const packages = () => ls(dir).map(f => /^(.+?)\.(\d+\.\d+\.\d+(?:-[\w.]+)?)\.nupkg$/.exec(f)).filter(Boolean).map(m => ({ id: m[1], version: m[2], file: join(dir, m[0]) }));
+    const versions = id => packages().filter(p => p.id.toLowerCase() === id.toLowerCase()).map(p => p.version).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const server = createServer((req, res) => {
+        const url = new URL(req.url, 'http://x');
+        const base = `http://127.0.0.1:${server.address().port}`;
+        const json = body => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(body)); };
+        let m;
+        if (url.pathname === '/v3/index.json') {
+            return json({ version: '3.0.0', resources: [
+                { '@id': `${base}/search`, '@type': 'SearchQueryService' },
+                { '@id': `${base}/reg/`, '@type': 'RegistrationsBaseUrl/3.6.0' },
+                { '@id': `${base}/flat/`, '@type': 'PackageBaseAddress/3.0.0' },
+            ] });
+        }
+        if (url.pathname === '/search') {
+            const q = (url.searchParams.get('q') ?? '').toLowerCase();
+            const ids = [...new Set(packages().map(p => p.id))].filter(id => id.toLowerCase().includes(q));
+            return json({ totalHits: ids.length, data: ids.map(id => { const v = versions(id); return { id, version: v.at(-1), description: `${id} from the private feed`, authors: ['Me'], versions: v.map(version => ({ version })), totalDownloads: 1, verified: false }; }) });
+        }
+        if ((m = /^\/reg\/([^/]+)\/index\.json$/.exec(url.pathname))) {
+            const v = versions(m[1]);
+            if (!v.length) { res.statusCode = 404; return res.end(); }
+            const id = packages().find(p => p.id.toLowerCase() === m[1].toLowerCase()).id;
+            return json({ count: 1, items: [{ '@id': `${base}/reg/${m[1]}/page`, count: v.length, lower: v[0], upper: v.at(-1), items: v.map(version => ({
+                '@type': 'Package', catalogEntry: { '@type': ['PackageDetails'], id, version, authors: 'Me', description: `${id} from the private feed`, listed: true }, packageContent: `${base}/flat/${m[1]}/${version}/${m[1]}.${version}.nupkg` })) }] });
+        }
+        if ((m = /^\/flat\/([^/]+)\/index\.json$/.exec(url.pathname))) return json({ versions: versions(m[1]) });
+        if ((m = /^\/flat\/([^/]+)\/([^/]+)\/.+\.nupkg$/.exec(url.pathname))) {
+            const p = packages().find(x => x.id.toLowerCase() === m[1].toLowerCase() && x.version === m[2]);
+            if (p) { res.setHeader('content-type', 'application/octet-stream'); return res.end(read(p.file)); }
+        }
+        res.statusCode = 404; res.end();
+    });
+    await new Promise(r => server.listen(0, '127.0.0.1', r));
+    return { url: `http://127.0.0.1:${server.address().port}/v3/index.json`, close: () => server.close() };
 }
