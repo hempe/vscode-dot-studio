@@ -170,6 +170,7 @@ export async function sh(ws, command) {
 export async function findFrame(win, pattern, seconds = 60) {
     for (let i = 0; i < seconds * 2; i++) {
         for (const f of win.frames()) {
+            if (!f.url().includes('fake.html')) continue; // the webviews' content frames, not the workbench
             const text = await f.locator('body').innerText({ timeout: 1000 }).catch(() => '');
             if (pattern.test(text)) return f;
         }
