@@ -1,14 +1,14 @@
 // manual-testing.md, "A failed evaluation is retried" (src/__fixtures__/project-items with an Items.sln and a global.json that pins an SDK that is not installed, so
 // every evaluation fails): `Legacy/Old.cs` shows (the disk listing) and the log says `Could not evaluate the items`; deleting global.json soon after opening
 // (no watcher sees it) makes `Old.cs` disappear by itself at the next retry, at most 6 s later (2 min unscaled). Again with the window reloaded and ItemsApp left collapsed for
-// longer than the delays (unscaled: more than 5 minutes): after deleting global.json and expanding ItemsApp, `Old.cs` disappears a moment after the tree shows. Takes about 1.5 minutes, with the delays scaled by SHINOBI_RETRY_DELAY_SCALE.
+// longer than the delays (unscaled: more than 5 minutes): after deleting global.json and expanding ItemsApp, `Old.cs` disappears a moment after the tree shows. Takes about 25 seconds, with the delays scaled by SHINOBI_RETRY_DELAY_SCALE.
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { launch, openSolutionExplorer, expandPath, rowInfo, sh, repo, check } from './lib.mjs';
 
-// The retry delays (5 s, 30 s, 2 min) are scaled down so the check takes about a minute: 0.05 makes them 0.25 s, 1.5 s and 6 s
-process.env.SHINOBI_RETRY_DELAY_SCALE = '0.05';
+// The retry delays (5 s, 30 s, 2 min) are scaled down so the check takes about a minute: 0.03 makes them 0.15 s, 0.9 s and 3.6 s
+process.env.SHINOBI_RETRY_DELAY_SCALE = '0.03';
 const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
 const folder = join(work, 'Items');
 cpSync(join(repo, 'src/__fixtures__/project-items'), folder, { recursive: true });
@@ -17,9 +17,9 @@ await sh(ws, 'dotnet new sln -n Items --format sln');
 await sh(ws, 'dotnet sln Items.sln add ItemsApp/ItemsApp.csproj');
 const pin = join(folder, 'global.json');
 const pinSdk = () => writeFileSync(pin, '{"sdk":{"version":"9.9.999","rollForward":"disable"}}');
-const logged = () => {
+const failures = () => {
     const walk = dir => existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]) : [];
-    return walk(join(work, 'profile/logs')).filter(f => f.endsWith('.log')).some(f => /Could not evaluate the items/.test(readFileSync(f, 'utf8')));
+    return walk(join(work, 'profile/logs')).filter(f => f.endsWith('.log')).reduce((n, f) => n + (readFileSync(f, 'utf8').match(/Could not evaluate the items/g) ?? []).length, 0);
 };
 const waitUntil = async (win, fn, seconds) => { for (let i = 0; i < seconds * 2; i++) { if (await fn()) return true; await win.waitForTimeout(500); } return false; };
 
@@ -32,24 +32,32 @@ if (!process.env.SKIP_FIRST) {
         await expandPath(win, tree, ['Items', 'ItemsApp', 'Legacy']);
         await win.waitForTimeout(1500);
         check('Old.cs shows while the evaluation fails (the disk listing)', !!await rowInfo(tree, 'Old.cs'));
-        check('the log says it could not evaluate the items', await waitUntil(win, async () => logged(), 20));
+        check('the log says it could not evaluate the items', await waitUntil(win, async () => failures() > 0, 20));
         rmSync(pin);
-        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), 30);
+        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), 15);
         check('at the next retry Old.cs disappears by itself', gone);
+        // Leave ItemsApp collapsed: the profile remembers it, so the next start does not load its folders
+        await tree.locator('.tree-node').filter({ has: tree.locator('xpath=.//*[normalize-space(.)="ItemsApp"]') }).first().click();
+        await win.keyboard.press('ArrowLeft');
+        await win.waitForTimeout(1500);
     } finally { await app.close(); }
 }
 
 // Second start: ItemsApp stays collapsed for longer than the delays (unscaled: more than 5 minutes)
 pinSdk();
 {
+    const before = failures();
     const { app, win } = await launch(ws);
     try {
         const tree = await openSolutionExplorer(win);
-        await win.waitForTimeout(40000);
+        check('ItemsApp starts collapsed (as the first start left it)', !await rowInfo(tree, 'Legacy'));
+        // The first attempt and its three retries have failed (the retries stop there); the last one holds the next try back for its delay
+        await waitUntil(win, async () => failures() - before >= 4, 40);
+        await win.waitForTimeout(5000);
         rmSync(pin);
         await expandPath(win, tree, ['Items', 'ItemsApp', 'Legacy']);
         // the disk listing may show Old.cs for a moment; it goes once the evaluation succeeds
-        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')) && !!(await rowInfo(tree, 'Linked')), 40);
+        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')) && !!(await rowInfo(tree, 'Linked')), 15);
         check('after a long collapse and deleting global.json, expanding ItemsApp ends without Old.cs (and with the Linked folder the evaluation brings)', gone, JSON.stringify((await tree.locator('.tree-node').allTextContents()).map(t => t.trim())));
     } finally { await app.close(); }
 }
