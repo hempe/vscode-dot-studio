@@ -13,6 +13,7 @@ Our own refactorings in the Ctrl+. menu (a pre-release: they have been tried on 
 - **Added, Solution Explorer:** file nesting puts `Order.Lines.cs` under `Order.cs` (parts of a partial class, also what Extract Members to Partial Class writes); `fileNesting: off` shows them flat.
 - **Fixed, NuGet manager:** Refresh did not show a version published after the package was first read (the details of a package were kept for ten minutes and Refresh left them); it clears them now.
 - **Fixed, Configuration Manager:** a configuration or platform added with "Copy settings from" a configuration that has no explicit project mappings (Release in a fresh solution) pointed the projects at a project configuration of the new name, which they do not have (`bin/Staging`); it builds them the way the copied one does.
+- **Fixed, Solution Explorer:** folders that were open showed an open chevron without their children after a drag and drop of files or a change of `fileNesting` (the tree restored a project's folders before the project had loaded its children); they keep their children.
 - **Fixed, refactorings:** Extract Members to Partial Class keeps the modifiers of the type (`internal`, `static`, `sealed`...) on the new part.
 - **Fixed, launch profiles:** a `launchSettings.json` that starts with a byte order mark (Visual Studio writes it that way) was ignored with "InvalidSymbol at offset 0"; it is read.
 - **Fixed, Solution Explorer:** expanded folders are restored parents first, and a folder that is gone is no error line on every refresh.

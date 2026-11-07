@@ -18,9 +18,10 @@ What the spike found (2026-11-05, Code - OSS 1.136.1 with Electron 42 from Arch)
   rows are). Locators work in that frame; the keyboard is the window's (`win.keyboard`), not the frame's.
 - Startup is the cost: ~25 s with a fresh profile (most of it waiting for the welcome dialog), ~7 s from a warm one. `launch` keeps the
   profile of the first run as a template in `/tmp/shinobi-pw-profile-template` and copies it for every later run (delete it to start cold).
-- One VS Code for several checks (changing the workspace settings file while it runs) was tried and dropped: after a change of
-  `fileNesting` the rows that were open show an open chevron without their children (`wwwroot` without `js`, see the roadmap's known bugs),
-  so each setting value gets its own start; checks that need the same settings can share one.
+- One VS Code for several checks (changing the workspace settings file while it runs) was tried and dropped at first: after a change of
+  `fileNesting` the rows that were open showed an open chevron without their children (`wwwroot` without `js`). That was a bug (a project's
+  folders were restored before the project had loaded; fixed 2026-11-07, `check-file-nesting.mjs` covers it), but each setting value still
+  gets its own start; checks that need the same settings can share one.
 - `run.sh` waits for the previous Xvfb to be gone; started right after another run, the new server did not get the display and every
   second run failed with "Missing X server or $DISPLAY".
 - Everything stops cleanly on `app.close()`; no process is left behind.
@@ -49,6 +50,7 @@ from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 - `check-include-prerelease.mjs`: `shinobi.nuget.includePrerelease` on and off: the NuGet manager (opened from the command palette) shows
   "Include prerelease" checked or unchecked. The manager is a custom editor, so its webview is one more frame of the window.
 - `check-configuration-grid.mjs`: Configuration Manager on a `.sln` and a `.slnx`: the grid's Configuration against `dotnet build` of the solution, Copy settings from and a rename (the projects keep building in the copied configuration), the active configuration against Ctrl+Shift+B, the last configuration cannot be removed. Found: a copy from a configuration without explicit mappings built the projects in a configuration of the new name.
+- `check-drag-opens-target.mjs`: a drop opens its target: a project, two projects and a solution folder onto a collapsed solution folder (`.sln` and `.slnx`), a file onto a collapsed folder (selected a moment later), collapsing right after the drop; an open solution folder with open subfolders moved in a `.slnx` without Ids stays open. Found: the open folders lost their children after a refresh (the fix above).
 - `check-nuget-manager.mjs`: NuGet manager on the solution: authors (no "by Unknown"), the vulnerable and deprecated labels with their details and checkboxes, the Updates tab and Refresh, and no `unsafe-eval` in the policy of the Solution Explorer and the manager. Runs with a throwaway HOME.
 - `check-nuget-sources.mjs`: the Sources tab (disable and enable against `dotnet nuget list source`, Add to the user's and the solution's config, a duplicate and a bad address, Remove asks), the Package source dropdown of Browse and the filter of Updates against a feed served over HTTP from a folder (`startFeed` in lib.mjs), and Refresh showing a version published meanwhile (found: Refresh kept the package details for ten minutes).
 - `check-configuration-manager.mjs`: Configuration Manager: opens from the palette, no platform dropdown with only Any CPU, the Build checkbox against `dotnet build` of the solution, add, rename (Enter commits) and remove a configuration; a rename changes only the solution side, the projects keep their own configuration name (as in Visual Studio). Platforms (add, rename, remove) and the refresh when the file changes on disk are covered; the .sln variant is not.
