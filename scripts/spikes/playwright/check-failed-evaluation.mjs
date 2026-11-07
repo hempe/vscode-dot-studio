@@ -1,12 +1,14 @@
 // manual-testing.md, "A failed evaluation is retried" (src/__fixtures__/project-items with an Items.sln and a global.json that pins an SDK that is not installed, so
-// every evaluation fails): `Legacy/Old.cs` shows (the disk listing) and the log says `Could not evaluate the items`; deleting global.json within 30 seconds of opening
-// (no watcher sees it) makes `Old.cs` disappear by itself at the next retry, at most 2 minutes later. Again with the window reloaded and ItemsApp left collapsed for
-// more than 5 minutes (the retries stop after 5 s, 30 s and 2 min, and the last failure holds the next try back for 2 min): after deleting global.json and expanding ItemsApp, `Old.cs` disappears a moment after the tree shows. Takes about 10 minutes.
+// every evaluation fails): `Legacy/Old.cs` shows (the disk listing) and the log says `Could not evaluate the items`; deleting global.json soon after opening
+// (no watcher sees it) makes `Old.cs` disappear by itself at the next retry, at most 6 s later (2 min unscaled). Again with the window reloaded and ItemsApp left collapsed for
+// longer than the delays (unscaled: more than 5 minutes): after deleting global.json and expanding ItemsApp, `Old.cs` disappears a moment after the tree shows. Takes about 1.5 minutes, with the delays scaled by SHINOBI_RETRY_DELAY_SCALE.
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { launch, openSolutionExplorer, expandPath, rowInfo, sh, repo, check } from './lib.mjs';
 
+// The retry delays (5 s, 30 s, 2 min) are scaled down so the check takes about a minute: 0.05 makes them 0.25 s, 1.5 s and 6 s
+process.env.SHINOBI_RETRY_DELAY_SCALE = '0.05';
 const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
 const folder = join(work, 'Items');
 cpSync(join(repo, 'src/__fixtures__/project-items'), folder, { recursive: true });
@@ -32,18 +34,18 @@ if (!process.env.SKIP_FIRST) {
         check('Old.cs shows while the evaluation fails (the disk listing)', !!await rowInfo(tree, 'Old.cs'));
         check('the log says it could not evaluate the items', await waitUntil(win, async () => logged(), 20));
         rmSync(pin);
-        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), 150);
-        check('at the next retry Old.cs disappears by itself (at most 2 minutes)', gone);
+        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), 30);
+        check('at the next retry Old.cs disappears by itself', gone);
     } finally { await app.close(); }
 }
 
-// Second start: ItemsApp stays collapsed for more than 5 minutes (the retries stop after 5 s, 30 s and 2 min, and the last failure holds the next try back for 2 min)
+// Second start: ItemsApp stays collapsed for longer than the delays (unscaled: more than 5 minutes)
 pinSdk();
 {
     const { app, win } = await launch(ws);
     try {
         const tree = await openSolutionExplorer(win);
-        await win.waitForTimeout(300000);
+        await win.waitForTimeout(40000);
         rmSync(pin);
         await expandPath(win, tree, ['Items', 'ItemsApp', 'Legacy']);
         // the disk listing may show Old.cs for a moment; it goes once the evaluation succeeds

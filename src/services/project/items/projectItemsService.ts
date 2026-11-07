@@ -34,6 +34,12 @@ export const runMsbuild: RunMsbuild = async projectPath => {
  */
 export const RETRY_DELAYS_MS: readonly number[] = [5_000, 30_000, 120_000];
 
+/** `SHINOBI_RETRY_DELAY_SCALE` shortens the delays for the automated checks (0.05: 0.25 s, 1.5 s, 6 s); unset or invalid: 1 */
+const RETRY_DELAY_SCALE = (() => {
+    const scale = Number(process.env.SHINOBI_RETRY_DELAY_SCALE);
+    return scale > 0 && scale <= 1 ? scale : 1;
+})();
+
 /** What one MSBuild run gave: undefined parts were not in the output (or MSBuild failed) */
 interface Evaluation {
     readonly items?: ProjectItems;
@@ -159,7 +165,7 @@ export class ProjectItemsService {
             this.failures.delete(projectPath);
         } else {
             const count = (this.failures.get(projectPath)?.count ?? 0) + 1;
-            const delay = RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1];
+            const delay = RETRY_DELAYS_MS[Math.min(count, RETRY_DELAYS_MS.length) - 1] * RETRY_DELAY_SCALE;
             this.failures.set(projectPath, { count, retryAt: this.now() + delay });
         }
         const previousPackages = this.packageCache.get(projectPath);
