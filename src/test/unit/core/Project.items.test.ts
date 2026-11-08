@@ -569,3 +569,37 @@ describe('Project file tree with the item overlay', () => {
         expect(project.getDependenciesByCategory(NodeIdService.parse(frameworks.nodeId)).map(child => child.name)).toEqual(['Microsoft.AspNetCore.App']);
     });
 });
+
+describe('Project file tree after the items changed', () => {
+    let dir: string;
+    let projectPath: string;
+
+    beforeEach(() => {
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), 'items-reload-'));
+        projectPath = path.join(dir, 'Web.csproj');
+        fs.writeFileSync(projectPath, '<Project Sdk="Microsoft.NET.Sdk.Web"></Project>');
+        fs.mkdirSync(path.join(dir, 'Pages'));
+        fs.writeFileSync(path.join(dir, 'Pages', 'Index.cshtml'), '');
+        fs.writeFileSync(path.join(dir, 'Pages', 'Index.cshtml.cs'), '');
+        jest.spyOn(ShowAllFiles, 'isOn').mockReturnValue(false);
+        jest.spyOn(ProjectItemsService.instance, 'evaluate').mockResolvedValue(undefined);
+        jest.spyOn(ProjectItemsService.instance, 'get').mockReturnValue(undefined);
+    });
+    afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); jest.restoreAllMocks(); });
+
+    test('a file keeps the files nested under it when its folder is read again (Index.cshtml.cs under Index.cshtml)', async () => {
+        const project = new Project(projectPath, { name: 'Web', path: 'Web.csproj', guid: 'g', typeGuid: 't' } as never);
+        while (!project.isInitialized) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        await project.getRootChildren();
+        const pages = path.join(dir, 'Pages');
+        const nestedUnder = async () => (await project.getFolderChildren(pages)).find(child => child.name === 'Index.cshtml')?.children?.map(child => child.name);
+        expect(await nestedUnder()).toEqual(['Index.cshtml.cs']);
+
+        // What a new item list does (Include In Project elsewhere in the project): the open folders are read again
+        await (project as unknown as { reloadLoadedFolders(): Promise<void> }).reloadLoadedFolders();
+
+        expect(await nestedUnder()).toEqual(['Index.cshtml.cs']);
+    });
+});

@@ -28,7 +28,7 @@ const template = join(tmpdir(), 'shinobi-pw-profile-template');
 /** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }.
  *  { csharp: true } adds the C# extension (the language server takes a while to start). The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
  *  later runs start from a copy of it and need no dialog (about 10 s less). */
-export async function launch({ work, folder }, { csharp = false } = {}) {
+export async function launch({ work, folder }, { csharp = false, userSettings = {} } = {}) {
     if (csharp) {
         // The installed C# extension (and the .NET runtime extension it needs) are linked into the profile's extensions folder, as capture.sh does
         mkdirSync(join(work, 'extensions'), { recursive: true });
@@ -42,7 +42,14 @@ export async function launch({ work, folder }, { csharp = false } = {}) {
     if (warm) cpSync(template, join(work, 'profile'), { recursive: true });
     // Modal questions (Update All / Skip) must be in the page, not native dialogs that Playwright cannot see
     mkdirSync(join(work, 'profile/User'), { recursive: true });
-    writeFileSync(join(work, 'profile/User/settings.json'), JSON.stringify({ 'window.dialogStyle': 'custom' }, null, 2));
+    // Context menus, the open/save dialogs and the terminal drawn in the page, where Playwright reaches them
+    writeFileSync(join(work, 'profile/User/settings.json'), JSON.stringify({
+        'window.dialogStyle': 'custom',
+        'window.menuStyle': 'custom',
+        'files.simpleDialog.enable': true,
+        'terminal.integrated.gpuAcceleration': 'off',
+        ...userSettings,
+    }, null, 2));
     const app = await electron.launch({
         executablePath: process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
         args: [
@@ -106,7 +113,7 @@ export function check(name, ok, detail = '') {
 }
 
 // A name ending in * matches the start of the row's text (a package row carries its version)
-const rowByName = (frame, name) => frame.locator('.tree-node').filter({ has: frame.locator(name.endsWith('*') ? `xpath=.//*[starts-with(normalize-space(.), "${name.slice(0, -1)}")]` : `xpath=.//*[normalize-space(.)="${name}"]`) }).first();
+export const rowByName = (frame, name) => frame.locator('.tree-node').filter({ has: frame.locator(name.endsWith('*') ? `xpath=.//*[starts-with(normalize-space(.), "${name.slice(0, -1)}")]` : `xpath=.//*[normalize-space(.)="${name}"]`) }).first();
 
 /** Expands the rows on a path of names from the top (each name is searched among the visible rows; a collapsed one is opened with Right). */
 export async function expandPath(win, frame, names) {
@@ -121,6 +128,8 @@ export async function expandPath(win, frame, names) {
             try { await row.click({ timeout: 4000 }); break; } catch (e) { if (attempt >= 5) throw e; await win.waitForTimeout(1000); }
         }
         if (await collapsed()) { await win.keyboard.press('ArrowRight'); await win.waitForTimeout(600); }
+        // A file with nested files opens in an editor on a click, which takes the keys: its chevron opens it
+        if (await collapsed()) { await row.locator('.expand-icon').first().click(); await win.waitForTimeout(600); }
     }
 }
 
@@ -227,4 +236,187 @@ export async function startFeed(dir) {
     });
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     return { url: `http://127.0.0.1:${server.address().port}/v3/index.json`, close: () => server.close() };
+}
+
+
+/** Right-clicks the row and picks the menu item; `path` are the labels from the menu down through its submenus. */
+export async function contextMenu(win, frame, name, path) {
+    await rowByName(frame, name).click({ button: 'right' });
+    await pickMenu(win, path);
+}
+
+/** Picks an item of the open context menu (labels down through submenus) */
+export async function pickMenu(win, path) {
+    try {
+        await pickMenuItems(win, path);
+    } catch (e) {
+        // A menu left open would catch the next clicks
+        for (let i = 0; i < path.length + 1; i++) await win.keyboard.press('Escape');
+        throw e;
+    }
+}
+
+async function pickMenuItems(win, path) {
+    for (const [i, label] of path.entries()) {
+        const item = win.locator('.context-view .monaco-menu .action-item').filter({ has: win.locator('.action-label', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) }).last();
+        await item.waitFor({ timeout: 8000 });
+        // A menu ignores a click that comes right after it opened (the mouse-up of the right-click)
+        await win.waitForTimeout(600);
+        await item.hover();
+        await win.waitForTimeout(i < path.length - 1 ? 600 : 200);
+        if (i === path.length - 1) {
+            const box = await item.boundingBox();
+            await win.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        }
+    }
+}
+
+/** The labels of the row's context menu (separators left out); the menu is closed again */
+export async function menuLabels(win, frame, name, submenu) {
+    await rowByName(frame, name).click({ button: 'right' });
+    await win.locator('.context-view .monaco-menu').first().waitFor({ timeout: 8000 });
+    if (submenu) {
+        await win.locator('.context-view .monaco-menu .action-item').filter({ has: win.locator('.action-label', { hasText: submenu }) }).first().hover();
+        await win.waitForTimeout(600);
+    }
+    const menus = win.locator('.context-view .monaco-menu');
+    const labels = (await menus.last().locator('.action-label').allTextContents()).map(t => t.trim()).filter(Boolean);
+    await win.keyboard.press('Escape');
+    if (submenu) await win.keyboard.press('Escape');
+    await win.waitForTimeout(300);
+    return labels;
+}
+
+/** Runs a command from the palette by its title (typed, then the first match) */
+export async function runCommand(win, title) {
+    await win.keyboard.press('Control+Shift+p');
+    await win.locator('.quick-input-widget').waitFor({ state: 'visible', timeout: 8000 });
+    await win.keyboard.type(title);
+    await win.waitForTimeout(900);
+    await win.keyboard.press('Enter');
+}
+
+/** The open quick pick (also input boxes and the simple file dialog), or undefined after the wait */
+export async function quickInput(win, seconds = 15) {
+    const widget = win.locator('.quick-input-widget');
+    for (let i = 0; i < seconds * 4; i++) {
+        if (await widget.isVisible().catch(() => false)) return widget;
+        await win.waitForTimeout(250);
+    }
+    return undefined;
+}
+
+/** The rows the open quick pick shows (label with description) */
+export async function quickItems(win) {
+    const widget = await quickInput(win);
+    if (!widget) return [];
+    await win.waitForTimeout(300);
+    // label, description and detail with spaces between them
+    return widget.locator('.quick-input-list .monaco-list-row').evaluateAll(rows => rows.map(row => ['.label-name', '.label-description', '.quick-input-list-label-meta, .quick-input-list-detail']
+        .map(selector => row.querySelector(selector)?.textContent?.trim() ?? '').filter(Boolean).join(' ') || row.textContent.trim()));
+}
+
+/** Picks the quick pick row whose text matches (clicked), waiting for it */
+export async function pickQuick(win, pattern, seconds = 15) {
+    const widget = await quickInput(win, seconds);
+    if (!widget) throw new Error(`no quick pick to pick ${pattern}`);
+    const row = widget.locator('.quick-input-list .monaco-list-row').filter({ hasText: pattern }).first();
+    await row.waitFor({ timeout: seconds * 1000 });
+    await row.click();
+}
+
+/** Types into the open quick input (input box, file dialog) and presses Enter */
+export async function answerInput(win, text, seconds = 15) {
+    const widget = await quickInput(win, seconds);
+    if (!widget) throw new Error(`no input box for ${text}`);
+    const box = widget.locator('.quick-input-box input');
+    await box.fill(text);
+    await win.waitForTimeout(400);
+    await box.press('Enter');
+}
+
+/** The text of the visible notification toasts */
+export async function toasts(win) {
+    return (await win.locator('.notification-toast').allInnerTexts().catch(() => [])).map(t => t.replace(/\s+/g, ' ').trim());
+}
+
+/** Waits for a notification whose text matches; returns its locator (or undefined) */
+export async function waitForToast(win, pattern, seconds = 30) {
+    for (let i = 0; i < seconds * 2; i++) {
+        const toast = win.locator('.notification-toast').filter({ hasText: pattern }).first();
+        if (await toast.count()) return toast;
+        await win.waitForTimeout(500);
+    }
+    return undefined;
+}
+
+/** Closes every notification toast */
+export async function clearToasts(win) {
+    await win.keyboard.press('Escape');
+    for (const close of await win.locator('.notification-toast .codicon-notifications-clear, .notification-toast .codicon-close').all()) await close.click().catch(() => {});
+}
+
+/** The open modal dialog (window.dialogStyle custom): its message and a function to press one of its buttons */
+export async function modal(win, seconds = 15) {
+    const box = win.locator('.monaco-dialog-box');
+    for (let i = 0; i < seconds * 4; i++) {
+        if (await box.isVisible().catch(() => false)) {
+            const text = (await box.innerText()).replace(/\s+/g, ' ').trim();
+            return { text, press: async label => { await box.getByRole('button', { name: label, exact: true }).click(); await win.waitForTimeout(500); } };
+        }
+        await win.waitForTimeout(250);
+    }
+    return undefined;
+}
+
+/** The text of the visible terminal (the DOM renderer: terminal.integrated.gpuAcceleration off) */
+export async function terminalText(win) {
+    return (await win.locator('.terminal-wrapper.active .xterm-rows, .terminal .xterm-rows').allInnerTexts().catch(() => [])).join('\n');
+}
+
+/** The titles of the open editor tabs */
+export async function editorTabs(win) {
+    return (await win.locator('.tabs-container .tab .label-name').allTextContents()).map(t => t.trim());
+}
+
+/** Runs a part of a check; an exception counts as a failed check (with its first line) instead of ending the run */
+export async function part(name, fn) {
+    try { await fn(); } catch (e) { check(`${name}: ran through`, false, String(e?.message ?? e).split('\n')[0]); }
+}
+
+/** Makes the Contoso sample a .sln with the solution folders src (Shop.*) and tests (the test projects) instead of the .slnx */
+export async function toSln(ws) {
+    const { rmSync } = await import('node:fs');
+    rmSync(join(ws.folder, 'Contoso.slnx'));
+    await sh(ws, 'dotnet new sln -n Contoso --format sln');
+    await sh(ws, 'dotnet sln Contoso.sln add --solution-folder src src/Shop.Core/Shop.Core.csproj src/Shop.Generators/Shop.Generators.csproj src/Shop.Web/Shop.Web.csproj src/Shop.Worker/Shop.Worker.csproj');
+    await sh(ws, 'dotnet sln Contoso.sln add --solution-folder tests tests/Shop.Core.Tests/Shop.Core.Tests.csproj tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj');
+}
+
+/** Starts a rename in the tree (the row's Rename menu item), types the name and presses Enter */
+export async function renameRow(win, frame, name, newName) {
+    await contextMenu(win, frame, name, ['Rename']);
+    const input = frame.locator('input[type="text"]').first();
+    await input.waitFor({ timeout: 8000 });
+    await input.fill(newName);
+    await input.press('Enter');
+    await win.waitForTimeout(1500);
+}
+
+/** The rows with this name, in tree order, each with its indentation (to tell apart rows of the same name) */
+export async function rowsNamed(frame, name) {
+    const all = frame.locator('.tree-node').filter({ has: frame.locator(`xpath=.//*[normalize-space(.)="${name}"]`) });
+    const count = await all.count();
+    const out = [];
+    for (let i = 0; i < count; i++) {
+        const locator = all.nth(i);
+        out.push({ locator, depth: await locator.evaluate(e => parseFloat(getComputedStyle(e).paddingLeft) || 0) });
+    }
+    return out;
+}
+
+/** Right-clicks the given row (a locator) and picks the menu item */
+export async function contextMenuOn(win, row, path) {
+    await row.click({ button: 'right' });
+    await pickMenu(win, path);
 }

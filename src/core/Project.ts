@@ -113,9 +113,12 @@ export class Project {
         return withEvaluatedPackages(this._dependencies, ProjectItemsService.instance.packages(this._projectPath));
     }
 
-    /** Whether the project can be started, i.e. can be the startup project */
+    /**
+     * Whether the project can be started, i.e. can be the startup project. A test project cannot, also when it is an
+     * Exe (xUnit v3 and Microsoft.Testing.Platform projects are, without Microsoft.NET.Test.Sdk to tell them apart)
+     */
     get isExecutable(): boolean {
-        return this._isExecutable;
+        return this._isExecutable && !this._isTestProject;
     }
 
     /** Whether the project references Entity Framework Core (it gets the Entity Framework menu: migrations) */
@@ -821,10 +824,11 @@ export class Project {
                 reloaded.add(node);
             }
         }
-        // Loaded but collapsed folders keep an old listing: read them again when they are expanded
+        // Loaded but collapsed folders keep an old listing: read them again when they are expanded. A file's nested files
+        // (Index.cshtml.cs under Index.cshtml) come with the listing of its folder and are never read on their own
         const forget = (node: ProjectFileNode): void => {
             for (const child of node.children ?? []) {
-                if (child.isLoaded && !reloaded.has(child)) {
+                if (child.type === 'folder' && child.isLoaded && !reloaded.has(child)) {
                     child.isLoaded = false;
                     child.children = [];
                 } else {
