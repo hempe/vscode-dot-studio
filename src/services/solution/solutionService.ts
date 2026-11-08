@@ -114,8 +114,9 @@ export class SolutionService {
         log.error(message);
         if (message !== this.lastLoadError) {
             this.lastLoadError = message;
-            vscode.window.showErrorMessage(message, 'Show Log').then(choice => {
-                if (choice === 'Show Log') {
+            const showLog = t('Show Log');
+            vscode.window.showErrorMessage(message, showLog).then(choice => {
+                if (choice === showLog) {
                     void vscode.commands.executeCommand('shinobi.showLog');
                 }
             });

@@ -3,11 +3,14 @@
 import { _electron as electron } from 'playwright-core';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const repo = resolve(import.meta.dirname, '../../..');
+
+// The window of the last launch, for a screenshot when a part fails
+let lastWindow;
 
 /** Copy of the sample (Contoso) in /tmp with the given workspace settings and extra files (path below the folder -> text). */
 export function prepareWorkspace(settings = {}, files = {}) {
@@ -63,6 +66,7 @@ export async function launch({ work, folder }, { csharp = false, userSettings = 
         timeout: 60000,
     });
     const win = await app.firstWindow();
+    lastWindow = win;
     await win.waitForLoadState('domcontentloaded');
     if (!warm) {
         // The first-run welcome dialog (sign in to Copilot, then pick a theme) covers the window in a fresh profile
@@ -316,13 +320,20 @@ export async function quickItems(win) {
         .map(selector => row.querySelector(selector)?.textContent?.trim() ?? '').filter(Boolean).join(' ') || row.textContent.trim()));
 }
 
-/** Picks the quick pick row whose text matches (clicked), waiting for it */
+/** Picks the quick pick row whose text ("label description detail", as quickItems gives it) matches, waiting for it; clicked */
 export async function pickQuick(win, pattern, seconds = 15) {
     const widget = await quickInput(win, seconds);
     if (!widget) throw new Error(`no quick pick to pick ${pattern}`);
-    const row = widget.locator('.quick-input-list .monaco-list-row').filter({ hasText: pattern }).first();
-    await row.waitFor({ timeout: seconds * 1000 });
-    await row.click();
+    for (let i = 0; i < seconds * 4; i++) {
+        const items = await quickItems(win);
+        const index = items.findIndex(item => pattern.test(item));
+        if (index >= 0) {
+            await widget.locator('.quick-input-list .monaco-list-row').nth(index).click();
+            return;
+        }
+        await win.waitForTimeout(250);
+    }
+    throw new Error(`no quick pick row matches ${pattern}: ${JSON.stringify(await quickItems(win))}`);
 }
 
 /** Types into the open quick input (input box, file dialog) and presses Enter */
@@ -379,14 +390,21 @@ export async function editorTabs(win) {
     return (await win.locator('.tabs-container .tab .label-name').allTextContents()).map(t => t.trim());
 }
 
-/** Runs a part of a check; an exception counts as a failed check (with its first line) instead of ending the run */
+/** Runs a part of a check; an exception counts as a failed check (with its first line) instead of ending the run. PARTS=a,b in the environment runs only the parts whose names contain a or b */
 export async function part(name, fn) {
-    try { await fn(); } catch (e) { check(`${name}: ran through`, false, String(e?.message ?? e).split('\n')[0]); }
+    // PARTS=a,b runs only the parts whose names contain one of them
+    if (process.env.PARTS && !process.env.PARTS.split(',').some(wanted => name.includes(wanted))) return;
+    try {
+        await fn();
+    } catch (e) {
+        const shot = `/tmp/pw-fail-${name.replace(/[^\w]+/g, '-')}.png`;
+        await lastWindow?.screenshot({ path: shot }).catch(() => {});
+        check(`${name}: ran through`, false, `${String(e?.message ?? e).split('\n')[0]} (screenshot ${shot})`);
+    }
 }
 
 /** Makes the Contoso sample a .sln with the solution folders src (Shop.*) and tests (the test projects) instead of the .slnx */
 export async function toSln(ws) {
-    const { rmSync } = await import('node:fs');
     rmSync(join(ws.folder, 'Contoso.slnx'));
     await sh(ws, 'dotnet new sln -n Contoso --format sln');
     await sh(ws, 'dotnet sln Contoso.sln add --solution-folder src src/Shop.Core/Shop.Core.csproj src/Shop.Generators/Shop.Generators.csproj src/Shop.Web/Shop.Web.csproj src/Shop.Worker/Shop.Worker.csproj');
@@ -419,4 +437,28 @@ export async function rowsNamed(frame, name) {
 export async function contextMenuOn(win, row, path) {
     await row.click({ button: 'right' });
     await pickMenu(win, path);
+}
+
+/** Copy of `src/__fixtures__/<name>` in /tmp (without its obj folders, whose paths point into the repository) with workspace settings and extra files */
+export function prepareFixture(name, settings = {}, files = {}) {
+    const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
+    const folder = join(work, name.split('/').pop());
+    cpSync(join(repo, 'src/__fixtures__', name), folder, { recursive: true });
+    const dropObj = dir => { for (const entry of readdirSync(dir)) { const full = join(dir, entry); if (statSync(full).isDirectory()) { if (entry === 'obj' || entry === 'bin') rmSync(full, { recursive: true, force: true }); else dropObj(full); } } };
+    dropObj(folder);
+    mkdirSync(join(folder, '.vscode'), { recursive: true });
+    writeFileSync(join(folder, '.vscode/settings.json'), JSON.stringify(settings, null, 2));
+    for (const [path, text] of Object.entries(files)) {
+        mkdirSync(join(folder, path, '..'), { recursive: true });
+        writeFileSync(join(folder, path), text);
+    }
+    return { work, folder };
+}
+
+/** A local HTTP server: `handler(req, res)`; returns { url (no trailing slash), close } */
+export async function startServer(handler) {
+    const { createServer } = await import('node:http');
+    const server = createServer(handler);
+    await new Promise(r => server.listen(0, '127.0.0.1', r));
+    return { url: `http://127.0.0.1:${server.address().port}`, close: () => { server.closeAllConnections?.(); server.close(); } };
 }

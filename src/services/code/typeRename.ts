@@ -120,10 +120,10 @@ export async function renameTypeOfFile(uri: vscode.Uri, oldName: string, newName
     const choice = await vscode.window.showInformationMessage(
         t('Would you also like to rename the type \'{0}\' to \'{1}\' and all references to it?', oldName, newName),
         { modal },
-        'Yes',
-        'No'
+        t('Yes'),
+        t('No')
     );
-    if (choice !== 'Yes') {
+    if (choice !== t('Yes')) {
         return undefined;
     }
 

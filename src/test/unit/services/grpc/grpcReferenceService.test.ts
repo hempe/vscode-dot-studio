@@ -10,7 +10,7 @@ import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DownloadCancelled } from '../../../../services/grpc/download';
+import { DownloadCancelled, WebPageAnswer } from '../../../../services/grpc/download';
 import { addGrpcReference, GrpcHost, installGrpcPackages, vscodeGrpcHost } from '../../../../services/grpc/grpcReferenceService';
 import { PackageBrowseService } from '../../../../services/nuget/packageBrowseService';
 import { OperationsHost } from '../../../../services/nuget/centralPackageOperations';
@@ -238,6 +238,17 @@ describe('addGrpcReference', () => {
             expect(calls.fail).toEqual([expect.stringMatching(new RegExp(`^Adding gRPC reference greet.proto failed: ${GREET_URL} did not send a .proto file \\((it answered with a web page|the answer was empty).*Nothing was changed\\.$`))]);
         }
         expect(fs.readFileSync(path.join(root, 'Client', 'Protos', 'greet.proto'), 'utf8')).toBe('old');
+        expect(fs.readFileSync(client, 'utf8')).toBe(before);
+    });
+
+    test('a URL whose server answers text/html (the download refuses it): the same refusal, not "could not be downloaded"', async () => {
+        const before = fs.readFileSync(client, 'utf8');
+        const { fake, calls } = host({
+            pickSource: async () => ({ kind: 'url', url: GREET_URL }), ask: async () => true,
+            download: async () => { throw new WebPageAnswer(`${GREET_URL} answered with a web page (text/html), not a .proto file (a sign-in page?)`); },
+        });
+        expect(await addGrpcReference(client, fake)).toBe(false);
+        expect(calls.fail).toEqual([`Adding gRPC reference greet.proto failed: ${GREET_URL} did not send a .proto file (it answered with a web page (HTML), not a .proto file (a sign-in page?)). Nothing was changed.`]);
         expect(fs.readFileSync(client, 'utf8')).toBe(before);
     });
 

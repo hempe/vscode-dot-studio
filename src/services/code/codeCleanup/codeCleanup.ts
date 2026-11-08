@@ -118,8 +118,9 @@ export async function runCodeCleanup(target: CleanupTarget): Promise<void> {
                     if (result.code !== 0) {
                         const reason = failureReason(result.stdout, result.stderr);
                         log.error(`Step "${step.label}" failed (exit ${result.code}): ${reason}`);
-                        const choice = await vscode.window.showErrorMessage(t('Code Cleanup failed at "{0}": {1}', step.label, reason), 'Show Output');
-                        if (choice === 'Show Output') {
+                        const showOutput = t('Show Output');
+                        const choice = await vscode.window.showErrorMessage(t('Code Cleanup failed at "{0}": {1}', step.label, reason), showOutput);
+                        if (choice === showOutput) {
                             output.show();
                         }
                         return;

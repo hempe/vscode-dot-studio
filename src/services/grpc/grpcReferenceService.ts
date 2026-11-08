@@ -10,7 +10,7 @@ import { PackageBrowseService } from '../nuget/packageBrowseService';
 import { PackageOperationResult } from '../nuget/types';
 import { VersionUtils } from '../shared/versionUtils';
 import { serviceReferencesOutput, showServiceReferenceFailure } from '../serviceReferences/output';
-import { Cancellation, download, DownloadCancelled, redactUrl } from './download';
+import { Cancellation, download, DownloadCancelled, redactUrl, WebPageAnswer } from './download';
 import { sameFile } from '../project/items/itemPaths';
 import {
     addProtobufReference, contentHash, defaultGrpcServices, downloadedContentRefusal, duplicateRefusal, ensureDevelopmentDependency, GRPC_SERVICES,
@@ -73,20 +73,26 @@ async function downloadProto(url: string, title: string, host: GrpcHost, failed:
             host.log(`Downloading ${shown} was cancelled.`);
             return undefined;
         }
+        // A sign-in page sent as text/html: the same refusal as a page that came without that type
+        if (error instanceof WebPageAnswer) {
+            host.log(`Downloading ${shown}: ${errorText(error)}`);
+            host.fail(failed(t('{0} did not send a .proto file ({1})', shown, t('it answered with a web page (HTML), not a .proto file (a sign-in page?)'))));
+            return undefined;
+        }
         host.log(`Downloading ${shown} failed: ${errorText(error)}`);
-        host.fail(failed(`${shown} could not be downloaded`));
+        host.fail(failed(t('{0} could not be downloaded', shown)));
         return undefined;
     }
     const refusal = downloadedContentRefusal(content);
     if (refusal) {
         host.log(`Downloading ${shown}: ${refusal}.`);
-        host.fail(failed(`${shown} did not send a .proto file (${refusal})`));
+        host.fail(failed(t('{0} did not send a .proto file ({1})', shown, refusal)));
         return undefined;
     }
     return content;
 }
 
-const PACKAGES_FAILED = 'Once the package sources can be reached, add the same reference again: that adds the missing packages.';
+const PACKAGES_FAILED = t('Once the package sources can be reached, add the same reference again: that adds the missing packages.');
 const PROTOBUF = 'Google.Protobuf';
 
 /**
@@ -109,16 +115,16 @@ async function completeExistingReference(
         host.info(refusal);
         return false;
     }
-    return host.progress(`Adding the packages of gRPC reference ${name}...`, async () => {
+    return host.progress(t('Adding the packages of gRPC reference {0}...', name), async () => {
         host.log(`${name} is a gRPC reference of ${path.basename(projectPath)} already, but ${ids.join(', ')} ${ids.length === 1 ? 'is' : 'are'} missing.`);
         const outcome = await addPackages(projectPath, ids, referenced, host);
         await host.reevaluate(projectPath);
         if (outcome.kind === 'added') {
-            host.info(`${name} was a gRPC reference already; its missing packages were added. The code is generated when the project builds.`);
+            host.info(t('{0} was a gRPC reference already; its missing packages were added. The code is generated when the project builds.', name));
         } else if (outcome.kind === 'kept') {
-            host.info(`${name} is a gRPC reference already; its missing packages were not added: ${outcome.message}`);
+            host.info(t('{0} is a gRPC reference already; its missing packages were not added: {1}', name, outcome.message));
         } else {
-            host.fail(`Adding the packages of gRPC reference ${name} failed. ${PACKAGES_FAILED}`);
+            host.fail(t('Adding the packages of gRPC reference {0} failed. {1}', name, PACKAGES_FAILED));
         }
         return outcome.kind === 'added';
     });
@@ -162,13 +168,13 @@ async function addPackages(projectPath: string, ids: readonly string[], referenc
     const current = referenced.find(entry => entry.id.toLowerCase() === PROTOBUF.toLowerCase())?.version;
     const needed = current ? await protobufNeeded(packages, current, host) : undefined;
     if (current && needed) {
-        if (!await host.ask(`${needed.by} needs ${PROTOBUF} ${needed.version} or newer; ${project} has ${current}.`,
-            `Raise ${PROTOBUF} to ${needed.version}? Restoring the project fails otherwise (NU1605, package downgrade).`, `Raise to ${needed.version}`)) {
+        if (!await host.ask(t('{0} needs {1} {2} or newer; {3} has {4}.', needed.by, PROTOBUF, needed.version, project, current),
+            t('Raise {0} to {1}? Restoring the project fails otherwise (NU1605, package downgrade).', PROTOBUF, needed.version), t('Raise to {0}', needed.version))) {
             host.log(`${PROTOBUF} ${current} of ${project} was kept: ${ids.join(', ')} not added.`);
             return {
                 kind: 'kept',
-                message: `${needed.by} needs ${PROTOBUF} ${needed.version} or newer and ${project} keeps ${current}. `
-                    + `Raise ${PROTOBUF}, then add the same reference again: that adds the missing packages.`,
+                message: t('{0} needs {1} {2} or newer and {3} keeps {4}. Raise {1}, then add the same reference again: that adds the missing packages.',
+                    needed.by, PROTOBUF, needed.version, project, current),
             };
         }
         // First: `dotnet add package` restores after each package, and the gRPC one would fail with the old version
@@ -225,18 +231,18 @@ export async function addGrpcReference(projectPath: string, host: GrpcHost = vsc
 
     let downloaded: Buffer | undefined;
     if (sourceUrl) {
-        downloaded = await downloadProto(sourceUrl, `Downloading ${path.basename(protoPath)}...`, host,
-            reason => `Adding gRPC reference ${path.basename(protoPath)} failed: ${reason}. Nothing was changed.`);
+        downloaded = await downloadProto(sourceUrl, t('Downloading {0}...', path.basename(protoPath)), host,
+            reason => t('Adding gRPC reference {0} failed: {1}. Nothing was changed.', path.basename(protoPath), reason));
         if (!downloaded) {
             return false;
         }
         if (fs.existsSync(protoPath) && contentHash(fs.readFileSync(protoPath)) !== contentHash(downloaded)
-            && !await host.ask(`${relative(projectPath, protoPath)} exists already.`, 'Replace it with the downloaded file?', 'Replace')) {
+            && !await host.ask(t('{0} exists already.', relative(projectPath, protoPath)), t('Replace it with the downloaded file?'), t('Replace'))) {
             return false;
         }
     }
 
-    return host.progress(`Adding gRPC reference ${path.basename(protoPath)}...`, async () => {
+    return host.progress(t('Adding gRPC reference {0}...', path.basename(protoPath)), async () => {
         if (downloaded) {
             fs.mkdirSync(path.dirname(protoPath), { recursive: true });
             fs.writeFileSync(protoPath, downloaded);
@@ -248,11 +254,11 @@ export async function addGrpcReference(projectPath: string, host: GrpcHost = vsc
         const outcome = await addPackages(projectPath, ids, referenced, host);
         await host.reevaluate(projectPath);
         if (outcome.kind === 'added') {
-            host.info(`gRPC reference ${path.basename(protoPath)} added (${services}). The code is generated when the project builds.`);
+            host.info(t('gRPC reference {0} added ({1}). The code is generated when the project builds.', path.basename(protoPath), services));
         } else if (outcome.kind === 'kept') {
-            host.info(`gRPC reference ${path.basename(protoPath)} added, but not its packages: ${outcome.message}`);
+            host.info(t('gRPC reference {0} added, but not its packages: {1}', path.basename(protoPath), outcome.message));
         } else {
-            host.fail(`gRPC reference ${path.basename(protoPath)} added, but adding its packages failed. ${PACKAGES_FAILED}`);
+            host.fail(t('gRPC reference {0} added, but adding its packages failed. {1}', path.basename(protoPath), PACKAGES_FAILED));
         }
         return true;
     });
@@ -266,10 +272,9 @@ export async function installGrpcPackages(
     projectPath: string, packages: readonly { id: string; version: string }[], operations: OperationsHost = packageOperationsHost,
 ): Promise<PackageOperationResult[]> {
     const outcome = await changePackageVersions(packages.map(entry => ({ id: entry.id, version: entry.version, projects: [projectPath] })), 'shared', operations);
-    return outcome.cancelled ? [{ success: false, message: 'Cancelled: the packages were not added.' }] : outcome.results;
+    return outcome.cancelled ? [{ success: false, message: t('Cancelled: the packages were not added.') }] : outcome.results;
 }
 
-const notEvaluated = (projectPath: string) => `${path.basename(projectPath)} could not be evaluated by MSBuild (does it build?),`;
 
 /**
  * Update of a reference added from a URL (`dotnet-grpc refresh`): downloads it again from its `SourceUrl` and replaces
@@ -279,28 +284,28 @@ export async function updateGrpcReference(projectPath: string, protoPath: string
     const name = path.basename(protoPath);
     const items = await host.items(projectPath);
     if (!items) {
-        host.info(`${notEvaluated(projectPath)} so the SourceUrl of ${name} is not known.`);
+        host.info(t('{0} could not be evaluated by MSBuild (does it build?), so the SourceUrl of {1} is not known.', path.basename(projectPath), name));
         return false;
     }
     const item = items.protobuf.find(candidate => sameFile(candidate.fullPath, protoPath));
     if (!item?.sourceUrl) {
-        host.info(`${name} was not added from a URL: there is nothing to update it from.`);
+        host.info(t('{0} was not added from a URL: there is nothing to update it from.', name));
         return false;
     }
     // As written: MSBuild's evaluation unescapes %XX (%2B in a signed URL would become +)
     const sourceUrl = sourceUrlInProjectFile(fs.readFileSync(projectPath, 'utf8'), path.dirname(projectPath), protoPath) ?? item.sourceUrl;
-    const downloaded = await downloadProto(sourceUrl, `Updating ${name}...`, host, reason => `Updating ${name} failed: ${reason}. ${name} is unchanged.`);
+    const downloaded = await downloadProto(sourceUrl, t('Updating {0}...', name), host, reason => t('Updating {0} failed: {1}. {0} is unchanged.', name, reason));
     if (!downloaded) {
         return false;
     }
     if (fs.existsSync(protoPath) && contentHash(fs.readFileSync(protoPath)) === contentHash(downloaded)) {
-        host.info(`${name} is up to date.`);
+        host.info(t('{0} is up to date.', name));
         return false;
     }
     fs.mkdirSync(path.dirname(protoPath), { recursive: true });
     fs.writeFileSync(protoPath, downloaded);
     host.log(`Updated ${relative(projectPath, protoPath)} from ${redactUrl(sourceUrl)}`);
-    host.info(`${name} updated from ${redactUrl(sourceUrl)}. The code is generated again when the project builds.`);
+    host.info(t('{0} updated from {1}. The code is generated again when the project builds.', name, redactUrl(sourceUrl)));
     return true;
 }
 
@@ -316,14 +321,14 @@ export async function removeGrpcReference(projectPath: string, protoPath: string
     if (!listed(projectXml)) {
         const items = await host.items(projectPath);
         if (!items) {
-            host.info(`${notEvaluated(projectPath)} so where ${name} comes from is not known: ${path.basename(projectPath)} does not list it by itself.`);
+            host.info(t('{0} could not be evaluated by MSBuild (does it build?), so where {1} comes from is not known: {0} does not list it by itself.', path.basename(projectPath), name));
             return false;
         }
         const item = items.protobuf.find(candidate => sameFile(candidate.fullPath, protoPath));
         host.info(notListedMessage(item, projectPath, protoPath, projectXml));
         return false;
     }
-    if (!await host.ask(`Remove the gRPC reference '${name}'?`, `The <Protobuf> item leaves ${path.basename(projectPath)}; ${name} and the gRPC packages stay.`, 'Remove')) {
+    if (!await host.ask(t("Remove the gRPC reference '{0}'?", name), t('The <Protobuf> item leaves {0}; {1} and the gRPC packages stay.', path.basename(projectPath), name), t('Remove'))) {
         return false;
     }
     // Read again: the project file may have changed while the question was open

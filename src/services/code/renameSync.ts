@@ -125,8 +125,8 @@ async function offerFileRename(uri: vscode.Uri, newTypeName: string): Promise<vo
         void vscode.window.showWarningMessage(t('\'{0}\' exists already, so the file keeps the name \'{1}\'.', newFile, oldFile));
         return;
     }
-    const choice = await vscode.window.showInformationMessage(t('Would you also like to rename the file \'{0}\' to \'{1}\'?', oldFile, newFile), 'Yes', 'No');
-    if (choice !== 'Yes') {
+    const choice = await vscode.window.showInformationMessage(t('Would you also like to rename the file \'{0}\' to \'{1}\'?', oldFile, newFile), t('Yes'), t('No'));
+    if (choice !== t('Yes')) {
         return;
     }
     const edit = new vscode.WorkspaceEdit();

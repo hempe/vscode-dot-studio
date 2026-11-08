@@ -173,8 +173,8 @@ export async function removeServiceReferenceWithConfirmation(folder: string): Pr
         return;
     }
     const answer = await vscode.window.showWarningMessage(
-        t('Remove the service reference \'{0}\'? Its folder is deleted; packages stay.', path.basename(folder)), { modal: true }, 'Remove');
-    if (answer === 'Remove') {
+        t('Remove the service reference \'{0}\'? Its folder is deleted; packages stay.', path.basename(folder)), { modal: true }, t('Remove'));
+    if (answer === t('Remove')) {
         await removeServiceReference(projectPath, folder);
     }
 }

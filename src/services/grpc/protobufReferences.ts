@@ -5,6 +5,7 @@ import { isWebProject } from '../../parsers/projectKind';
 import { escapeMsbuild } from '../project/items/projectItemEdits';
 import { ProtobufItem } from '../project/items/projectItems';
 import { isBelow, resolveItem, sameFile, unescapeMsbuild } from '../project/items/itemPaths';
+import { t } from '../../core/i18n';
 
 /**
  * gRPC references (`<Protobuf>` items) as Visual Studio's "Add Connected Service > gRPC" and `dotnet-grpc` write them:
@@ -168,13 +169,13 @@ export function duplicateRefusal(
 ): string | undefined {
     const name = path.basename(protoPath);
     if (isExistingReference(existing, projectXml, projectDir, protoPath)) {
-        return `${name} is already a gRPC reference of ${path.basename(projectDir)}.`;
+        return t('{0} is already a gRPC reference of {1}.', name, path.basename(projectDir));
     }
     const shownAs = reference.link ?? reference.include;
     const shownAt = resolveItem(projectDir, shownAs);
     const other = existing.find(item => sameFile(item.link ? resolveItem(projectDir, item.link) : item.fullPath, shownAt));
     if (other) {
-        return `${unescapeMsbuild(shownAs)} is already taken by the gRPC reference ${other.include}; rename one of the files.`;
+        return t('{0} is already taken by the gRPC reference {1}; rename one of the files.', unescapeMsbuild(shownAs), other.include);
     }
     return undefined;
 }
@@ -275,10 +276,10 @@ export function protoFileName(url: string): string {
 export function downloadedContentRefusal(content: Uint8Array): string | undefined {
     const text = Buffer.from(content).toString('utf8').replace(/^\uFEFF/, '').trimStart();
     if (text === '') {
-        return 'the answer was empty';
+        return t('the answer was empty');
     }
     if (text.startsWith('<')) {
-        return 'it answered with a web page (HTML), not a .proto file (a sign-in page?)';
+        return t('it answered with a web page (HTML), not a .proto file (a sign-in page?)');
     }
     return undefined;
 }
@@ -305,14 +306,18 @@ function wildcardMatches(projectDir: string, include: string, protoPath: string)
 export function notListedMessage(item: ProtobufItem | undefined, projectPath: string, protoPath: string, projectXml?: string): string {
     const name = path.basename(protoPath);
     if (item?.definedIn && !sameFile(item.definedIn, projectPath)) {
-        return `${name} comes from ${path.basename(item.definedIn)}, not from ${path.basename(projectPath)}: remove it there.`;
+        return t('{0} comes from {1}, not from {2}: remove it there.', name, path.basename(item.definedIn), path.basename(projectPath));
     }
     const elements = projectXml ? protobufElements(projectXml) : [];
     const projectDir = path.dirname(projectPath);
     const byProperties = elements.find(element => usesProperties(element.include));
     if (byProperties && !elements.some(element => isPattern(element.include) && !usesProperties(element.include)
         && wildcardMatches(projectDir, element.include, protoPath))) {
-        return `${name} is listed in ${path.basename(projectPath)} through MSBuild properties (${Xml.unescape(byProperties.include)}): edit the project file.`;
+        return t('{0} is listed in {1} through MSBuild properties ({2}): edit the project file.', name, path.basename(projectPath), Xml.unescape(byProperties.include));
     }
-    return `${name} is not listed by itself in ${path.basename(projectPath)} (a wildcard such as Protos\\*.proto includes it): edit the project file.`;
+    const wildcard = elements.find(element => isPattern(element.include) && !usesProperties(element.include) && wildcardMatches(projectDir, element.include, protoPath));
+    if (wildcard) {
+        return t('{0} is included by the wildcard {1} in {2}, not listed by itself: edit the project file.', name, Xml.unescape(wildcard.include), path.basename(projectPath));
+    }
+    return t('{0} is not listed by itself in {1} (a wildcard such as Protos\\*.proto includes it): edit the project file.', name, path.basename(projectPath));
 }

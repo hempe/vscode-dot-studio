@@ -409,7 +409,7 @@ export function activate(context: vscode.ExtensionContext) {
         ...typeRefactorings.flatMap(refactoring => [
             vscode.languages.registerCodeActionsProvider({ language: 'csharp' }, refactoring, TypeRefactoring.metadata),
             vscode.commands.registerCommand(refactoring.spec.command, (uri: vscode.Uri, position: vscode.Position) => refactoring.run(uri, position).catch(error => {
-                void vscode.window.showErrorMessage(`${refactoring.spec.actionTitle.replace(/\.\.\.$/, '')} failed: ${error instanceof Error ? error.message : String(error)}`);
+                void vscode.window.showErrorMessage(t('{0} failed: {1}', refactoring.spec.actionTitle.replace(/\.\.\.$/, ''), error instanceof Error ? error.message : String(error)));
             })),
         ]),
         vscode.commands.registerCommand('shinobi.codeCleanup.file', () => runCodeCleanupOnActiveFile()),

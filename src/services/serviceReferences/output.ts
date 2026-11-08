@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { t } from '../../core/i18n';
 
 let output: vscode.OutputChannel | undefined;
 
@@ -9,7 +10,8 @@ export function serviceReferencesOutput(): vscode.OutputChannel {
 
 /** An error message with a button to the output */
 export async function showServiceReferenceFailure(message: string): Promise<void> {
-    if (await vscode.window.showErrorMessage(message, 'Show Output') === 'Show Output') {
+    const showOutput = t('Show Output');
+    if (await vscode.window.showErrorMessage(message, showOutput) === showOutput) {
         serviceReferencesOutput().show();
     }
 }

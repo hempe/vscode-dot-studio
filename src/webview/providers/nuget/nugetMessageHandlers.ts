@@ -53,8 +53,8 @@ export async function handleSources(message: BackendCmd, webview: vscode.Webview
             }
             case 'removeSource': {
                 const answer = await vscode.window.showWarningMessage(
-                    t('Remove the package source {0}? It is deleted from the NuGet.Config that adds it.', message.payload.name), { modal: true }, 'Remove');
-                if (answer === 'Remove') {
+                    t('Remove the package source {0}? It is deleted from the NuGet.Config that adds it.', message.payload.name), { modal: true }, t('Remove'));
+                if (answer === t('Remove')) {
                     await removeSource(message.payload.name);
                 }
                 break;

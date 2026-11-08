@@ -259,7 +259,7 @@ export function planConsolidate(id: string, version: string, states: readonly Pr
             }
         } else if (reference.source === 'override') {
             edits.push({ kind: 'removeVersionOverride', file: state.path, id });
-            changes.push(`${state.name}: VersionOverride ${reference.version} removed`);
+            changes.push(t('{0}: VersionOverride {1} removed', state.name, reference.version));
         }
         const central = reference.source === 'global' ? { version: reference.version, file: reference.versionFile }
             : state.packages?.centrallyManaged ? state.packages.centralVersions.get(lower(id)) : undefined;
@@ -282,8 +282,8 @@ export function consolidationText(plans: readonly ConsolidatePlan[]): { message:
     }
     return {
         message: central.length === 1
-            ? `Consolidate ${central[0].id} to ${central[0].version}?`
-            : `Consolidate ${central.length} packages?`,
+            ? t('Consolidate {0} to {1}?', central[0].id, central[0].version)
+            : t('Consolidate {0} packages?', central.length),
         detail: central.map(plan => [`${plan.id} ${plan.version}:`, ...plan.changes.map(change => `  ${change}`)].join('\n')).join('\n'),
     };
 }

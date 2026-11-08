@@ -23,6 +23,14 @@ export class DownloadCancelled extends Error {
     }
 }
 
+/** The address answered with a web page (text/html: a sign-in page?), not a file: refused like content that is not a `.proto` */
+export class WebPageAnswer extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'WebPageAnswer';
+    }
+}
+
 const MAX_BYTES = 5 * 1024 * 1024;
 
 /**
@@ -95,7 +103,7 @@ export function download(url: string, options: DownloadOptions = {}): Promise<Bu
                 }
                 if (/^\s*text\/html\b/i.test(String(response.headers['content-type'] ?? ''))) {
                     response.resume();
-                    finish(new Error(`${shown} answered with a web page (text/html), not a .proto file (a sign-in page?)`));
+                    finish(new WebPageAnswer(`${shown} answered with a web page (text/html), not a .proto file (a sign-in page?)`));
                     return;
                 }
                 const tooLarge = () => new Error(`${shown} is larger than ${Math.round(maxBytes / 1024 / 1024)} MB: refused`);

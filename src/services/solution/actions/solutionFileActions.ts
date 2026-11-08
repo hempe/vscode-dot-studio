@@ -28,10 +28,10 @@ export async function handleRemoveSolutionItem(nodeId: NodeId): Promise<void> {
         const answer = await vscode.window.showWarningMessage(
             t('Are you sure you want to remove solution item \'{0}\' from the solution?\n\nNote: The file will not be deleted from disk.', itemName),
             { modal: true },
-            'Remove'
+            t('Remove')
         );
 
-        if (answer === 'Remove') {
+        if (answer === t('Remove')) {
             await solution.removeSolutionItem(itemPath);
             log.info(`Solution item removed: ${itemPath}`);
         }
@@ -123,10 +123,10 @@ export async function handleRemoveSolutionFolder(nodeId: NodeId): Promise<void> 
         const answer = await vscode.window.showWarningMessage(
             t('Are you sure you want to remove solution folder \'{0}\'?', folderName),
             { modal: true },
-            'Remove'
+            t('Remove')
         );
 
-        if (answer === 'Remove') {
+        if (answer === t('Remove')) {
             await solution.removeSolutionFolder(nodeId.guid);
             log.info(`Solution folder removed: ${folderName}`);
         }
@@ -214,10 +214,10 @@ export async function handleRemoveProject(nodeId: NodeId): Promise<void> {
         const answer = await vscode.window.showWarningMessage(
             t('Are you sure you want to remove project \'{0}\' from the solution?', projectName),
             { modal: true },
-            'Remove'
+            t('Remove')
         );
 
-        if (answer === 'Remove') {
+        if (answer === t('Remove')) {
             await solution.removeProject(projectPath);
             log.info(`Project removed from solution: ${projectPath}`);
         }
@@ -243,16 +243,17 @@ export async function handleDeleteProject(nodeId: NodeId): Promise<void> {
 
         const projectName = path.basename(projectPath, path.extname(projectPath));
         const plan = deleteProjectPlan(projectPath, solution.solutionPath, [...solution.projects.values()].map(project => project.projectPath));
-        const what = plan.kind === 'folder'
-            ? 'its folder is moved to the trash'
-            : `only the project file is moved to the trash, because ${plan.reason}`;
-        const answer = await vscode.window.showWarningMessage(
-            t('Delete project \'{0}\'? It is removed from the solution and {1}.', projectName, what),
-            { modal: true },
-            'Delete'
-        );
+        const question = plan.kind === 'folder'
+            ? t('Delete project \'{0}\'? It is removed from the solution and its folder is moved to the trash.', projectName)
+            : plan.reason === 'solution'
+                ? t('Delete project \'{0}\'? It is removed from the solution and only the project file is moved to the trash, because its folder also holds the solution.', projectName)
+                : plan.reason === 'project'
+                    ? t('Delete project \'{0}\'? It is removed from the solution and only the project file is moved to the trash, because its folder also holds another project of the solution.', projectName)
+                    : t('Delete project \'{0}\'? It is removed from the solution and only the project file is moved to the trash, because its folder is a git repository.', projectName);
+        const deleteButton = t('Delete');
+        const answer = await vscode.window.showWarningMessage(question, { modal: true }, deleteButton);
 
-        if (answer === 'Delete') {
+        if (answer === deleteButton) {
             // First remove from solution
             await solution.removeProject(projectPath);
 

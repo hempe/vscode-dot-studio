@@ -164,8 +164,8 @@ export class PublishPanel {
 
             case 'deleteProfile': {
                 const profile = this.profile(request.profile);
-                const choice = await vscode.window.showWarningMessage(t('Delete the publish profile \'{0}\'?', profile.name), { modal: true }, 'Delete');
-                if (choice !== 'Delete') {
+                const choice = await vscode.window.showWarningMessage(t('Delete the publish profile \'{0}\'?', profile.name), { modal: true }, t('Delete'));
+                if (choice !== t('Delete')) {
                     break;
                 }
                 await fs.promises.rm(profile.path, { force: true });

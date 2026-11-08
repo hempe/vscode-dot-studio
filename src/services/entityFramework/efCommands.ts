@@ -70,10 +70,11 @@ export async function runEfAction(action: EfAction, project: string, deps: EfDep
 const vscodeDeps: EfDeps = {
     hasTool: cwd => execDotnet(['ef', '--version'], { cwd, timeout: 30000 }).then(() => true, () => false),
     offerToolInstall: async () => {
-        const answer = await vscode.window.showErrorMessage(t('The dotnet-ef tool is not installed (a global tool, or a local one in a tool manifest).'), 'Install dotnet-ef');
-        if (answer === 'Install dotnet-ef') {
+        const install = t('Install dotnet-ef');
+        const answer = await vscode.window.showErrorMessage(t('The dotnet-ef tool is not installed (a global tool, or a local one in a tool manifest).'), install);
+        if (answer === install) {
             await vscode.tasks.executeTask(new vscode.Task({ type: 'shinobi-dotnet-ef' }, solutionWorkspaceFolder() ?? vscode.TaskScope.Workspace,
-                'Install dotnet-ef', 'shinobi-dotnet', new vscode.ProcessExecution('dotnet', ['tool', 'install', '--global', 'dotnet-ef'])));
+                install, 'shinobi-dotnet', new vscode.ProcessExecution('dotnet', ['tool', 'install', '--global', 'dotnet-ef'])));
         }
     },
     isExecutable: project => SolutionService.getActiveSolution()?.getProject(project)?.isExecutable ?? false,

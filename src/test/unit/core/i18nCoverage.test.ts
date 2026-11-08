@@ -21,7 +21,7 @@ function keysOf(files: string[]): { key: string; raw: string; file: string }[] {
     for (const file of files) {
         for (const match of read(file).matchAll(call)) {
             for (const text of [match[1], match[2], match[3]]) {
-                if (text !== undefined) { found.push({ key: text.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n'), raw: text, file }); }
+                if (text !== undefined) { found.push({ key: text.replace(/\\(.)/g, (_escape, char: string) => char === 'n' ? '\n' : char), raw: text, file }); }
             }
         }
     }

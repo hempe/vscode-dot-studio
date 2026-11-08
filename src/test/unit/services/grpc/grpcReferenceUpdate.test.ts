@@ -121,7 +121,7 @@ describe('updateGrpcReference and removeGrpcReference', () => {
         const { fake, calls } = host();
         expect(await removeGrpcReference(consumer, money(), fake)).toBe(false);
         expect(calls.asked).toEqual([]);
-        expect(calls.info).toEqual(['money.proto is not listed by itself in Consumer.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.']);
+        expect(calls.info).toEqual(['money.proto is included by the wildcard Contracts\\*.proto in Consumer.csproj, not listed by itself: edit the project file.']);
         expect(fs.readFileSync(consumer, 'utf8')).toBe(before);
     });
 
@@ -180,7 +180,7 @@ describe('updateGrpcReference and removeGrpcReference', () => {
         const before = fs.readFileSync(consumer, 'utf8');
         const { fake, calls } = host({ items: projectPath => new ProjectItemsService().evaluate(projectPath) });
         expect(await removeGrpcReference(consumer, money(), fake)).toBe(false);
-        expect(calls.info).toEqual(['money.proto is not listed by itself in Consumer.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.']);
+        expect(calls.info).toEqual(['money.proto is included by the wildcard Contracts\\*.proto in Consumer.csproj, not listed by itself: edit the project file.']);
         expect(fs.readFileSync(consumer, 'utf8')).toBe(before);
     }, 150000);
 });

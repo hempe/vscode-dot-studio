@@ -59,10 +59,10 @@ export async function handleDeleteFile(nodeId: NodeId): Promise<void> {
         const linking = isDirectory ? [] : projectsLinking(filePath);
         if (linking.length > 0) {
             const choice = await vscode.window.showWarningMessage(t('Delete the linked file \'{0}\'?', path.basename(filePath)),
-                { modal: true, detail: linkedDeleteDetail(filePath, linking.map(project => project.name)) }, 'Remove Link', 'Delete');
-            if (choice === 'Remove Link') {
+                { modal: true, detail: linkedDeleteDetail(filePath, linking.map(project => project.name)) }, t('Remove Link'), t('Delete'));
+            if (choice === t('Remove Link')) {
                 await handleRemoveLink(nodeId);
-            } else if (choice === 'Delete') {
+            } else if (choice === t('Delete')) {
                 await vscode.workspace.fs.delete(vscode.Uri.file(filePath), { recursive: false, useTrash: true });
                 log.info(`linked file deleted: ${filePath}`);
             }
@@ -74,10 +74,10 @@ export async function handleDeleteFile(nodeId: NodeId): Promise<void> {
                 ? t('Delete the folder \'{0}\'? Everything in it is moved to the trash.', path.basename(filePath))
                 : t('Delete the file \'{0}\'? It is moved to the trash.', path.basename(filePath)),
             { modal: true },
-            'Delete'
+            t('Delete')
         );
 
-        if (answer === 'Delete') {
+        if (answer === t('Delete')) {
             const uri = vscode.Uri.file(filePath);
             // To the trash, like VS Code's explorer, so a mistake can be undone
             await vscode.workspace.fs.delete(uri, { recursive: isDirectory, useTrash: true });
@@ -172,9 +172,9 @@ export async function handleAddExistingItem(nodeId: NodeId): Promise<void> {
             const replace = await vscode.window.showWarningMessage(
                 t('A file with the name \'{0}\' already exists. Do you want to replace it?', fileName),
                 { modal: true },
-                'Replace'
+                t('Replace')
             );
-            return replace === 'Replace';
+            return replace === t('Replace');
         });
     } catch (error) {
         log.error('Error adding existing items:', error);
@@ -356,10 +356,9 @@ export async function pasteOne(sourcePath: string, pasteTargetPath: string, oper
         const choice = await vscode.window.showWarningMessage(
             t('A file or folder with the name \'{0}\' already exists in the destination folder. Do you want to replace it?', sourceName),
             { modal: true },
-            'Replace',
-            'Cancel'
+            t('Replace')
         );
-        if (choice !== 'Replace') {
+        if (choice !== t('Replace')) {
             return undefined;
         }
     }

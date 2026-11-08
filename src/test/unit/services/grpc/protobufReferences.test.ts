@@ -284,7 +284,14 @@ describe('helpers', () => {
             .toBe('a.proto is listed in Client.csproj through MSBuild properties ($(ProtoDir)\\a.proto): edit the project file.');
         const both = xml.replace('</ItemGroup>', '  <Protobuf Include="Protos\\*.proto" />\n  </ItemGroup>');
         expect(notListedMessage({ include: 'Protos/a.proto', fullPath: proto, definedIn: projectPath }, projectPath, proto, both))
-            .toBe('a.proto is not listed by itself in Client.csproj (a wildcard such as Protos\\*.proto includes it): edit the project file.');
+            .toBe('a.proto is included by the wildcard Protos\\*.proto in Client.csproj, not listed by itself: edit the project file.');
+    });
+
+    test('notListedMessage names the wildcard that includes the file (Contracts\\*.proto)', () => {
+        const money = path.join(projectDir, 'Contracts', 'money.proto');
+        const xml = project.replace('</Project>', '  <ItemGroup>\n    <Protobuf Include="Contracts\\*.proto" GrpcServices="None" />\n  </ItemGroup>\n</Project>');
+        expect(notListedMessage({ include: 'Contracts/money.proto', fullPath: money, definedIn: projectPath }, projectPath, money, xml))
+            .toBe('money.proto is included by the wildcard Contracts\\*.proto in Client.csproj, not listed by itself: edit the project file.');
     });
 
     test('sourceUrlInProjectFile: the URL as written (XML unescaped, MSBuild escapes kept), from the element or attribute', () => {

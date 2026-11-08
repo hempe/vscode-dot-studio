@@ -190,10 +190,10 @@ export async function handleRemoveDependency(nodeId: NodeId): Promise<void> {
         const result = await vscode.window.showWarningMessage(
             t('Are you sure you want to remove {0} from the project?', dependencyName),
             { modal: true },
-            'Remove'
+            t('Remove')
         );
 
-        if (result !== 'Remove') {
+        if (result !== t('Remove')) {
             return;
         }
 

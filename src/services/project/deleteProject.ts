@@ -3,7 +3,10 @@ import * as path from 'path';
 
 export type DeleteProjectPlan =
     | { kind: 'folder'; path: string }
-    | { kind: 'file'; path: string; reason: string };
+    | { kind: 'file'; path: string; reason: DeleteProjectReason };
+
+/** Why only the project file goes: its folder also holds the solution, another project of the solution, or is a git repository */
+export type DeleteProjectReason = 'solution' | 'project' | 'git';
 
 const inside = (folder: string, target: string) => {
     const relative = path.relative(folder, target);
@@ -16,15 +19,15 @@ const inside = (folder: string, target: string) => {
  */
 export function deleteProjectPlan(projectPath: string, solutionPath: string, solutionProjects: readonly string[]): DeleteProjectPlan {
     const folder = path.dirname(projectPath);
-    const shared = (reason: string): DeleteProjectPlan => ({ kind: 'file', path: projectPath, reason });
+    const shared = (reason: DeleteProjectReason): DeleteProjectPlan => ({ kind: 'file', path: projectPath, reason });
     if (inside(folder, solutionPath)) {
-        return shared('its folder also holds the solution');
+        return shared('solution');
     }
     if (solutionProjects.some(other => other !== projectPath && inside(folder, path.dirname(other)))) {
-        return shared('its folder also holds another project of the solution');
+        return shared('project');
     }
     if (fs.existsSync(path.join(folder, '.git'))) {
-        return shared('its folder is a git repository');
+        return shared('git');
     }
     return { kind: 'folder', path: folder };
 }

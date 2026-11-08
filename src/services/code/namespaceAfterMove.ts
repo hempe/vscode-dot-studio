@@ -63,8 +63,8 @@ export async function offerNamespaceUpdates(changes: readonly NamespaceChange[],
 async function offerOrUpdate(changes: readonly NamespaceChange[], operation: string): Promise<void> {
     if (changes.length === 1) {
         const [change] = changes;
-        const choice = await vscode.window.showInformationMessage(fileQuestion(operation, change), { modal: true }, 'Update Namespace', 'Skip');
-        if (choice === 'Update Namespace'
+        const choice = await vscode.window.showInformationMessage(fileQuestion(operation, change), { modal: true }, t('Update Namespace'), t('Skip'));
+        if (choice === t('Update Namespace')
             && !await NamespaceService.updateNamespaceViaRename(change.filePath, change.currentNamespace, change.expectedNamespace)) {
             vscode.window.showWarningMessage(t('Failed to update namespace in \'{0}\'', path.basename(change.filePath)));
         }
@@ -72,20 +72,20 @@ async function offerOrUpdate(changes: readonly NamespaceChange[], operation: str
     }
     const choice = await vscode.window.showInformationMessage(
         t('{0}: {1} C# files have a namespace that does not match their new folder. Update them?', operation, changes.length),
-        { modal: true }, 'Update All', 'Review Each', 'Skip');
-    if (choice !== 'Update All' && choice !== 'Review Each') {
+        { modal: true }, t('Update All'), t('Review Each'), t('Skip'));
+    if (choice !== t('Update All') && choice !== t('Review Each')) {
         return;
     }
     let updated = 0;
     let skipped = 0;
     for (const change of changes) {
-        if (choice === 'Review Each') {
-            const answer = await vscode.window.showInformationMessage(fileQuestion(operation, change), 'Update', 'Skip', 'Skip All Remaining');
-            if (answer === 'Skip All Remaining') {
+        if (choice === t('Review Each')) {
+            const answer = await vscode.window.showInformationMessage(fileQuestion(operation, change), t('Update'), t('Skip'), t('Skip All Remaining'));
+            if (answer === t('Skip All Remaining')) {
                 skipped = changes.length - updated;
                 break;
             }
-            if (answer !== 'Update') {
+            if (answer !== t('Update')) {
                 skipped++;
                 continue;
             }

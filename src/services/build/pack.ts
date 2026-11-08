@@ -62,10 +62,12 @@ export async function reportPacked(projectPath: string): Promise<void> {
         return;
     }
     const [main] = packages;
-    const choice = await vscode.window.showInformationMessage(t('Packed {0} into {1}', path.basename(main), dir), 'Reveal in Explorer', 'Copy Path');
-    if (choice === 'Reveal in Explorer') {
+    const reveal = t('Reveal in Explorer');
+    const copy = t('Copy Path');
+    const choice = await vscode.window.showInformationMessage(t('Packed {0} into {1}', path.basename(main), dir), reveal, copy);
+    if (choice === reveal) {
         await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(main));
-    } else if (choice === 'Copy Path') {
+    } else if (choice === copy) {
         await vscode.env.clipboard.writeText(main);
     }
 }

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../core/logger';
+import { t } from '../../core/i18n';
 import { SolutionService } from '../solution/solutionService';
 import { ProjectItemsService } from '../project/items/projectItemsService';
 import { PackageOperationsService } from './packageOperationsService';
@@ -166,7 +167,7 @@ async function apply(edits: Parameters<typeof applyPackageEdits>[0]): Promise<{ 
         return { changed: await applyPackageEdits(edits) };
     } catch (error) {
         log.error('Could not edit the package versions:', error);
-        return { changed: [], result: { success: false, message: `Could not edit the package versions: ${error instanceof Error ? error.message : error}` } };
+        return { changed: [], result: { success: false, message: t('Could not edit the package versions: {0}', error instanceof Error ? error.message : String(error)) } };
     }
 }
 
@@ -187,9 +188,9 @@ export async function changePackageVersions(
     const question = confirmationText(plans);
     if (question) {
         const selectedCount = new Set(changes.flatMap(change => change.projects)).size;
-        const onlyThese = selectedCount === 1 ? 'Set for This Project Only' : 'Set for the Selected Projects Only';
+        const onlyThese = selectedCount === 1 ? t('Set for This Project Only') : t('Set for the Selected Projects Only');
         const canOverride = scope === 'shared' && plans.every(candidate => candidate.alsoChanges.length === 0 || candidate.canOverride);
-        const choice = await host.ask(question.message, question.detail, 'Update All Projects', ...(canOverride ? [onlyThese] : []));
+        const choice = await host.ask(question.message, question.detail, t('Update All Projects'), ...(canOverride ? [onlyThese] : []));
         if (!choice) {
             return { cancelled: true, results: [] };
         }
@@ -237,18 +238,21 @@ export async function uninstallPackages(id: string, projects: readonly string[],
     const changed: string[] = [];
 
     if (plan.global) {
-        const onlyThese = plan.global.selected.length === 1 ? 'Remove from This Project Only' : 'Remove from the Selected Projects Only';
+        const one = plan.global.selected.length === 1;
+        const onlyThese = one ? t('Remove from This Project Only') : t('Remove from the Selected Projects Only');
         const choice = await host.ask(
-            `${id} is a global package: every project gets it from ${path.basename(plan.global.file)}.`,
-            `It applies to ${plan.global.appliesTo.join(', ')}. Remove it for all of them, or only for the selected project${plan.global.selected.length === 1 ? '' : 's'} (a GlobalPackageReference Remove in the project file)?`,
-            'Remove for All Projects', onlyThese);
+            t('{0} is a global package: every project gets it from {1}.', id, path.basename(plan.global.file)),
+            one
+                ? t('It applies to {0}. Remove it for all of them, or only for the selected project (a GlobalPackageReference Remove in the project file)?', plan.global.appliesTo.join(', '))
+                : t('It applies to {0}. Remove it for all of them, or only for the selected projects (a GlobalPackageReference Remove in the project file)?', plan.global.appliesTo.join(', ')),
+            t('Remove for All Projects'), onlyThese);
         if (!choice && plan.cliProjects.length === 0) {
             return { cancelled: true, results: [] };
         }
         if (choice) {
             const applied = await apply(globalUninstallEdits(plan, choice === onlyThese ? 'selected' : 'all', states));
             changed.push(...applied.changed);
-            results.push(applied.result ?? { success: true, message: `Removed ${id}`, packageId: id });
+            results.push(applied.result ?? { success: true, message: t('Removed {0}', id), packageId: id });
         }
     }
 
@@ -264,9 +268,10 @@ export async function uninstallPackages(id: string, projects: readonly string[],
     // Only when every removal worked: otherwise a project still uses the version
     if (removed.length === plan.cliProjects.length) {
         for (const orphan of plan.orphanedVersions) {
-            const choice = await host.ask(`No project uses ${orphan.id} any more. Remove its version from ${path.basename(orphan.file)}?`,
-                `The PackageVersion entry is unused now; keep it if a project outside this solution uses it.`, 'Remove');
-            if (choice === 'Remove') {
+            const remove = t('Remove');
+            const choice = await host.ask(t('No project uses {0} any more. Remove its version from {1}?', orphan.id, path.basename(orphan.file)),
+                t('The PackageVersion entry is unused now; keep it if a project outside this solution uses it.'), remove);
+            if (choice === remove) {
                 const applied = await apply([{ kind: 'removePackageVersion', file: orphan.file, id: orphan.id }]);
                 changed.push(...applied.changed);
                 if (applied.result) {
@@ -290,7 +295,8 @@ export async function consolidatePackages(changes: readonly { id: string; versio
     const states = await host.states([]);
     const plans = changes.map(change => planConsolidate(change.id, change.version, states));
     const question = consolidationText(plans);
-    if (question && await host.ask(question.message, question.detail, 'Consolidate') !== 'Consolidate') {
+    const consolidate = t('Consolidate');
+    if (question && await host.ask(question.message, question.detail, consolidate) !== consolidate) {
         return { cancelled: true, results: [] };
     }
     const edits = await resolveVersionProperties(plans.flatMap(plan => plan.edits), states, host);
@@ -315,7 +321,7 @@ export async function consolidatePackages(changes: readonly { id: string; versio
             }
         }
         if (plan.edits.length === 0 && plan.cliProjects.length === 0) {
-            results.push({ success: true, message: `${plan.id} is already at ${plan.version} in all projects`, packageId: plan.id });
+            results.push({ success: true, message: t('{0} is already at {1} in all projects', plan.id, plan.version), packageId: plan.id });
         }
     }
     results.push(...(await afterEdits(changed, states, host, cliUpdated, propertyFiles(edits))).filter(restore => !restore.success));

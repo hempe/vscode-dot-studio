@@ -125,10 +125,10 @@ async function enterNewToken(source: PackageSource, credential: SourceCredential
     // Credentials stay where they are; new ones go to the user config, not into a repository's NuGet.Config
     let file = credential.kind !== 'none' ? credential.file : path.join(userConfigDir(), 'NuGet.Config');
     if (credential.kind !== 'none' && isInWorkspace(file)) {
-        const userConfig = 'Save to user NuGet.Config';
+        const userConfig = t('Save to user NuGet.Config');
         const choice = await vscode.window.showWarningMessage(
             t('The credentials for \'{0}\' are in {1}, which is part of your workspace. A token saved there can end up in source control.', source.name, file),
-            { modal: true }, userConfig, 'Save Here Anyway');
+            { modal: true }, userConfig, t('Save Here Anyway'));
         if (!choice) {
             return;
         }
