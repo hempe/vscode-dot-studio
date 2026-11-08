@@ -443,5 +443,6 @@
   "Update All": "全部更新",
   "Review Each": "逐个查看",
   "Update": "更新",
-  "Skip All Remaining": "跳过其余全部"
+  "Skip All Remaining": "跳过其余全部",
+  "{0} holds the project, or is the root or home folder: its files are not deleted before publishing.": "{0} 包含该项目，或者是根文件夹或主文件夹：发布前不会删除其中的文件。"
 }

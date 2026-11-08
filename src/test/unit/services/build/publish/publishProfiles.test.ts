@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, parseProfile, profileNameProblem, publishDirOf,
+    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, parseProfile, profileNameProblem, publishDirOf, publishDirOverride, clearPublishFolder,
 } from '../../../../../services/build/publish/publishProfiles';
 
 // A Folder profile as Visual Studio 2022 writes it
@@ -120,6 +120,45 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
         } finally {
             fs.rmSync(root, { recursive: true, force: true });
         }
+    });
+});
+
+describe('publishDirOverride', () => {
+    it('gives the folder of a profile that names it only as PublishUrl (an older Visual Studio), resolved against the project', () => {
+        const xml = '<Project>\n  <PropertyGroup>\n    <PublishUrl>bin\\Release\\net10.0\\vs-publish\\</PublishUrl>\n    <WebPublishMethod>FileSystem</WebPublishMethod>\n  </PropertyGroup>\n</Project>';
+        expect(publishDirOverride(xml, path.join(path.sep, 'repo', 'Web'))).toBe(path.join(path.sep, 'repo', 'Web', 'bin', 'Release', 'net10.0', 'vs-publish'));
+    });
+
+    it('nothing when the profile has a PublishDir (dotnet publish reads that) or no folder', () => {
+        expect(publishDirOverride('<PublishDir>out\\</PublishDir><PublishUrl>other\\</PublishUrl>', '/repo/Web')).toBeUndefined();
+        expect(publishDirOverride('<Project />', '/repo/Web')).toBeUndefined();
+    });
+});
+
+describe('clearPublishFolder (Delete all existing files prior to publish)', () => {
+    let dir: string;
+    beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'publish-clear-')); });
+    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+    it('empties the publish folder and keeps it', async () => {
+        const project = path.join(dir, 'Web', 'Web.csproj');
+        const out = path.join(dir, 'Web', 'bin', 'publish');
+        fs.mkdirSync(path.join(out, 'wwwroot'), { recursive: true });
+        fs.writeFileSync(path.join(out, 'stale.dll'), '');
+        fs.writeFileSync(path.join(out, 'wwwroot', 'old.js'), '');
+        expect(await clearPublishFolder(out, project, path.join(dir, 'home'))).toBe(true);
+        expect(fs.existsSync(out)).toBe(true);
+        expect(fs.readdirSync(out)).toEqual([]);
+    });
+
+    it('refuses a folder that holds the project, and the home folder', async () => {
+        const project = path.join(dir, 'Web', 'Web.csproj');
+        fs.mkdirSync(path.join(dir, 'Web'), { recursive: true });
+        fs.writeFileSync(project, '<Project />');
+        expect(await clearPublishFolder(path.join(dir, 'Web'), project, path.join(dir, 'home'))).toBe(false);
+        expect(await clearPublishFolder(dir, project, path.join(dir, 'home'))).toBe(false);
+        expect(fs.existsSync(project)).toBe(true);
+        expect(await clearPublishFolder(path.join(dir, 'home'), project, path.join(dir, 'home'))).toBe(false);
     });
 });
 

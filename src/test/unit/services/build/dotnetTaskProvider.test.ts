@@ -54,6 +54,8 @@ describe('dotnetTaskArgs', () => {
         // The profile decides configuration, framework and runtime
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
             ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+        // A profile of an older Visual Studio names the folder only as PublishUrl: it is passed on, with a trailing separator
+        expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'VSProfile', true, undefined, '/repo/Web/bin/out')).toContain(`-property:PublishDir=/repo/Web/bin/out${require('path').sep}`);
     });
 });
 

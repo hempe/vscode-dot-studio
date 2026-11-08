@@ -25,6 +25,8 @@ export interface DotnetTaskDefinition extends vscode.TaskDefinition {
     readonly configuration?: string;
     /** Publish profile (Properties/PublishProfiles/<profile>.pubxml), for publish */
     readonly profile?: string;
+    /** For publish: the folder when the profile names it only as PublishUrl (an older Visual Studio's), which dotnet publish ignores */
+    readonly publishDir?: string;
 }
 
 const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
@@ -33,7 +35,7 @@ const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
  * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
  * builds write the source generators' output for Dependencies > Analyzers
  */
-export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string, emitGeneratedFiles = true, platform?: string): string[] {
+export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configuration: string, profile?: string, emitGeneratedFiles = true, platform?: string, publishDir?: string): string[] {
     const config = ['--configuration', configuration, ...platformProperty(platform)];
     const generated = emitGeneratedFiles ? [EMIT_GENERATED_FILES] : [];
     switch (action) {
@@ -42,7 +44,7 @@ export function dotnetTaskArgs(action: DotnetTaskAction, target: string, configu
         case 'clean': return ['clean', target, ...config, ...QUIET];
         case 'restore': return ['restore', target];
         case 'pack': return ['pack', target, ...config, ...QUIET, '-property:GenerateFullPaths=true'];
-        case 'publish': return ['publish', target, `-property:PublishProfile=${profile}`, ...QUIET, '-property:GenerateFullPaths=true'];
+        case 'publish': return ['publish', target, `-property:PublishProfile=${profile}`, ...(publishDir ? [`-property:PublishDir=${publishDir}${publishDir.endsWith(path.sep) ? '' : path.sep}`] : []), ...QUIET, '-property:GenerateFullPaths=true'];
     }
 }
 
@@ -64,7 +66,7 @@ export function createDotnetTask(
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ProcessExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform), { cwd: path.dirname(target) }),
+        new vscode.ProcessExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform, definition.publishDir), { cwd: path.dirname(target) }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish' && action !== 'pack') {

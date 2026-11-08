@@ -4,7 +4,7 @@ Right-click a project > **Publish...** opens the **Publish** tab, like Visual St
 
 ## Profiles
 
-Publish profiles are `Properties/PublishProfiles/<Name>.pubxml` files in Visual Studio's format: teammates in Visual Studio see the same profiles, and the ones they made show here.
+Publish profiles are `Properties/PublishProfiles/<Name>.pubxml` files in Visual Studio's format: teammates in Visual Studio see the same profiles, and the ones they made show here. Profiles of older Visual Studio versions name the folder as `PublishUrl`; **Publish** puts the files there too.
 
 - **Without profiles**, the tab starts with **Publish to a folder**: pick the folder (relative to the project or absolute) and **Finish** creates `FolderProfile.pubxml`.
 - **New profile** adds another (`FolderProfile1`, ...). **Rename**, **Delete** and **Open .pubxml** work on the selected profile.
@@ -25,7 +25,7 @@ The summary shows the target location, configuration, target framework, deployme
 | Deployment mode | **Framework-dependent** (needs .NET on the machine it runs on) or **Self-contained** (brings .NET along; picks this machine's runtime if none is set) |
 | Target runtime | **Portable**, or a runtime identifier (`linux-x64`, `win-x64`, `osx-arm64`, ...) |
 | Target location | The publish folder |
-| Delete all existing files prior to publish | Empties the folder first |
+| Delete all existing files prior to publish | Empties the folder first (not a folder that holds the project itself, the root or your home folder) |
 | Produce single file | One executable; needs a target runtime |
 | Enable ReadyToRun compilation | Faster startup, bigger files; needs a target runtime |
 | Trim unused code | Smaller output; needs self-contained |

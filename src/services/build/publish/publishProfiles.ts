@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 /** The settings of a Folder publish profile, as Visual Studio's publish settings dialog shows them */
@@ -35,6 +36,19 @@ function property(xml: string, name: string): string | undefined {
 }
 
 const isTrue = (value: string | undefined) => value?.toLowerCase() === 'true';
+
+/**
+ * The folder `dotnet publish` must be told: a profile of an older Visual Studio names it only as PublishUrl, which the
+ * command line ignores (the files would go to the default bin/<Configuration>/<framework>/publish). Absolute; undefined
+ * when the profile has a PublishDir (or names no folder).
+ */
+export function publishDirOverride(xml: string, projectDir: string): string | undefined {
+    const url = property(xml, 'PublishUrl');
+    if (property(xml, 'PublishDir') !== undefined || !url) {
+        return undefined;
+    }
+    return path.resolve(projectDir, url.replace(/[\\/]+/g, path.sep));
+}
 
 export function parseProfile(xml: string, profilePath: string): PublishProfile {
     const method = property(xml, 'WebPublishMethod');
@@ -132,6 +146,22 @@ export function defaultFolderSettings(targetFramework: string | undefined): Fold
 /** The publish folder on disk; profiles may use Visual Studio's backslashes */
 export function publishDirOf(projectPath: string, publishDir: string): string {
     return path.resolve(path.dirname(projectPath), publishDir.replace(/\\/g, '/'));
+}
+
+/**
+ * "Delete all existing files prior to publish": empties the publish folder (it stays). `dotnet publish` leaves the
+ * option to Visual Studio's own publish, so it is done here. Refused (returns false, nothing deleted) for a folder that
+ * holds the project itself, the file system root or the home folder.
+ */
+export async function clearPublishFolder(folder: string, projectPath: string, home: string = os.homedir()): Promise<boolean> {
+    const resolved = path.resolve(folder);
+    const holdsProject = !path.relative(resolved, path.dirname(path.resolve(projectPath))).startsWith('..');
+    if (holdsProject || resolved === path.parse(resolved).root || resolved === path.resolve(home)) {
+        return false;
+    }
+    const entries = await fs.promises.readdir(resolved).catch(() => [] as string[]);
+    await Promise.all(entries.map(entry => fs.promises.rm(path.join(resolved, entry), { recursive: true, force: true })));
+    return true;
 }
 
 /** FolderProfile, then FolderProfile1, FolderProfile2, ... like Visual Studio */

@@ -443,5 +443,6 @@
   "Update All": "Update All",
   "Review Each": "Review Each",
   "Update": "Update",
-  "Skip All Remaining": "Skip All Remaining"
+  "Skip All Remaining": "Skip All Remaining",
+  "{0} holds the project, or is the root or home folder: its files are not deleted before publishing.": "{0} holds the project, or is the root or home folder: its files are not deleted before publishing."
 }

@@ -5,7 +5,7 @@ import { logger } from '../../core/logger';
 import { PublishInit, PublishMessage, PublishRequest } from '../../types/publish';
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 import {
-    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, profileNameProblem, profilesFolder, PublishProfile, publishDirOf,
+    applySettings, defaultFolderSettings, folderProfileXml, listProfiles, newProfileName, profileNameProblem, profilesFolder, PublishProfile, publishDirOf, publishDirOverride, clearPublishFolder,
 } from '../../services/build/publish/publishProfiles';
 import { BuildConfiguration } from '../../services/build/buildConfiguration';
 import { DebugConfigService } from '../../services/debug/debugConfigService';
@@ -112,7 +112,16 @@ export class PublishPanel {
             case 'publish': {
                 const profile = this.profile(request.profile);
                 await this.post({ type: 'publishing', profile: profile.name });
-                const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'publish', target: this.projectPath, profile: profile.name }));
+                const xml = await fs.promises.readFile(profile.path, 'utf8');
+                const publishDir = publishDirOverride(xml, path.dirname(this.projectPath));
+                // dotnet publish ignores DeleteExistingFiles (Visual Studio's publish does it): empty the folder first
+                if (profile.settings.deleteExistingFiles && profile.settings.publishDir.trim()) {
+                    const folder = publishDirOf(this.projectPath, profile.settings.publishDir);
+                    if (!await clearPublishFolder(folder, this.projectPath)) {
+                        void vscode.window.showWarningMessage(t('{0} holds the project, or is the root or home folder: its files are not deleted before publishing.', folder));
+                    }
+                }
+                const exitCode = await runTask(createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'publish', target: this.projectPath, profile: profile.name, ...(publishDir ? { publishDir } : {}) }));
                 const succeeded = exitCode === 0;
                 if (succeeded) {
                     await PublishPanel.state?.update(LAST_PUBLISHED_KEY, { ...this.lastPublished(), [profile.path]: new Date().toISOString() });
