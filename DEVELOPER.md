@@ -1,6 +1,6 @@
 # Developer guide
 
-Where things stand: [Roadmap](docs/roadmap.md) (what's next, known bugs) and [History](docs/history.md) (what's done, with implementation notes). Bugs and ideas: [issues](https://github.com/hempe/vscode-dot-studio/issues). How to publish a new version: [RELEASING.md](RELEASING.md).
+Where things stand: [Roadmap](docs/roadmap.md) (what's next, known bugs) and [History](docs/history.md) (what's done, with implementation notes). Bugs and ideas: [issues](https://github.com/hempe/vscode-dot-studio/issues). How to publish a new version: [RELEASING.md](RELEASING.md). Contributing (pull requests, translations): [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Getting started
 
