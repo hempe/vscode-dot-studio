@@ -75,6 +75,7 @@
   "l10n": "./l10n",
   "contributes": {
     "csharpExtensionLoadPaths": [
+      "out/server-extension/roslyn-5.13/Shinobi.Refactorings.dll",
       "out/server-extension/Shinobi.Refactorings.dll"
     ],
     "configuration": [
@@ -1917,7 +1918,7 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "npm run build:server-extension && webpack --mode production",
-    "build:server-extension": "dotnet build server-extension/Shinobi.Refactorings -c Release -o out/server-extension --nologo -v q",
+    "build:server-extension": "dotnet build server-extension/Shinobi.Refactorings -c Release -o out/server-extension --nologo -v q && dotnet build server-extension/Shinobi.Refactorings.Roslyn513 -c Release -o out/server-extension/roslyn-5.13 --nologo -v q",
     "build:dev": "npm run build:server-extension && webpack --mode development",
     "watch": "npm run build:server-extension && webpack --mode development --watch",
     "compile": "tsc -p ./",

@@ -12,9 +12,9 @@ namespace Shinobi.Refactorings;
 public sealed record CheckEditsRequest([property: JsonPropertyName("edits")] IReadOnlyList<TextEdit> Edits);
 
 /// <summary>The edits of the language server's own Extract method / Extract local function, checked and repaired where the server gets it wrong.</summary>
-public sealed class CheckEditsHandler : IExtensionDocumentMessageHandler<CheckEditsRequest, ExtractInterfaceResult?>
+public sealed class CheckEditsHandler : DocumentHandler<CheckEditsRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(CheckEditsRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(CheckEditsRequest message, Document document, CancellationToken cancellationToken)
         => ExtractMethodRepair.RunAsync(document, message.Edits, cancellationToken).ContinueWith(t => (ExtractInterfaceResult?)t.Result, cancellationToken);
 }
 

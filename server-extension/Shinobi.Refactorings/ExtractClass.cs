@@ -23,16 +23,16 @@ public sealed record ExtractClassRequest(
     [property: JsonPropertyName("newFile")] bool NewFile);
 
 /// <summary>The members of the class under the cursor that can go into a new class it delegates to, with what they depend on.</summary>
-public sealed class ExtractClassInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ExtractClassInfo?>
+public sealed class ExtractClassInfoHandler : DocumentHandler<TypeAt, ExtractClassInfo?>
 {
-    public Task<ExtractClassInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractClassInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => ExtractClassEngine.InfoAsync(document, message.Position, cancellationToken);
 }
 
 /// <summary>Creates the class with the chosen members, keeps a field of it in the type and forwarding members for what others could reach; refuses what it cannot do right.</summary>
-public sealed class ExtractClassHandler : IExtensionDocumentMessageHandler<ExtractClassRequest, ExtractInterfaceResult?>
+public sealed class ExtractClassHandler : DocumentHandler<ExtractClassRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(ExtractClassRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(ExtractClassRequest message, Document document, CancellationToken cancellationToken)
         => ExtractClassEngine.RunAsync(document, message, cancellationToken);
 }
 

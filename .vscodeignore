@@ -9,6 +9,7 @@
 !out/webview/*/bundle.js.LICENSE.txt
 !out/webview/codicons/**
 !out/server-extension/Shinobi.Refactorings.dll
+!out/server-extension/roslyn-5.13/Shinobi.Refactorings.dll
 !package.json
 !package.nls.json
 !package.nls.*.json

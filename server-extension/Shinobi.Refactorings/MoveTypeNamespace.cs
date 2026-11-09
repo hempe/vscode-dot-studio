@@ -24,22 +24,22 @@ public sealed record MoveTypeNamespaceRequest(
     [property: JsonPropertyName("namespace")] string Namespace);
 
 /// <summary>The type under the cursor and its namespace: cheap, for the lightbulb.</summary>
-public sealed class MoveTypeNamespaceInfoHandler : IExtensionDocumentMessageHandler<TypeAt, MoveTypeNamespaceInfo?>
+public sealed class MoveTypeNamespaceInfoHandler : DocumentHandler<TypeAt, MoveTypeNamespaceInfo?>
 {
-    public Task<MoveTypeNamespaceInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<MoveTypeNamespaceInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => MoveTypeNamespaceEngine.InfoAsync(document, message.Position, false, cancellationToken);
 }
 
 /// <summary>The same with the namespaces of the solution's source, which takes a look at every file: asked when the refactoring runs.</summary>
-public sealed class MoveTypeNamespaceNamesHandler : IExtensionDocumentMessageHandler<TypeAt, MoveTypeNamespaceInfo?>
+public sealed class MoveTypeNamespaceNamesHandler : DocumentHandler<TypeAt, MoveTypeNamespaceInfo?>
 {
-    public Task<MoveTypeNamespaceInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<MoveTypeNamespaceInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => MoveTypeNamespaceEngine.InfoAsync(document, message.Position, true, cancellationToken);
 }
 
-public sealed class MoveTypeNamespaceHandler : IExtensionDocumentMessageHandler<MoveTypeNamespaceRequest, ExtractInterfaceResult?>
+public sealed class MoveTypeNamespaceHandler : DocumentHandler<MoveTypeNamespaceRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(MoveTypeNamespaceRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(MoveTypeNamespaceRequest message, Document document, CancellationToken cancellationToken)
         => MoveTypeNamespaceEngine.RunAsync(document, message, cancellationToken);
 }
 

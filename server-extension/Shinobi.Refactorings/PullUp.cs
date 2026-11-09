@@ -43,16 +43,16 @@ public sealed record PullUpRequest(
     [property: JsonPropertyName("abstractIds")] IReadOnlyList<string> AbstractIds);
 
 /// <summary>The class under the cursor (on its name or on one of its members), the base classes and interfaces of the solution's source it can pull members up to, and its members.</summary>
-public sealed class PullUpInfoHandler : IExtensionDocumentMessageHandler<TypeAt, PullUpInfo?>
+public sealed class PullUpInfoHandler : DocumentHandler<TypeAt, PullUpInfo?>
 {
-    public Task<PullUpInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<PullUpInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => PullUpEngine.InfoAsync(document, message.Position, cancellationToken);
 }
 
 /// <summary>Moves the chosen members to the base class (or declares them abstract there), or adds them to the interface; compiled before it is applied.</summary>
-public sealed class PullUpHandler : IExtensionDocumentMessageHandler<PullUpRequest, ExtractInterfaceResult?>
+public sealed class PullUpHandler : DocumentHandler<PullUpRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(PullUpRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(PullUpRequest message, Document document, CancellationToken cancellationToken)
         => PullUpEngine.RunAsync(document, message, cancellationToken);
 }
 

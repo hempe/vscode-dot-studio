@@ -25,9 +25,9 @@ public sealed record ExtractPartialRequest(
     [property: JsonPropertyName("memberIds")] IReadOnlyList<string> MemberIds);
 
 /// <summary>The members of the type under the cursor that can move into another part of it.</summary>
-public sealed class ExtractPartialInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ExtractPartialInfo?>
+public sealed class ExtractPartialInfoHandler : DocumentHandler<TypeAt, ExtractPartialInfo?>
 {
-    public async Task<ExtractPartialInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override async Task<ExtractPartialInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
     {
         var found = await ExtractInterfaceSupport.FindTypeAsync(document, message.Position, cancellationToken).ConfigureAwait(false);
         if (found is null) { return null; }
@@ -38,9 +38,9 @@ public sealed class ExtractPartialInfoHandler : IExtensionDocumentMessageHandler
 }
 
 /// <summary>Moves the chosen members to a new file that holds another part of the type; the type (and the types around it) become partial.</summary>
-public sealed class ExtractPartialHandler : IExtensionDocumentMessageHandler<ExtractPartialRequest, ExtractInterfaceResult?>
+public sealed class ExtractPartialHandler : DocumentHandler<ExtractPartialRequest, ExtractInterfaceResult?>
 {
-    public async Task<ExtractInterfaceResult?> ExecuteAsync(ExtractPartialRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override async Task<ExtractInterfaceResult?> ExecuteAsync(ExtractPartialRequest message, Document document, CancellationToken cancellationToken)
     {
         var found = await ExtractInterfaceSupport.FindTypeAsync(document, message.Position, cancellationToken).ConfigureAwait(false);
         if (found is null || document.FilePath is not { } path) { return null; }

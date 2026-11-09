@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The refactorings of ../Shinobi.Refactorings for language servers with Roslyn 5.13 or later, which moved the handler interfaces
+    into Microsoft.CodeAnalysis.Workspaces and pass the document in the context (see ExtensionApi.cs). Same sources, same assembly
+    name, compiled against the first Roslyn with the new API (only on the dotnet-tools feed). The extension asks the server for the
+    5.13 assembly first and falls back to the other one (src/services/refactoring/csharpServer.ts).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Shinobi.Refactorings</AssemblyName>
+    <RootNamespace>Shinobi.Refactorings</RootNamespace>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefineConstants>$(DefineConstants);EXTENSIONS_API_5_13</DefineConstants>
+    <!-- 5.13 marks the extension API experimental -->
+    <NoWarn>$(NoWarn);RSEXPERIMENTAL008</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shinobi.Refactorings/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.13.0-1.26519.8" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

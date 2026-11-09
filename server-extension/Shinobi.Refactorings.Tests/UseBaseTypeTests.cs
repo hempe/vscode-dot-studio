@@ -52,9 +52,9 @@ public class UseBaseTypeTests
         var h = new Harness(("Order.cs", Order), ("Report.cs", Uses));
         var document = h.Document("Order.cs");
         var position = Harness.At(Order, "class Order", "Order");
-        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var ids = info.Members.Where(m => members.Any(start => m.Signature.Contains(start))).Select(m => m.Id).ToList();
-        var result = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder", ids, true, UseBaseType: true), null!, document, default))!;
+        var result = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder", ids, true, UseBaseType: true), document, default))!;
         Assert.Null(result.Errors);
         Assert.Empty(await h.ErrorsAfter(document, result));
         var other = Assert.Single(result.Others!);
@@ -92,8 +92,8 @@ public class UseBaseTypeTests
         var h = new Harness(("Order.cs", Order), ("Report.cs", Uses));
         var document = h.Document("Order.cs");
         var position = Harness.At(Order, "class Order", "Order");
-        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
-        var result = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder", info.Members.Select(m => m.Id).ToList(), true), null!, document, default))!;
+        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
+        var result = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder", info.Members.Select(m => m.Id).ToList(), true), document, default))!;
         Assert.Null(result.Others);
         Assert.Null(result.Summary);
     }

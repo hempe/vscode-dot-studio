@@ -4,7 +4,7 @@
 //
 // The xunit project (npm run test:server-extension) tests the logic in an in-memory workspace; this tests the way in: the server
 // started the way the C# extension starts it (--extension <dll>), the extension activated with `server/_vs_activateExtension`, and every
-// refactoring's handler asked with `textDocument/_vs_dipatchExtensionMessage` on a small solution. It is what breaks when a new version of
+// refactoring's handler asked with `textDocument/_vs_dispatchExtensionMessage` (`_vs_dipatchExtensionMessage` up to Roslyn 5.12) on a small solution. It is what breaks when a new version of
 // the C# extension binds another Roslyn or changes the extension API (the refactorings would silently be gone from Ctrl+.).
 // Skipped (exit 0) when no C# extension with a server is installed; ROSLYN_SERVER names the server's executable, DLL the assembly.
 import { spawn, execFileSync } from 'node:child_process';
@@ -14,7 +14,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 const repo = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
-const dll = process.env.DLL ?? path.join(repo, 'out', 'server-extension', 'Shinobi.Refactorings.dll');
+// Both builds, as the extension has them: the one for Roslyn 5.13 and later first (DLL names a single one)
+const dlls = process.env.DLL ? [process.env.DLL] : [
+  path.join(repo, 'out', 'server-extension', 'roslyn-5.13', 'Shinobi.Refactorings.dll'),
+  path.join(repo, 'out', 'server-extension', 'Shinobi.Refactorings.dll'),
+];
 const exe = process.platform === 'win32' ? '.exe' : '';
 
 function findServer() {
@@ -37,7 +41,7 @@ if (!server) {
   console.log('skipped: no C# extension with a language server is installed (set ROSLYN_SERVER to its Microsoft.CodeAnalysis.LanguageServer)');
   process.exit(0);
 }
-if (!fs.existsSync(dll)) {
+for (const dll of dlls.filter(d => !fs.existsSync(d))) {
   console.error(`${dll} is missing: run npm run build:server-extension`);
   process.exit(1);
 }
@@ -46,7 +50,7 @@ if (!fs.existsSync(dll)) {
 try {
   const deps = JSON.parse(fs.readFileSync(path.join(path.dirname(server), 'Microsoft.CodeAnalysis.LanguageServer.deps.json'), 'utf8'));
   const roslyn = Object.keys(deps.libraries ?? {}).find(name => name.startsWith('Microsoft.CodeAnalysis.Common/'));
-  console.log(`server: ${server}\nRoslyn it binds: ${roslyn?.split('/')[1] ?? 'unknown'} (our dll is compiled against the version in server-extension/Shinobi.Refactorings/Shinobi.Refactorings.csproj)`);
+  console.log(`server: ${server}\nRoslyn it binds: ${roslyn?.split('/')[1] ?? 'unknown'} (our dlls are compiled against 5.0 and 5.13, see server-extension/)`);
 } catch {
   console.log(`server: ${server}`);
 }
@@ -83,7 +87,7 @@ execFileSync('dotnet', ['restore', path.join(root, 'Fixture.slnx'), '--nologo', 
 
 // ---- the server, started the way the C# extension starts it
 const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shinobi-lsp-logs-'));
-const child = spawn(server, ['--stdio', '--logLevel', 'Information', '--extensionLogDirectory', logDir, '--autoLoadProjects', '--extension', dll], { stdio: ['pipe', 'pipe', 'pipe'] });
+const child = spawn(server, ['--stdio', '--logLevel', 'Information', '--extensionLogDirectory', logDir, '--autoLoadProjects', ...dlls.flatMap(dll => ['--extension', dll])], { stdio: ['pipe', 'pipe', 'pipe'] });
 let buffer = Buffer.alloc(0);
 let nextId = 1;
 const pending = new Map();
@@ -144,20 +148,50 @@ try {
   await sleep(3000);
 
   // like the C# extension does for us (an "already registered" answer is fine: --extension registered it)
-  try {
-    await request('server/_vs_activateExtension', { assemblyFilePath: dll });
-    check('the extension is activated', true);
-  } catch (error) {
-    check('the extension is activated', /already registered/i.test(error.message), error.message);
+  const activated = [];
+  for (const dll of dlls) {
+    try {
+      await request('server/_vs_activateExtension', { assemblyFilePath: dll });
+      activated.push(dll);
+    } catch (error) {
+      if (/already registered/i.test(error.message)) activated.push(dll);
+      else console.log(`(${path.relative(repo, dll)} not activated: ${error.message})`);
+    }
   }
+  check('the extension is activated', activated.length > 0, 'neither assembly');
 
   const lines = source.split('\n');
   const at = (text, name = text) => {
     const line = lines.findIndex(l => l.includes(text));
     return { line, character: lines[line].indexOf(name) };
   };
+  // The name the extension tries first, then the old spelling, as src/services/refactoring/csharpServer.ts does
+  // and the first assembly whose handlers the server knows
+  let dispatchMethod = 'textDocument/_vs_dispatchExtensionMessage';
+  let assembly = 0;
+  const send = async (handler, message) => {
+    const params = { textDocument: { uri }, messageName: `Shinobi.Refactorings.${handler}`, assemblyFilePath: dlls[assembly], message: JSON.stringify(message) };
+    try {
+      return await request(dispatchMethod, params);
+    } catch (error) {
+      if (!/No method by the name/i.test(error.message)) throw error;
+      dispatchMethod = dispatchMethod.includes('dispatch') ? 'textDocument/_vs_dipatchExtensionMessage' : 'textDocument/_vs_dispatchExtensionMessage';
+      console.log(`(the server knows ${dispatchMethod})`);
+      return request(dispatchMethod, params);
+    }
+  };
   const ask = async (handler, message) => {
-    const reply = await request('textDocument/_vs_dipatchExtensionMessage', { textDocument: { uri }, messageName: `Shinobi.Refactorings.${handler}`, assemblyFilePath: dll, message: JSON.stringify(message) });
+    let reply;
+    for (;;) {
+      try {
+        reply = await send(handler, message);
+        break;
+      } catch (error) {
+        if (!/No handler found/i.test(error.message) || assembly + 1 >= dlls.length) throw error;
+        assembly++;
+        console.log(`(the server has no handlers in the first assembly, using ${path.relative(repo, dlls[assembly])})`);
+      }
+    }
     return reply?.response ? JSON.parse(reply.response) : undefined;
   };
   const probe = async (handler, position, ok) => {

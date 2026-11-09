@@ -42,22 +42,22 @@ public sealed record ChangeSignatureRequest(
     [property: JsonPropertyName("parameters")] IReadOnlyList<SignatureEdit> Parameters);
 
 /// <summary>The method under the cursor and its parameters: cheap, for the lightbulb.</summary>
-public sealed class ChangeSignatureInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ChangeSignatureInfo?>
+public sealed class ChangeSignatureInfoHandler : DocumentHandler<TypeAt, ChangeSignatureInfo?>
 {
-    public Task<ChangeSignatureInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ChangeSignatureInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => ChangeSignatureEngine.InfoAsync(document, message.Position, false, cancellationToken);
 }
 
 /// <summary>The same with the methods that change along (overrides, implementations), which look through the solution: asked when the refactoring runs.</summary>
-public sealed class ChangeSignatureDetailsHandler : IExtensionDocumentMessageHandler<TypeAt, ChangeSignatureInfo?>
+public sealed class ChangeSignatureDetailsHandler : DocumentHandler<TypeAt, ChangeSignatureInfo?>
 {
-    public Task<ChangeSignatureInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ChangeSignatureInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => ChangeSignatureEngine.InfoAsync(document, message.Position, true, cancellationToken);
 }
 
-public sealed class ChangeSignatureHandler : IExtensionDocumentMessageHandler<ChangeSignatureRequest, ExtractInterfaceResult?>
+public sealed class ChangeSignatureHandler : DocumentHandler<ChangeSignatureRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(ChangeSignatureRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(ChangeSignatureRequest message, Document document, CancellationToken cancellationToken)
         => ChangeSignatureEngine.RunAsync(document, message, cancellationToken);
 }
 

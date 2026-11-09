@@ -29,15 +29,15 @@ public sealed record ConvertTypeRequest(
     /// <summary>Abstract class to interface: members with a body stay as default interface members.</summary>
     [property: JsonPropertyName("defaultMembers")] bool DefaultMembers);
 
-public sealed class ConvertTypeInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ConvertTypeInfo?>
+public sealed class ConvertTypeInfoHandler : DocumentHandler<TypeAt, ConvertTypeInfo?>
 {
-    public Task<ConvertTypeInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ConvertTypeInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => ConvertTypeEngine.InfoAsync(document, message.Position, cancellationToken);
 }
 
-public sealed class ConvertTypeHandler : IExtensionDocumentMessageHandler<ConvertTypeRequest, ExtractInterfaceResult?>
+public sealed class ConvertTypeHandler : DocumentHandler<ConvertTypeRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(ConvertTypeRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(ConvertTypeRequest message, Document document, CancellationToken cancellationToken)
         => ConvertTypeEngine.RunAsync(document, message, cancellationToken);
 }
 

@@ -55,9 +55,9 @@ public sealed record FileEdits(
     [property: JsonPropertyName("edits")] IReadOnlyList<TextEdit> Edits);
 
 /// <summary>What the Extract Interface dialog lists: the type under the cursor and its members that can go into an interface.</summary>
-public sealed class ExtractInterfaceInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ExtractInterfaceInfo?>
+public sealed class ExtractInterfaceInfoHandler : DocumentHandler<TypeAt, ExtractInterfaceInfo?>
 {
-    public async Task<ExtractInterfaceInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override async Task<ExtractInterfaceInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
     {
         var found = await ExtractInterfaceSupport.FindTypeAsync(document, message.Position, cancellationToken).ConfigureAwait(false);
         if (found is null) { return null; }
@@ -70,9 +70,9 @@ public sealed class ExtractInterfaceInfoHandler : IExtensionDocumentMessageHandl
 }
 
 /// <summary>Builds the edits: the interface (in a new file next to the class, or above the class) and the class getting it as a base.</summary>
-public sealed class ExtractInterfaceHandler : IExtensionDocumentMessageHandler<ExtractInterfaceRequest, ExtractInterfaceResult?>
+public sealed class ExtractInterfaceHandler : DocumentHandler<ExtractInterfaceRequest, ExtractInterfaceResult?>
 {
-    public async Task<ExtractInterfaceResult?> ExecuteAsync(ExtractInterfaceRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override async Task<ExtractInterfaceResult?> ExecuteAsync(ExtractInterfaceRequest message, Document document, CancellationToken cancellationToken)
     {
         var found = await ExtractInterfaceSupport.FindTypeAsync(document, message.Position, cancellationToken).ConfigureAwait(false);
         if (found is null) { return null; }

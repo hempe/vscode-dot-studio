@@ -41,16 +41,16 @@ public sealed record PushDownRequest(
     [property: JsonPropertyName("leaveAbstract")] bool LeaveAbstract);
 
 /// <summary>The class under the cursor (on its name or on one of its members), the classes derived from it in the solution's source, and its members.</summary>
-public sealed class PushDownInfoHandler : IExtensionDocumentMessageHandler<TypeAt, PushDownInfo?>
+public sealed class PushDownInfoHandler : DocumentHandler<TypeAt, PushDownInfo?>
 {
-    public Task<PushDownInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<PushDownInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => PushDownEngine.InfoAsync(document, message.Position, cancellationToken);
 }
 
 /// <summary>Copies the chosen members into the chosen derived types and removes them from the class (or leaves an abstract declaration); compiled before it is applied.</summary>
-public sealed class PushDownHandler : IExtensionDocumentMessageHandler<PushDownRequest, ExtractInterfaceResult?>
+public sealed class PushDownHandler : DocumentHandler<PushDownRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(PushDownRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(PushDownRequest message, Document document, CancellationToken cancellationToken)
         => PushDownEngine.RunAsync(document, message, cancellationToken);
 }
 

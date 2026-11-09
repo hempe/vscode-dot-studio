@@ -60,23 +60,23 @@ public sealed record UseBaseTypeRequest(
     [property: JsonPropertyName("targetId")] string TargetId);
 
 /// <summary>The base types and interfaces of the type under the cursor that its uses could name instead; no counts, so it is cheap enough for the lightbulb.</summary>
-public sealed class UseBaseTypeInfoHandler : IExtensionDocumentMessageHandler<TypeAt, UseBaseTypeInfo?>
+public sealed class UseBaseTypeInfoHandler : DocumentHandler<TypeAt, UseBaseTypeInfo?>
 {
-    public Task<UseBaseTypeInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<UseBaseTypeInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => UseBaseTypeEngine.InfoAsync(document, message.Position, withCounts: false, cancellationToken);
 }
 
 /// <summary>The same with how many declarations would name each base type (it looks through the solution for the uses).</summary>
-public sealed class UseBaseTypeCountsHandler : IExtensionDocumentMessageHandler<TypeAt, UseBaseTypeInfo?>
+public sealed class UseBaseTypeCountsHandler : DocumentHandler<TypeAt, UseBaseTypeInfo?>
 {
-    public Task<UseBaseTypeInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<UseBaseTypeInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => UseBaseTypeEngine.InfoAsync(document, message.Position, withCounts: true, cancellationToken);
 }
 
 /// <summary>Replaces the type by the chosen base type where only what the base type has is used; compiled before it is applied.</summary>
-public sealed class UseBaseTypeHandler : IExtensionDocumentMessageHandler<UseBaseTypeRequest, ExtractInterfaceResult?>
+public sealed class UseBaseTypeHandler : DocumentHandler<UseBaseTypeRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(UseBaseTypeRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(UseBaseTypeRequest message, Document document, CancellationToken cancellationToken)
         => UseBaseTypeEngine.RunAsync(document, message, cancellationToken);
 }
 

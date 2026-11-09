@@ -36,10 +36,10 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Outer.cs", source));
         var document = h.Document("Outer.cs");
         var position = Harness.At(source, "class Tools", "Tools");
-        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var ids = info.Members.Where(m => m.Signature.Contains("Two")).Select(m => m.Id).ToList();
 
-        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), null!, document, default))!;
+        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), document, default))!;
 
         Assert.Null(result.Errors);
         Assert.Contains("internal sealed partial class Outer", result.NewFileContent);
@@ -67,10 +67,10 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Item.cs", source));
         var document = h.Document("Item.cs");
         var position = Harness.At(source, "class Item", "Item");
-        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var ids = info.Members.Where(m => m.Signature.Contains("Comment")).Select(m => m.Id).ToList();
 
-        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), null!, document, default))!;
+        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), document, default))!;
 
         Assert.Null(result.Errors);
         Assert.Contains("using System;", result.NewFileContent);
@@ -83,10 +83,10 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Order.cs", Source));
         var document = h.Document("Order.cs");
         var position = Harness.At(Source, "class Order", "Order");
-        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var ids = info.Members.Where(m => m.Signature.Contains("Total") || m.Signature.Contains("Add")).Select(m => m.Id).ToList();
 
-        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), null!, document, default))!;
+        var result = (await new ExtractPartialHandler().ExecuteAsync(new ExtractPartialRequest(position, "Part", ids), document, default))!;
 
         Assert.Null(result.Errors);
         Assert.EndsWith("Order.Part.cs", result.NewFilePath);
@@ -103,9 +103,9 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Order.cs", Source), ("Order.Part.cs", "namespace App; public partial class Order { public int Extra; }"));
         var document = h.Document("Order.cs");
         var position = Harness.At(Source, "class Order", "Order");
-        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractPartialInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new ExtractPartialHandler().ExecuteAsync(
-            new ExtractPartialRequest(position, "Part", [info.Members[1].Id]), null!, document, default));
+            new ExtractPartialRequest(position, "Part", [info.Members[1].Id]), document, default));
         Assert.Contains("Order.Part.cs exists already", error.Message);
     }
 
@@ -115,11 +115,11 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Order.cs", Source));
         var document = h.Document("Order.cs");
         var position = Harness.At(Source, "class Order", "Order");
-        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         Assert.Contains(info.Members, m => m.Signature.StartsWith("int Total"));
 
         var result = (await new ExtractInterfaceHandler().ExecuteAsync(
-            new ExtractInterfaceRequest(position, "IOrder", info.Members.Select(m => m.Id).ToList(), true), null!, document, default))!;
+            new ExtractInterfaceRequest(position, "IOrder", info.Members.Select(m => m.Id).ToList(), true), document, default))!;
 
         Assert.Null(result.Errors);
         Assert.Contains("public class Order : IOrder", Harness.Apply(Source, result));
@@ -133,13 +133,13 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Order.cs", Source), ("IOrder.cs", "namespace App; public interface IOrder { }"));
         var document = h.Document("Order.cs");
         var position = Harness.At(Source, "class Order", "Order");
-        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var ids = info.Members.Select(m => m.Id).ToList();
-        var ok = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder2", ids, false), null!, document, default))!;
+        var ok = (await new ExtractInterfaceHandler().ExecuteAsync(new ExtractInterfaceRequest(position, "IOrder2", ids, false), document, default))!;
         Assert.Null(ok.Errors);
 
         var type = await Assert.ThrowsAsync<InvalidOperationException>(() => new ExtractInterfaceHandler().ExecuteAsync(
-            new ExtractInterfaceRequest(position, "IOrder", ids, false), null!, document, default));
+            new ExtractInterfaceRequest(position, "IOrder", ids, false), document, default));
         Assert.Contains("A type called IOrder exists already", type.Message);
 
         // a new file of that name: the file is the problem, even when the type is not there
@@ -170,9 +170,9 @@ public class ExtractPartialAndInterfaceTests
         var h = new Harness(("Box.cs", source));
         var document = h.Document("Box.cs");
         var position = Harness.At(source, "class Box", "Box");
-        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), null!, document, default))!;
+        var info = (await new ExtractInterfaceInfoHandler().ExecuteAsync(new TypeAt(position), document, default))!;
         var result = (await new ExtractInterfaceHandler().ExecuteAsync(
-            new ExtractInterfaceRequest(position, "IBox", info.Members.Select(m => m.Id).ToList(), true), null!, document, default))!;
+            new ExtractInterfaceRequest(position, "IBox", info.Members.Select(m => m.Id).ToList(), true), document, default))!;
         Assert.Null(result.Errors);
         var file = Harness.Lf(result.NewFileContent!);
         Assert.Contains("public interface IBox<T, TKey> where T : class, IComparable<T>, new() where TKey : struct", file);

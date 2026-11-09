@@ -39,16 +39,16 @@ public sealed record ExtractSuperclassRequest(
     [property: JsonPropertyName("useBaseType")] bool UseBaseType = false);
 
 /// <summary>The members of the class under the cursor that can go into a new base class, with what they depend on.</summary>
-public sealed class ExtractSuperclassInfoHandler : IExtensionDocumentMessageHandler<TypeAt, ExtractSuperclassInfo?>
+public sealed class ExtractSuperclassInfoHandler : DocumentHandler<TypeAt, ExtractSuperclassInfo?>
 {
-    public Task<ExtractSuperclassInfo?> ExecuteAsync(TypeAt message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractSuperclassInfo?> ExecuteAsync(TypeAt message, Document document, CancellationToken cancellationToken)
         => ExtractSuperclassEngine.InfoAsync(document, message.Position, cancellationToken);
 }
 
 /// <summary>Creates the base class, moves or declares the chosen members there, and makes the class derive from it; refuses what it cannot do right.</summary>
-public sealed class ExtractSuperclassHandler : IExtensionDocumentMessageHandler<ExtractSuperclassRequest, ExtractInterfaceResult?>
+public sealed class ExtractSuperclassHandler : DocumentHandler<ExtractSuperclassRequest, ExtractInterfaceResult?>
 {
-    public Task<ExtractInterfaceResult?> ExecuteAsync(ExtractSuperclassRequest message, ExtensionMessageContext context, Document document, CancellationToken cancellationToken)
+    public override Task<ExtractInterfaceResult?> ExecuteAsync(ExtractSuperclassRequest message, Document document, CancellationToken cancellationToken)
         => ExtractSuperclassEngine.RunAsync(document, message, cancellationToken);
 }
 

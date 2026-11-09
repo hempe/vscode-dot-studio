@@ -32,7 +32,7 @@ import { PublishPanel } from './webview/providers/PublishPanel';
 import { ConfigurationManagerPanel } from './webview/providers/ConfigurationManagerPanel';
 import { StartupProjectsPanel } from './webview/providers/StartupProjectsPanel';
 import { RefactoringPanel } from './webview/providers/RefactoringPanel';
-import { CSharpServer, SERVER_EXTENSION_PATH } from './services/refactoring/csharpServer';
+import { CSharpServer, SERVER_EXTENSION_PATHS } from './services/refactoring/csharpServer';
 import { TypeRefactoring } from './services/refactoring/typeRefactoring';
 import { EXTRACT_INTERFACE } from './services/refactoring/extractInterface';
 import { EXTRACT_PARTIAL } from './services/refactoring/extractPartial';
@@ -146,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
     ConfigurationManagerPanel.extensionUri = context.extensionUri;
     StartupProjectsPanel.extensionUri = context.extensionUri;
     RefactoringPanel.extensionUri = context.extensionUri;
-    const csharpServer = new CSharpServer(vscode.Uri.joinPath(context.extensionUri, SERVER_EXTENSION_PATH).fsPath);
+    const csharpServer = new CSharpServer(SERVER_EXTENSION_PATHS.map(dll => vscode.Uri.joinPath(context.extensionUri, dll).fsPath));
     const checkedExtractions = [EXTRACT_METHOD_CHECKED, EXTRACT_LOCAL_FUNCTION_CHECKED].map(extraction => new ExtractMethodChecked(csharpServer, extraction));
     const typeRefactorings = [EXTRACT_INTERFACE, EXTRACT_PARTIAL, EXTRACT_SUPERCLASS, PULL_UP, USE_BASE_TYPE, PUSH_DOWN, CONVERT_TYPE, EXTRACT_CLASS, MOVE_TYPE_NAMESPACE, CHANGE_SIGNATURE].map(spec => new TypeRefactoring(csharpServer, spec));
     registerRenameSync(context);

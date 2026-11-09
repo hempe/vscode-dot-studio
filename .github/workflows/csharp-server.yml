@@ -1,0 +1,39 @@
+name: C# extension check
+
+# Every night: loads the refactorings (server-extension/) into the language server of the newest C# extensions and asks every
+# handler (scripts/check-server-extension.mjs). A new C# extension can bind another Roslyn or change the extension API, and the
+# refactorings would silently be gone from Ctrl+.; this finds it before users do. ms-prerelease is what the stable one will be.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.extension }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extension: [ms-stable, ms-prerelease, fork]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # The server runs on the .NET runtime; the check's small solution targets net10.0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - run: npm run build:server-extension
+
+      - name: Download the language server
+        run: echo "ROSLYN_SERVER=$(node scripts/ci/fetch-csharp-server.mjs ${{ matrix.extension }})" >> "$GITHUB_ENV"
+
+      - run: npm run check:server-extension
