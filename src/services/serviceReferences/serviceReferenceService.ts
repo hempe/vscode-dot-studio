@@ -81,7 +81,9 @@ async function generate(projectPath: string, reference: ServiceReference, verb: 
         }));
     outputChannel().appendLine(result.output);
     if (!result.success) {
-        void showFailure(`${verb} service reference ${reference.name} failed.`);
+        void showFailure(verb === 'Adding'
+            ? t('Adding service reference {0} failed.', reference.name)
+            : t('Updating service reference {0} failed.', reference.name));
         return;
     }
     vscode.window.showInformationMessage(verb === 'Adding'
