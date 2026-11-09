@@ -126,7 +126,8 @@ https://go.microsoft.com/fwlink/?LinkID=208121.
 describe('publishDirOverride', () => {
     it('gives the folder of a profile that names it only as PublishUrl (an older Visual Studio), resolved against the project', () => {
         const xml = '<Project>\n  <PropertyGroup>\n    <PublishUrl>bin\\Release\\net10.0\\vs-publish\\</PublishUrl>\n    <WebPublishMethod>FileSystem</WebPublishMethod>\n  </PropertyGroup>\n</Project>';
-        expect(publishDirOverride(xml, path.join(path.sep, 'repo', 'Web'))).toBe(path.join(path.sep, 'repo', 'Web', 'bin', 'Release', 'net10.0', 'vs-publish'));
+        // path.resolve: on Windows a rooted path gets the drive letter
+        expect(publishDirOverride(xml, path.resolve(path.sep, 'repo', 'Web'))).toBe(path.resolve(path.sep, 'repo', 'Web', 'bin', 'Release', 'net10.0', 'vs-publish'));
     });
 
     it('nothing when the profile has a PublishDir (dotnet publish reads that) or no folder', () => {

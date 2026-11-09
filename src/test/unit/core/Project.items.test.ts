@@ -442,7 +442,8 @@ describe('Project file tree with the item overlay', () => {
 
     test('a failed evaluation is tried again by itself after its delay, and a redraw follows when that gives a list', async () => {
         const evaluate = ProjectItemsService.instance.evaluate as jest.Mock;
-        jest.spyOn(ProjectItemsService.instance, 'retryDelay').mockReturnValueOnce(20).mockReturnValue(undefined);
+        // A delay a slow CI machine (Windows) cannot pass before the first check
+        jest.spyOn(ProjectItemsService.instance, 'retryDelay').mockReturnValueOnce(300).mockReturnValue(undefined);
         const project = await newProject();
         await project.getRootChildren();
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -451,7 +452,7 @@ describe('Project file tree with the item overlay', () => {
         jest.spyOn(ProjectItemsService.instance, 'version').mockImplementation(() => version);
         evaluate.mockImplementation(async () => { version = 1; return undefined; });
         fired(project).mockClear();
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 600));
         expect(evaluate).toHaveBeenCalledTimes(2);
         expect(fired(project)).toHaveBeenCalled();
         // no failure any more: no further retry
