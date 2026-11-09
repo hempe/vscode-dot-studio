@@ -446,5 +446,7 @@
   "Review Each": "Review Each",
   "Update": "Update",
   "Skip All Remaining": "Skip All Remaining",
-  "{0} holds the project, or is the root or home folder: its files are not deleted before publishing.": "{0} holds the project, or is the root or home folder: its files are not deleted before publishing."
+  "{0} holds the project, or is the root or home folder: its files are not deleted before publishing.": "{0} holds the project, or is the root or home folder: its files are not deleted before publishing.",
+  "Report Issue": "Report Issue",
+  "The refactorings of Shinobi .NET Studio cannot run in the language server of {0}, so Ctrl+. shows only the server's own. Everything else works; an update of Shinobi .NET Studio will support this version.": "The refactorings of Shinobi .NET Studio cannot run in the language server of {0}, so Ctrl+. shows only the server's own. Everything else works; an update of Shinobi .NET Studio will support this version."
 }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CSHARP_EXTENSIONS } from '../shared/csharpExtensionCheck';
 import { logger } from '../../core/logger';
+import { t } from '../../core/i18n';
 
 const log = logger('CSharpServer');
 
@@ -26,15 +27,19 @@ const NO_HANDLER = /No handler found/i;
 const ALREADY_REGISTERED = /already registered/i;
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
-async function api(): Promise<CSharpApi | undefined> {
-    for (const id of Object.values(CSHARP_EXTENSIONS)) {
-        const extension = vscode.extensions.getExtension<CSharpApi>(id);
-        if (extension) {
-            return extension.isActive ? extension.exports : extension.activate();
-        }
-    }
-    return undefined;
+function csharpExtension(): vscode.Extension<CSharpApi> | undefined {
+    return Object.values(CSHARP_EXTENSIONS).map(id => vscode.extensions.getExtension<CSharpApi>(id)).find(extension => !!extension);
 }
+
+async function api(): Promise<CSharpApi | undefined> {
+    const extension = csharpExtension();
+    return extension && (extension.isActive ? extension.exports : extension.activate());
+}
+
+/** The server runs but cannot use our assemblies (a C# extension whose server changed the extension API): the refactorings are off */
+export class ServerExtensionIncompatibleError extends Error {}
+
+const ISSUES = 'https://github.com/hempe/vscode-dot-studio/issues/new';
 
 /** Messages to the handlers of our assembly in the Roslyn language server of the C# extension */
 export class CSharpServer {
@@ -42,6 +47,8 @@ export class CSharpServer {
     private dispatchMethod = DISPATCH_DOCUMENT;
     /** The assembly whose handlers the server knows (the one for its Roslyn) */
     private assembly = 0;
+    /** Set once the server turned out not to take our assemblies: no more questions to it, the user was told once */
+    private incompatible: ServerExtensionIncompatibleError | undefined;
 
     constructor(private readonly assemblyPaths: readonly string[]) {}
 
@@ -117,7 +124,11 @@ export class CSharpServer {
             }
             this.dispatchMethod = this.dispatchMethod === DISPATCH_DOCUMENT ? DISPATCH_DOCUMENT_OLD : DISPATCH_DOCUMENT;
             log.debug(`The server has no ${messageOf(error)}, using ${this.dispatchMethod}`);
-            return this.send<R>(this.dispatchMethod, params);
+            try {
+                return await this.send<R>(this.dispatchMethod, params);
+            } catch (second) {
+                throw NO_METHOD.test(messageOf(second)) ? this.markIncompatible(messageOf(second)) : second;
+            }
         }
     }
 
@@ -148,8 +159,33 @@ export class CSharpServer {
         throw lastError;
     }
 
+    /** Remembers that the server cannot take our assemblies and tells the user once; returns the error to throw */
+    private markIncompatible(detail: string): ServerExtensionIncompatibleError {
+        if (!this.incompatible) {
+            const extension = csharpExtension();
+            const version = extension ? `${extension.id} ${extension.packageJSON?.version ?? ''}`.trim() : 'the C# extension';
+            log.warn(`The language server of ${version} cannot use the refactorings: ${detail}`);
+            this.incompatible = new ServerExtensionIncompatibleError(detail);
+            const report = t('Report Issue');
+            void vscode.window.showWarningMessage(
+                t('The refactorings of Shinobi .NET Studio cannot run in the language server of {0}, so Ctrl+. shows only the server\'s own. Everything else works; an update of Shinobi .NET Studio will support this version.', version),
+                report,
+            ).then(answer => {
+                if (answer === report) {
+                    const title = `Refactorings do not load with ${version}`;
+                    const body = `The language server of ${version} cannot use the refactorings:\n\n\`\`\`\n${detail}\n\`\`\``;
+                    void vscode.env.openExternal(vscode.Uri.parse(`${ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`));
+                }
+            });
+        }
+        return this.incompatible;
+    }
+
     /** Runs the handler `handler` (a class of our assembly) on `document` and returns its JSON answer */
     async document<M, R>(document: vscode.Uri, handler: string, message: M): Promise<R | undefined> {
+        if (this.incompatible) {
+            throw this.incompatible;
+        }
         const dispatch = async () => this.dispatchToAssembly<{ response?: string }>(handler, {
             textDocument: { uri: document.toString() },
             message: JSON.stringify(message),
@@ -165,7 +201,12 @@ export class CSharpServer {
             // The server restarted since: it has to be told about our assembly again
             log.debug(`${handler} not known to the server, activating the extension again`);
             await this.activate(true);
-            reply = await dispatch();
+            try {
+                reply = await dispatch();
+            } catch (second) {
+                // Registered again and still unknown: the server does not take our assemblies
+                throw NO_HANDLER.test(messageOf(second)) ? this.markIncompatible(messageOf(second)) : second;
+            }
         }
         return reply.response ? JSON.parse(reply.response) as R : undefined;
     }

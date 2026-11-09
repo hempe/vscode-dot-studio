@@ -30,6 +30,8 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 
 **"A C# extension is needed" / F5 does nothing.** Install `ms-dotnettools.csharp` (VS Code) or `muhammad-sammy.csharp` (VSCodium); it provides the debugger.
 
+**"The refactorings of Shinobi .NET Studio cannot run in the language server of ..."** The C# extension was updated to a version whose language server changed the interface the refactorings use (Extract Interface, Pull Members Up and the others of [Refactorings](enhanced-refactorings.md)). Ctrl+. still offers the server's own refactorings and the rest of the extension works; the message says it once per window. Update Shinobi .NET Studio, or go back to the previous C# extension version (Extensions view > the C# extension > Install Specific Version); **Report Issue** opens a GitHub issue with the version filled in.
+
 **F5 starts the wrong thing.** F5 runs the configuration selected in VS Code's Run and Debug view; select `Startup` there, or set the startup project again.
 
 ## Build errors

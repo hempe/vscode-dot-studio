@@ -1,16 +1,24 @@
 const exportsOf = { experimental: { sendServerRequest: jest.fn() } };
+const showWarningMessage = jest.fn(async (..._args: unknown[]) => undefined as string | undefined);
+const openExternal = jest.fn();
 jest.mock('vscode', () => ({
-    extensions: { getExtension: (id: string) => id === 'muhammad-sammy.csharp' ? { isActive: true, exports: exportsOf } : undefined },
+    extensions: {
+        getExtension: (id: string) => id === 'muhammad-sammy.csharp'
+            ? { id, packageJSON: { version: '2.200.0' }, isActive: true, exports: exportsOf } : undefined,
+    },
+    window: { showWarningMessage: (...args: unknown[]) => showWarningMessage(...args) },
+    env: { openExternal: (...args: unknown[]) => openExternal(...args) },
+    Uri: { parse: (value: string) => ({ value }) },
     CancellationTokenSource: class { token = {}; },
 }), { virtual: true });
 
-import { CSharpServer } from '../../../../services/refactoring/csharpServer';
+import { CSharpServer, ServerExtensionIncompatibleError } from '../../../../services/refactoring/csharpServer';
 
 const send = exportsOf.experimental.sendServerRequest;
 const uri = { toString: () => 'file:///a/Order.cs' } as never;
 
 describe('CSharpServer', () => {
-    beforeEach(() => send.mockReset());
+    beforeEach(() => { send.mockReset(); showWarningMessage.mockClear(); openExternal.mockClear(); });
 
     it('activates the assembly once, then runs the handler on the document', async () => {
         send.mockImplementation(async (type: { method: string }) => type.method.includes('activate') ? {} : { response: '{"ok":1}' });
@@ -112,5 +120,37 @@ describe('CSharpServer', () => {
     it('fails when no assembly can be activated', async () => {
         send.mockImplementation(async (type: { method: string }) => { if (type.method.includes('activate')) { throw new Error('Could not load'); } return {}; });
         await expect(new CSharpServer(['/new.dll', '/old.dll']).document(uri, 'H', {})).rejects.toThrow('Could not load');
+    });
+
+    it('tells once that the server cannot use the refactorings when it knows none of the handlers even after registering again, then asks no more', async () => {
+        send.mockImplementation(async (type: { method: string }) => {
+            if (type.method.includes('activate')) { return {}; }
+            throw new Error('No handler found for message H.');
+        });
+        showWarningMessage.mockResolvedValueOnce('Report Issue');
+        const server = new CSharpServer(['/new.dll', '/old.dll']);
+        await expect(server.document(uri, 'H', {})).rejects.toThrow(ServerExtensionIncompatibleError);
+        const asked = send.mock.calls.length;
+        await expect(server.document(uri, 'H', {})).rejects.toThrow(ServerExtensionIncompatibleError);
+        expect(send.mock.calls.length).toBe(asked);
+        expect(showWarningMessage).toHaveBeenCalledTimes(1);
+        expect(showWarningMessage.mock.calls[0][0]).toContain('muhammad-sammy.csharp 2.200.0');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(String((openExternal.mock.calls[0][0] as { value: string }).value)).toContain('issues/new?title=Refactorings%20do%20not%20load');
+    });
+
+    it('tells it too when the server has neither name of the dispatch method', async () => {
+        send.mockImplementation(async (type: { method: string }) => {
+            if (type.method.includes('activate')) { return {}; }
+            throw new Error(`No method by the name '${type.method}' is found.`);
+        });
+        await expect(new CSharpServer(['/x.dll']).document(uri, 'H', {})).rejects.toThrow(ServerExtensionIncompatibleError);
+        expect(showWarningMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays quiet when the server is not there (no C# extension, still starting)', async () => {
+        send.mockRejectedValue(new Error('Client is not running'));
+        await expect(new CSharpServer(['/x.dll']).document(uri, 'H', {})).rejects.toThrow('Client is not running');
+        expect(showWarningMessage).not.toHaveBeenCalled();
     });
 });
