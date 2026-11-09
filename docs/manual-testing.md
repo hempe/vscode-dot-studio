@@ -147,6 +147,11 @@ What the Playwright checks in `scripts/spikes/playwright` cannot do or that make
 - [ ] .NET Framework with Mono on Linux, still open (`src/__fixtures__/net-framework`, copy it elsewhere): the Ctrl+F5 key did nothing on one Linux setup while the button worked (is it `inDebugMode` or the desktop taking the key? check Developer: Toggle Keyboard Shortcuts Troubleshooting); `environmentVariables` of the profile reach the program; with `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and `Legacy.App` as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono (also right after editing `TargetFrameworks` in the open project, no reload needed)
 - [ ] SDK-style projects that target .NET Framework (`src/__fixtures__/net-framework`, as .sln and .slnx): the tree shows files and the Newtonsoft.Json package, Build works, Select Framework on `Multi.Lib` lists `net48` and `net10.0` (on the .slnx too, which listed nothing before), the NuGet manager installs and removes a package
 
+### Needs other editors
+
+- [ ] Cursor and Windsurf (the README names them): the extension installs from their extension view (Open VSX), with `muhammad-sammy.csharp` the Solution Explorer opens BasicsTestProject, the NuGet manager installs a package, the Test Explorer runs a test, F5 debugs Shop.Web and a refactoring of Ctrl+. (Extract interface (choose members)...) works; the missing-C#-extension warning names the right extension
+- [ ] Positron (a keyword in `package.json`): the same, or drop the keyword
+
 ### Needs Visual Studio 2022
 
 - [ ] The item types the project items model knows (CodeAnalysisDictionary, DesignData, EntityDeploy, Fakes, Shadow, XamlAppDef, TypeScriptCompile...) against Visual Studio's build actions: in Visual Studio open a project with such items, compare what it lists under the project with what Show All Files lists (they came from memory); iOS/MAUI platform files also need a machine with the workloads installed
