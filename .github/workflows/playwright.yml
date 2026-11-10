@@ -73,7 +73,6 @@ jobs:
         run: echo "CODE_EXECUTABLE=$(node ci-download-vscode.mjs | tail -1)" >> "$GITHUB_ENV"
 
       # Checks that launch with { csharp: true } take the C# extension from ~/.vscode/extensions
-      # Checks that launch with { csharp: true } take the C# extension from ~/.vscode/extensions
       - name: Install the C# extension
         working-directory: scripts/spikes/playwright
         run: if grep -q 'csharp: true' "${{ matrix.check }}"; then node ci-install-csharp.mjs; fi
