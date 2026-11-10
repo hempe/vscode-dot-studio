@@ -87,8 +87,12 @@ export async function openSolutionExplorer(win) {
     // The activity bar item toggles the side bar: click it only when it is not open yet
     const tab = win.locator('.activitybar [role=tab]:has(a[aria-label="Solution Explorer"])');
     await tab.waitFor({ timeout: 15000 });
-    if ((await tab.getAttribute('aria-expanded')) !== 'true') await tab.click();
+    // A fresh profile of Microsoft's VS Code starts with the side bar hidden while the tab still says expanded: look at the side bar too
+    const sideBar = win.locator('.part.sidebar');
+    const open = async () => (await tab.getAttribute('aria-expanded')) === 'true' && await sideBar.isVisible();
+    if (!await open()) await tab.click();
     for (let i = 0; i < 60; i++) {
+        if (i % 10 === 9 && !await open()) await tab.click();
         const frame = win.frames().find(f => f.url().includes('fake.html'));
         if (frame && await frame.locator('[data-vscode-context]').count().catch(() => 0) > 0) return frame;
         await win.waitForTimeout(500);
