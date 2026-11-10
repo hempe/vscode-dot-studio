@@ -61,7 +61,7 @@
   "command.shinobi.solutionExplorer.copyFullPath.title": "Copy Full Path",
   "submenu.shinobi.solutionExplorer.debug.label": "Debug",
   "submenu.shinobi.solutionExplorer.entityFramework.label": "Entity Framework",
-  "displayName": "Shinobi .NET Studio",
+  "displayName": "Solution Explorer & NuGet for .NET (Shinobi)",
   "description": "A Visual Studio-style workflow in VS Code, VSCodium, Cursor and Windsurf: Solution Explorer, NuGet, Test Explorer, Error List, Run & Debug, Configuration Manager, Publish.",
   "capabilities.untrustedWorkspaces.description": "Shinobi .NET Studio builds and runs the .NET projects of the folder (dotnet, MSBuild, tests), which executes code from the workspace.",
   "capabilities.virtualWorkspaces.description": "Shinobi .NET Studio needs the files of the solution on a disk where the dotnet CLI can read them.",

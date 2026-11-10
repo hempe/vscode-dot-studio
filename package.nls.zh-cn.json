@@ -61,7 +61,7 @@
   "command.shinobi.solutionExplorer.copyFullPath.title": "复制完整路径",
   "submenu.shinobi.solutionExplorer.debug.label": "调试",
   "submenu.shinobi.solutionExplorer.entityFramework.label": "实体框架",
-  "displayName": "Shinobi .NET Studio",
+  "displayName": ".NET 解决方案资源管理器与 NuGet (Shinobi)",
   "description": "在 VS Code、VSCodium、Cursor 与 Windsurf 中提供 Visual Studio 风格的工作流：解决方案资源管理器、NuGet、测试资源管理器、错误列表、运行与调试、配置管理器、发布。",
   "capabilities.untrustedWorkspaces.description": "Shinobi .NET Studio 会构建并运行文件夹中的 .NET 项目（dotnet、MSBuild、测试），这会执行工作区中的代码。",
   "capabilities.virtualWorkspaces.description": "Shinobi .NET Studio 需要解决方案文件位于磁盘上可供 dotnet CLI 读取的位置。",

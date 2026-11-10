@@ -14,7 +14,7 @@
 [![Open VSX downloads](https://img.shields.io/open-vsx/dt/shinobi/dotnet-studio)](https://open-vsx.org/extension/shinobi/dotnet-studio)
 [![License: MIT](https://img.shields.io/github/license/hempe/vscode-dot-studio)](LICENCE.md)
 
-VS Code: search for "Shinobi .NET Studio" in the Extensions view, or `code --install-extension shinobi.dotnet-studio --pre-release`.
+VS Code: search for "Shinobi" in the Extensions view (it is listed as *Solution Explorer & NuGet for .NET (Shinobi)*), or `code --install-extension shinobi.dotnet-studio --pre-release`.
 VSCodium and other Open VSX editors: the same search, or `codium --install-extension shinobi.dotnet-studio --pre-release`.
 
 Until the first stable release this is a pre-release: in the Extensions view choose **Install Pre-Release Version**.
