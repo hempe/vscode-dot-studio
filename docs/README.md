@@ -45,5 +45,5 @@ No solution yet? **.NET: Create New Project...** creates one with its first proj
 ## Project
 
 - [Roadmap](roadmap.md): what's next, known bugs and limitations
-- [History](history.md): what's done, phase by phase
+- [History](history.md): what's done, by topic in the order it was built
 - [Developer guide](../DEVELOPER.md): build, run and test the extension; [Manual testing](manual-testing.md) lists what still needs a check in VS Code itself

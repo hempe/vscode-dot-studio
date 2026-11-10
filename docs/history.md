@@ -1,18 +1,18 @@
 # History
 
-What has been built so far, phase by phase, with notes on how. What comes next is in the [roadmap](roadmap.md); what changed per release in the [changelog](../CHANGELOG.md).
+What has been built so far, by topic in the order it was built, with notes on how. What comes next is in the [roadmap](roadmap.md); what changed per release in the [changelog](../CHANGELOG.md).
 
-## Phase 1: Stabilize
+## Stabilize
 - [x] Fix the failing tests and the file nesting duplication
 - [x] Reject .slnx files that `dotnet` rejects (folder names without `/`, duplicates, missing paths) and show the reason instead of an empty tree
 - [x] Parse `launch.json` / `tasks.json` as JSONC and edit them without dropping other configurations or comments
 - [x] Warn when the solution is .slnx but `muhammad-sammy.csharp` runs OmniSharp (its default), which cannot load .slnx; offer to set `"dotnet.server.useOmnisharp": false` (Roslyn language server)
 - [x] Add existing projects into solution folders ("Add Existing Project…" on a solution folder; a project file picked as solution item is added as a project); projects added at the solution root stay there instead of getting folders that mirror their directories
 
-## Phase 1.5: Look like VS Code
+## Look like VS Code
 - [x] Files and folders in the Solution Explorer use the user's file icon theme (`workbench.iconTheme`, e.g. Seti, Material Icon Theme, vscode-icons); `@iconify` stays as the fallback, for dependency nodes, and for solutions/projects the theme has no dedicated icon for
 
-## Phase 2: Errors in the Problems Panel and the Solution Explorer
+## Errors in the Problems Panel and the Solution Explorer
 **Goal**: An equivalent of Visual Studio's Error List, and of the [Solution Error Visualizer](https://marketplace.visualstudio.com/items?itemName=VisualStudioPlatformTeam.SolutionErrorVisualizer) extension showing in the tree where errors, warnings and infos are. The tree markers are a must-have.
 
 **Solution Explorer markers**:
@@ -28,19 +28,19 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 
 **Error List** (like Visual Studio's; the Problems panel never shows hints, which is how Roslyn reports suggestions):
 - [x] Native "Error List" view in the panel: errors, warnings and messages (infos and suggestions), grouped by project and file
-- [x] Toggle errors, warnings and messages; click an entry to jump to its file and line (now a table, see Phase 2.5)
+- [x] Toggle errors, warnings and messages; click an entry to jump to its file and line (now a table, see [Error List like Visual Studio](#error-list-like-visual-studio))
 - [x] Error count badge on the view
 
 **Implementation Notes**:
-- Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the Phase 2 build tasks
+- Source is `vscode.languages.getDiagnostics()` / `onDidChangeDiagnostics`, which merges `$msCompile` build output and the C# language server; this depends on the build tasks above
 - Aggregate per file path in the extension host and send counts per node to the webview; the webview only renders them
 
-## Phase 2.5: Error List like Visual Studio
+## Error List like Visual Studio
 - [x] A table instead of a tree: severity, Code, Description, Project, File, Line
 - [x] Sort by any column; search box; filter Code, Project and File by their values (like Visual Studio's column filters); codes link to their documentation
 - [x] The Errors / Warnings / Messages toggles are shared settings (`shinobi.diagnostics.showErrors`, `showWarnings`, `showInfos`) that also decide which markers the Solution Explorer shows
 
-## Phase 3: Run & Debug Web Apps (F5)
+## Run & Debug Web Apps (F5)
 **Goal**: F5 on an ASP.NET project behaves like Visual Studio.
 
 - [x] Use the selected `launchSettings.json` profile: `applicationUrl`, `environmentVariables`, `commandLineArgs` (via the C# debugger's `launchSettingsProfile`; only `commandName: "Project"` profiles)
@@ -51,7 +51,7 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Debug/Release switch in the Solution Explorer title bar, for builds and F5 (configurations from the solution file; kept per user; the active one shows next to the view title)
 - [x] Follow changes to `launchSettings.json`: a removed or renamed profile falls back to another, and "Set Launch Profile..." appears once there are several
 
-## Phase 4: Connected Services (SOAP)
+## Connected Services (SOAP)
 **Goal**: The "Add Service Reference / Connected Service" workflow for WCF/SOAP clients.
 
 - [x] "Add Service Reference…" on a project or its Connected Services folder: WSDL URL or file, name, namespace
@@ -64,13 +64,13 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - `dotnet-svcutil` 8.0.0 needs .NET 9; it runs with `DOTNET_ROLL_FORWARD=Major` on newer runtimes
 - Generating runs `dotnet-svcutil --update` on a params file made from `ConnectedService.json` in a temporary folder under `obj/`; svcutil's own package edits (`System.ServiceModel.*` `4.10.*`) are undone
 
-## Phase 5: New Project & New Item Templates
+## New Project & New Item Templates
 - [x] "Add New Project" wizard on the solution or a solution folder: pick a template (search, categories, recently used first), then name, location (next to the other projects) and the template's own settings (framework preselected from the solution, authentication, HTTPS, controllers, …), Create adds it to the solution (folder)
 - [x] "Add New Item" wizard on projects and folders: Class, Interface, Record, Enum, Struct built in; controllers, Razor items, test classes, config files and your own `dotnet new` item templates, with their settings
 - [x] Generate namespaces from `RootNamespace` and the folder structure (folder names made valid identifiers, `Connected Services` → `Connected_Services`)
 - [x] Rename nested dependent files together with their parent (Form1.cs → Form1.Designer.cs, Form1.resx; Index.cshtml → Index.cshtml.cs)
 
-## Phase 6: Test Integration
+## Test Integration
 **Goal**: Test discovery and execution through the VS Code Test Explorer.
 
 - [x] `vscode.TestController` with project → namespace → class → test (→ parameterized cases) hierarchy, linked to file and line
@@ -81,10 +81,10 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - Microsoft.Testing.Platform's server mode: the test app (`dotnet <TargetPath> --server --client-port <port>`) connects to the extension and speaks JSON-RPC (`testing/discoverTests`, `testing/runTests`, `testing/testUpdates/tests`), which brings file and line of every test
 - Debugging starts the test app in the C# debugger with the same arguments
 
-## Phase 7: Private NuGet Feeds
+## Private NuGet Feeds
 - [x] Clear message when a private feed rejects its credentials (expired token): where the credentials are (file and line), what to do for popular feeds (Azure DevOps, GitHub, GitLab, JFrog, MyGet), and a way to enter a new token; credentials are found like NuGet finds them and a new token works without restarting
 
-## Phase 7.5: Visual Studio Basics
+## Visual Studio Basics
 **Goal**: The everyday Solution Explorer and Debug commands of Visual Studio that were still missing.
 
 - [x] Collapse All in the Solution Explorer title bar
@@ -98,16 +98,16 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Packages under Dependencies expand to the packages they depend on (transitive packages), as many levels deep as they go
 - [x] NuGet manager: the Installed tab lists the transitive packages in their own section, with the packages that bring them in; Install makes one a direct reference
 
-## Phase 8: Nice to Have
+## Nice to Have
 - [x] Test Explorer for classic VSTest projects (xUnit v2, NUnit/MSTest with the VSTest adapters)
 - [x] Manage user secrets (`dotnet user-secrets`) from the project context menu
 
-## Phase 9: Publish
+## Publish
 **Goal**: Visual Studio's Publish page for the Folder target: profiles in `Properties/PublishProfiles/*.pubxml`, compatible with Visual Studio.
 
 - [x] "Publish..." on a project: a Publish tab with the existing profiles, Publish button and summary (location, configuration, framework, deployment mode, runtime), new profile, rename and delete; Folder target with configuration, framework, runtime identifier, self-contained, single file, ReadyToRun
 
-## Phase 10: Polish
+## Polish
 **Goal**: Behave like a finished extension in the small things.
 
 - [x] No notifications for what the tree already shows (file created, project added, framework changed, ...), like Visual Studio
@@ -115,26 +115,26 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Publishing metadata: `CHANGELOG.md`, description, categories, keywords and a `.vscodeignore` that packages only the bundles
 - [x] Document Attach to Process (the C# extension's attach configuration) and database tools (the SQL Server (mssql) extension) for people coming from Visual Studio
 
-## Phase 11: Diagnosability
+## Diagnosability
 - [x] A "Shinobi .NET Studio" Output channel with all logs and VS Code's log levels (Developer: Set Log Level), so problems can be reported
 - [x] Troubleshooting page: empty tree, OmniSharp, tests not appearing, rejected feed credentials, where the logs are
 
-## Phase 12: Finding Solutions
+## Finding Solutions
 - [x] Solutions in subfolders (`src/App.sln`): the extension starts for them and finds them, like Visual Studio opens any solution
 
-## Phase 13: Tree Keyboard & Screenshots
+## Tree Keyboard & Screenshots
 - [x] Type-to-find in the Solution Explorer (typing jumps to the next matching node), Home and End
 - [x] Screenshots of the Solution Explorer, Error List, NuGet manager, Test Explorer and Publish tab in the README and docs, captured by a script (`scripts/screenshots/capture.sh`)
 
-## Phase 14: Starting Fresh & Multi-Select
+## Starting Fresh & Multi-Select
 - [x] Create a new solution with its first project in an empty folder, like Visual Studio's "Create a new project"
 - [x] Select several nodes in the Solution Explorer (Ctrl/Shift+click) to delete, cut, copy or build them together
 
-## Phase 15: Scale
+## Scale
 - [x] Multi-root workspaces: a solution in any workspace folder, not only the first
 - [x] Measure and improve loading and refreshing on large solutions: with 300 projects, loading takes about 0.4 s and a refresh with 50 expanded projects 35 ms (was 2 s); test projects are evaluated and built a few at a time
 
-## Phase 16: Visual Studio Basics, Part 2
+## Visual Studio Basics, Part 2
 **Goal**: The larger everyday features of Visual Studio that are still missing.
 
 - [x] Open and switch solutions: "Open Solution..." (the workspace's solutions, or any via Browse), the choice is remembered, like Visual Studio's File > Open > Solution
@@ -144,16 +144,16 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Pack on class libraries: builds the NuGet package (`dotnet pack`) for the active configuration with the project's package metadata (PackageId, Version, Authors, ...) and shows where the `.nupkg` went
 - [x] Configuration Manager like Visual Studio's (solution context menu, title-bar menu or command palette): an editor tab with the active configuration and platform, Edit Configurations... and Edit Platforms... (add with "Copy settings from", rename, remove; renaming keeps each project's own names), and a grid with each project's configuration, platform and Build; written to the .sln sections or the .slnx elements (only deviations from the default) at once; Select Solution Platform... in the title bar, the view title shows `Debug | x64`; solution builds pass `--configuration` and `-property:Platform` (MSBuild skips projects with Build off), single-project builds, F5, Pack and the analyzers use the project's mapped values. Limits: the project dropdowns list what the project file declares, single-project builds run even with Build off
 
-## Phase 17: Code Cleanup & Refactoring
+## Code Cleanup & Refactoring
 **Goal**: Visual Studio's project-wide fixes and the refactorings you reach for daily. Fixes at a spot in the code (Ctrl+.) come from the C# extension's Roslyn server and aren't duplicated.
 
 - [x] Code Cleanup, like Visual Studio's Analyze > Code Cleanup (Ctrl+K, Ctrl+E), on the solution, a project, a folder or a file in the tree and on the open file: three `dotnet format` steps (whitespace; unused usings, IDE0005, with `--severity hidden` on SDK 10 and newer, on older SDKs only when `.editorconfig` raises IDE0005; the code style fixes at the severity of the `shinobi.codeCleanup.severity` setting, default `warn`) with progress, Cancel and a summary. `dotnet format` does not sort usings: the language server's "Sort Usings" quick action (Ctrl+.) does
 - [x] Fix all occurrences of a diagnostic (e.g. IDE0090) in the document, project or solution: covered by the C# extension ("Fix All: ..." next to each fix), not duplicated
 - [x] Sync Namespaces on a project or folder, like Visual Studio's: for each C# file the language server's "Change namespace to '...'" action is applied (it also fixes references in other files), one file at a time with progress; needs the C# extension and IDE0130 reporting (`dotnet_diagnostic.IDE0130.severity` and `dotnet_style_namespace_match_folder` in `.editorconfig`)
-- [x] Refactorings: the C# extension's Roslyn server (`muhammad-sammy.csharp` 2.160.9, asked over LSP on 2026-10-20) already offers and applies what the team uses daily: file-scoped namespaces, primary constructor (and remove fields), Extract interface (no dialog: a new interface in the same file with the public members), Move type to its own file, Extract method, plus Introduce local/parameter, Inline temporary variable, Use implicit type. Not offered by the server: Change Signature, Move to namespace, Pull members up (see Phase 30)
+- [x] Refactorings: the C# extension's Roslyn server (`muhammad-sammy.csharp` 2.160.9, asked over LSP on 2026-10-20) already offers and applies what the team uses daily: file-scoped namespaces, primary constructor (and remove fields), Extract interface (no dialog: a new interface in the same file with the public members), Move type to its own file, Extract method, plus Introduce local/parameter, Inline temporary variable, Use implicit type. Not offered by the server: Change Signature, Move to namespace, Pull members up (all built later, see [Refactorings inside the C# server](#refactorings-inside-the-c-server-done-2026-11-04-released-in-030))
 - Menu group names are two digits now (`01_group`): VS Code sorts group names as text, so the tenth group of the project menu used to sort after the first
 
-## Phase 18: Run & Debug, Part 2
+## Run & Debug, Part 2
 **Goal**: The run and debug features that Visual Studio has beyond F5 on one project.
 
 - [x] Several startup projects like Visual Studio's "Configure Startup Projects": an editor tab with the single/multiple choice, a table of the projects with Action (None, Start, Start without debugging), launch profile and order, and "Share profile"; the profiles are Visual Studio's `.slnLaunch` files (shared, or the user file), so colleagues in Visual Studio get the same; "Select Startup Profile..." in the title bar. While a profile is active `.vscode/launch.json` holds a compound `Startup` (`stopAll`, one solution build as `preLaunchTask`), so F5 starts all, Ctrl+F5 runs all without the debugger and Stop ends all; unloaded projects are left out. The `.slnLaunch.user` file name and the launch profile key (`DebugTarget`) are not verified against Visual Studio
@@ -161,7 +161,7 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] HTTPS development certificate: before a project with an `https://` launch profile starts, an untrusted or missing certificate is reported once per session (Trust Certificate, Not Now, Don't Ask Again; `shinobi.debug.checkDevCertificate`), "Trust HTTPS Development Certificate" in the palette; trusting on Linux is partial and the message says so
 - [x] Hot Reload: "Start with Hot Reload" (project Debug submenu, palette) runs `dotnet watch run` in a "<project> (watch)" terminal with the project's launch profile. Without a debugger: with netcoredbg attached `dotnet watch` reports "Assembly updates cannot be applied while a debugger is attached" and stops applying changes (tried on SDK 10), so debugging and hot reload cannot be combined with this C# extension
 
-## Phase 19: Solution Explorer, Part 2
+## Solution Explorer, Part 2
 **Goal**: The second round for the Solution Explorer: the tree shows what the projects contain, and nodes move by dragging.
 
 - [x] The tree follows the project's items like Visual Studio: `dotnet msbuild -getItem` per project (one process per project at a time, further requests during a run give one more run; cached, evaluated again when the project file or a `Directory.Build.*` file changes) is laid over the disk listing; `<Compile Remove>` / `DefaultItemExcludes` hide files, linked files appear under their link path with a link badge, a multi-targeted project shows what its first framework contains; Show All Files (title bar, remembered per solution) shows the excluded files and `bin`/`obj` greyed out. Without the .NET SDK the tree shows the disk
@@ -169,19 +169,19 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] Drag & drop like Visual Studio: files and folders into folders and projects (the copy key copies: Ctrl, on macOS Ctrl, Cmd or Option), projects and solution folders into solution folders or to the root, solution items between solution folders, several selected nodes at once; the webview and the extension check the same rules (`core/dropRules.ts` works on node types and parent chains of opaque ids; the extension builds them again from the solution and refuses anything it does not know). `.sln` moves change `NestedProjects` and `SolutionItems` lines, `.slnx` moves rename folder `Name`s and move `<Project>`/`<File>` elements, keeping the formatting. Moved C# files get one namespace question per drop (Update All / Review Each / Skip); Cut/Paste and folder renames ask the same way now
 - Decided against: search in the Solution Explorer, the analyzers' rule lists, a Project Properties form and a Launch Profiles editor (see Not Planned in the roadmap)
 
-## Phase 20: NuGet, Part 2
+## NuGet, Part 2
 **Goal**: The NuGet manager, the Dependencies tree and the Updates/Consolidate tabs work with Central Package Management.
 
 - [x] Central Package Management (`Directory.Packages.props`): the project evaluation that already runs per project (`ProjectItemsService`) also reads `PackageReference`, `PackageVersion`, `GlobalPackageReference` and the CPM properties, so the tree and the NuGet manager show the version MSBuild uses and where it comes from (`override`, `global`); unknown versions are never offered as updates. Install, update, bulk update and uninstall edit `Directory.Packages.props` (or the props file it imports that defines the entry) and the project files as text edits that keep the formatting; new items never go into an `ItemGroup` with a `Condition`, and the files of one change are written all-or-nothing (the others get their old content back when one fails). A change that reaches projects that were not selected is confirmed first, with Set for This Project Only (`VersionOverride`) as the alternative; global packages are updated, removed for all projects or opted out per project (`GlobalPackageReference Remove`); a `PackageVersion` left unused is removed only when the user says so; Consolidate sets the central version and removes the overrides. `Directory.Packages.props` and its imports are watched (props files outside the workspace are checked when the NuGet manager gets focus); projects without CPM keep using the `dotnet` CLI. A multi-targeted project is evaluated for its first target framework only (see the known bugs in the roadmap)
 
-## Phase 21: Connected Services, Part 2
+## Connected Services, Part 2
 **Goal**: gRPC references next to the WCF ones, like Visual Studio's "Add Connected Service > gRPC".
 
-- [x] gRPC references from `.proto` files without `dotnet-grpc`: Add Service Reference asks WCF Web Service or gRPC first (the WCF flow is unchanged), gRPC takes a `.proto` file or a URL (downloaded into `Protos/`) and Client, Server or Both (Both first in web projects), writes the `<Protobuf>` item `dotnet-grpc` writes (`Link` for files outside the project, `<SourceUrl>` for URLs, formatting kept, placed unconditionally after the last unconditional `Protobuf` item) and adds the packages through the Central Package Management aware installs of Phase 20 (Grpc.Tools as a private development dependency; packages already there, or brought by `Grpc.AspNetCore`, left alone). Downloads are checked: a web page (HTML) or an empty answer is refused, 5 MB limit, one timeout for the whole download, cancel from the notification, https to http redirects refused, credentials redacted in messages and the output. A half-done Add (item written, packages failed) is finished by adding the same reference again. The project evaluation keeps `GrpcServices`, `Link` and `SourceUrl`, so Connected Services lists every `Protobuf` item, also without a `Connected Services` folder on disk; Update downloads URL references again and replaces the file only when it changed, Remove takes the item out and keeps the file
+- [x] gRPC references from `.proto` files without `dotnet-grpc`: Add Service Reference asks WCF Web Service or gRPC first (the WCF flow is unchanged), gRPC takes a `.proto` file or a URL (downloaded into `Protos/`) and Client, Server or Both (Both first in web projects), writes the `<Protobuf>` item `dotnet-grpc` writes (`Link` for files outside the project, `<SourceUrl>` for URLs, formatting kept, placed unconditionally after the last unconditional `Protobuf` item) and adds the packages through the Central Package Management aware installs (NuGet, Part 2) (Grpc.Tools as a private development dependency; packages already there, or brought by `Grpc.AspNetCore`, left alone). Downloads are checked: a web page (HTML) or an empty answer is refused, 5 MB limit, one timeout for the whole download, cancel from the notification, https to http redirects refused, credentials redacted in messages and the output. A half-done Add (item written, packages failed) is finished by adding the same reference again. The project evaluation keeps `GrpcServices`, `Link` and `SourceUrl`, so Connected Services lists every `Protobuf` item, also without a `Connected Services` folder on disk; Update downloads URL references again and replaces the file only when it changed, Remove takes the item out and keeps the file
 - Dropped: OpenAPI clients (`<OpenApiReference>` and `dotnet openapi` are deprecated in .NET 10; see Not Planned in the roadmap)
 
-## Phase 21, Part 3: Known bugs
-**Goal**: The bugs found along the way, fixed before the code review of Phase 22.
+## Known bugs fixed in October 2026
+**Goal**: The bugs found along the way, fixed before the code review of October 2026.
 
 - [x] A failed MSBuild evaluation (a timeout, a half-saved project file) was cached as "no item list" until the project changed again: it is now retried after 5 s, 30 s and 2 min, and after that whenever a folder of the project is expanded; a success clears it
 - [x] Exclude From Project / Include In Project on a file or folder in the folder of a nested project, from the outer project's tree, edited the nested project's file: file and folder ids in a nested project's folder carry the project whose tree shows them (other ids unchanged), and Exclude/Include and the folder expansion use it
@@ -197,22 +197,22 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] F5 on a startup profile started only the first project entry of `launch.json` (VS Code selects the first entry for a new folder), without the compound's build, so the project's dll could be missing: the project entries are hidden (`presentation.hidden`) and the `Startup` compound is listed first (`order` 1), so VS Code selects it and F5 builds once and starts the projects; writing the profile again upgrades a `launch.json` written by 0.1.1 and a selected project entry gives way to `Startup` (not checked in VS Code)
 - Checked, not reproducible: "Show All Files is read from a global that is set to the new solution only after it has loaded". Opening a second solution reads no folder before `ShowAllFiles.setSolution`, which runs right after the solution is ready (measured with the real `SolutionService`: 0 folder reads while it loaded); comes back with a repro
 
-## Phase 21, Part 4: Limitations we could fix
+## Limitations we could fix
 **Goal**: Small limitations, no design needed.
 
 - [x] The Test Explorer uses a project's `.runsettings` file (`RunSettingsFilePath`, read in the test project evaluation): VSTest gets everything but data collectors and loggers (`DesignMode` stays ours), and VSTest projects sharing the file run in one session so `MaxCpuCount` runs their assemblies in parallel (3.7 s instead of 7.1 s for two assemblies of 3 s each; .NET Framework projects run under Mono get a session of their own); MSTest and NUnit runner apps (VSTest bridge) get `--settings` with a cleaned copy and the file's environment variables on the process; xUnit v3/TUnit don't read run settings; a missing or invalid file is skipped with a line in the test output; coverage stays a script (not checked in VS Code)
 - [x] gRPC references: when the project has an older `Google.Protobuf` than the new packages need (NU1605 at restore), it asks and raises it to the lowest version they need, through the Central Package Management aware installs; kept, the reference is added without its packages and the message says what to raise
 - [x] gRPC references: a case-only duplicate (`a.proto` / `A.PROTO`) was already refused on Windows and macOS (`pathKey`); a test now proves it
 
-## Phase 21, Part 5: Limitations we want to fix
-**Goal**: Valuable for the team's daily work; fixed before the code review of Phase 22.
+## Limitations we wanted to fix
+**Goal**: Valuable for the team's daily work; fixed before the code review of October 2026.
 
 - [x] Central packages: a version written as `$(Property)` changes the property's definition (`Directory.Build.props`, `Directory.Packages.props` or a file they import, checked against MSBuild's evaluated version) instead of a literal on the edited package; when other packages follow the property, or it cannot be changed, the NuGet manager asks (Change Property / Set Package Only) and names the packages and projects reached; Consolidate too (not checked in VS Code)
 - [x] Include In Project writes the item type MSBuild would give the file without the exclude (`Content` for Razor and web files in web projects, `EmbeddedResource` for `.resx`, `Compile` for `.cs`) with the SDK's `CopyToOutputDirectory`/`CopyToPublishDirectory`, so the files are compiled and published (checked with a real publish; not checked in VS Code)
 - [x] Dropping a project onto another project's Dependencies (or Projects under it) adds a project reference; itself, an existing reference and a circular one are refused (`dotnet add reference` would write the circle), incompatible frameworks show the SDK's message (not checked in VS Code)
 - Checked, not reproducible: "Building a single project does not clear stale build errors that an earlier solution build reported for other projects". In VS Code 1.136.1 every `$msCompile` task run clears the build problems of earlier runs, the other projects' included (measured with the extension's own build tasks); comes back with a repro
 
-## Known bugs fixed after Phase 21, Part 4
+## More known bugs fixed
 - [x] Deleting the `.slnLaunch` file (or choosing Single) when no single startup project was set before the profile left `launch.json` without a `Startup` entry: the first project of the solution that can be started becomes the startup project, with a message (not checked in VS Code)
 - [x] A project without packages, project references and assemblies had no Dependencies node: every project shows it (old-style projects too), and its menu has Add Service Reference... (not checked in VS Code)
 - [x] A solution-level `.nuget/NuGet.Config` is read by Visual Studio but not by `dotnet restore` (NU1101 for private feeds, no credential prompt): the extension offers to move or copy it to `nuget.config` when the solution opens and after a failed restore or build, and the NuGet manager reads its feeds and credentials like Visual Studio (found with `Acme.Packager`)
@@ -233,14 +233,14 @@ What has been built so far, phase by phase, with notes on how. What comes next i
 - [x] NuGet requests: callers asking for the same URL within milliseconds each missed the memory cache while the disk cache was read and each made a request; the lookup is now shared from the first call on
 - [x] Solution Explorer: moving the mouse over the tree and switching editors no longer render every row (the hover highlight is set on the row's element, the unused active-file state is gone)
 
-## Phase 30: Later (done so far)
+## Smaller additions
 - [x] NuGet manager marks vulnerable packages (worst severity, advisory links) and deprecated ones (reasons, suggested replacement) from `dotnet list package --vulnerable|--deprecated`, with Vulnerable and Deprecated filters in Installed
 - [x] EF Core migrations from the context menu: Add Migration, Update Database and Remove Last Migration on projects that reference Entity Framework Core, running `dotnet ef` in a task with the startup project and DbContext chosen, and an offer to install `dotnet-ef`
 - [x] NuGet package sources like Visual Studio, opt-in (`shinobi.nuget.packageSources`): a Sources tab to add, remove, enable and disable feeds (`dotnet nuget`), Package Source Mapping in the package details and respected by Browse; Browse no longer keeps the lowest version of a package that several sources have
-- [x] Code review of the whole code base (2026-10-24 to 26): nine areas, each reviewed and adversarially verified, triaged in [the triage](superpowers/reviews/2026-10-26-triage.md); every Tier 1 and Tier 2 finding fixed in 0.1.2 and 0.1.3, the rest sorted into manual checks (Windows, Remote) or Not Planned
+- [x] Code review of the whole code base (2026-10-24 to 26): nine areas, each reviewed and adversarially verified, triaged in the triage; every Tier 1 and Tier 2 finding fixed in 0.1.2 and 0.1.3, the rest sorted into manual checks (Windows, Remote) or Not Planned
 - [x] [Visual Studio comparison](visual-studio-comparison.md): feature by feature what is supported, what works differently, what is not planned (and why) and what is planned; replaces Coming from Visual Studio
 
-## Phase 45: Refactorings inside the C# server (done 2026-11-04, released in 0.3.0)
+## Refactorings inside the C# server (done 2026-11-04, released in 0.3.0)
 The C# extension's Roslyn server loads extra assemblies given with `--extension`. The C# extension collects them from two places (read in its `dist/extension.js`, 2.160.9): the `contributes.csharpExtensionLoadPaths` of every installed VS Code extension (an array of paths relative to that extension, so ours can ship one without touching anyone's settings), and its setting `dotnet.server.extensionPaths`. A small .NET assembly of ours, compiled against the Roslyn packages and shipping nothing of Roslyn, adds `CodeRefactoringProvider`s that appear in `Ctrl+.` next to the server's own, with its semantic model, in the server's process (net10.0 here), for projects of any target framework (the server reads source and reference metadata; `net4x` projects go through its `BuildHost-net472`).
 **Spike done (2026-11-02):** a net10.0 library of 11 KB with one provider ("Extract interface IOrder (all public members)"), started by hand with `Microsoft.CodeAnalysis.LanguageServer --stdio --extension <dll>` on the Contoso sample and asked over LSP: the server loads it, `textDocument/codeAction` on a class name lists our action between its own, and `codeAction/resolve` gives the right edit. Not yet tried: through the C# extension in VS Code itself (the `contributes` route), and the Microsoft build. The spike compiled against the server's own `.roslyn/*.dll`; a release needs the public Roslyn packages of a version the server still binds (see the second item).
 What the server offers already, by the same probe: at a class name *Extract interface...* (resolves without a dialog to an `interface` for all public members above the class and `: IName` on it, in the same file), *Extract base class...*, *Generate constructor*, *Add DebuggerDisplay*; at members *Encapsulate field*, *Generate Equals and GetHashCode*, *Wrap parameters*, *Add null check*, *Replace property with method*, *Introduce field*. Not offered in any of those places: Change Signature, Move to Namespace, Pull Members Up / Push Down (the last needs a type with a base). So the candidates are those, and what the existing ones lack (a member picker, a target file).

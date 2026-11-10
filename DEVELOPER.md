@@ -38,6 +38,7 @@ To try your changes, press **F5** in VS Code with this launch configuration in `
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint (`eslint.config.mjs`): unawaited promises, hooks rules, `var`, `prefer-const`; CI runs it |
 | `npm test` | All Jest tests; `npx jest path/to/file.test.ts` or `npx jest -t "name"` for one |
+| `npm run build:server-extension` | Builds the refactorings that run inside the C# extension's language server, twice: `server-extension/Shinobi.Refactorings` (servers up to Roslyn 5.12) and `Shinobi.Refactorings.Roslyn513` (the same sources for Roslyn 5.13 and later, which changed the extension API); part of every build |
 | `npm run test:server-extension` | The xunit tests of the refactorings' C# code (`server-extension/Shinobi.Refactorings.Tests`, an in-memory workspace; CI runs it on all three systems) |
 | `npm run check:server-extension` | Loads the refactorings (`out/server-extension/Shinobi.Refactorings.dll` and the build for Roslyn 5.13 and later in `roslyn-5.13/`) into the real language server of the installed C# extension and asks every refactoring's handler on a small solution; prints the Roslyn version the server binds. Run `npm run build:server-extension` first; skipped when no C# extension is installed (`ROSLYN_SERVER` names a server). The workflow *C# extension check* runs it every night against the newest Microsoft C# extension (stable and pre-release) and the Open VSX one (`scripts/ci/fetch-csharp-server.mjs` downloads them) |
 | `npm run test:coverage` | The tests with a coverage report in `coverage/` (ignored by git) |
@@ -69,6 +70,8 @@ src/
 ├── types/                  # Webview ⇄ extension message types
 ├── webview/                # React UIs (Solution Explorer, NuGet manager, Error List, template wizard, Publish, Configuration Manager) and their providers
 └── test/unit/              # Jest tests; test/unit/services mirrors the services folders (a few sit next to sources as *.spec.ts)
+server-extension/           # C# refactorings loaded into the C# extension's Roslyn language server, their xunit tests
+scripts/spikes/playwright/  # checks that drive the real VS Code (see below)
 ```
 
 There are two webpack bundles: the extension (Node) and the webviews (browser). Webview code must not import `vscode` or Node modules, not even through shared files; a test builds the webview bundles to catch it. [CLAUDE.md](CLAUDE.md) describes the architecture in more detail.
@@ -79,6 +82,16 @@ There are two webpack bundles: the extension (Node) and the webviews (browser). 
 - **Documentation with the change.** A change users can notice updates its page in `docs/` in the same commit. Tests check that `docs/keyboard-shortcuts.md` lists every key binding and `docs/settings.md` every setting.
 - **Manual checks.** What unit tests can't cover goes into [docs/manual-testing.md](docs/manual-testing.md), and is ticked once someone tried it in VS Code.
 - TypeScript is strict, with `noUnusedLocals`/`noUnusedParameters`: unused variables break the build.
+
+## Checks in the real VS Code
+
+`scripts/spikes/playwright` drives VS Code through its UI with Playwright: about 30 checks of the Solution Explorer, the NuGet manager, wizards, Publish and more, each in its own Xvfb display (`./run.sh check-publish.mjs`). Its [README](scripts/spikes/playwright/README.md) lists what each check covers.
+
+## CI
+
+- **CI** (every push and pull request): typecheck, lint, Jest, the xunit tests and the production build on Linux, Windows and macOS, then a `.vsix`.
+- **C# extension check** (every night): the refactorings in the language server of the newest Microsoft C# extension (stable and pre-release) and the Open VSX one.
+- **Playwright checks** (started by hand): every check above as its own job on Ubuntu and Windows.
 
 ## Screenshots
 

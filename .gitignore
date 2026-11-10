@@ -48,3 +48,6 @@ coverage/
 
 bin/
 obj/
+
+# Working notes of agent sessions (plans, specs, reviews): local only
+docs/superpowers/
