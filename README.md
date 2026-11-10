@@ -2,9 +2,9 @@
 
 # Shinobi .NET Studio
 
-**A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, and Visual Studio's keys where they do not clash with VS Code's.
+**A Visual Studio-style workflow in VS Code, VSCodium, Cursor and Windsurf: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, project templates and Publish.** For .NET developers who want to leave Visual Studio (and Windows) behind without relearning their daily work: the same tree, the same context menus, and Visual Studio's keys where they do not clash with VS Code's.
 
-**Why:** free and MIT licensed, no C# Dev Kit needed. It runs in VS Code and in the editors that install extensions from Open VSX, such as VSCodium, Cursor and Windsurf, where C# Dev Kit isn't available: a Solution Explorer, NuGet manager and Test Explorer there need nothing but a C# extension.
+**Why:** free and MIT licensed, for any team size, and no C# Dev Kit needed. [C# Dev Kit's license](https://aka.ms/vs/csdevkit/license) allows it only in Microsoft's VS Code (and vscode.dev and Codespaces), and organizations with more than 250 PCs or users or USD 1 million revenue need a Visual Studio subscription for it. This extension runs in VS Code and in the editors that install extensions from Open VSX, such as VSCodium, Cursor and Windsurf, where a Solution Explorer, NuGet manager and Test Explorer need nothing but the open source C# extension.
 
 ## Install
 
@@ -150,7 +150,7 @@ The Visual Studio and Rider refactorings the C# language server lacks, in the sa
 - VS Code 1.106 or later, or VSCodium, Cursor, Windsurf or another Open VSX editor
 - The .NET SDK 8.0 or later; `.slnx` solutions need 9.0.200 or later
 - Linux, Windows and macOS are tested (the test suite runs on all three in CI); the editor features themselves are tried by hand on Linux and Windows
-- A C# extension, for editing C# and debugging: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [its open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. C# Dev Kit isn't needed.
+- A C# extension, for editing C# and debugging: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [its open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`, with the netcoredbg debugger) in VSCodium, Cursor, Windsurf and other Open VSX editors: the license of Microsoft's C# extension and its debugger allows them only in Visual Studio Code and Visual Studio. C# Dev Kit isn't needed.
 
 ## Getting started
 

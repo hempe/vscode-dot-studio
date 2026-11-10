@@ -1,6 +1,6 @@
 # Shinobi .NET Studio Documentation
 
-A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET.
+A Visual Studio-style workflow in VS Code, VSCodium, Cursor and Windsurf: a Visual Studio-style Solution Explorer, NuGet Package Manager, Error List, Test Explorer, templates and Publish for .NET.
 
 | Page | What it covers |
 |---|---|
@@ -27,9 +27,9 @@ A Visual Studio-style workflow in VS Code and VSCodium: a Visual Studio-style So
 ## Getting started
 
 ### What you need
-- **VS Code** 1.106 or later, or **VSCodium** / another Open VSX editor
+- **VS Code** 1.106 or later, or **VSCodium**, **Cursor**, **Windsurf** / another Open VSX editor
 - The **.NET SDK** 8.0 or later; .slnx solutions need 9.0.200 or later
-- A **C# extension**: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium. It provides C# editing (IntelliSense, live errors, navigation, refactorings) and the debugger; this extension provides the Visual Studio parts around them. C# Dev Kit is not needed.
+- A **C# extension**: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium, Cursor and Windsurf (Microsoft's C# extension and its debugger are licensed only for Visual Studio Code and Visual Studio). It provides C# editing (IntelliSense, live errors, navigation, refactorings) and the debugger; this extension provides the Visual Studio parts around them. C# Dev Kit is not needed.
 
 ### Open a solution
 Open the folder of your repository. The extension looks for `.sln` and `.slnx` files in it, and, when there are none at the top, in its subfolders (`src/App.sln`). The **Solution Explorer** appears in the activity bar (move it to the secondary side bar with the `shinobi.solutionExplorer.location` setting). With several solutions you pick one, once: the choice is remembered. **.NET: Open Solution...** (also in the Solution Explorer's `...` menu) switches to another.

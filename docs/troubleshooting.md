@@ -28,7 +28,7 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 
 **No IntelliSense, or "OmniSharp only supports ... .sln" in the C# output.** OmniSharp, the old language server of `muhammad-sammy.csharp`, can't load `.slnx`. This extension makes the Roslyn language server the default (`"dotnet.server.useOmnisharp": false`); if you set `true` yourself, set it back to `false` and reload the window.
 
-**"A C# extension is needed" / F5 does nothing.** Install `ms-dotnettools.csharp` (VS Code) or `muhammad-sammy.csharp` (VSCodium); it provides the debugger.
+**"A C# extension is needed" / F5 does nothing.** Install `ms-dotnettools.csharp` (VS Code) or `muhammad-sammy.csharp` (VSCodium, Cursor, Windsurf and other Open VSX editors, where Microsoft's is not licensed); it provides the debugger.
 
 **"The refactorings of Shinobi .NET Studio cannot run in the language server of ..."** The C# extension was updated to a version whose language server changed the interface the refactorings use (Extract Interface, Pull Members Up and the others of [Refactorings](enhanced-refactorings.md)). Ctrl+. still offers the server's own refactorings and the rest of the extension works; the message says it once per window. Update Shinobi .NET Studio, or go back to the previous C# extension version (Extensions view > the C# extension > Install Specific Version); **Report Issue** opens a GitHub issue with the version filled in.
 
@@ -61,7 +61,7 @@ Questions go to [Discussions](https://github.com/hempe/vscode-dot-studio/discuss
 Open an issue at [github.com/hempe/vscode-dot-studio/issues](https://github.com/hempe/vscode-dot-studio/issues) with:
 - what you did and what happened,
 - the **Shinobi .NET Studio** log at **Debug** level,
-- `dotnet --info`, your editor (VS Code or VSCodium) and its version, and the C# extension you use.
+- `dotnet --info`, your editor (VS Code, VSCodium, Cursor...) and its version, and the C# extension you use.
 
 ## Known limitations
 
