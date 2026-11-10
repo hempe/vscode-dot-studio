@@ -27,7 +27,7 @@ A Visual Studio-style workflow in VS Code, VSCodium, Cursor and Windsurf: a Visu
 ## Getting started
 
 ### What you need
-- **VS Code** 1.106 or later, or **VSCodium**, **Cursor**, **Windsurf** / another Open VSX editor
+- **VS Code** 1.106 or later, or **VSCodium** / another Open VSX editor (Cursor and Windsurf should work; not tried past their login screens)
 - The **.NET SDK** 8.0 or later; .slnx solutions need 9.0.200 or later
 - A **C# extension**: [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) (`ms-dotnettools.csharp`) in VS Code, or [the open source fork](https://open-vsx.org/extension/muhammad-sammy/csharp) (`muhammad-sammy.csharp`) in VSCodium, Cursor and Windsurf (Microsoft's C# extension and its debugger are licensed only for Visual Studio Code and Visual Studio). It provides C# editing (IntelliSense, live errors, navigation, refactorings) and the debugger; this extension provides the Visual Studio parts around them. C# Dev Kit is not needed.
 

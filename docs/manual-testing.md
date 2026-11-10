@@ -149,7 +149,7 @@ What the Playwright checks in `scripts/spikes/playwright` cannot do or that make
 
 ### Needs other editors
 
-- [ ] Cursor and Windsurf (the README names them): the extension installs from their extension view (Open VSX), with `muhammad-sammy.csharp` the Solution Explorer opens BasicsTestProject, the NuGet manager installs a package, the Test Explorer runs a test, F5 debugs Shop.Web and a refactoring of Ctrl+. (Extract interface (choose members)...) works; the missing-C#-extension warning names the right extension
+- [ ] Cursor and Windsurf (the README says they should work; both need an account, so only someone with one can check; on 2026-11-10 the extension loaded behind their login screens, Cursor 3.29.15 and Windsurf 3.12.43, which now calls itself Devin): the extension installs from their extension view (Open VSX), with `muhammad-sammy.csharp` the Solution Explorer opens BasicsTestProject, the NuGet manager installs a package, the Test Explorer runs a test, F5 debugs Shop.Web and a refactoring of Ctrl+. (Extract interface (choose members)...) works; the missing-C#-extension warning names the right extension
 - [ ] Positron (a keyword in `package.json`): the same, or drop the keyword
 
 ### Needs Visual Studio 2022
