@@ -35,6 +35,10 @@ What the spike found (2026-11-05, Code - OSS 1.136.1 with Electron 42 from Arch)
 Not tried yet: the C# extension in the profile (needed for refactorings, rename, debugging), native context menus (not reachable
 from the DOM), the editor area's refactoring forms, the NuGet custom editor.
 
+## In CI
+
+The workflow *Playwright checks* (`.github/workflows/playwright.yml`, started by hand: Actions > Playwright checks > Run workflow, optionally with the checks to run) runs each check as its own job on Ubuntu (in `xvfb-run`) and Windows. It downloads Microsoft's VS Code (`ci-download-vscode.mjs`), which `lib.mjs` launches when `CODE_EXECUTABLE` names it, and installs Microsoft's C# extension for the checks that need it (`ci-install-csharp.mjs`). A failed job keeps the `pw-fail-*.png` screenshots as an artifact.
+
 ## Checks
 
 `lib.mjs` holds the helpers (workspace copy with settings and extra files, launch, the welcome dialog, the view's frame, `expandPath`,

@@ -53,10 +53,12 @@ export async function launch({ work, folder }, { csharp = false, userSettings = 
         'terminal.integrated.gpuAcceleration': 'off',
         ...userSettings,
     }, null, 2));
+    // CODE_EXECUTABLE: a VS Code build's own executable (CI downloads one with ci-download-vscode.mjs); otherwise Code - OSS as Electron plus its main script
+    const code = process.env.CODE_EXECUTABLE;
     const app = await electron.launch({
-        executablePath: process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
+        executablePath: code ?? process.env.ELECTRON_BIN ?? '/usr/lib/electron42/electron',
         args: [
-            process.env.CODE_MAIN ?? '/usr/lib/code/code.mjs',
+            ...(code ? [] : [process.env.CODE_MAIN ?? '/usr/lib/code/code.mjs']),
             '--disable-gpu', '--no-sandbox', ...(process.env.PW_LOG ? [`--log=${process.env.PW_LOG}`] : []),
             `--user-data-dir=${work}/profile`, `--extensions-dir=${work}/extensions`,
             `--extensionDevelopmentPath=${repo}`,

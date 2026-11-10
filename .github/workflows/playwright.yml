@@ -1,0 +1,95 @@
+name: Playwright checks
+
+# The Playwright checks of scripts/spikes/playwright (the real VS Code driven through its UI) on Linux and Windows, one job per check
+# and system. Started by hand (Actions > Playwright checks > Run workflow); each check takes a few minutes.
+on:
+  workflow_dispatch:
+    inputs:
+      checks:
+        description: 'Checks to run, e.g. "check-publish.mjs check-grpc.mjs" (empty: all)'
+        required: false
+        default: ''
+      os:
+        description: 'Systems'
+        type: choice
+        options: [both, ubuntu-latest, windows-latest]
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      checks: ${{ steps.list.outputs.checks }}
+      os: ${{ steps.list.outputs.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        env:
+          CHECKS: ${{ inputs.checks }}
+          OS: ${{ inputs.os }}
+        run: |
+          if [ -z "$CHECKS" ]; then CHECKS=$(cd scripts/spikes/playwright && ls check-*.mjs); fi
+          echo "checks=$(printf '%s\n' $CHECKS | jq -R . | jq -s -c .)" >> "$GITHUB_OUTPUT"
+          if [ "$OS" = both ] || [ -z "$OS" ]; then echo 'os=["ubuntu-latest","windows-latest"]' >> "$GITHUB_OUTPUT"; else echo "os=[\"$OS\"]" >> "$GITHUB_OUTPUT"; fi
+
+  check:
+    name: ${{ matrix.check }} (${{ matrix.os }})
+    needs: list
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.list.outputs.os) }}
+        check: ${{ fromJSON(needs.list.outputs.checks) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # The fixtures and the sample target .NET 8 and 10
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - run: npm ci
+      - run: npm run build:dev
+      - run: npm ci
+        working-directory: scripts/spikes/playwright
+
+      - name: Download VS Code
+        working-directory: scripts/spikes/playwright
+        run: echo "CODE_EXECUTABLE=$(node ci-download-vscode.mjs | tail -1)" >> "$GITHUB_ENV"
+
+      # Checks that launch with { csharp: true } take the C# extension from ~/.vscode/extensions
+      # Checks that launch with { csharp: true } take the C# extension from ~/.vscode/extensions
+      - name: Install the C# extension
+        working-directory: scripts/spikes/playwright
+        run: if grep -q 'csharp: true' "${{ matrix.check }}"; then node ci-install-csharp.mjs; fi
+
+      - name: Run ${{ matrix.check }}
+        working-directory: scripts/spikes/playwright
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a -s '-screen 0 1600x1000x24' node "${{ matrix.check }}"; else node "${{ matrix.check }}"; fi
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-${{ matrix.os }}-${{ matrix.check }}
+          path: |
+            /tmp/pw-*.png
+            C:/tmp/pw-*.png
+            D:/tmp/pw-*.png
+          if-no-files-found: ignore
+          retention-days: 7
