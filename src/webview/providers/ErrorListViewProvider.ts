@@ -7,6 +7,7 @@ import { affectsSeverityFilter, readSeverityFilter, toggleSeverity } from '../..
 import { SolutionService } from '../../services/solution/solutionService';
 import { ErrorListMessage, ErrorListRequest } from '../../types/errorList';
 import { ErrorListWebview } from './views/ErrorListWebview';
+import { t } from '../../core/i18n';
 
 export const ERROR_LIST_VIEW = 'shinobi.errorList';
 
@@ -45,8 +46,7 @@ export class ErrorListViewProvider implements vscode.WebviewViewProvider, vscode
         }
         const projects = [...(SolutionService.getActiveSolution()?.projects.keys() ?? [])]
             .map(projectPath => ({ name: path.basename(projectPath, path.extname(projectPath)), path: projectPath }));
-        const scope = this._scope?.scope;
-        const files = scope ? new Map([...this._diagnostics.files].filter(([file]) => inScope(file, scope))) : this._diagnostics.files;
+        const files = this._scopedFiles();
         const message: ErrorListMessage = {
             type: 'rows',
             rows: buildErrorRows(files, projects),
@@ -90,10 +90,17 @@ export class ErrorListViewProvider implements vscode.WebviewViewProvider, vscode
         }
     }
 
+    /** The diagnostics the list shows: all of them, or those of the node it was narrowed to */
+    private _scopedFiles(): Pick<DiagnosticsService, 'files'>['files'] {
+        const scope = this._scope?.scope;
+        return scope ? new Map([...this._diagnostics.files].filter(([file]) => inScope(file, scope))) : this._diagnostics.files;
+    }
+
+    /** The errors the list shows: of its scope, and none while the errors are toggled off */
     private _updateBadge(): void {
         if (this._view) {
-            const { errors } = summarizeErrorList(this._diagnostics.files);
-            this._view.badge = errors ? { value: errors, tooltip: `${errors} error${errors === 1 ? '' : 's'}` } : undefined;
+            const errors = readSeverityFilter().errors ? summarizeErrorList(this._scopedFiles()).errors : 0;
+            this._view.badge = errors ? { value: errors, tooltip: t(errors === 1 ? '{0} error' : '{0} errors', errors) } : undefined;
         }
     }
 
