@@ -56,6 +56,8 @@ The C# extension logs to its own channels (**C#**, **C# LSP Trace Logs**), and b
 
 ## Reporting a problem
 
+Questions go to [Discussions](https://github.com/hempe/vscode-dot-studio/discussions), bugs to [issues](https://github.com/hempe/vscode-dot-studio/issues/new?template=bug.md).
+
 Open an issue at [github.com/hempe/vscode-dot-studio/issues](https://github.com/hempe/vscode-dot-studio/issues) with:
 - what you did and what happened,
 - the **Shinobi .NET Studio** log at **Debug** level,

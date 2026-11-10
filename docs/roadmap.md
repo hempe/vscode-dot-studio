@@ -2,20 +2,17 @@
 
 What is left to do, in the order that makes sense. What has been built is in the [history](history.md), what changed per release in the [changelog](../CHANGELOG.md), and what still needs a check in VS Code itself in [manual-testing.md](manual-testing.md).
 
-- **Known bugs** are broken things, to be fixed.
+- **Bugs and small improvements** are [GitHub issues](https://github.com/hempe/vscode-dot-studio/issues) (labels `bug`, `enhancement`, `good first issue`, `help wanted`, `translation`); **Known bugs** below are only the ones that need something the issues can't give (a private solution, a reporter's answer).
 - **Next** is what we do next, in order: the checks on other systems first, then the rest.
 - **On request** is built when someone opens an issue on GitHub (or when the team needs it): ideas, bigger pieces that are parked, and what depends on something outside our hands.
 - **Not planned** is what we decided against; a change request brings it back.
 
 ## Known bugs
 
-- [ ] Solution Explorer: a project whose items evaluation failed (the tree shows the disk listing) retries when a folder is first read from disk; a folder whose children were already loaded (restored open at startup, then collapsed and opened again) is served from the loaded copy and does not ask for the retry; only the timers (5 s, 30 s, 2 min) and a change to the project do (found with `check-failed-evaluation.mjs`, 2026-11-07)
-- [ ] Error List: the badge on the view shows a count (2 on 2026-11-04 after renaming a type) while the list is empty; the badge counts every diagnostic of the solution, the list drops what a scope, the severity toggles or the filters hide. To find out which of these it was (the panel says why it is empty), and make the badge count what the list shows
-- [ ] Change Signature: on 2026-11-04 the declaration in `CustomFieldTable<TTable, TTranslation>.TryGetPropertyValue` (Acme.Core.DAL) stayed unchanged while the interface, the other implementations and the calls changed; not reproduced (loaded with MSBuild, the same change from the interface and from the class changes it). Needs the log line (`Change signature... on ...: ... changed: N declarations ...`) of such a run
-- [ ] Startup profiles: a project with the action "Start without debugging" is attached to the debugger anyway with the C# extension of Open VSX (`muhammad-sammy.csharp`, netcoredbg) but gets no breakpoints: its `launch.json` entry has `noDebug: true`, `ps` showed a netcoredbg process for it, its own log said `Debugger.IsAttached` true, and its breakpoints never hit (seen 2026-10-23 in `/home/hempe/manual-test/2-startup-profiles`; explanation, unverified: netcoredbg ignores `noDebug` for the launch but VS Code sends no breakpoints to a `noDebug` session; Microsoft's debugger not tried). To try: start such projects through a `node-terminal` configuration (a command in a terminal, no .NET debugger) inside the compound, and make Stop and `stopAll` end them
+The others are [issues labelled bug](https://github.com/hempe/vscode-dot-studio/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
 - [ ] Windows feedback (2026-10-30), still to confirm with the reporter: the setting `shinobi.debug.console` (a console window of its own instead of `integratedTerminal` for debug start), and a `net472` test project on Windows (its .exe is started directly, with `mono` on Linux and macOS; discovery of Acme.Core.DAL.Tests found 210 tests there). The other points of that feedback are fixed (see the changelog of 0.2.1)
 - [ ] F2 offers the file the new name only through the key; Rename Symbol from the context menu or the palette is VS Code's own and does not ask. A rename provider of ours would compete with the C# extension's, so it is left
-- [ ] Tests: `Solution.solutionFolders.test.ts` lists a project file it never creates, so CI prints "Error parsing project file Lib" (harmless; write an empty `Lib.csproj` or mute the logger in that test)
 
 ## Next
 
@@ -25,13 +22,9 @@ Checks and tests first, because they find the bugs:
 - [ ] Automate manual checks: the spike works (`scripts/spikes/playwright`: VS Code through `_electron.launch`, the Solution Explorer's webview as a frame, rows read and the tree driven by keys, in an own Xvfb display; what it found is in its README); next, make it a test runner with a helper for the welcome dialog, the view and the frames, and the C# extension in the profile; then automate the entries of [manual-testing.md](manual-testing.md) that need no native menu, no debugger and no other OS; tick those entries only when the automated run has passed
 - [ ] More GIFs of the refactoring forms (Change Signature has one; Extract Class and Extract Superclass next; `scripts/screenshots/capture.sh`, scene `gif-change-signature` is the pattern: the clicks do not reach the form's webview under Xvfb, the keys do)
 
-Then the small improvements:
+Then the small improvements (the rest are [issues labelled enhancement](https://github.com/hempe/vscode-dot-studio/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)):
 
-- [ ] Test Explorer: a framework taken out of `TargetFrameworks`, or any other change to a test project file, shows in the Testing view only after a build or the refresh button; a `net8.0` item whose runtime is not installed shows `dotnet`'s error instead of a plain message that says which runtime is missing
-- [ ] NuGet manager: the feed filter of Updates and Consolidate uses the first of your sources that has the package (a package on both nuget.org and your feed shows under whichever comes first); ask every source if someone needs "all packages my feed has"
 - [ ] NuGet manager: Update and Consolidate restore the whole solution once when more than one project changed; a project of the solution that cannot restore for its own reasons then shows as a failed update. To check on Acme.Core, and restore only the projects that changed if it gets in the way
-- [ ] NuGet manager: Update Selected takes what the lists show (a ticked package that a filter hides is not updated); decide whether ticks should survive a filter and be counted on the button
-- [ ] Log: one warning when `api.nuget.org` cannot be reached, not one per package
 
 ## On request
 

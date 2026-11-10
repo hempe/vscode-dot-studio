@@ -6,6 +6,7 @@ Thanks for helping. Bug reports, translations and pull requests are all welcome.
 
 - **Issues** labelled [`good first issue`](https://github.com/hempe/vscode-dot-studio/labels/good%20first%20issue) are small and self-contained; [`help wanted`](https://github.com/hempe/vscode-dot-studio/labels/help%20wanted) ones are bigger. Comment on an issue before you start on it, so two people don't do the same work.
 - **A bug** you hit: open an issue with the solution layout (`.sln` or `.slnx`, SDK-style projects or not), the editor (VS Code, VSCodium, Cursor...) and its C# extension, and what you expected. The log is in the Output panel, channel *Shinobi .NET Studio*.
+- **A question** (how do I..., would it make sense to...): ask in [Discussions](https://github.com/hempe/vscode-dot-studio/discussions).
 - **A feature:** open an issue first. The extension follows Visual Studio, so "Visual Studio does X" is a strong argument; ideas Visual Studio doesn't have are welcome too, but may wait.
 
 ## Build, run, test

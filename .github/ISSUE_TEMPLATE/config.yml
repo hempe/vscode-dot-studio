@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/hempe/vscode-dot-studio/discussions
+    about: How do I...? Would it make sense to...? Ask in Discussions; bugs and concrete requests are issues.
