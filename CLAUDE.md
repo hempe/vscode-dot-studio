@@ -64,10 +64,10 @@ User documentation is in `docs/` (index: `docs/README.md`), one page per area. `
 
 ### Translations (keep them in step)
 
-The extension speaks Simplified Chinese when VS Code does (`zh-cn`); English is the source. **Every new or changed user-visible text gets its Chinese entry in the same commit**, like documentation. A test (`src/test/unit/core/i18nCoverage.test.ts`) fails when one is missing. Three places, by where the text is shown:
+The extension speaks Simplified Chinese when VS Code does (`zh-cn`); English is the source. **Every new or changed user-visible text gets its Chinese entry in the same commit**, like documentation. A test (`src/test/unit/core/i18nCoverage.test.ts`) fails when one is missing. Two files per language, by where the text is shown:
 - **Manifest** (`package.json`: command titles, settings, enum labels, views): write `"%key%"` and add the key to `package.nls.json` and `package.nls.zh-cn.json` (`command.<id>.title`, `config.<setting>.markdownDescription`). `npm run generate:menus` writes the keys of the generated commands and menus.
 - **Extension host** (messages, quick picks, prompts, progress titles, dialog labels): `t('English text {0}', arg)` from `core/i18n.ts`; the English text is the key, add it to `l10n/bundle.l10n.json` (same text) and `l10n/bundle.l10n.zh-cn.json` (Chinese). Wrap whole sentences with arguments, not fragments; a plural is two keys (`'{0} place'` / `'{0} places'`).
-- **Webviews** (React): `t(...)` from `webview/shared/i18n.ts` (the webview must not import `core/i18n`), add the Chinese to its `zhCN` dictionary. `lang` of the page comes from `vscode.env.language`.
+- **Webviews** (React): `t(...)` from `webview/shared/i18n.ts` (the webview must not import `core/i18n`); the keys go into the same `l10n/bundle.l10n*.json` as the extension host's: the HTML shells put the bundle of VS Code's language into the page (`webviewL10n()` in `core/i18n.ts`). A count is two keys: `t(n === 1 ? '{0} error' : '{0} errors', n)`.
 
 The C# server's own messages (refusals, summaries from `server-extension`) stay English. Words that are code (`override`, `abstract`, type and file names) are not translated.
 

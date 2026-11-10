@@ -147,6 +147,10 @@ What the Playwright checks in `scripts/spikes/playwright` cannot do or that make
 - [ ] .NET Framework with Mono on Linux, still open (`src/__fixtures__/net-framework`, copy it elsewhere): the Ctrl+F5 key did nothing on one Linux setup while the button worked (is it `inDebugMode` or the desktop taking the key? check Developer: Toggle Keyboard Shortcuts Troubleshooting); `environmentVariables` of the profile reach the program; with `<TargetFrameworks>net48;net10.0</TargetFrameworks>` and `Legacy.App` as startup project, F5 debugs the `net10.0` build and Select Framework > `net48` switches to Mono (also right after editing `TargetFrameworks` in the open project, no reload needed)
 - [ ] SDK-style projects that target .NET Framework (`src/__fixtures__/net-framework`, as .sln and .slnx): the tree shows files and the Newtonsoft.Json package, Build works, Select Framework on `Multi.Lib` lists `net48` and `net10.0` (on the .slnx too, which listed nothing before), the NuGet manager installs and removes a package
 
+### Needs a Chinese VS Code
+
+- [ ] Webview translations from the bundle (2026-11-10: the webviews read `l10n/bundle.l10n.zh-cn.json`, handed into the page, instead of a dictionary of their own): with VS Code in Chinese (the Chinese language pack, Configure Display Language), the Solution Explorer toolbar, the NuGet manager, the Error List (its counts "3 个错误") and a wizard are Chinese, the tree's tooltip on a project with errors says "2 个错误, 1 个警告"; in English all of them are English
+
 ### Needs other editors
 
 - [ ] Cursor and Windsurf (the README says they should work; both need an account, so only someone with one can check; on 2026-11-10 the extension loaded behind their login screens, Cursor 3.29.15 and Windsurf 3.12.43, which now calls itself Devin): the extension installs from their extension view (Open VSX), with `muhammad-sammy.csharp` the Solution Explorer opens BasicsTestProject, the NuGet manager installs a package, the Test Explorer runs a test, F5 debugs Shop.Web and a refactoring of Ctrl+. (Extract interface (choose members)...) works; the missing-C#-extension warning names the right extension

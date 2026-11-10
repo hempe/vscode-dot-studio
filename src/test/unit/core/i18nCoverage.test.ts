@@ -46,12 +46,13 @@ describe('translations (Simplified Chinese)', () => {
         }
     });
 
-    test('every t() message of the webviews is in the webview dictionary', () => {
-        const dictionary = read('src/webview/shared/i18n.ts');
+    test('every t() message of the webviews is in both l10n bundles (the extension hands its bundle to the page)', () => {
         const files = sourceFiles(path.join('src', 'webview')).filter(file => read(file).includes("shared/i18n'") && !file.endsWith(path.join('shared', 'i18n.ts')));
-        // the dictionary quotes its keys with ', so an apostrophe in a key is escaped there and not in a "..." message
-        const present = (raw: string) => [raw, raw.replace(/(?<!\\)'/g, "\\'")].some(text => dictionary.includes(`'${text}':`) || dictionary.includes(`"${text}":`));
-        const missing = keysOf(files).filter(({ raw }) => !present(raw));
-        expect(missing.map(({ key, file }) => `${file}: ${key}`)).toEqual([]);
+        const keys = keysOf(files);
+        expect(keys.length).toBeGreaterThan(100);
+        for (const file of ['l10n/bundle.l10n.json', 'l10n/bundle.l10n.zh-cn.json']) {
+            const bundle = json(file);
+            expect(keys.filter(({ key }) => !(key in bundle)).map(({ key, file: from }) => `${from}: ${key}`)).toEqual([]);
+        }
     });
 });

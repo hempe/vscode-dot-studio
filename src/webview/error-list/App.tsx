@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorListFilter, ErrorListMessage, ErrorListRequest, ErrorListRow, ErrorListSummary } from '../../types/errorList';
-import { plural, t } from '../shared/i18n';
+import { t } from '../shared/i18n';
 
 export interface ErrorListApi {
     postMessage(message: ErrorListRequest): void;
@@ -127,10 +127,10 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
         return null;
     }
     const { filter, summary } = data;
-    const toggle = (severity: keyof ErrorListFilter, icon: string, count: number, word: string) => (
+    const toggle = (severity: keyof ErrorListFilter, icon: string, counted: string, word: string) => (
         <button className="toggle" aria-pressed={filter[severity]} onClick={() => api.postMessage({ type: 'toggle', severity })}
             title={t('{0} {1}s, also in the Solution Explorer', filter[severity] ? t('Hide') : t('Show'), t(word))}>
-            <span className={`codicon codicon-${icon} ${icon}`} />{plural(count, t(word))}
+            <span className={`codicon codicon-${icon} ${icon}`} />{counted}
         </button>
     );
     const open = (row: ErrorListRow) => api.postMessage({ type: 'open', filePath: row.filePath, line: row.line, column: row.column });
@@ -165,9 +165,9 @@ export const App: React.FC<{ api: ErrorListApi }> = ({ api }) => {
     return (
         <>
             <div className="toolbar">
-                {toggle('errors', 'error', summary.errors, 'Error')}
-                {toggle('warnings', 'warning', summary.warnings, 'Warning')}
-                {toggle('infos', 'info', summary.infos, 'Message')}
+                {toggle('errors', 'error', t(summary.errors === 1 ? '{0} Error' : '{0} Errors', summary.errors), 'Error')}
+                {toggle('warnings', 'warning', t(summary.warnings === 1 ? '{0} Warning' : '{0} Warnings', summary.warnings), 'Warning')}
+                {toggle('infos', 'info', t(summary.infos === 1 ? '{0} Message' : '{0} Messages', summary.infos), 'Message')}
                 {data.scope !== undefined && (
                     <button className="toggle scope" onClick={() => api.postMessage({ type: 'clearScope' })} title={t('Show the whole solution again')}>
                         {data.scope}<span className="codicon codicon-close" />

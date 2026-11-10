@@ -1,4 +1,4 @@
-type L10nApi = { t(message: string, ...args: Array<string | number | boolean>): string };
+type L10nApi = { t(message: string, ...args: Array<string | number | boolean>): string; bundle?: Record<string, string> };
 type VscodeApi = { l10n?: L10nApi; env?: { language?: string } };
 
 /**
@@ -31,4 +31,17 @@ export function t(message: string, ...args: Array<unknown>): string {
 /** The language VS Code runs in (`zh-cn` when its display language is Chinese), used by the webviews */
 export function webviewLanguage(): string {
     return api()?.env?.language ?? 'en';
+}
+
+/**
+ * The translations for a webview page: the extension's bundle of VS Code's language (undefined in English) as a JSON data block,
+ * which `webview/shared/i18n.ts` reads. A data block is not run, so the page's script policy does not apply; `<` is escaped so the
+ * text cannot end the element.
+ */
+export function webviewL10n(): string {
+    const bundle = api()?.l10n?.bundle;
+    if (!bundle) {
+        return '';
+    }
+    return `<script type="application/json" id="shinobi-l10n">${JSON.stringify(bundle).replace(/</g, '\\u003c')}</script>`;
 }

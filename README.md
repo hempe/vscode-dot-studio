@@ -29,7 +29,7 @@ A C# extension is needed for editing and debugging, see [Requirements](#requirem
 
 ### Languages
 
-The interface is localized in English and Simplified Chinese. It follows VS Code's display language, so nothing has to be configured: with a Chinese VS Code the commands, settings, views and messages are Chinese. `package.nls.json` and `package.nls.zh-cn.json` hold the manifest strings, `l10n/bundle.l10n*.json` the messages, and `src/webview/shared/i18n.ts` the webviews' strings.
+The interface is localized in English and Simplified Chinese. It follows VS Code's display language, so nothing has to be configured: with a Chinese VS Code the commands, settings, views and messages are Chinese. `package.nls.json` and `package.nls.zh-cn.json` hold the manifest strings, `l10n/bundle.l10n*.json` the messages and the webviews' strings. A new language is two files, see [CONTRIBUTING.md](CONTRIBUTING.md#translations).
 
 ### Solution Explorer
 

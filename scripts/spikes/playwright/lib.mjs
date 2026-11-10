@@ -31,7 +31,7 @@ const template = join(tmpdir(), 'shinobi-pw-profile-template');
 /** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }.
  *  { csharp: true } adds the C# extension (the language server takes a while to start). The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
  *  later runs start from a copy of it and need no dialog (about 10 s less). */
-export async function launch({ work, folder }, { csharp = false, userSettings = {} } = {}) {
+export async function launch({ work, folder }, { csharp = false, userSettings = {}, args = [] } = {}) {
     if (csharp) {
         // The installed C# extension (and the .NET runtime extension it needs) are linked into the profile's extensions folder, as capture.sh does
         mkdirSync(join(work, 'extensions'), { recursive: true });
@@ -62,7 +62,7 @@ export async function launch({ work, folder }, { csharp = false, userSettings = 
             '--disable-gpu', '--no-sandbox', ...(process.env.PW_LOG ? [`--log=${process.env.PW_LOG}`] : []),
             `--user-data-dir=${work}/profile`, `--extensions-dir=${work}/extensions`,
             `--extensionDevelopmentPath=${repo}`,
-            '--disable-workspace-trust', '--new-window', folder,
+            '--disable-workspace-trust', '--new-window', ...args, folder,
         ],
         env: { ...process.env, WAYLAND_DISPLAY: '' },
         timeout: 60000,

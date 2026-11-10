@@ -33,10 +33,9 @@ How the code is laid out (the extension host, the React webviews and the message
 
 ## Translations
 
-The extension speaks English and Simplified Chinese; a new language is a welcome contribution. Texts live in three places:
+The extension speaks English and Simplified Chinese; a new language is a welcome contribution. It is two files, no code:
 
 - `package.nls.<lang>.json`: commands, settings and views (copy `package.nls.json`, translate the values)
-- `l10n/bundle.l10n.<lang>.json`: messages, questions and quick picks (copy `l10n/bundle.l10n.json`)
-- `src/webview/shared/i18n.ts`: the webviews (Solution Explorer, NuGet manager, wizards); it knows only Chinese so far, so a new language extends it with a second dictionary
+- `l10n/bundle.l10n.<lang>.json`: everything else, messages, questions, quick picks and the webviews (Solution Explorer, NuGet manager, wizards); copy `l10n/bundle.l10n.json`, translate the values
 
-VS Code picks the first two up by itself. Words that are code (`override`, type and file names) stay as they are. Open an issue first and we'll help with the webview part and the coverage test (`src/test/unit/core/i18nCoverage.test.ts`).
+`<lang>` is VS Code's language id (`de`, `ja`, `pt-br`...); VS Code picks both up by itself. The English text is the key; `{0}`, `{1}` are placeholders to keep. A count comes as two keys (`{0} error` and `{0} errors`): translate each the way your language says it. Words that are code (`override`, type and file names) stay as they are. A partial translation is fine: what is missing shows in English.
