@@ -12,26 +12,10 @@
 //   console project the .cshtml becomes None
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
 
-/** Starts `dotnet <args>` in `cwd`, asks `url` once a second until it answers (two minutes at most), stops the app; its answer and output */
-async function runAndFetch(cwd, args, url) {
-    const app = spawn('dotnet', args, { cwd, detached: process.platform !== 'win32' });
-    let log = '';
-    app.stdout.on('data', d => { log += d; });
-    app.stderr.on('data', d => { log += d; });
-    let answer = '';
-    for (let i = 0; i < 120 && !answer; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        answer = await fetch(url).then(r => r.text(), () => '');
-    }
-    // The whole process tree: dotnet run starts the app as a child
-    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(app.pid), '/T', '/F']);
-    else try { process.kill(-app.pid); } catch { app.kill(); }
-    return { answer, log };
-}
 import {
     prepareWorkspace, launch, openSolutionExplorer, expandPath, rowInfo, rowByName, rowsNamed, contextMenu, contextMenuOn, menuLabels, modal, waitForToast, clearToasts, sh, part, settle, check,
+    runAndFetch,
 } from './lib.mjs';
 
 const sample = join(import.meta.dirname, '../../screenshots/sample');

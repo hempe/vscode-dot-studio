@@ -11,7 +11,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import {
     prepareWorkspace, launch, openSolutionExplorer, expandPath, rowInfo, rowByName, contextMenu, menuLabels, answerInput, quickItems, quickInput,
-    waitForToast, clearToasts, editorTabs, isolateHome, sh, part, toSln, renameRow, check,
+    waitForToast, clearToasts, editorTabs, isolateHome, sh, part, toSln, renameRow, runAndFetch, check,
 } from './lib.mjs';
 
 const solutionText = ws => readFileSync(join(ws.folder, existsSync(join(ws.folder, 'Contoso.slnx')) ? 'Contoso.slnx' : 'Contoso.sln'), 'utf8');
@@ -149,7 +149,8 @@ for (const kind of ['slnx', 'sln']) {
                 : join(home, '.microsoft/usersecrets', id ?? 'none', 'secrets.json');
             check('which is empty (in the user secrets folder of HOME)', existsSync(secrets) && /^\s*(\{\s*\})?\s*$/.test(readFileSync(secrets, 'utf8')), existsSync(secrets) ? readFileSync(secrets, 'utf8') : 'no file');
             writeFileSync(secrets, '{ "Greeting": "hi" }');
-            const run = await sh(ws, `timeout 60 bash -c 'ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Shop.Web --no-launch-profile --urls http://127.0.0.1:5197 > /tmp/pw-secrets-run.log 2>&1 & pid=$!; for i in $(seq 1 50); do sleep 1; r=$(curl -s http://127.0.0.1:5197/greeting) && [ -n "$r" ] && break; done; echo "answer:$r"; kill $pid; pkill -f "Shop.Web.dll --urls http://127.0.0.1:5197" || true'`);
+            const { answer, log } = await runAndFetch(ws.folder, ['run', '--project', join('src', 'Shop.Web'), '--no-launch-profile', '--urls', 'http://127.0.0.1:5197'], 'http://127.0.0.1:5197/greeting', { ASPNETCORE_ENVIRONMENT: 'Development' });
+            const run = `answer:${answer}\n${log.slice(-300)}`;
             check('a value there reaches the app in Development', /answer:hi/.test(run), run.slice(-300));
             await contextMenu(win, tree, 'Shop.Web', ['Manage User Secrets']);
             await win.waitForTimeout(2500);

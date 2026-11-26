@@ -1,7 +1,7 @@
 // Helpers to drive the real VS Code through Playwright: a throwaway profile, a copy of the sample solution, the Solution
 // Explorer's webview frame. Run a check through run.sh (own Xvfb display).
 import { _electron as electron } from 'playwright-core';
-import { exec } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -599,4 +599,24 @@ export async function startServer(handler) {
     const server = createServer(handler);
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     return { url: `http://127.0.0.1:${server.address().port}`, close: () => { server.closeAllConnections?.(); server.close(); } };
+}
+
+/**
+ * Starts `dotnet <args>` in `cwd` (with `env` added), asks `url` once a second until it answers (two minutes at most), stops the app; its
+ * answer and output. Node only: also on Windows, where `exec` has no bash, curl or pkill
+ */
+export async function runAndFetch(cwd, args, url, env = {}) {
+    const app = spawn('dotnet', args, { cwd, env: { ...process.env, ...env }, detached: process.platform !== 'win32' });
+    let log = '';
+    app.stdout.on('data', d => { log += d; });
+    app.stderr.on('data', d => { log += d; });
+    let answer = '';
+    for (let i = 0; i < 120 && !answer; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        answer = await fetch(url).then(r => r.text(), () => '');
+    }
+    // The whole process tree: dotnet run starts the app as a child
+    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(app.pid), '/T', '/F']);
+    else try { process.kill(-app.pid); } catch { app.kill(); }
+    return { answer, log };
 }
