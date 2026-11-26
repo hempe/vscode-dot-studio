@@ -13,6 +13,10 @@ import { offerLegacyConfigMove } from '../nuget/legacyConfigOffer';
 import { offerNuGetV3Migration } from '../nuget/nugetV3Offer';
 import { setActiveSolutionPath } from './workspaceFolders';
 import { ShowAllFiles } from './showAllFiles';
+import { tempSolutionPath, tempSolutionXml } from './tempSolution';
+import { createSolutionFileWithProjects } from './saveSolution';
+import { UnloadedProjects } from './unloadedProjects';
+import { FrameworkChoice } from '../project/frameworkChoice';
 
 const log = logger('SolutionService');
 
@@ -25,6 +29,73 @@ export class SolutionService {
     private static readonly activeSolutionListeners = new Set<() => void>();
     /** Last load error shown, so repeated refreshes don't show the same error again */
     private static lastLoadError?: string;
+    /** `<globalStorage>/temp-solutions`, where temporary solutions live */
+    private static temporaryRoot: string | undefined;
+    /** Where Save proposes to put the temporary solution: the folder of the opened project, or of the folder's first project */
+    private static temporaryHome = '';
+
+    /** Set at activation */
+    static setTemporaryRoot(root: string): void {
+        this.temporaryRoot = root;
+    }
+
+    /**
+     * Visual Studio's temporary solution: the projects in a .slnx outside the user's folders, opened as the active solution.
+     * `key` is the project file or folder it stands for, `name` the solution's name.
+     */
+    static async openTemporary(key: string, name: string, projects: readonly string[]): Promise<Solution | null> {
+        if (!this.temporaryRoot) {
+            return null;
+        }
+        const file = tempSolutionPath(this.temporaryRoot, key, name);
+        const dir = path.dirname(file);
+        await fs.promises.mkdir(dir, { recursive: true });
+        await fs.promises.writeFile(file, tempSolutionXml(dir, projects), 'utf8');
+        // In use: the cleanup of temporary solutions goes by the folder's time
+        const now = new Date();
+        await fs.promises.utimes(dir, now, now).catch(() => undefined);
+        this.temporaryHome = path.dirname(projects[0] ?? key);
+        return this.openSolution(file, { temporary: true });
+    }
+
+    /** Save Solution As... on a temporary solution (without a change): writes it, then the Solution moves there */
+    static async saveTemporaryAs(solution: Solution): Promise<void> {
+        const saved = await this.writeSavedSolution(solution);
+        if (saved) {
+            await solution.retarget(saved);
+        }
+    }
+
+    /** Before the first change of a temporary solution: asks, then saves it; the saved file, or undefined when cancelled */
+    private static async saveTemporary(solution: Solution): Promise<string | undefined> {
+        const save = t('Save...');
+        const choice = await vscode.window.showWarningMessage(
+            t('The solution {0} is not saved yet. Save it to change it?', path.basename(solution.solutionPath, path.extname(solution.solutionPath))),
+            { modal: true }, save);
+        return choice === save ? this.writeSavedSolution(solution) : undefined;
+    }
+
+    /** Asks where, writes the solution file with dotnet and moves the per-solution state; the file, or undefined when cancelled */
+    private static async writeSavedSolution(solution: Solution): Promise<string | undefined> {
+        const target = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(path.join(this.temporaryHome, path.basename(solution.solutionPath))),
+            filters: { [t('Solution')]: ['slnx', 'sln'] },
+            title: t('Save Solution As'),
+        });
+        if (!target) {
+            return undefined;
+        }
+        const saved = target.fsPath;
+        await createSolutionFileWithProjects(saved, solution.getDotNetProjects().map(project => project.projectPath));
+        const from = solution.solutionPath;
+        await UnloadedProjects.rename(from, saved);
+        await FrameworkChoice.rename(from, saved);
+        await ShowAllFiles.rename(from, saved);
+        setActiveSolutionPath(saved);
+        await SolutionDiscovery.remember(saved);
+        log.info(`Saved the temporary solution as ${saved}`);
+        return saved;
+    }
 
     /**
      * Reads and parses a solution file with caching, including framework detection
@@ -67,7 +138,7 @@ export class SolutionService {
     }
 
     /** Loads a solution file as the active solution, e.g. after it was renamed */
-    static async openSolution(solutionPath: string): Promise<Solution | null> {
+    static async openSolution(solutionPath: string, options: { temporary?: boolean } = {}): Promise<Solution | null> {
         try {
             if (this.activeSolution) {
                 this.activeSolution.dispose();
@@ -75,7 +146,12 @@ export class SolutionService {
             }
 
             // Create and initialize the Solution instance
-            const solution = new Solution(solutionPath);
+            const solution = new Solution(solutionPath, options);
+            if (options.temporary) {
+                solution.saveGuard = () => this.saveTemporary(solution);
+                // Saved: the views, tasks and title follow the new file
+                solution.onDidRetarget(() => this.setActiveSolution(solution));
+            }
 
             try {
                 await solution.ready;
@@ -89,6 +165,10 @@ export class SolutionService {
             this.setActiveSolution(solution);
             setActiveSolutionPath(solutionPath);
             ShowAllFiles.setSolution(solutionPath);
+            if (options.temporary) {
+                log.info(`Initialized a temporary solution: ${path.basename(solutionPath)}`);
+                return solution;
+            }
             await SolutionDiscovery.remember(solutionPath);
             checkOmniSharpForSlnx(solutionPath).catch(error => log.error('Error checking the C# language server:', error));
             offerSlnxMigration(solutionPath, {

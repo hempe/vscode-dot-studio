@@ -833,5 +833,9 @@
   "{0} Warning": "{0} Warning",
   "{0} Warnings": "{0} Warnings",
   "{0} Message": "{0} Message",
-  "{0} Messages": "{0} Messages"
+  "{0} Messages": "{0} Messages",
+  "Save...": "Save...",
+  "The solution {0} is not saved yet. Save it to change it?": "The solution {0} is not saved yet. Save it to change it?",
+  "Solution": "Solution",
+  "Save Solution As": "Save Solution As"
 }

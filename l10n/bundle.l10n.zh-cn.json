@@ -833,5 +833,9 @@
   "{0} Warning": "{0} 个警告",
   "{0} Warnings": "{0} 个警告",
   "{0} Message": "{0} 条消息",
-  "{0} Messages": "{0} 条消息"
+  "{0} Messages": "{0} 条消息",
+  "Save...": "保存...",
+  "The solution {0} is not saved yet. Save it to change it?": "解决方案 {0} 尚未保存。是否保存后再进行更改？",
+  "Solution": "解决方案",
+  "Save Solution As": "解决方案另存为"
 }
