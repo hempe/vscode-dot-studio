@@ -35,7 +35,8 @@ const project = (references: string[] = [], sdk = 'Microsoft.NET.Sdk') =>
 
 describe.each(['slnx', 'sln'])('Add Existing Project (.%s)', kind => {
     it('adds a project that references one already in the solution, once each', async () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'add-project-'));
+        // The real path: on macOS the temp folder is under /var, a link to /private/var, and dotnet writes the entry from the real one
+        const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'add-project-')));
         const core = path.join(dir, 'src', 'Core', 'Core.csproj');
         const web = path.join(dir, 'src', 'Web', 'Web.csproj');
         fs.mkdirSync(path.dirname(core), { recursive: true });
