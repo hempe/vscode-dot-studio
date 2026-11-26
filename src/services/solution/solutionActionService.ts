@@ -102,6 +102,14 @@ export class SolutionActionService {
                 StartupProjectsPanel.show();
                 break;
 
+            case 'saveSolutionAs': {
+                const solution = SolutionService.getActiveSolution();
+                if (solution?.isTemporary) {
+                    await SolutionService.saveTemporaryAs(solution);
+                }
+                break;
+            }
+
             case 'codeCleanup':
                 await this._handleCodeCleanup(nodeId);
                 break;

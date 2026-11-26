@@ -4,7 +4,7 @@ import { Solution } from '../../core/Solution';
 import { Mutable, ProjectChild, ProjectNode } from '../../types';
 import { NodeId, NodeIdService, SolutionFolderNodeId } from './nodeIdService';
 import { logger } from '../../core/logger';
-import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, LIBRARY_PROJECT, UNLOADED_PROJECT } from '../../core/contextMenus';
+import { EXECUTABLE_PROJECT, STARTUP_PROJECT, STARTUP_PROJECT_WITH_PROFILES, LIBRARY_PROJECT, UNLOADED_PROJECT, UNSAVED_SOLUTION } from '../../core/contextMenus';
 import { UnloadedProjects } from './unloadedProjects';
 import { DebugConfigService } from '../debug/debugConfigService';
 import { NodeIdString } from '../../types/nodeId';
@@ -56,6 +56,7 @@ export class SolutionTreeService {
             name: path.basename(solutionPath, path.extname(solutionPath)),
             fileName: path.basename(solutionPath),
             nodeId: NodeIdService.generateSolutionId(solutionPath),
+            ...(solution.isTemporary ? { unsaved: true, contextValue: UNSAVED_SOLUTION } : {}),
             children: []
         };
 

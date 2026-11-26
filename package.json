@@ -617,6 +617,11 @@
         "category": ".NET"
       },
       {
+        "command": "shinobi.solutionExplorer.saveSolutionAs",
+        "title": "%command.shinobi.solutionExplorer.saveSolutionAs.title%",
+        "category": ".NET"
+      },
+      {
         "command": "shinobi.solutionExplorer.addSolutionItem",
         "title": "%command.shinobi.solutionExplorer.addSolutionItem.title%",
         "category": ".NET"
@@ -983,6 +988,11 @@
           "command": "shinobi.solutionExplorer.openInTerminal",
           "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution'",
           "group": "07_group@3"
+        },
+        {
+          "command": "shinobi.solutionExplorer.saveSolutionAs",
+          "when": "webviewId =~ /^shinobi-solution-webview/ && webviewSection == 'node' && nodeType == 'solution' && contextValue == 'unsaved'",
+          "group": "08_group@1"
         },
         {
           "command": "shinobi.solutionExplorer.addNewProject",
@@ -1589,6 +1599,10 @@
         },
         {
           "command": "shinobi.solutionExplorer.addSolutionFolder",
+          "when": "false"
+        },
+        {
+          "command": "shinobi.solutionExplorer.saveSolutionAs",
           "when": "false"
         },
         {

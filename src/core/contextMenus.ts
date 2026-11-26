@@ -36,6 +36,8 @@ export const STARTUP_PROJECT_WITH_PROFILES = 'startupWithProfiles';
 export const LIBRARY_PROJECT = 'library';
 /** `contextValue` of projects the user unloaded: their menu has no build, add or run items */
 export const UNLOADED_PROJECT = 'unloaded';
+/** `contextValue` of a temporary solution (a folder or project opened without a solution), not saved yet */
+export const UNSAVED_SOLUTION = 'unsaved';
 /** `contextValue` of files and folders the project contains (SDK-style projects): they can be excluded */
 export const INCLUDED_ITEM = 'included';
 /** `contextValue` of files and folders on disk the project does not contain (shown with Show All Files): they can be included */
@@ -59,6 +61,7 @@ export const menuCommands = {
     addNewProject: { title: 'Add New Project...', description: 'Opens the Add New Project wizard; the new project goes into the solution or into this solution folder.' },
     addExistingProject: { title: 'Add Existing Project...', description: 'Adds a project file from disk to the solution or to this solution folder.' },
     addSolutionFolder: { title: 'Add Solution Folder', description: 'Adds a solution folder (a virtual folder in the solution file, not on disk).' },
+    saveSolutionAs: { title: 'Save Solution As...', description: 'Saves a temporary solution (a folder or project opened without a solution) as a `.slnx` or `.sln` file where you choose; the solution then opens from there. Only on a solution that is not saved yet; the first change of the solution asks the same.' },
     addSolutionItem: { title: 'Add Solution Item...', description: 'Adds a file to the solution as a solution item (on the solution: into the "Solution Items" folder). A project file is added as a project.' },
     addFile: { title: 'Add File...', description: 'Creates an empty file; type its name in the tree.' },
     addNewItem: { title: 'Add New Item...', description: "Opens the Add New Item wizard: C# types with the folder's namespace, or any `dotnet new` item template." },
@@ -142,6 +145,11 @@ export const contextMenus: Readonly<Record<NodeType, Menu>> & Readonly<Partial<R
         ['runTests', 'debugTests'],
         ['rename'],
         ['copyFullPath', 'revealInExplorer', 'openInTerminal'],
+    ],
+    // A temporary solution: Save Solution As..., a group of its own after the solution menu's seven
+    [`solution.${UNSAVED_SOLUTION}`]: [
+        [], [], [], [], [], [], [],
+        ['saveSolutionAs'],
     ],
     // Solution folders are virtual (only in the solution file), so nothing on disk to reveal
     solutionFolder: [
@@ -302,6 +310,7 @@ const nodeTypeNames: Readonly<Partial<Record<NodeType, string>>> = {
 
 /** When the extra items of a `<nodeType>.<contextValue>` menu (and of test project menus) show, for the menu reference */
 const conditionNames: Readonly<Record<string, string>> = {
+    [`solution.${UNSAVED_SOLUTION}`]: 'On a temporary solution (a folder or project opened without a solution, not saved yet)',
     [`project.${EXECUTABLE_PROJECT}`]: 'On projects that can be started',
     [`project.${LIBRARY_PROJECT}`]: 'On class libraries',
     [`project.${UNLOADED_PROJECT}`]: 'On an unloaded project (instead of the menu above)',

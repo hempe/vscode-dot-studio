@@ -164,5 +164,6 @@
   "config.shinobi.refactorings.disabled.label.useBaseType": "尽可能使用基类型",
   "config.shinobi.refactorings.disabled.label.convertType": "转换抽象类 / 接口",
   "config.shinobi.refactorings.disabled.label.moveTypeNamespace": "将类型移动到命名空间",
-  "config.shinobi.refactorings.disabled.label.changeSignature": "更改签名"
+  "config.shinobi.refactorings.disabled.label.changeSignature": "更改签名",
+  "command.shinobi.solutionExplorer.saveSolutionAs.title": "解决方案另存为..."
 }

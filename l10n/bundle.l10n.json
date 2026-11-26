@@ -837,5 +837,6 @@
   "Save...": "Save...",
   "The solution {0} is not saved yet. Save it to change it?": "The solution {0} is not saved yet. Save it to change it?",
   "Solution": "Solution",
-  "Save Solution As": "Save Solution As"
+  "Save Solution As": "Save Solution As",
+  "(not saved)": "(not saved)"
 }

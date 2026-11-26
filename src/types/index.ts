@@ -45,6 +45,8 @@ export interface ProjectNode {
     readonly isStartupProject?: boolean;
     /** Projects the user unloaded: greyed out, collapsed, left out of solution builds */
     readonly isUnloaded?: boolean;
+    /** The solution is Visual Studio's temporary one (a folder or project opened without a solution), not saved yet */
+    readonly unsaved?: boolean;
     /** Files the project does not contain (greyed out) or contains from elsewhere (link overlay); undefined for ordinary items */
     readonly itemState?: 'excluded' | 'linked';
     /** Project nodes of test projects: they and everything in them get Run Tests / Debug Tests */

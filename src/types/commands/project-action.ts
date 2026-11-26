@@ -335,6 +335,12 @@ export declare type StartupProjectsActionCmd = {
     readonly nodeId: NodeIdString;
 }
 
+/** Save Solution As... on a temporary solution */
+export declare type SaveSolutionAsActionCmd = {
+    readonly action: 'saveSolutionAs';
+    readonly nodeId: NodeIdString;
+}
+
 /**
  * Union type of all project action commands
  */
@@ -401,5 +407,6 @@ export type ProjectActionCmd =
     | PublishActionCmd
     | ConfigurationManagerActionCmd
     | StartupProjectsActionCmd
+    | SaveSolutionAsActionCmd
     | CodeCleanupActionCmd
     | SyncNamespacesActionCmd;

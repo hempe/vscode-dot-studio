@@ -438,7 +438,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
                         <span
                             className={`node-name ${node.isStartupProject ? 'startup-project' : ''} ${marker ? `diagnostic-${marker.severity}` : ''}`}
                             {...(marker ? markerProps : { title: node.name })}
-                        >{node.isUnloaded ? `${node.name} ${t('(unloaded)')}` : node.name}</span>
+                        >{node.isUnloaded ? `${node.name} ${t('(unloaded)')}` : node.unsaved ? `${node.name} ${t('(not saved)')}` : node.name}</span>
                     </>
                 )}
             </div>

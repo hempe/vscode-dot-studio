@@ -164,5 +164,6 @@
   "config.shinobi.refactorings.disabled.label.useBaseType": "Use Base Type Where Possible",
   "config.shinobi.refactorings.disabled.label.convertType": "Convert Abstract Class / Interface",
   "config.shinobi.refactorings.disabled.label.moveTypeNamespace": "Move Type to Namespace",
-  "config.shinobi.refactorings.disabled.label.changeSignature": "Change Signature"
+  "config.shinobi.refactorings.disabled.label.changeSignature": "Change Signature",
+  "command.shinobi.solutionExplorer.saveSolutionAs.title": "Save Solution As..."
 }

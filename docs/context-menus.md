@@ -26,6 +26,12 @@ What each right-click menu of the Solution Explorer offers, by node. Keys work w
 | Reveal in Explorer |  | Shows the file or folder in your operating system's file manager. |
 | Open in Terminal |  | Opens a terminal in the folder of the solution, project or folder. |
 
+**On a temporary solution (a folder or project opened without a solution, not saved yet)**
+
+| Command | Key | What it does |
+|---|---|---|
+| Save Solution As... |  | Saves a temporary solution (a folder or project opened without a solution) as a `.slnx` or `.sln` file where you choose; the solution then opens from there. Only on a solution that is not saved yet; the first change of the solution asks the same. |
+
 ## Solution folder
 
 | Command | Key | What it does |
