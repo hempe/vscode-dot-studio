@@ -85,6 +85,11 @@ describe('collectDiagnostics', () => {
         ]);
     });
 
+    test('strips the project suffix also before the carriage return of Windows build output', () => {
+        const files = collectForA([full(Warning, 15, "The variable 'unused' is declared but never used [c:\\Repo\\Core\\Core.csproj]\r", 'CS0168')]);
+        expect(files.get(normalizePath('/repo/A.cs'))!.diagnostics.map(d => d.message)).toEqual(["The variable 'unused' is declared but never used"]);
+    });
+
     test('merges the same file reported under two URIs', () => {
         const files = collectDiagnostics([
             [uri('/repo/A.cs'), [full(Error, 1, 'e', 'CS1')]],

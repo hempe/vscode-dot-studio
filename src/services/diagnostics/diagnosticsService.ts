@@ -5,8 +5,8 @@ import { SimpleDebounceManager } from '../shared/debounceManager';
 import { affectsSeverityFilter, readSeverityFilter, SeverityFilter } from './diagnosticsFilter';
 
 
-/** `$msCompile` appends the project to the message: `... [/repo/Api/Api.csproj]` */
-const PROJECT_SUFFIX = /\s+\[[^\]]+\]$/;
+/** `$msCompile` appends the project to the message: `... [/repo/Api/Api.csproj]` (on Windows followed by the line's `\r`) */
+const PROJECT_SUFFIX = /\s+\[[^\]]+\]\s*$/;
 
 /** Severity as listed in the Error List and the tree: infos include Roslyn's suggestions */
 export type ListedSeverity = 'error' | 'warning' | 'info';
