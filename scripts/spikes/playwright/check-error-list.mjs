@@ -31,7 +31,7 @@ try {
 
     check('two warnings are listed', (await codes()).length === 2, JSON.stringify(await codes()));
     check('the toolbar counts 2 Warnings', (await el.locator('.toolbar .toggle').allInnerTexts()).some(t => /2 Warnings/.test(t)));
-    check('the tree marks the nodes with warnings', await marked() > 0);
+    check('the tree marks the nodes with warnings', await marked() > 0, JSON.stringify(await tree.locator('.node-name').evaluateAll(l => l.slice(0, 12).map(e => `${e.textContent} ${e.className}`))));
 
     // Sort: a click on the header orders by it, a second click reverses
     await el.getByRole('button', { name: 'Sort by Code' }).click();
@@ -53,7 +53,9 @@ try {
     // Double-click opens the file at the line
     await el.locator('tbody tr.row', { hasText: 'CS0168' }).dblclick();
     await win.waitForTimeout(2500);
-    check('double-click opens Order.cs', await win.locator('.tab[aria-label*="Order.cs"]').count() > 0);
+    // On a failure: what the row says (project, file) and which rows the tree marks, to tell a path problem from a click problem
+    const rowText = await el.locator('tbody tr.row', { hasText: 'CS0168' }).innerText().then(t => t.replace(/\s+/g, ' '), () => '');
+    check('double-click opens Order.cs', await win.locator('.tab[aria-label*="Order.cs"]').count() > 0, `${rowText} | tabs ${JSON.stringify(await win.locator('.tab').allInnerTexts())}`);
     check('at line 15', await win.locator('.statusbar').getByText(/Ln 15,/).count() > 0, await win.locator('.statusbar').innerText().then(t => t.replace(/\s+/g, ' ').slice(0, 200)));
 
     // The Warnings toggle empties the list and takes the markers off the tree

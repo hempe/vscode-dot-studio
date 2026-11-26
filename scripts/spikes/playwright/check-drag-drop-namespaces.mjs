@@ -56,7 +56,7 @@ await session('a file onto a folder of another project', async ({ win, drag, dia
 
 await session('a file onto a file', async ({ win, drag, dialog, has }) => {
     await drag('S.cs', 'Program.cs');
-    check('it goes into that file\'s folder (Shop.Web)', has('Shop.Web/S.cs') && !has('Shop.Core/Single/S.cs'));
+    check('it goes into that file\'s folder (Shop.Web)', has('Shop.Web/S.cs') && !has('Shop.Core/Single/S.cs'), `S.cs is in ${JSON.stringify(['Shop.Web/S.cs', 'Shop.Core/Single/S.cs', 'Shop.Web/Pages/S.cs', 'Shop.Worker/S.cs'].filter(has))}`);
     await dialog().getByRole('button', { name: 'Skip' }).click().catch(() => {});
 });
 

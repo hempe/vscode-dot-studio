@@ -12,6 +12,24 @@
 //   console project the .cshtml becomes None
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+
+/** Starts `dotnet <args>` in `cwd`, asks `url` once a second until it answers (two minutes at most), stops the app; its answer and output */
+async function runAndFetch(cwd, args, url) {
+    const app = spawn('dotnet', args, { cwd, detached: process.platform !== 'win32' });
+    let log = '';
+    app.stdout.on('data', d => { log += d; });
+    app.stderr.on('data', d => { log += d; });
+    let answer = '';
+    for (let i = 0; i < 120 && !answer; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        answer = await fetch(url).then(r => r.text(), () => '');
+    }
+    // The whole process tree: dotnet run starts the app as a child
+    if (process.platform === 'win32') spawn('taskkill', ['/pid', String(app.pid), '/T', '/F']);
+    else try { process.kill(-app.pid); } catch { app.kill(); }
+    return { answer, log };
+}
 import {
     prepareWorkspace, launch, openSolutionExplorer, expandPath, rowInfo, rowByName, rowsNamed, contextMenu, contextMenuOn, menuLabels, modal, waitForToast, clearToasts, sh, part, settle, check,
 } from './lib.mjs';
@@ -163,8 +181,9 @@ try {
         check('Include on Pages/Legacy: Content for Hello.cshtml with CopyToPublishDirectory', ok && /<Content Include="Pages\\Legacy\\Hello\.cshtml"[^>]*CopyToPublishDirectory=/.test(text), text);
         check('Content for data.json with CopyToOutputDirectory', /<Content Include="Pages\\Legacy\\data\.json"[^>]*CopyToOutputDirectory=/.test(text));
         check('Compile for Hello.cshtml.cs, EmbeddedResource for Strings.resx, None for notes.txt', /<Compile Include="Pages\\Legacy\\Hello\.cshtml\.cs"/.test(text) && /<EmbeddedResource Include="Pages\\Legacy\\Strings\.resx"/.test(text) && /<None Include="Pages\\Legacy\\notes\.txt"/.test(text));
-        const run = await sh(ws, `timeout 120 bash -c 'dotnet run --project src/Shop.Web --no-launch-profile --urls http://127.0.0.1:5198 > /tmp/pw-legacy-run.log 2>&1 & pid=$!; for i in $(seq 1 80); do sleep 1; r=$(curl -s http://127.0.0.1:5198/Legacy/Hello) && [ -n "$r" ] && break; done; echo "answer:$r"; kill $pid; pkill -f "Shop.Web.dll --urls http://127.0.0.1:5198" || true'`);
-        check('/Legacy/Hello answers', /Hello legacy/.test(run), run.slice(-300) + readFileSync('/tmp/pw-legacy-run.log', 'utf8').slice(-400));
+        // The app runs and answers the page (Node only: also on Windows, where there is no bash, curl or pkill for exec)
+        const { answer, log } = await runAndFetch(ws.folder, ['run', '--project', join('src', 'Shop.Web'), '--no-launch-profile', '--urls', 'http://127.0.0.1:5198'], 'http://127.0.0.1:5198/Legacy/Hello');
+        check('/Legacy/Hello answers', /Hello legacy/.test(answer), answer.slice(-300) + log.slice(-400));
         await expandPath(win, tree, ['NewConsole']);
         await win.waitForTimeout(800);
         // NewConsole/Legacy is neither the old-style project (the shallowest) nor Shop.Web/Pages/Legacy (the deepest)

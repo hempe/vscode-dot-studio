@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { launch, openSolutionExplorer, expandPath, rowInfo, sh, repo, tempRoot, check } from './lib.mjs';
 
 // The retry delays (5 s, 30 s, 2 min) are scaled down so the check takes about a minute: 0.03 makes them 0.15 s, 0.9 s and 3.6 s
-process.env.SHINOBI_RETRY_DELAY_SCALE = '0.03';
+// CI: each failing MSBuild run takes seconds there, so the retries (0.5 s, 3 s, 12 s) must not be used up before global.json is deleted
+process.env.SHINOBI_RETRY_DELAY_SCALE = process.env.CI ? '0.1' : '0.03';
 const work = mkdtempSync(join(tempRoot, 'shinobi-pw-'));
 const folder = join(work, 'Items');
 cpSync(join(repo, 'src/__fixtures__/project-items'), folder, { recursive: true });
@@ -33,7 +34,7 @@ if (!process.env.SKIP_FIRST) {
         check('Old.cs shows while the evaluation fails (the disk listing)', !!await rowInfo(tree, 'Old.cs'));
         check('the log says it could not evaluate the items', await waitUntil(win, async () => failures() > 0, 20));
         rmSync(pin);
-        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), 15);
+        const gone = await waitUntil(win, async () => !(await rowInfo(tree, 'Old.cs')), process.env.CI ? 45 : 15);
         check('at the next retry Old.cs disappears by itself', gone);
         // Leave ItemsApp collapsed: the profile remembers it, so the next start does not load its folders
         await tree.locator('.tree-node').filter({ has: tree.locator('xpath=.//*[normalize-space(.)="ItemsApp"]') }).first().click();

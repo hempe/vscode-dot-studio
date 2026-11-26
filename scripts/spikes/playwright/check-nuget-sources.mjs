@@ -81,7 +81,9 @@ try {
     // The Package source dropdown on Browse
     await tab('Browse').click();
     await win.waitForTimeout(1500);
-    check('Browse lists All and the enabled sources', JSON.stringify((await options('Package source')).sort()) === JSON.stringify(['All', 'Feed', 'Priv', 'nuget.org'].sort()), JSON.stringify(await options('Package source')));
+    // A machine with Visual Studio (the Windows runners) adds its offline packages through a machine-wide NuGet.Config
+    const ours = async () => (await options('Package source')).filter(name => !/^Microsoft Visual Studio Offline Packages$/.test(name)).sort();
+    check('Browse lists All and the enabled sources', JSON.stringify(await ours()) === JSON.stringify(['All', 'Feed', 'Priv', 'nuget.org'].sort()), JSON.stringify(await options('Package source')));
     await manager.getByPlaceholder('Search for packages...').fill('PrivLib');
     await manager.getByLabel('Package source', { exact: true }).click();
     await manager.getByRole('option', { name: 'Priv', exact: true }).click();

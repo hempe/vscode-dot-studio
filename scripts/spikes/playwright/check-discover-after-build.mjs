@@ -16,6 +16,9 @@ for (const discover of [true, false]) {
         // The test projects are listed (not built yet) a moment after the view opens
         for (let i = 0; i < 40 && await notBuilt() < 3; i++) await win.waitForTimeout(500);
         check('three test projects are listed, none built yet', await notBuilt() === 3, JSON.stringify(await rows()));
+        // Two refreshes run at the start (the Testing view opening, the solution loading); a second one still evaluating the projects when
+        // the build ends finds them built and discovers them, rightly. The build starts after both: slow machines (CI) need longer
+        await win.waitForTimeout(process.env.CI ? 30000 : 5000);
 
         await win.keyboard.press('Control+Shift+b');
         const dll = join(ws.folder, 'tests/Shop.Core.Tests/bin/Debug/net10.0/Shop.Core.Tests.dll');

@@ -18,6 +18,7 @@ export const tempRoot = process.platform === 'win32' ? realpathSync.native(tmpdi
 
 // The window of the last launch, for a screenshot when a part fails
 let lastWindow;
+let launches = 0;
 
 /** Copy of the sample (Contoso) in /tmp with the given workspace settings and extra files (path below the folder -> text). */
 export function prepareWorkspace(settings = {}, files = {}) {
@@ -81,6 +82,12 @@ export async function launch({ work, folder }, { csharp = false, userSettings = 
     });
     const win = await app.firstWindow();
     lastWindow = win;
+    // CI (PW_SHOTS set): the last state of every window before it closes, also for failures outside a part (an uncaught exception)
+    if (process.env.PW_SHOTS) {
+        const close = app.close.bind(app);
+        const shot = join(shotsDir, `pw-last-${++launches}.png`);
+        app.close = async () => { await win.screenshot({ path: shot }).catch(() => {}); return close(); };
+    }
     await win.waitForLoadState('domcontentloaded');
     if (!warm) {
         // The first-run welcome dialog (sign in to Copilot, then pick a theme) covers the window in a fresh profile
@@ -154,6 +161,20 @@ export async function mouseOffTree(win, frame) {
 
 /** Expands the rows on a path of names from the top (each name is searched among the visible rows; a collapsed one is opened with Right). */
 export async function expandPath(win, frame, names) {
+    // The tree can be rebuilt right after a row opened (a project finished loading, a slow machine): then it is opened again
+    for (let attempt = 1; ; attempt++) {
+        await expandPathOnce(win, frame, names);
+        await settle(win, frame, 1000, 10000);
+        const closed = [];
+        for (const name of names) {
+            const icon = rowByName(frame, name).locator('.expand-icon').first();
+            if (await icon.evaluate(e => e.style.transform.includes('rotate(0deg)')).catch(() => false)) closed.push(name);
+        }
+        if (closed.length === 0 || attempt >= 3) return;
+    }
+}
+
+async function expandPathOnce(win, frame, names) {
     for (const name of names) {
         const row = rowByName(frame, name);
         await row.waitFor({ timeout: 30000 });
@@ -295,8 +316,7 @@ export async function startFeed(dir) {
 
 /** Right-clicks the row and picks the menu item; `path` are the labels from the menu down through its submenus. */
 export async function contextMenu(win, frame, name, path) {
-    await rowByName(frame, name).click({ button: 'right' });
-    await pickMenu(win, path);
+    await contextMenuOn(win, rowByName(frame, name), path);
 }
 
 /** Picks an item of the open context menu (labels down through submenus) */
@@ -316,7 +336,7 @@ async function pickMenuItems(win, path) {
         await item.waitFor({ timeout: 8000 });
         // A menu ignores a click that comes right after it opened (the mouse-up of the right-click)
         await win.waitForTimeout(600);
-        await item.hover();
+        await item.hover({ timeout: 8000 });
         await win.waitForTimeout(i < path.length - 1 ? 600 : 200);
         if (i === path.length - 1) {
             const box = await item.boundingBox();
@@ -512,8 +532,17 @@ export async function rowsNamed(frame, name) {
 
 /** Right-clicks the given row (a locator) and picks the menu item */
 export async function contextMenuOn(win, row, path) {
-    await row.click({ button: 'right' });
-    await pickMenu(win, path);
+    // A menu that closed or moved between opening and the click (an editor taking the focus, a slow machine) is opened once more
+    for (let attempt = 1; ; attempt++) {
+        await row.click({ button: 'right' });
+        try {
+            await pickMenu(win, path);
+            return;
+        } catch (e) {
+            if (attempt >= 2) throw e;
+            await win.waitForTimeout(1000);
+        }
+    }
 }
 
 /** Copy of `src/__fixtures__/<name>` in /tmp (without its obj folders, whose paths point into the repository) with workspace settings and extra files */

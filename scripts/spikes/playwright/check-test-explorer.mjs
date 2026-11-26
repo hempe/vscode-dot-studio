@@ -27,9 +27,16 @@ try {
         if (now.some(r => r.state === 'failed') && !now.some(r => r.state === 'queued' || r.state === 'running')) break;
         await win.waitForTimeout(1000);
     }
-    for (let i = 0; i < 60; i++) { await win.keyboard.press('ArrowRight'); await win.keyboard.press('ArrowDown'); }
+    // The view is a virtual list (only the rows on screen are in the page): the rows are collected while opening and walking down
+    const seen = new Map();
+    for (let i = 0; i < 200; i++) {
+        await win.keyboard.press('ArrowRight');
+        await win.keyboard.press('ArrowDown');
+        if (i % 5 === 4) for (const row of await read()) seen.set(row.text, row);
+    }
     await win.waitForTimeout(1000);
-    const all = await read();
+    for (const row of await read()) seen.set(row.text, row);
+    const all = [...seen.values()];
     const states = name => all.filter(r => r.text.startsWith(name)).map(r => r.state);
     check('SumsTheLines passed (NUnit)', states('SumsTheLines').includes('passed'), JSON.stringify(states('SumsTheLines')));
     check('NoDiscountBelowTen passed (xUnit v2)', states('NoDiscountBelowTen').includes('passed'));
@@ -39,7 +46,7 @@ try {
     check('a failed test carries its message', all.some(r => r.text.startsWith('FailsOnPurpose') && /Assert|Expected|Failure/i.test(r.text)));
     check('MultipliesByQuantity errored (the sample throws)', states('MultipliesByQuantity').includes('error'), JSON.stringify(states('MultipliesByQuantity')));
     check('parameterized cases are listed and passed (xUnit v2)', all.some(r => r.text.startsWith('quantity: 10, expected: 10') && r.state === 'passed'));
-    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'));
+    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'), JSON.stringify(all.filter(r => /Count|Quantit/.test(r.text))));
 
     // A click on a failed test opens its file at the line
     const failed = rows.filter({ hasText: /^FailsOnPurpose/ }).first();
