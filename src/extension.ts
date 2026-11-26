@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { FrameworkDropdownService } from './services/debug/frameworkDropdownService';
 import { SolutionService } from './services/solution/solutionService';
 import { SolutionWebviewProvider } from './webview/providers/SolutionWebviewProvider';
@@ -60,6 +61,9 @@ import { initDevCertCheck, trustDevCertificate } from './services/debug/devCert/
 import { StartupChoice } from './services/debug/startupProfiles/startupChoice';
 import { refreshStartup, selectStartupProfile, startupProfilesChanged } from './services/debug/startupProfiles/startProfile';
 import { t } from './core/i18n';
+import { sln } from './core/utils';
+import { PROJECT_FILE, staleTempFolders } from './services/solution/tempSolution';
+import { recordPendingOpen } from './services/solution/pendingOpen';
 
 const logger = loggerFn('Extensions');
 
@@ -135,6 +139,13 @@ export function activate(context: vscode.ExtensionContext) {
     NuGetV3Offer.initialize(context.workspaceState);
     FrameworkChoice.initialize(context.workspaceState);
     SolutionDiscovery.initialize(context.workspaceState, context.globalState);
+    // Visual Studio's temporary solutions (a folder or project without a solution); those not opened for 30 days go
+    const temporaryRoot = path.join(context.globalStorageUri.fsPath, 'temp-solutions');
+    SolutionService.setTemporaryRoot(temporaryRoot);
+    for (const stale of staleTempFolders(temporaryRoot, Date.now())) {
+        fs.promises.rm(stale, { recursive: true, force: true }).catch(error => logger.warn(`Could not delete ${stale}:`, error));
+    }
+    void openFileWithoutFolder(context.globalState);
     UnloadedProjects.initialize(context.workspaceState);
     ShowAllFiles.initialize(context.workspaceState);
     initializeTemplates(context.globalState);
@@ -516,4 +527,20 @@ export function deactivate() {
 
     // Dispose the solution service to clean up active solution
     SolutionService.dispose();
+}
+
+/**
+ * A solution or project file opened with no folder (a double-click in the file manager, `code App.slnx`): the window reopens on the
+ * file's folder, where the Solution Explorer opens that solution, or the project as a temporary solution (Visual Studio does the same)
+ */
+async function openFileWithoutFolder(globalState: vscode.Memento): Promise<void> {
+    if (vscode.workspace.workspaceFolders?.length) {
+        return;
+    }
+    const file = vscode.window.activeTextEditor?.document.uri;
+    if (file?.scheme !== 'file' || !(sln(file.fsPath) || PROJECT_FILE.test(file.fsPath))) {
+        return;
+    }
+    await recordPendingOpen(globalState, path.dirname(file.fsPath), file.fsPath);
+    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(path.dirname(file.fsPath)), { forceReuseWindow: true });
 }

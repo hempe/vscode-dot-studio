@@ -69,6 +69,10 @@
   "activationEvents": [
     "workspaceContains:**/*.sln",
     "workspaceContains:**/*.slnx",
+    "workspaceContains:**/*.csproj",
+    "workspaceContains:**/*.vbproj",
+    "workspaceContains:**/*.fsproj",
+    "onStartupFinished",
     "onView:shinobi-solution-webview"
   ],
   "main": "./out/extension.js",
