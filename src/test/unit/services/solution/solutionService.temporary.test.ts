@@ -91,6 +91,19 @@ describe('temporary solutions', () => {
         expect(FrameworkChoice.get(path.join(repo, 'App.slnx'))).toBe('net8.0');
     }, 120000);
 
+    it('Save adds projects that reference each other (the runners\' SDK refused that with its --include-references)', async () => {
+        const lib = path.join(repo, 'Lib', 'Lib.csproj');
+        fs.mkdirSync(path.dirname(lib), { recursive: true });
+        fs.writeFileSync(lib, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
+        fs.writeFileSync(app, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><ProjectReference Include="..\\Lib\\Lib.csproj" /></ItemGroup></Project>');
+        ui.saveTo = path.join(repo, 'Both.slnx');
+        const solution = (await SolutionService.openTemporary(repo, 'Both', [app, lib]))!;
+        await SolutionService.saveTemporaryAs(solution);
+        const xml = fs.readFileSync(path.join(repo, 'Both.slnx'), 'utf8');
+        expect(xml.match(/App\.csproj/g)).toHaveLength(1);
+        expect(xml.match(/Lib\.csproj/g)).toHaveLength(1);
+    }, 120000);
+
     it('a .sln can be chosen too', async () => {
         ui.button = 'Save...';
         ui.saveTo = path.join(repo, 'App.sln');

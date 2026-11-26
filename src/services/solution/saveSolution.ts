@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
+import { dotnetSlnAdd } from './dotnetSlnAdd';
 
 function dotnet(args: string[], cwd: string): Promise<{ code: number; output: string }> {
     return new Promise(resolve => {
@@ -27,9 +28,6 @@ export async function createSolutionFileWithProjects(file: string, projects: rea
         throw new Error(`dotnet new sln failed: ${created.output.trim().split(/\r?\n/).slice(0, 4).join(' ')}`);
     }
     if (projects.length > 0) {
-        const added = await dotnet(['sln', file, 'add', '--in-root', ...projects.map(project => path.relative(dir, project))], dir);
-        if (added.code !== 0) {
-            throw new Error(`dotnet sln add failed: ${added.output.trim().split(/\r?\n/).slice(0, 4).join(' ')}`);
-        }
+        await dotnetSlnAdd(file, projects.map(project => path.relative(dir, project)), ['--in-root'], dir, dotnet);
     }
 }

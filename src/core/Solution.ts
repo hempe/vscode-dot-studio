@@ -19,6 +19,7 @@ import { pathKey } from '../services/project/items/projectItems';
 import { FrameworkChoice } from '../services/project/frameworkChoice';
 import { t } from './i18n';
 import { SaveCancelledError } from './saveCancelled';
+import { dotnetSlnAdd } from '../services/solution/dotnetSlnAdd';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -570,15 +571,8 @@ export class Solution {
 
         try {
             const solutionDir = path.dirname(this._solutionPath);
-            const args = [
-                'sln', this._solutionPath, 'add', path.relative(solutionDir, projectPath),
-                ...(solutionFolderPath ? ['--solution-folder', solutionFolderPath] : ['--in-root'])
-            ];
-            log.debug(`Executing: dotnet ${args.join(' ')}`);
-
-            const { execFile } = require('child_process');
-            const { promisify } = require('util');
-            await promisify(execFile)('dotnet', args, { cwd: solutionDir, timeout: 60000 });
+            await dotnetSlnAdd(this._solutionPath, [path.relative(solutionDir, projectPath)],
+                solutionFolderPath ? ['--solution-folder', solutionFolderPath] : ['--in-root'], solutionDir);
 
             log.debug(`Successfully added project to solution: ${projectPath}`);
 
