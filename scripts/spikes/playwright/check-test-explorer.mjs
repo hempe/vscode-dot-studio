@@ -30,8 +30,11 @@ try {
     // The view is a virtual list (only the rows on screen are in the page): the rows are collected while opening and walking down
     const seen = new Map();
     for (let i = 0; i < 200; i++) {
+        // A busy machine draws the children of an opened row late: without a pause the walk goes past them
         await win.keyboard.press('ArrowRight');
+        await win.waitForTimeout(120);
         await win.keyboard.press('ArrowDown');
+        await win.waitForTimeout(30);
         if (i % 5 === 4) for (const row of await read()) seen.set(row.text, row);
     }
     await win.waitForTimeout(1000);
@@ -46,7 +49,14 @@ try {
     check('a failed test carries its message', all.some(r => r.text.startsWith('FailsOnPurpose') && /Assert|Expected|Failure/i.test(r.text)));
     check('MultipliesByQuantity errored (the sample throws)', states('MultipliesByQuantity').includes('error'), JSON.stringify(states('MultipliesByQuantity')));
     check('parameterized cases are listed and passed (xUnit v2)', all.some(r => r.text.startsWith('quantity: 10, expected: 10') && r.state === 'passed'));
-    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'), JSON.stringify(all.filter(r => /Count|Quantit/.test(r.text))));
+    // The Testing view's filter shows the matching rows opened, whatever the walk above reached on a busy machine
+    const filter = win.locator('.pane-header, .pane-body').locator('input[placeholder*="Filter"]').first();
+    await filter.fill('CountsQuantities').catch(() => {});
+    await win.waitForTimeout(1500);
+    for (const row of await read()) seen.set(row.text, row);
+    await filter.fill('').catch(() => {});
+    all.splice(0, all.length, ...seen.values());
+    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'), JSON.stringify(all.filter(r => /NUnit|Count/.test(r.text)).map(r => `${r.text.slice(0, 70)} [${r.state}]`)));
 
     // A click on a failed test opens its file at the line
     const failed = rows.filter({ hasText: /^FailsOnPurpose/ }).first();
