@@ -3,7 +3,7 @@
 import { _electron as electron } from 'playwright-core';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -503,9 +503,19 @@ export async function part(name, fn) {
 /** Makes the Contoso sample a .sln with the solution folders src (Shop.*) and tests (the test projects) instead of the .slnx */
 export async function toSln(ws) {
     rmSync(join(ws.folder, 'Contoso.slnx'));
-    await sh(ws, 'dotnet new sln -n Contoso --format sln');
-    await sh(ws, 'dotnet sln Contoso.sln add --solution-folder src src/Shop.Core/Shop.Core.csproj src/Shop.Generators/Shop.Generators.csproj src/Shop.Web/Shop.Web.csproj src/Shop.Worker/Shop.Worker.csproj');
-    await sh(ws, 'dotnet sln Contoso.sln add --solution-folder tests tests/Shop.Core.Tests/Shop.Core.Tests.csproj tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj');
+    const output = [
+        await sh(ws, 'dotnet new sln -n Contoso --format sln'),
+        await sh(ws, 'dotnet sln Contoso.sln add --solution-folder src src/Shop.Core/Shop.Core.csproj src/Shop.Generators/Shop.Generators.csproj src/Shop.Web/Shop.Web.csproj src/Shop.Worker/Shop.Worker.csproj'),
+        await sh(ws, 'dotnet sln Contoso.sln add --solution-folder tests tests/Shop.Core.Tests/Shop.Core.Tests.csproj tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj'),
+    ].join('\n');
+    checkSolutionHas(ws, 'Contoso.sln', ['Shop.Core', 'Shop.Generators', 'Shop.Web', 'Shop.Worker', 'Shop.Core.Tests'], output);
+}
+
+/** Throws with dotnet's output when the solution file lacks one of the projects (a `dotnet sln add` that failed) */
+export function checkSolutionHas(ws, file, projects, output) {
+    const text = existsSync(join(ws.folder, file)) ? readFileSync(join(ws.folder, file), 'utf8') : '';
+    const missing = projects.filter(name => !text.includes(`${name}.csproj`));
+    if (missing.length) throw new Error(`${file} lacks ${missing.join(', ')}; dotnet said:\n${output}`);
 }
 
 /** Starts a rename in the tree (the row's Rename menu item), types the name and presses Enter */
