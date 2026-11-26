@@ -10,6 +10,7 @@ import { itemNameProblem } from '../../project/itemNames';
 import { DebugConfigService } from '../../debug/debugConfigService';
 import { dependentRenames } from '../../templates/dependentRenames';
 import { t } from '../../../core/i18n';
+import { isSaveCancelled } from '../../../core/saveCancelled';
 
 const log = logger('renameActions');
 
@@ -107,6 +108,10 @@ export async function handleRename(nodeId: NodeId, newName: string, itemType?: s
             await updateNamespacesAfterMove([newPath], nodeId.type === 'folder' ? 'Folder renamed' : 'File renamed');
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error renaming item:', error);
         vscode.window.showErrorMessage(t('Error renaming: {0}', error));
     }

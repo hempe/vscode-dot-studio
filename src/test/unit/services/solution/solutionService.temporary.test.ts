@@ -7,6 +7,8 @@ const ui = {
     button: undefined as string | undefined,
     saveTo: undefined as string | undefined,
     asked: [] as string[],
+    errors: [] as string[],
+    inputBox: undefined as string | undefined,
 };
 
 jest.mock('vscode', () => {
@@ -20,7 +22,8 @@ jest.mock('vscode', () => {
         Uri: { file: (p: string) => ({ fsPath: p }) },
         workspace: { createFileSystemWatcher: () => watcher, workspaceFolders: undefined, getConfiguration: () => ({ get: (_key: string, fallback: unknown) => fallback }) },
         window: {
-            showErrorMessage: async () => undefined,
+            showErrorMessage: async (message: string) => { ui.errors.push(message); },
+            showInputBox: async () => ui.inputBox,
             showInformationMessage: async () => undefined,
             showWarningMessage: async (message: string) => { ui.asked.push(message); return ui.button; },
             showSaveDialog: async () => ui.saveTo ? { fsPath: ui.saveTo } : undefined,
@@ -37,6 +40,8 @@ import { SolutionService } from '../../../../services/solution/solutionService';
 import { SaveCancelledError } from '../../../../core/saveCancelled';
 import { FrameworkChoice } from '../../../../services/project/frameworkChoice';
 import { ProjectItemsService } from '../../../../services/project/items/projectItemsService';
+import { SolutionActionService } from '../../../../services/solution/solutionActionService';
+import { NodeIdService } from '../../../../services/solution/nodeIdService';
 
 class Memento {
     private values = new Map<string, unknown>();
@@ -58,7 +63,7 @@ beforeEach(() => {
     fs.writeFileSync(app, '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>');
     SolutionService.setTemporaryRoot(storage);
     FrameworkChoice.initialize(new Memento() as never);
-    ui.button = undefined; ui.saveTo = undefined; ui.asked = [];
+    ui.button = undefined; ui.saveTo = undefined; ui.asked = []; ui.errors = []; ui.inputBox = undefined;
 });
 afterEach(() => SolutionService.dispose());
 
@@ -94,6 +99,15 @@ describe('temporary solutions', () => {
         expect(solution.solutionPath).toBe(path.join(repo, 'App.sln'));
         expect(fs.readFileSync(path.join(repo, 'App.sln'), 'utf8')).toMatch(/App[\\/]App\.csproj/);
     }, 120000);
+
+    it('a cancelled save shows no error: Add Solution Folder just does nothing', async () => {
+        const solution = (await SolutionService.openTemporary(app, 'App', [app]))!;
+        ui.inputBox = 'Libs';
+        await SolutionActionService.handleProjectAction({ action: 'addSolutionFolder', nodeId: NodeIdService.generateSolutionId(solution.solutionPath) });
+        expect(ui.asked).toHaveLength(1);
+        expect(ui.errors).toEqual([]);
+        expect(fs.readFileSync(solution.solutionPath, 'utf8')).not.toContain('Libs');
+    });
 
     it('Cancel in the question or in the dialog saves nothing', async () => {
         const solution = (await SolutionService.openTemporary(app, 'App', [app]))!;

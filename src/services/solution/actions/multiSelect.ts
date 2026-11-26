@@ -10,6 +10,7 @@ import { multiDeleteQuestion } from '../../project/items/linkedItems';
 import { clipboard, projectsLinking } from './fileActions';
 import { removeDependencyFromCsproj } from './referenceActions';
 import { t } from '../../../core/i18n';
+import { isSaveCancelled } from '../../../core/saveCancelled';
 
 const log = logger('multiSelect');
 
@@ -79,6 +80,10 @@ export async function handleMultiAction(action: ProjectActionCmd['action'], node
                 log.warn(`${action} has no multi-select variant`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error(`${action} on ${nodes.length} nodes failed:`, error);
         vscode.window.showErrorMessage(t('{0} failed: {1}', action, error instanceof Error ? error.message : error));
     }

@@ -11,6 +11,7 @@ import type { DropResult } from '../solutionExpansionService';
 import { pasteOne } from './fileActions';
 import { addDroppedReferences } from './referenceActions';
 import { t } from '../../../core/i18n';
+import { isSaveCancelled } from '../../../core/saveCancelled';
 
 const log = logger('dragDrop');
 
@@ -73,8 +74,11 @@ export async function moveNodes(nodeIdStrings: readonly NodeIdString[], targetNo
             }
         }
     } catch (error) {
-        log.error('Drop failed:', error);
-        vscode.window.showErrorMessage(t('Could not move: {0}', error instanceof Error ? error.message : error));
+        // A cancelled save of the temporary solution moved nothing and is no error
+        if (!isSaveCancelled(error)) {
+            log.error('Drop failed:', error);
+            vscode.window.showErrorMessage(t('Could not move: {0}', error instanceof Error ? error.message : error));
+        }
     }
     // What went through before an error is shown too
     return dropped.length > 0 ? { container: verdict.container.nodeId, nodes: dropped } : undefined;

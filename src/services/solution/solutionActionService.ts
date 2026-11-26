@@ -181,7 +181,7 @@ export class SolutionActionService {
                 break;
 
             case 'addNewProject':
-                openNewProjectWizard(nodeId.type === 'solutionFolder' ? solutionFolderPathOf(nodeId) : undefined);
+                await openNewProjectWizard(nodeId.type === 'solutionFolder' ? solutionFolderPathOf(nodeId) : undefined);
                 break;
 
             case 'manageNuGetPackages':

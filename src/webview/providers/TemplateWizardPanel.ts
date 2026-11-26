@@ -5,6 +5,8 @@ import { WizardInit, WizardMessage, WizardRequest } from '../../types/templateWi
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 import { createItem, createNewSolution, createProject, newItemWizard, newProjectWizard, newSolutionWizard } from '../../services/templates/templateService';
 import { t } from '../../core/i18n';
+import { isSaveCancelled } from '../../core/saveCancelled';
+import { SolutionService } from '../../services/solution/solutionService';
 
 const log = logger('TemplateWizard');
 
@@ -81,7 +83,19 @@ export class TemplateWizardPanel {
 }
 
 /** "Add New Project...": into the solution root, or a solution folder ("a/b") */
-export function openNewProjectWizard(solutionFolderPath?: string): void {
+export async function openNewProjectWizard(solutionFolderPath?: string): Promise<void> {
+    // A temporary solution is saved first: the new project's location is relative to the solution's folder
+    const solution = SolutionService.getActiveSolution();
+    if (solution?.isTemporary) {
+        try {
+            await solution.ensureSavedForNewProject();
+        } catch (error) {
+            if (isSaveCancelled(error)) {
+                return;
+            }
+            throw error;
+        }
+    }
     TemplateWizardPanel.open(
         t('Add New Project'),
         () => newProjectWizard(solutionFolderPath),

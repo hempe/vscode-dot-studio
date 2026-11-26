@@ -11,6 +11,7 @@ import { applyRequest } from '../../services/build/configurationManager/requests
 import { ConfigurationManagerMessage, ConfigurationManagerProject, ConfigurationManagerRequest, ConfigurationManagerState } from '../../types/configurationManager';
 import { TemplateWizardWebview } from './views/TemplateWizardWebview';
 import { t } from '../../core/i18n';
+import { isSaveCancelled } from '../../core/saveCancelled';
 
 const log = logger('ConfigurationManagerPanel');
 
@@ -50,6 +51,11 @@ export class ConfigurationManagerPanel {
         this.panel.webview.html = TemplateWizardWebview.getHtmlForWebview(extensionUri, this.panel.webview, title, 'configuration-view');
         this.subscriptions.push(
             this.panel.webview.onDidReceiveMessage((request: ConfigurationManagerRequest) => this.handle(request).catch(error => {
+                // The temporary solution was not saved: the grid shows the unchanged solution again
+                if (isSaveCancelled(error)) {
+                    void this.postState();
+                    return;
+                }
                 log.error(`${request.type} failed:`, error);
                 void this.post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
             })),

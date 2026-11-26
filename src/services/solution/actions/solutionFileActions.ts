@@ -5,6 +5,7 @@ import { SolutionService } from '../solutionService';
 import { NodeId } from '../nodeIdService';
 import { deleteProjectPlan } from '../../project/deleteProject';
 import { t } from '../../../core/i18n';
+import { isSaveCancelled } from '../../../core/saveCancelled';
 
 const log = logger('solutionFileActions');
 
@@ -36,6 +37,10 @@ export async function handleRemoveSolutionItem(nodeId: NodeId): Promise<void> {
             log.info(`Solution item removed: ${itemPath}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error removing solution item:', error);
         vscode.window.showErrorMessage(t('Error removing solution item: {0}', error));
     }
@@ -74,6 +79,10 @@ export async function handleAddExistingProject(nodeId: NodeId): Promise<void> {
             log.info(`Existing project added: ${projectFiles[0].fsPath}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error adding existing project:', error);
         vscode.window.showErrorMessage(t('Error adding existing project: {0}', error));
     }
@@ -97,6 +106,10 @@ export async function handleAddSolutionFolder(nodeId: NodeId): Promise<void> {
             log.info(`Solution folder added: ${folderName}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error adding solution folder:', error);
         vscode.window.showErrorMessage(t('Error adding solution folder: {0}', error));
     }
@@ -131,6 +144,10 @@ export async function handleRemoveSolutionFolder(nodeId: NodeId): Promise<void> 
             log.info(`Solution folder removed: ${folderName}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error removing solution folder:', error);
         vscode.window.showErrorMessage(t('Error removing solution folder: {0}', error));
     }
@@ -190,6 +207,10 @@ export async function handleAddSolutionItem(nodeId: NodeId): Promise<void> {
             log.info(`Solution item added: ${fileUri[0].fsPath}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error adding solution item:', error);
         vscode.window.showErrorMessage(t('Error adding solution item: {0}', error));
     }
@@ -222,6 +243,10 @@ export async function handleRemoveProject(nodeId: NodeId): Promise<void> {
             log.info(`Project removed from solution: ${projectPath}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error removing project:', error);
         vscode.window.showErrorMessage(t('Error removing project: {0}', error));
     }
@@ -262,6 +287,10 @@ export async function handleDeleteProject(nodeId: NodeId): Promise<void> {
             log.info(`Project deleted: ${projectPath}`);
         }
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error deleting project:', error);
         vscode.window.showErrorMessage(t('Error deleting project: {0}', error));
     }
@@ -294,6 +323,10 @@ export async function handleSetStartupProject(nodeId: NodeId): Promise<void> {
 
         log.info(`Successfully set startup project: ${projectPath}`);
     } catch (error) {
+        // The temporary solution was not saved: nothing changed, nothing to report
+        if (isSaveCancelled(error)) {
+            return;
+        }
         log.error('Error setting startup project:', error);
         vscode.window.showErrorMessage(t('Error setting startup project: {0}', error));
     }
