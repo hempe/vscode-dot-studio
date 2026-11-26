@@ -1,4 +1,4 @@
-   e# Releasing
+# Releasing
 
 How to publish a new version of the extension, and the accounts you need once. Written for the maintainer who does this a few times a year and does not want to remember it. Users: see the [README](README.md).
 
