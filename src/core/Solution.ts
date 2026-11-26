@@ -18,6 +18,7 @@ import { UnloadedProjects } from '../services/solution/unloadedProjects';
 import { pathKey } from '../services/project/items/projectItems';
 import { FrameworkChoice } from '../services/project/frameworkChoice';
 import { t } from './i18n';
+import { SaveCancelledError } from './saveCancelled';
 
 export interface SolutionFileTreeNode {
     name: string;
@@ -72,7 +73,19 @@ export class Solution {
 
     private readonly _folders = new SolutionFolderEditor(this.editHost());
 
-    constructor(private readonly _solutionPath: string) {
+    private _temporary: boolean;
+    /**
+     * Set by SolutionService for a temporary solution: saves it where the user wants (asking first) and returns the saved
+     * file, or undefined when the user cancelled. Called before the first change that writes the solution file.
+     */
+    saveGuard: (() => Promise<string | undefined>) | undefined;
+    private _saving: Promise<void> | undefined;
+    private _retargetEmitter = new vscode.EventEmitter<void>();
+    /** Fires when the solution moved to another file (a temporary solution that was saved) */
+    public readonly onDidRetarget = this._retargetEmitter.event;
+
+    constructor(private _solutionPath: string, options: { temporary?: boolean } = {}) {
+        this._temporary = !!options.temporary;
         // Create the appropriate file handler based on file extension
         this._handler = createSolutionFileHandler(_solutionPath);
         // Initialize debouncer for launch.json changes
@@ -107,6 +120,44 @@ export class Solution {
             editSlnLines: edit => this.editSlnLines(edit),
             getSolutionItems: project => this.getSolutionItems(project),
         };
+    }
+
+    /** Visual Studio's temporary solution: a folder or project opened without a solution, not saved yet */
+    get isTemporary(): boolean {
+        return this._temporary;
+    }
+
+    /** Before a change of the solution file: a temporary solution is saved first (once, also for changes that come at the same time) */
+    private async ensureSaved(): Promise<void> {
+        if (!this._temporary) {
+            return;
+        }
+        this._saving ??= (async () => {
+            const saved = await this.saveGuard?.();
+            if (!saved) {
+                throw new SaveCancelledError();
+            }
+            await this.retarget(saved);
+        })().finally(() => { this._saving = undefined; });
+        await this._saving;
+    }
+
+    /** New Project into a temporary solution: saved before anything is created */
+    async ensureSavedForNewProject(): Promise<void> {
+        await this.ensureSaved();
+    }
+
+    /** The solution now lives in another file (a saved temporary solution): that one is watched and read; the projects stay */
+    async retarget(solutionPath: string): Promise<void> {
+        this._solutionPath = solutionPath;
+        this._temporary = false;
+        this._handler = createSolutionFileHandler(solutionPath);
+        this._fileWatcher?.dispose();
+        this.setupFileWatcher();
+        await this.parseSolutionFile();
+        await this.initializeProjects();
+        this._retargetEmitter.fire();
+        this._changeEmitter.fire();
     }
 
     get solutionPath(): string {
@@ -466,6 +517,7 @@ export class Solution {
      * Reads the solution file's text, writes what `edit` returns and re-parses it, so the model is fresh on return
      */
     async editSolutionText(edit: (content: string, type: 'sln' | 'slnx') => string): Promise<void> {
+        await this.ensureSaved();
         await this.queueEdit(async () => {
             const content = await this._handler.read();
             await this._handler.write(edit(content, this.isSlnx ? 'slnx' : 'sln'));
@@ -499,6 +551,7 @@ export class Solution {
 
     /** Reads the .sln, applies a line edit, writes it with the file's line endings and re-parses */
     private async editSlnLines(edit: (lines: string[]) => string[]): Promise<void> {
+        await this.ensureSaved();
         await this.queueEdit(async () => {
             const content = await this._handler.read();
             await this._handler.write(edit(content.split(/\r?\n/)).join(eolOf(content)));
@@ -513,6 +566,7 @@ export class Solution {
      */
     async addProject(projectPath: string, solutionFolderPath?: string): Promise<void> {
         log.debug(`Adding project to solution: ${projectPath}${solutionFolderPath ? ` (folder ${solutionFolderPath})` : ''}`);
+        await this.ensureSaved();
 
         try {
             const solutionDir = path.dirname(this._solutionPath);
@@ -557,6 +611,7 @@ export class Solution {
         const solutionDir = path.dirname(this._solutionPath);
         const relative = (file: string) => path.relative(solutionDir, file).split(path.sep).join('/');
 
+        await this.ensureSaved();
         await fs.promises.rename(projectPath, newPath);
         await this.queueEdit(async () => {
             const content = await this._handler.read();
@@ -587,6 +642,7 @@ export class Solution {
      */
     async removeProject(projectPath: string): Promise<void> {
         log.debug(`Removing project from solution: ${projectPath}`);
+        await this.ensureSaved();
 
         try {
             // Use the dotnet CLI command to remove the project; no shell, so `$(...)` in the path is just text
@@ -667,6 +723,7 @@ export class Solution {
         // Dispose event emitter
         this._changeEmitter.dispose();
         this._parseEmitter.dispose();
+        this._retargetEmitter.dispose();
 
         // Dispose file watcher and other disposables
         for (const disposable of this._disposables) {
