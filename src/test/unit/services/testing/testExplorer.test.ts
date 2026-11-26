@@ -226,6 +226,22 @@ describe('TestExplorer', () => {
             expect(outline(mock.controller.items)).toContain('      Adds :4');
         });
 
+        it('takes what MSBuild says after the first restore: a fresh clone evaluates without the test packages\' props', async () => {
+            let restored = false;
+            let modified: number | undefined;
+            const evaluate = async (p: string) => restored
+                ? { projectPath: p, targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: true }
+                : { projectPath: p, targetPath: '/repo/X3/bin/Debug/net10.0/X3.dll', testingPlatform: false, vstestConsolePath: '/sdk/vstest.console.dll', notRestored: true as const };
+            await explorer({ evaluate, build: async () => { restored = true; modified = 1; return true; }, modified: () => modified }).refresh(false);
+            expect(mock.controller.items.get(projectPath).description).toBe(NOT_BUILT);
+
+            const [run] = mock.controller.profiles;
+            await run.handler({ include: undefined, exclude: [] }, token);
+
+            // Run as the Microsoft.Testing.Platform app it is, not through VSTest
+            expect(passedOrFailed(mock.runs[0])).toEqual(['failed Fails', 'passed Adds', 'passed x: 1', 'passed x: 2']);
+        });
+
         it('waits for the refresh in progress, so every test project runs', async () => {
             const other = '/repo/Y3/Y3.csproj';
             const tests = explorer({

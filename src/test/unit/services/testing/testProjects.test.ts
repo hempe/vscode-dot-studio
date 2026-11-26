@@ -123,6 +123,12 @@ describe('projects MSBuild says are no test project', () => {
         expect(testProjectFrom('/r/Lib/Lib.csproj', json('false'))).toBeUndefined();
     });
 
+    it('keeps a project that was never restored: its IsTestProject comes from the packages\' props, which are missing yet', () => {
+        const unrestored = JSON.stringify({ Properties: { IsTestProject: '', IsTestingPlatformApplication: '', TargetPath: '/r/A.dll', VSTestConsolePath: '/sdk/vstest.console.dll', ProjectAssetsFile: '/r/T/obj/project.assets.json' } });
+        expect(testProjectFrom('/r/T/T.csproj', unrestored, undefined, undefined, () => false)).toMatchObject({ targetPath: '/r/A.dll', notRestored: true });
+        expect(testProjectFrom('/r/Lib/Lib.csproj', unrestored, undefined, undefined, () => true)).toBeUndefined();
+    });
+
     it('keeps projects MSBuild calls test projects, or Microsoft.Testing.Platform apps', () => {
         expect(testProjectFrom('/r/T/T.csproj', json('true'))).toBeDefined();
         expect(testProjectFrom('/r/T/T.csproj', json('', 'true'))).toBeDefined();

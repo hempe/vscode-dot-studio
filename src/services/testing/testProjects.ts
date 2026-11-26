@@ -43,7 +43,7 @@ const msbuildQueue = new RequestQueue(4);
  */
 export function confirmTestProject(projectPath: string): Promise<boolean> {
     return msbuildQueue.next(() => new Promise<boolean>(resolve => {
-        execFile('dotnet', ['msbuild', projectPath, '-nologo', '-getProperty:IsTestProject', '-getProperty:IsTestingPlatformApplication'],
+        execFile('dotnet', ['msbuild', projectPath, '-nologo', '-getProperty:IsTestProject', '-getProperty:IsTestingPlatformApplication', '-getProperty:ProjectAssetsFile'],
             { cwd: path.dirname(projectPath), timeout: 60000 }, (_error, stdout) => resolve(!parseTestProperties(stdout ?? '').notTestProject));
     }));
 }
@@ -64,6 +64,8 @@ export interface TestProject {
     readonly frameworkReason?: string;
     /** The tests run on .NET Framework (net472 etc.): under Mono outside Windows */
     readonly netFramework?: boolean;
+    /** Not restored when it was evaluated: the test packages' props were missing, so testingPlatform is a guess until it is built */
+    readonly notRestored?: true;
 }
 
 /** The command and arguments that start the test app: a .NET Framework exe is its own program (Windows) or runs under Mono; else `dotnet app.dll` */
@@ -75,14 +77,18 @@ export function testAppCommand(project: TestProject, args: string[], platform: N
     return platform === 'win32' ? { command: project.targetPath, args } : { command: 'mono', args: [project.targetPath, ...args] };
 }
 
-export function parseTestProperties(msbuildJson: string): { testingPlatform: boolean; notTestProject?: true; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
+export function parseTestProperties(msbuildJson: string, exists: (file: string) => boolean = fs.existsSync): { testingPlatform: boolean; notTestProject?: true; notRestored?: true; targetPath?: string; vstestConsolePath?: string; runSettingsPath?: string } {
     try {
         const properties = JSON.parse(msbuildJson).Properties ?? {};
         const testingPlatform = String(properties.IsTestingPlatformApplication).toLowerCase() === 'true';
+        // Before the first restore (a fresh clone) the test packages' props are missing: IsTestProject is empty even for a test project
+        const assets = String(properties.ProjectAssetsFile ?? '').trim();
+        const notRestored = assets !== '' && !exists(assets);
         return {
             testingPlatform,
             // MSBuild answered IsTestProject and it is not true: a library below a props file that mentions test packages (VSTestConsolePath is set for every project)
-            ...('IsTestProject' in properties && !testingPlatform && String(properties.IsTestProject).toLowerCase() !== 'true' ? { notTestProject: true } : {}),
+            ...(!notRestored && 'IsTestProject' in properties && !testingPlatform && String(properties.IsTestProject).toLowerCase() !== 'true' ? { notTestProject: true } : {}),
+            ...(notRestored ? { notRestored: true } : {}),
             ...(properties.TargetPath ? { targetPath: properties.TargetPath } : {}),
             ...(properties.VSTestConsolePath ? { vstestConsolePath: properties.VSTestConsolePath } : {}),
             ...(properties.RunSettingsFilePath ? { runSettingsPath: properties.RunSettingsFilePath } : {}),
@@ -177,6 +183,7 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
         execFile('dotnet', [
             'msbuild', projectPath, '-nologo',
             '-getProperty:IsTestProject', '-getProperty:IsTestingPlatformApplication', '-getProperty:TargetPath', '-getProperty:VSTestConsolePath', '-getProperty:RunSettingsFilePath',
+            '-getProperty:ProjectAssetsFile',
             `-property:Configuration=${configuration}`, ...extra,
         ], { cwd: path.dirname(projectPath), timeout: 60000 }, (_error, stdout) => resolve(stdout ?? ''));
     });
@@ -186,8 +193,8 @@ function getTestProperties(projectPath: string, configuration: string, extra: st
  * The project from what MSBuild said (for `framework`, chosen by `choice` when multi-targeted);
  * a relative `RunSettingsFilePath` is relative to the project folder
  */
-export function testProjectFrom(projectPath: string, msbuildJson: string, framework?: string, choice?: { framework: string; reason: string }): TestProject | undefined {
-    const { testingPlatform, notTestProject, targetPath, vstestConsolePath, runSettingsPath } = parseTestProperties(msbuildJson);
+export function testProjectFrom(projectPath: string, msbuildJson: string, framework?: string, choice?: { framework: string; reason: string }, exists?: (file: string) => boolean): TestProject | undefined {
+    const { testingPlatform, notTestProject, notRestored, targetPath, vstestConsolePath, runSettingsPath } = parseTestProperties(msbuildJson, exists);
     return targetPath && !notTestProject
         ? {
             projectPath, targetPath, testingPlatform,
@@ -195,6 +202,7 @@ export function testProjectFrom(projectPath: string, msbuildJson: string, framew
             ...(runSettingsPath ? { runSettingsPath: path.resolve(path.dirname(projectPath), runSettingsPath) } : {}),
             ...(choice ? { targetFramework: choice.framework, frameworkReason: choice.reason } : {}),
             ...(isNetFrameworkTarget(framework) ? { netFramework: true } : {}),
+            ...(notRestored ? { notRestored: true } : {}),
         }
         : undefined;
 }

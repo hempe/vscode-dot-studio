@@ -331,6 +331,9 @@ export class TestExplorer implements vscode.Disposable {
                     this.controller.items.add(item);
                     state = { project, item };
                     this.states.set(key, state);
+                } else {
+                    // What MSBuild says now (a restore since, a run settings file set)
+                    state.project = project;
                 }
                 if (build) {
                     let output = '';
@@ -338,6 +341,15 @@ export class TestExplorer implements vscode.Disposable {
                         state.item.error = buildFailure(output);
                         log.info(`${path.basename(projectPath)}: ${buildFailure(output)}`);
                         continue;
+                    }
+                    // The build restored it: MSBuild now knows whether it is a test project and how its tests run
+                    if (state.project.notRestored) {
+                        const restored = await this.deps.evaluate(projectPath, configuration, framework);
+                        if (!restored) {
+                            kept.delete(key);
+                            continue;
+                        }
+                        state.project = restored;
                     }
                 }
                 await this.discoverIfChanged(state);
@@ -505,6 +517,10 @@ export class TestExplorer implements vscode.Disposable {
                 if (!built) {
                     items.forEach(item => run.errored(item, new vscode.TestMessage(buildFailure(output))));
                     continue;
+                }
+                // Evaluated before its first restore: how its tests run (Microsoft.Testing.Platform or VSTest) is known now
+                if (state.project.notRestored) {
+                    state.project = await this.deps.evaluate(state.project.projectPath, configuration, state.project.targetFramework) ?? state.project;
                 }
                 // Not discovered for this build yet (never built, or a framework not built before): discover first,
                 // so the results have tests to go to and the tree fills in
