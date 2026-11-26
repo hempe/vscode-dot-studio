@@ -3,13 +3,12 @@
 // (no watcher sees it) makes `Old.cs` disappear by itself at the next retry, at most 6 s later (2 min unscaled). Again with the window reloaded and ItemsApp left collapsed for
 // longer than the delays (unscaled: more than 5 minutes): after deleting global.json and expanding ItemsApp, `Old.cs` disappears a moment after the tree shows. Takes about 25 seconds, with the delays scaled by SHINOBI_RETRY_DELAY_SCALE.
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { launch, openSolutionExplorer, expandPath, rowInfo, sh, repo, check } from './lib.mjs';
+import { launch, openSolutionExplorer, expandPath, rowInfo, sh, repo, tempRoot, check } from './lib.mjs';
 
 // The retry delays (5 s, 30 s, 2 min) are scaled down so the check takes about a minute: 0.03 makes them 0.15 s, 0.9 s and 3.6 s
 process.env.SHINOBI_RETRY_DELAY_SCALE = '0.03';
-const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
+const work = mkdtempSync(join(tempRoot, 'shinobi-pw-'));
 const folder = join(work, 'Items');
 cpSync(join(repo, 'src/__fixtures__/project-items'), folder, { recursive: true });
 const ws = { work, folder };

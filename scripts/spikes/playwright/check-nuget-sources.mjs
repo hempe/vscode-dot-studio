@@ -4,11 +4,11 @@
 // filters the list to one feed's packages; Refresh shows a package published meanwhile. The private feed is a folder with packed .nupkg files; HOME is a throwaway one.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { prepareWorkspace, launch, openSolutionExplorer, openNuGetManager, isolateHome, sh, startFeed, check } from './lib.mjs';
+import { prepareWorkspace, launch, openSolutionExplorer, openNuGetManager, isolateHome, userNuGetConfig, sh, startFeed, check } from './lib.mjs';
 
 const ws = prepareWorkspace({ 'shinobi.nuget.packageSources': true });
 const home = isolateHome(ws);
-const userConfig = join(home, '.nuget/NuGet/NuGet.Config');
+const userConfig = userNuGetConfig(home);
 const solutionConfig = join(ws.folder, 'nuget.config');
 const feed = join(ws.work, 'feed');
 const lib = join(ws.work, 'privlib');
@@ -37,7 +37,7 @@ try {
     const body = () => manager.locator('body').innerText();
     const options = async label => { await manager.getByLabel(label, { exact: true }).click(); const l = await manager.locator('[role=option]').allTextContents(); await win.keyboard.press('Escape'); return l.map(x => x.trim()); };
     await tab('Sources').click();
-    check('the Sources tab lists nuget.org with its file', await wait(async () => /nuget\.org[\s\S]*NuGet\/NuGet\.Config/.test(await body())), (await body()).slice(0, 500));
+    check('the Sources tab lists nuget.org with its file', await wait(async () => /nuget\.org[\s\S]*NuGet[\\/]NuGet\.Config/.test(await body())), (await body()).slice(0, 500));
     const row = name => manager.locator('tr').filter({ hasText: name });
 
     // Disable and enable

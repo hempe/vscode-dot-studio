@@ -1,5 +1,5 @@
 // manual-testing.md, "New Project / Add New Item with a global.json pinning an older SDK": the New Project wizard shows that SDK's templates and options
-// (net8.0 and not net10.0 under the pinned 8.0.130, both without a global.json), and Create works (no "Invalid option(s)", a net8.0 project is written).
+// (net8.0 and not net10.0 under the pinned 8.0 SDK, both without a global.json), and Create works (no "Invalid option(s)", a net8.0 project is written).
 // Not covered: Add New Item (reached from the native context menus only).
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,8 +37,9 @@ const frameworks = async wiz => {
     return list;
 };
 
-// Pinned to 8.0.130
-const pinned = prepareWorkspace({}, { 'global.json': '{"sdk":{"version":"8.0.130","rollForward":"disable"}}' });
+// Pinned to the installed 8.0 SDK (rollForward disable: an exact version that is missing would stop dotnet)
+const sdk8 = sdks.match(/^(8\.0\.\d+)/m)?.[1] ?? '8.0.100';
+const pinned = prepareWorkspace({}, { 'global.json': JSON.stringify({ sdk: { version: sdk8, rollForward: 'disable' } }) });
 await wizard(pinned, 'pinned', async ({ win, wiz }) => {
     const list = await frameworks(wiz);
     check('pinned: the framework option lists net8.0', list.some(t => t.startsWith('net8.0')), JSON.stringify(list));

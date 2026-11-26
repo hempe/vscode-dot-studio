@@ -3,20 +3,28 @@
 import { _electron as electron } from 'playwright-core';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const repo = resolve(import.meta.dirname, '../../..');
+
+/** Where screenshots of failures go (CI: a folder in the workspace, which the artifact upload takes) */
+export const shotsDir = process.env.PW_SHOTS ?? '/tmp';
+if (process.env.PW_SHOTS) mkdirSync(shotsDir, { recursive: true });
+
+/** The temp folder by its long name: on Windows tmpdir() can be an 8.3 short path (C:\Users\RUNNER~1), which VS Code and MSBuild spell out differently */
+export const tempRoot = process.platform === 'win32' ? realpathSync.native(tmpdir()) : tmpdir();
 
 // The window of the last launch, for a screenshot when a part fails
 let lastWindow;
 
 /** Copy of the sample (Contoso) in /tmp with the given workspace settings and extra files (path below the folder -> text). */
 export function prepareWorkspace(settings = {}, files = {}) {
-    const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
+    const work = mkdtempSync(join(tempRoot, 'shinobi-pw-'));
     const folder = join(work, 'Contoso');
-    cpSync(join(repo, 'scripts/screenshots/sample'), folder, { recursive: true });
+    // Without bin and obj, as a fresh checkout (CI) has it: what a check needs of a build, it builds itself
+    cpSync(join(repo, 'scripts/screenshots/sample'), folder, { recursive: true, filter: src => !/[\\/](bin|obj)$/.test(src) });
     mkdirSync(join(folder, '.vscode'), { recursive: true });
     writeFileSync(join(folder, '.vscode/settings.json'), JSON.stringify(settings, null, 2));
     for (const [path, text] of Object.entries(files)) {
@@ -26,7 +34,7 @@ export function prepareWorkspace(settings = {}, files = {}) {
     return { work, folder };
 }
 
-const template = join(tmpdir(), 'shinobi-pw-profile-template');
+const template = join(tempRoot, 'shinobi-pw-profile-template');
 
 /** Starts VS Code with this extension (built: npm run build:dev) on the folder; returns { app, win }.
  *  { csharp: true } adds the C# extension (the language server takes a while to start). The first run dismisses the welcome dialog and keeps its profile as a template (/tmp/shinobi-pw-profile-template),
@@ -51,6 +59,10 @@ export async function launch({ work, folder }, { csharp = false, userSettings = 
         'window.menuStyle': 'custom',
         'files.simpleDialog.enable': true,
         'terminal.integrated.gpuAcceleration': 'off',
+        // Microsoft's VS Code: no Chat beside the editor (it narrows the window and keeps a hidden menu of its own in the page), no Welcome tab
+        'chat.disableAIFeatures': true,
+        'workbench.secondarySideBar.defaultVisibility': 'hidden',
+        'workbench.startupEditor': 'none',
         ...userSettings,
     }, null, 2));
     // CODE_EXECUTABLE: a VS Code build's own executable (CI downloads one with ci-download-vscode.mjs); otherwise Code - OSS as Electron plus its main script
@@ -97,7 +109,7 @@ export async function openSolutionExplorer(win) {
         if (frame && await frame.locator('[data-vscode-context]').count().catch(() => 0) > 0) return frame;
         await win.waitForTimeout(500);
     }
-    await win.screenshot({ path: '/tmp/pw-fail.png' });
+    await win.screenshot({ path: join(shotsDir, 'pw-fail.png') });
     throw new Error('the Solution Explorer did not show any rows');
 }
 
@@ -125,6 +137,21 @@ export function check(name, ok, detail = '') {
 // A name ending in * matches the start of the row's text (a package row carries its version)
 export const rowByName = (frame, name) => frame.locator('.tree-node').filter({ has: frame.locator(name.endsWith('*') ? `xpath=.//*[starts-with(normalize-space(.), "${name.slice(0, -1)}")]` : `xpath=.//*[normalize-space(.)="${name}"]`) }).first();
 
+/** The problems hint (DiagnosticsHint) covers the row below its row and stays while the mouse is on it: the mouse goes away until it closes */
+export async function closeHint(win, frame) {
+    const hint = frame.locator('.diagnostics-hint');
+    if (!await hint.isVisible().catch(() => false)) return;
+    await mouseOffTree(win, frame);
+    await hint.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+}
+
+/** Moves the mouse onto the view's top edge (its toolbar), inside the webview: Playwright's mouse jumping out of the webview never reaches the
+ *  webview's process, so the row gets no mouseleave (a real pointer does: tried with xdotool in Xvfb, 2026-11-26) */
+export async function mouseOffTree(win, frame) {
+    const box = await (await frame.frameElement()).boundingBox();
+    if (box) await win.mouse.move(box.x + box.width - 4, box.y + 2, { steps: 5 }); else await win.mouse.move(1, 1);
+}
+
 /** Expands the rows on a path of names from the top (each name is searched among the visible rows; a collapsed one is opened with Right). */
 export async function expandPath(win, frame, names) {
     for (const name of names) {
@@ -135,8 +162,11 @@ export async function expandPath(win, frame, names) {
         if (!await collapsed()) continue;
         // The tree is rebuilt now and then (a setting, a file change): a click on a row that went away is tried again
         for (let attempt = 1; ; attempt++) {
+            await closeHint(win, frame);
             try { await row.click({ timeout: 4000 }); break; } catch (e) { if (attempt >= 5) throw e; await win.waitForTimeout(1000); }
         }
+        // The mouse left on a row with problems opens its hint (DiagnosticsHint) after 0.3 s, over the row below
+        await mouseOffTree(win, frame);
         if (await collapsed()) { await win.keyboard.press('ArrowRight'); await win.waitForTimeout(600); }
         // A file with nested files opens in an editor on a click, which takes the keys: its chevron opens it
         if (await collapsed()) { await row.locator('.expand-icon').first().click(); await win.waitForTimeout(600); }
@@ -175,10 +205,24 @@ export async function reopen(win, frame, name) {
 
 /** Gives the run its own HOME (the user's NuGet.Config, the package cache) so nothing of the real one is read or written; call before launch(). */
 export function isolateHome(ws) {
-    process.env.HOME = join(ws.work, 'home');
-    mkdirSync(process.env.HOME, { recursive: true });
-    return process.env.HOME;
+    const home = join(ws.work, 'home');
+    process.env.HOME = home;
+    // Windows: NuGet and .NET look at USERPROFILE (package cache) and APPDATA (the user's NuGet.Config), not HOME
+    if (process.platform === 'win32') {
+        process.env.USERPROFILE = home;
+        process.env.APPDATA = join(home, 'AppData', 'Roaming');
+        process.env.LOCALAPPDATA = join(home, 'AppData', 'Local');
+        mkdirSync(process.env.APPDATA, { recursive: true });
+        mkdirSync(process.env.LOCALAPPDATA, { recursive: true });
+    }
+    mkdirSync(home, { recursive: true });
+    return home;
 }
+
+/** The user's NuGet.Config below the isolated home (where NuGet looks on this system). */
+export const userNuGetConfig = home => process.platform === 'win32'
+    ? join(home, 'AppData', 'Roaming', 'NuGet', 'NuGet.Config')
+    : join(home, '.nuget', 'NuGet', 'NuGet.Config');
 
 /** Runs a shell command in the workspace folder, without blocking (a feed served by this process keeps answering) (with the isolated HOME when isolateHome was called); returns the output, also of a failing command. */
 export async function sh(ws, command) {
@@ -268,7 +312,7 @@ export async function pickMenu(win, path) {
 
 async function pickMenuItems(win, path) {
     for (const [i, label] of path.entries()) {
-        const item = win.locator('.context-view .monaco-menu .action-item').filter({ has: win.locator('.action-label', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) }).last();
+        const item = win.locator('.context-view .monaco-menu:visible .action-item').filter({ has: win.locator('.action-label', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) }).last();
         await item.waitFor({ timeout: 8000 });
         // A menu ignores a click that comes right after it opened (the mouse-up of the right-click)
         await win.waitForTimeout(600);
@@ -284,12 +328,12 @@ async function pickMenuItems(win, path) {
 /** The labels of the row's context menu (separators left out); the menu is closed again */
 export async function menuLabels(win, frame, name, submenu) {
     await rowByName(frame, name).click({ button: 'right' });
-    await win.locator('.context-view .monaco-menu').first().waitFor({ timeout: 8000 });
+    await win.locator('.context-view .monaco-menu:visible').first().waitFor({ timeout: 8000 });
     if (submenu) {
-        await win.locator('.context-view .monaco-menu .action-item').filter({ has: win.locator('.action-label', { hasText: submenu }) }).first().hover();
+        await win.locator('.context-view .monaco-menu:visible .action-item').filter({ has: win.locator('.action-label', { hasText: submenu }) }).first().hover();
         await win.waitForTimeout(600);
     }
-    const menus = win.locator('.context-view .monaco-menu');
+    const menus = win.locator('.context-view .monaco-menu:visible');
     const labels = (await menus.last().locator('.action-label').allTextContents()).map(t => t.trim()).filter(Boolean);
     await win.keyboard.press('Escape');
     if (submenu) await win.keyboard.press('Escape');
@@ -352,6 +396,20 @@ export async function answerInput(win, text, seconds = 15) {
     await box.press('Enter');
 }
 
+/** Answers an input box that follows a quick pick: waits until the pick has gone (no rows), or the text goes into the pick */
+export async function answerInputBox(win, text, seconds = 15) {
+    const rows = win.locator('.quick-input-widget .quick-input-list .monaco-list-row:visible');
+    for (let i = 0; i < seconds * 4 && await rows.count() > 0; i++) await win.waitForTimeout(250);
+    await answerInput(win, text);
+}
+
+/** Answers the simple open dialog (files.simpleDialog.enable) with a path; waits for the dialog first (its ".." row), or the path goes into
+ *  the quick pick before it and the dialog then opens on its folder */
+export async function answerFileDialog(win, file, seconds = 15) {
+    for (let i = 0; i < seconds * 4 && !(await quickItems(win)).includes('..'); i++) await win.waitForTimeout(250);
+    await answerInput(win, file);
+}
+
 /** The text of the visible notification toasts */
 export async function toasts(win) {
     return (await win.locator('.notification-toast').allInnerTexts().catch(() => [])).map(t => t.replace(/\s+/g, ' ').trim());
@@ -397,15 +455,28 @@ export async function editorTabs(win) {
 }
 
 /** Runs a part of a check; an exception counts as a failed check (with its first line) instead of ending the run. PARTS=a,b in the environment runs only the parts whose names contain a or b */
+let currentPart;
+const partShot = name => join(shotsDir, `pw-fail-${name.replace(/[^\w]+/g, '-')}.png`);
+
+/** The screenshot of the running part's failure while its window is still open: call it before closing a window that a part launched
+ *  itself (part's own screenshot comes after that and would find the window gone) */
+export async function screenshotFailure(win) {
+    if (currentPart) await win.screenshot({ path: partShot(currentPart) }).catch(() => {});
+}
+
 export async function part(name, fn) {
     // PARTS=a,b runs only the parts whose names contain one of them
     if (process.env.PARTS && !process.env.PARTS.split(',').some(wanted => name.includes(wanted))) return;
+    currentPart = name;
+    rmSync(partShot(name), { force: true }); // one of an earlier run
     try {
         await fn();
     } catch (e) {
-        const shot = `/tmp/pw-fail-${name.replace(/[^\w]+/g, '-')}.png`;
-        await lastWindow?.screenshot({ path: shot }).catch(() => {});
+        const shot = partShot(name);
+        if (!existsSync(shot)) await lastWindow?.screenshot({ path: shot }).catch(() => {});
         check(`${name}: ran through`, false, `${String(e?.message ?? e).split('\n')[0]} (screenshot ${shot})`);
+    } finally {
+        currentPart = undefined;
     }
 }
 
@@ -447,7 +518,7 @@ export async function contextMenuOn(win, row, path) {
 
 /** Copy of `src/__fixtures__/<name>` in /tmp (without its obj folders, whose paths point into the repository) with workspace settings and extra files */
 export function prepareFixture(name, settings = {}, files = {}) {
-    const work = mkdtempSync(join(tmpdir(), 'shinobi-pw-'));
+    const work = mkdtempSync(join(tempRoot, 'shinobi-pw-'));
     const folder = join(work, name.split('/').pop());
     cpSync(join(repo, 'src/__fixtures__', name), folder, { recursive: true });
     const dropObj = dir => { for (const entry of readdirSync(dir)) { const full = join(dir, entry); if (statSync(full).isDirectory()) { if (entry === 'obj' || entry === 'bin') rmSync(full, { recursive: true, force: true }); else dropObj(full); } } };

@@ -11,6 +11,9 @@ const ws = prepareWorkspace({}, {
     'src/Shop.Core/Shop.Core.csproj': csproj,
     'src/Shop.Core/Old/Hidden.cs': 'namespace Shop.Core.Old;\n\npublic class Hidden { }\n',
     'src/Shared/x.cs': 'namespace Shop.Shared;\n\npublic class X { }\n',
+    // What a build leaves (the copy of the sample has none)
+    'src/Shop.Core/bin/Debug/Shop.Core.dll': '',
+    'src/Shop.Core/obj/project.assets.json': '{}',
 });
 const { app, win } = await launch(ws);
 try {

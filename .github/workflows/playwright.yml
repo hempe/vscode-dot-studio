@@ -80,6 +80,8 @@ jobs:
 
       - name: Run ${{ matrix.check }}
         working-directory: scripts/spikes/playwright
+        env:
+          PW_SHOTS: ${{ github.workspace }}/pw-shots
         run: |
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a -s '-screen 0 1600x1000x24' node "${{ matrix.check }}"; else node "${{ matrix.check }}"; fi
 
@@ -87,9 +89,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: screenshots-${{ matrix.os }}-${{ matrix.check }}
-          path: |
-            /tmp/pw-*.png
-            C:/tmp/pw-*.png
-            D:/tmp/pw-*.png
+          path: pw-shots/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 30

@@ -27,7 +27,7 @@ try {
     const codes = async () => el.locator('tbody tr.row td:nth-child(2)').allInnerTexts();
     const marked = () => tree.locator('.node-name.diagnostic-warning').count();
     // The build's problems arrive a moment after the build ends
-    for (let i = 0; i < 20 && (await codes()).length < 2; i++) await win.waitForTimeout(500);
+    for (let i = 0; i < 60 && (await codes()).length < 2; i++) await win.waitForTimeout(500);
 
     check('two warnings are listed', (await codes()).length === 2, JSON.stringify(await codes()));
     check('the toolbar counts 2 Warnings', (await el.locator('.toolbar .toggle').allInnerTexts()).some(t => /2 Warnings/.test(t)));

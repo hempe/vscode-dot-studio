@@ -15,7 +15,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, wri
 import { join } from 'node:path';
 import {
     prepareFixture, launch, openSolutionExplorer, expandPath, rowInfo, rowsNamed, contextMenu, contextMenuOn, menuLabels, pickQuick, answerInput, quickItems,
-    quickInput, modal, waitForToast, clearToasts, editorTabs, runCommand, isolateHome, sh, part, settle, startServer, repo, check,
+    quickInput, modal, waitForToast, clearToasts, editorTabs, runCommand, isolateHome, userNuGetConfig, answerFileDialog, answerInputBox, screenshotFailure, sh, part, settle, startServer, repo, check,
 } from './lib.mjs';
 
 const GITHUB_PROTO = 'https://raw.githubusercontent.com/grpc/grpc-dotnet/master/examples/Greeter/Proto/greet.proto';
@@ -36,6 +36,9 @@ async function withWindow(ws, fn) {
             return out;
         };
         await fn({ win, tree, until, below });
+    } catch (e) {
+        await screenshotFailure(win);
+        throw e;
     } finally { await app.close(); }
 }
 
@@ -45,10 +48,10 @@ async function addGrpc(win, tree, project, source, services) {
     await pickQuick(win, /^gRPC/);
     if (source.file) {
         await pickQuick(win, /Browse for \.proto File/);
-        await answerInput(win, source.file);
+        await answerFileDialog(win, source.file);
     } else {
         await pickQuick(win, /Enter URL/);
-        await answerInput(win, source.url);
+        await answerInputBox(win, source.url);
     }
     const items = await quickItems(win);
     if (services) await pickQuick(win, new RegExp(`^${services}\\b`)); else await win.keyboard.press('Enter');
@@ -118,6 +121,7 @@ await part('add from a file', async () => {
         const wsdl = await quickItems(win);
         check('WCF goes on to the WSDL question', wsdl.some(k => /Browse for WSDL File/.test(k)), JSON.stringify(wsdl));
         await win.keyboard.press('Escape');
+        await win.locator('.quick-input-widget').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
         await win.waitForTimeout(500);
         const services = await addGrpc(win, tree, 'Client', { file: join(ws.folder, 'shared/greet.proto') });
         check('What to generate? has Client preselected (first) for a console project', /^Client\b/.test(services[0] ?? ''), JSON.stringify(services));
@@ -193,7 +197,7 @@ await part('add from a URL', async () => {
         await clearToasts(win);
 
         // The package source cannot be reached: the item is written, the packages failed; again once reachable: only the packages
-        const nugetConfig = join(home, '.nuget/NuGet/NuGet.Config');
+        const nugetConfig = userNuGetConfig(home);
         await sh(ws, 'dotnet nuget list source');
         const online = readFileSync(nugetConfig, 'utf8');
         writeFileSync(nugetConfig, '<?xml version="1.0" encoding="utf-8"?>\n<configuration>\n  <packageSources>\n    <clear />\n    <add key="offline" value="http://127.0.0.1:9/v3/index.json" />\n  </packageSources>\n</configuration>\n');
@@ -207,7 +211,7 @@ await part('add from a URL', async () => {
         await addGrpc(win, tree, 'Client', { file: join(ws.folder, 'shared/greet.proto') }, 'Client');
         check('offline: the item is written and the message says the packages failed', !!await waitForToast(win, /added, but adding its packages failed/, 240) && /<Protobuf Include="\.\.\\shared\\greet\.proto"/.test(read(ws, 'Client/Client.csproj')) && !/Grpc\.Net\.ClientFactory/.test(read(ws, 'Client/Client.csproj')), await toastsText(win));
         await clearToasts(win);
-        const nugetConfig = join(isolateHome(ws), '.nuget/NuGet/NuGet.Config');
+        const nugetConfig = userNuGetConfig(isolateHome(ws));
         writeFileSync(nugetConfig, '<?xml version="1.0" encoding="utf-8"?>\n<configuration>\n  <packageSources>\n    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />\n  </packageSources>\n</configuration>\n');
         await win.waitForTimeout(6000);
         await addGrpc(win, tree, 'Client', { file: join(ws.folder, 'shared/greet.proto') }, 'Client');
