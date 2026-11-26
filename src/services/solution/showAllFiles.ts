@@ -33,6 +33,20 @@ export class ShowAllFiles {
         return on;
     }
 
+    /** A saved temporary solution: the setting moves to the saved file */
+    static async rename(from: string, to: string): Promise<void> {
+        const all = { ...this.all() };
+        if (!(from in all)) {
+            return;
+        }
+        all[to] = all[from];
+        delete all[from];
+        await this.state?.update(this.STORAGE_KEY, all);
+        if (this.solutionPath === from) {
+            this.setSolution(to);
+        }
+    }
+
     private static all(): Record<string, boolean> {
         return this.state?.get<Record<string, boolean>>(this.STORAGE_KEY, {}) ?? {};
     }

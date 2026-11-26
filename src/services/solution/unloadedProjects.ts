@@ -67,6 +67,19 @@ export class UnloadedProjects {
         this.listeners.forEach(listener => listener());
     }
 
+    /** A saved temporary solution: its unloaded projects move to the saved file */
+    static async rename(from: string, to: string): Promise<void> {
+        const all = { ...this.all() };
+        const list = all[path.normalize(from)];
+        if (!list) {
+            return;
+        }
+        delete all[path.normalize(from)];
+        all[path.normalize(to)] = list;
+        await this.state?.update(STATE_KEY, all);
+        this.listeners.forEach(listener => listener());
+    }
+
     static filterPath(solutionPath: string): string {
         const id = crypto.createHash('sha1').update(path.normalize(solutionPath)).digest('hex').slice(0, 12);
         return path.join(privateTempDir('slnf', id), `${path.basename(solutionPath, path.extname(solutionPath))}.slnf`);

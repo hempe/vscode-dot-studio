@@ -32,6 +32,15 @@ export class FrameworkChoice {
         }
     }
 
+    /** A saved temporary solution: the chosen framework moves to the saved file */
+    static async rename(from: string, to: string): Promise<void> {
+        const framework = this.get(from);
+        if (framework) {
+            await this.set(from, undefined);
+            await this.set(to, framework);
+        }
+    }
+
     static onDidChange(listener: () => void): { dispose(): void } {
         this.listeners.add(listener);
         return { dispose: () => { this.listeners.delete(listener); } };
