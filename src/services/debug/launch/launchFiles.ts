@@ -5,6 +5,7 @@ import { logger } from '../../../core/logger';
 import { parseJsonc, removeArrayItems, upsertArrayItem } from '../../../core/jsonc';
 import { platformProperty } from '../../build/configurationManager/configurationManager';
 import { EMIT_GENERATED_FILES } from '../../diagnostics/analyzers';
+import { BUILD_ENV } from '../../build/buildEnvironment';
 import { Settings } from '../../shared/settings';
 import { solutionWorkspaceFolder } from '../../solution/workspaceFolders';
 import { t } from '../../../core/i18n';
@@ -74,9 +75,11 @@ export async function updateTasksJson(tasksJsonPath: string, projectPath: string
                 '--configuration', configuration,
                 ...platformProperty(platform),
                 '/property:GenerateFullPaths=true',
-                '/consoleloggerparameters:NoSummary',
+                '/consoleloggerparameters:NoSummary;ForceNoAlign',
                 ...(Settings.emitGeneratedFiles() ? [EMIT_GENERATED_FILES] : [])
             ],
+            // One line per message for $msCompile, also on Windows (see BUILD_ENV)
+            options: { env: BUILD_ENV },
             presentation: {
                 reveal: 'silent'
             },

@@ -41,19 +41,19 @@ import { createDotnetTask, dotnetTaskArgs, DotnetTaskDefinition, DotnetTaskProvi
 describe('dotnetTaskArgs', () => {
     test('build, rebuild, clean and restore', () => {
         expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug')).toEqual(
-            ['build', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
+            ['build', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
         expect(dotnetTaskArgs('rebuild', '/repo/All.sln', 'Release')).toEqual(
-            ['build', '/repo/All.sln', '--configuration', 'Release', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
+            ['build', '/repo/All.sln', '--configuration', 'Release', '--no-incremental', '-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign', '-property:GenerateFullPaths=true', '-property:EmitCompilerGeneratedFiles=true']);
         expect(dotnetTaskArgs('clean', '/repo/All.sln', 'Debug')).toEqual(
-            ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary']);
+            ['clean', '/repo/All.sln', '--configuration', 'Debug', '-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign']);
         expect(dotnetTaskArgs('restore', '/repo/All.sln', 'Debug')).toEqual(['restore', '/repo/All.sln']);
         // shinobi.build.emitGeneratedFiles off: no source generator output
         expect(dotnetTaskArgs('build', '/repo/All.sln', 'Debug', undefined, false)).not.toContain('-property:EmitCompilerGeneratedFiles=true');
         expect(dotnetTaskArgs('pack', '/repo/Lib/Lib.csproj', 'Release')).toEqual(
-            ['pack', '/repo/Lib/Lib.csproj', '--configuration', 'Release', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+            ['pack', '/repo/Lib/Lib.csproj', '--configuration', 'Release', '-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign', '-property:GenerateFullPaths=true']);
         // The profile decides configuration, framework and runtime
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'FolderProfile')).toEqual(
-            ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary', '-property:GenerateFullPaths=true']);
+            ['publish', '/repo/Web/Web.csproj', '-property:PublishProfile=FolderProfile', '-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign', '-property:GenerateFullPaths=true']);
         // A profile of an older Visual Studio names the folder only as PublishUrl: it is passed on, with a trailing separator
         expect(dotnetTaskArgs('publish', '/repo/Web/Web.csproj', 'Debug', 'VSProfile', true, undefined, '/repo/Web/bin/out')).toContain(`-property:PublishDir=/repo/Web/bin/out${require('path').sep}`);
     });
@@ -77,6 +77,12 @@ describe('createDotnetTask mapping', () => {
         mappings: { 'Api/Api.csproj': { 'Release|x64': { configuration: 'Debug', platform: 'Any CPU', build: true } } },
     };
     afterEach(() => { env.solution = undefined; env.configuration = 'Debug'; env.platform = 'Any CPU'; });
+
+    test('the build output stays one line per message on Windows: no terminal logger, no wrapping at the console width', () => {
+        const task = createDotnetTask({ type: DOTNET_TASK_TYPE, action: 'build', target: '/repo/All.sln' }) as any;
+        expect(task.execution.options.env).toEqual({ MSBUILDTERMINALLOGGER: 'off' });
+        expect(task.execution.args).toContain('-consoleLoggerParameters:NoSummary;ForceNoAlign');
+    });
 
     test('a solution target passes the active platform', () => {
         env.platform = 'x64';
@@ -114,7 +120,7 @@ describe('createDotnetTask', () => {
         // A process, not a shell command line: `&`, `;`, `$(` or an apostrophe in a path are just characters (review A5-8)
         expect(task.execution.constructor.name).toBe('ProcessExecution');
         expect(task.execution.command).toBe('dotnet');
-        expect(task.execution.options).toEqual({ cwd: '/repo/Api' });
+        expect(task.execution.options).toEqual({ cwd: '/repo/Api', env: { MSBUILDTERMINALLOGGER: 'off' } });
         expect(task.problemMatchers).toEqual(['$msCompile']);
         expect(task.group).toEqual({ id: 'build' });
         expect(task.scope).toEqual({ name: 'repo', uri: { fsPath: '/repo' } });

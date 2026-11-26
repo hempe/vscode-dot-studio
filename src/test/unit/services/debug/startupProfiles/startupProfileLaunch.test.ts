@@ -166,7 +166,8 @@ describe('startup profiles: the "Startup" launch entry, F5 and Ctrl+F5', () => {
         expect(Object.keys(launchJson().configurations[1])).toEqual(Object.keys(WORKER_CONFIG));
         expect(tasksJson().tasks).toEqual([expect.objectContaining({
             label: 'StartupPreBuild',
-            args: ['build', 'Shop.sln', '--configuration', 'Debug', '/property:GenerateFullPaths=true', '/consoleloggerparameters:NoSummary', '-property:EmitCompilerGeneratedFiles=true'],
+            args: ['build', 'Shop.sln', '--configuration', 'Debug', '/property:GenerateFullPaths=true', '/consoleloggerparameters:NoSummary;ForceNoAlign', '-property:EmitCompilerGeneratedFiles=true'],
+            options: { env: { MSBUILDTERMINALLOGGER: 'off' } },
         })]);
         expect(DebugConfigService.hasStartupProfileConfiguration()).toBe(true);
         expect(DebugConfigService.getStartupProject()).toBeNull();

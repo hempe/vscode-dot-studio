@@ -9,6 +9,7 @@ import { solutionWorkspaceFolder } from '../solution/workspaceFolders';
 import { UnloadedProjects } from '../solution/unloadedProjects';
 import { platformProperty } from './configurationManager/configurationManager';
 import { activeProjectBuild } from './activeBuild';
+import { BUILD_ENV } from './buildEnvironment';
 
 export const DOTNET_TASK_TYPE = 'shinobi-dotnet';
 
@@ -29,7 +30,12 @@ export interface DotnetTaskDefinition extends vscode.TaskDefinition {
     readonly publishDir?: string;
 }
 
-const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary'];
+/**
+ * ForceNoAlign: MSBuild wraps its lines at the console width, and on Windows (ConPTY) the wrap becomes a real line break: a message in
+ * a long path then reached `$msCompile` as `\\Order.cs(15,13): warning ...`, with no folder (the Error List put it under Miscellaneous
+ * Files and could not open it). See BUILD_ENV for the terminal logger, which ignores these parameters
+ */
+const QUIET = ['-nologo', '-consoleLoggerParameters:NoSummary;ForceNoAlign'];
 
 /**
  * `dotnet` arguments for an action; build output uses full paths so `$msCompile` links resolve, and
@@ -66,7 +72,7 @@ export function createDotnetTask(
         scope,
         definition.profile ? `${action} ${targetName} (${definition.profile})` : `${action} ${targetName}`,
         DOTNET_TASK_TYPE,
-        new vscode.ProcessExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform, definition.publishDir), { cwd: path.dirname(target) }),
+        new vscode.ProcessExecution('dotnet', dotnetTaskArgs(action, buildTarget, configuration, definition.profile, Settings.emitGeneratedFiles(), platform, definition.publishDir), { cwd: path.dirname(target), env: BUILD_ENV }),
         action === 'restore' ? [] : ['$msCompile']
     );
     if (action !== 'publish' && action !== 'pack') {
