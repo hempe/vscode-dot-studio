@@ -126,11 +126,13 @@ export class SolutionService {
 
             // Use the new discovery logic
             // Every folder of a multi-root workspace
-            const solutionPath = await SolutionDiscovery.discoverAndSelectSolution((vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath));
-            if (!solutionPath) {
+            const found = await SolutionDiscovery.discover((vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath));
+            if (!found) {
                 return null;
             }
-            return await this.openSolution(solutionPath);
+            return found.kind === 'solution'
+                ? await this.openSolution(found.solutionPath)
+                : await this.openTemporary(found.key, found.name, found.projects);
         } catch (error) {
             log.error('Error discovering and initializing solution:', error);
             return null;

@@ -134,7 +134,7 @@ export function activate(context: vscode.ExtensionContext) {
     LegacyConfigOffer.initialize(context.workspaceState);
     NuGetV3Offer.initialize(context.workspaceState);
     FrameworkChoice.initialize(context.workspaceState);
-    SolutionDiscovery.initialize(context.workspaceState);
+    SolutionDiscovery.initialize(context.workspaceState, context.globalState);
     UnloadedProjects.initialize(context.workspaceState);
     ShowAllFiles.initialize(context.workspaceState);
     initializeTemplates(context.globalState);

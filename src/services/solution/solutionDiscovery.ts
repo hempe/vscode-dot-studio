@@ -4,6 +4,13 @@ import * as path from 'path';
 import { sln } from '../../core/utils';
 import { shouldSkipDirectory } from '../../core/constants';
 import { t } from '../../core/i18n';
+import { takePendingOpen } from './pendingOpen';
+import { findProjectFiles } from './tempSolution';
+
+/** What the Solution Explorer opens: a solution file, or a temporary solution with these projects */
+export type DiscoveredSolution =
+    | { kind: 'solution'; solutionPath: string }
+    | { kind: 'temporary'; key: string; name: string; projects: string[] };
 
 export interface SolutionDiscoveryResult {
     type: 'none' | 'single' | 'multiple';
@@ -14,10 +21,40 @@ const SELECTED_KEY = 'shinobi.solution.selected';
 
 export class SolutionDiscovery {
     private static state: vscode.Memento | undefined;
+    private static globalState: vscode.Memento | undefined;
 
-    /** Workspace state, where the chosen solution is remembered */
-    static initialize(state: vscode.Memento): void {
+    /** Workspace state, where the chosen solution is remembered; global state, where a file opened without a folder waits for its window */
+    static initialize(state: vscode.Memento, globalState?: vscode.Memento): void {
         this.state = state;
+        this.globalState = globalState;
+    }
+
+    /**
+     * What to open in the workspace: a file opened without a folder (the window moved to its folder), else the solution as before,
+     * else Visual Studio's temporary solution with the projects of the folder, else the offer to open or create one.
+     */
+    static async discover(workspaceRoots: readonly string[]): Promise<DiscoveredSolution | null> {
+        const pending = workspaceRoots[0] && this.globalState ? await takePendingOpen(this.globalState, workspaceRoots[0]) : undefined;
+        if (pending && sln(pending)) {
+            await this.remember(pending);
+            return { kind: 'solution', solutionPath: pending };
+        }
+        if (pending) {
+            return { kind: 'temporary', key: pending, name: path.parse(pending).name, projects: [pending] };
+        }
+        let none = false;
+        const solutionPath = await this.discoverAndSelectSolution(workspaceRoots, async () => { none = true; return null; });
+        if (solutionPath) {
+            return { kind: 'solution', solutionPath };
+        }
+        if (!none) {
+            return null; // several solutions and none picked
+        }
+        const projects = (await Promise.all(workspaceRoots.map(root => findProjectFiles(root)))).flat();
+        if (projects.length > 0) {
+            return { kind: 'temporary', key: workspaceRoots[0], name: path.basename(workspaceRoots[0]), projects };
+        }
+        return this.offerSolution();
     }
 
     /** The solution to open next time (chosen from several, or with Open Solution...) */
@@ -82,8 +119,8 @@ export class SolutionDiscovery {
 
     /** No solution where the extension looked: offers Open Solution... and Create New Project... */
     static async offerSolution(): Promise<null> {
-        const open = 'Open Solution...';
-        const create = 'Create New Project...';
+        const open = t('Open Solution...');
+        const create = t('Create New Project...');
         const choice = await vscode.window.showInformationMessage(t('No solution found in this folder or the three folder levels below it.'), open, create);
         if (choice === open) {
             await vscode.commands.executeCommand('shinobi.solution.open');
@@ -97,7 +134,7 @@ export class SolutionDiscovery {
      * Main entry point for solution discovery and selection
      * Returns the path to the solution that should be used
      */
-    static async discoverAndSelectSolution(workspaceRoots: string | readonly string[]): Promise<string | null> {
+    static async discoverAndSelectSolution(workspaceRoots: string | readonly string[], onNone: () => Promise<null> = () => this.offerSolution()): Promise<string | null> {
         const remembered = this.state?.get<string>(SELECTED_KEY);
         if (remembered && fs.existsSync(remembered)) {
             return remembered;
@@ -122,7 +159,7 @@ export class SolutionDiscovery {
             }
 
             case 'none':
-                return await this.offerSolution();
+                return await onNone();
 
             default:
                 return null;
