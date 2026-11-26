@@ -143,7 +143,10 @@ for (const kind of ['slnx', 'sln']) {
             check('Manage User Secrets adds <UserSecretsId>', !!id);
             await win.waitForTimeout(2000);
             check('and opens secrets.json', (await editorTabs(win)).includes('secrets.json'), JSON.stringify(await editorTabs(win)));
-            const secrets = join(home, '.microsoft/usersecrets', id ?? 'none', 'secrets.json');
+            // Where .NET keeps them: %APPDATA%\Microsoft\UserSecrets on Windows (APPDATA below the isolated home), ~/.microsoft/usersecrets elsewhere
+            const secrets = process.platform === 'win32'
+                ? join(home, 'AppData', 'Roaming', 'Microsoft', 'UserSecrets', id ?? 'none', 'secrets.json')
+                : join(home, '.microsoft/usersecrets', id ?? 'none', 'secrets.json');
             check('which is empty (in the user secrets folder of HOME)', existsSync(secrets) && /^\s*(\{\s*\})?\s*$/.test(readFileSync(secrets, 'utf8')), existsSync(secrets) ? readFileSync(secrets, 'utf8') : 'no file');
             writeFileSync(secrets, '{ "Greeting": "hi" }');
             const run = await sh(ws, `timeout 60 bash -c 'ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Shop.Web --no-launch-profile --urls http://127.0.0.1:5197 > /tmp/pw-secrets-run.log 2>&1 & pid=$!; for i in $(seq 1 50); do sleep 1; r=$(curl -s http://127.0.0.1:5197/greeting) && [ -n "$r" ] && break; done; echo "answer:$r"; kill $pid; pkill -f "Shop.Web.dll --urls http://127.0.0.1:5197" || true'`);

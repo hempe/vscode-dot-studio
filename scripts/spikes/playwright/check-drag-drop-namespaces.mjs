@@ -40,7 +40,9 @@ async function session(name, run) {
         const dialogText = async () => { await dialog().waitFor({ timeout: 20000 }); return (await dialog().innerText()).replace(/\s+/g, ' '); };
         const has = p => existsSync(join(ws.folder, 'src', p));
         const read = p => readFileSync(join(ws.folder, 'src', p), 'utf8');
-        await run({ win, drag, dialog, dialogText, has, read });
+        // A small screen (the Windows runners: 1024x720) puts a target at the tree's bottom edge, where a drag scrolls the tree: rows not needed are closed
+        const collapse = async n => { await row(n).click(); await win.keyboard.press('ArrowLeft'); await win.waitForTimeout(500); };
+        await run({ win, drag, dialog, dialogText, has, read, collapse });
     } finally { await app.close(); }
 }
 
@@ -54,7 +56,9 @@ await session('a file onto a folder of another project', async ({ win, drag, dia
     check('and Update Namespace writes it', /namespace Shop\.Web\.Pages;/.test(read('Shop.Web/Pages/S.cs')), read('Shop.Web/Pages/S.cs'));
 });
 
-await session('a file onto a file', async ({ win, drag, dialog, has }) => {
+await session('a file onto a file', async ({ win, drag, dialog, has, collapse }) => {
+    await collapse('Pages');
+    await collapse('Inventory');
     await drag('S.cs', 'Program.cs');
     check('it goes into that file\'s folder (Shop.Web)', has('Shop.Web/S.cs') && !has('Shop.Core/Single/S.cs'), `S.cs is in ${JSON.stringify(['Shop.Web/S.cs', 'Shop.Core/Single/S.cs', 'Shop.Web/Pages/S.cs', 'Shop.Worker/S.cs'].filter(has))}`);
     await dialog().getByRole('button', { name: 'Skip' }).click().catch(() => {});
