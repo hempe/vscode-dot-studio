@@ -113,7 +113,12 @@ export async function openSolutionExplorer(win) {
     for (let i = 0; i < 60; i++) {
         if (i % 10 === 9 && !await open()) await tab.click();
         const frame = win.frames().find(f => f.url().includes('fake.html'));
-        if (frame && await frame.locator('[data-vscode-context]').count().catch(() => 0) > 0) return frame;
+        if (frame && await frame.locator('[data-vscode-context]').count().catch(() => 0) > 0) {
+            // The problems hint (DiagnosticsHint) of a row with warnings covers the row below while the mouse rests there: clicks go through it
+            // (no check uses the hint itself)
+            await frame.addStyleTag({ content: '.diagnostics-hint { pointer-events: none !important; }' }).catch(() => {});
+            return frame;
+        }
         await win.waitForTimeout(500);
     }
     await win.screenshot({ path: join(shotsDir, 'pw-fail.png') });
