@@ -3,7 +3,7 @@
 // the drop keeps it collapsed. And, in a `.slnx` without Ids: an open solution folder with open subfolders dragged into another solution folder stays open, subfolders too.
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { prepareWorkspace, launch, openSolutionExplorer, expandPath, sh, check } from './lib.mjs';
+import { prepareWorkspace, launch, openSolutionExplorer, expandPath, check, writeSln } from './lib.mjs';
 
 const centre = async locator => { await locator.scrollIntoViewIfNeeded(); const b = await locator.boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
 
@@ -34,10 +34,10 @@ for (const kind of ['slnx', 'sln']) {
     const ws = prepareWorkspace({});
     if (kind === 'sln') {
         rmSync(join(ws.folder, 'Contoso.slnx'));
-        await sh(ws, 'dotnet new sln -n Contoso --format sln');
-        for (const [folder, projects] of [['src', ['Shop.Core', 'Shop.Generators', 'Shop.Web', 'Shop.Worker']], ['tests', ['Shop.Core.Tests']]]) {
-            for (const p of projects) await sh(ws, `dotnet sln Contoso.sln add --solution-folder ${folder} ${folder}/${p}/${p}.csproj`);
-        }
+        writeSln(ws, 'Contoso.sln', {
+            src: ['Shop.Core', 'Shop.Generators', 'Shop.Web', 'Shop.Worker'].map(p => `src/${p}/${p}.csproj`),
+            tests: ['tests/Shop.Core.Tests/Shop.Core.Tests.csproj'],
+        });
     }
     await scenario(kind, ws, async ({ win, tree, row, isOpen, selected, drag, collapse, label }) => {
         await expandPath(win, tree, ['Contoso', 'src', 'Shop.Web']);

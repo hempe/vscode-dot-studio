@@ -56,9 +56,9 @@ try {
     // On a failure: what the row says (project, file) and which rows the tree marks, to tell a path problem from a click problem
     const rowText = await el.locator('tbody tr.row', { hasText: 'CS0168' }).innerText().then(t => t.replace(/\s+/g, ' '), () => '');
     // The diagnostic's full path (the file cell's tooltip) against the solution's path the tree knows (in its node id)
-    const diagnosticPath = await el.locator('tbody tr.row', { hasText: 'CS0168' }).locator('td[title]').first().getAttribute('title').catch(() => '');
-    const solutionPath = await tree.locator('[data-vscode-context]').first().getAttribute('data-vscode-context')
-        .then(c => JSON.parse(Buffer.from(JSON.parse(c).nodeId, 'base64url').toString()).path, () => '');
+    const diagnosticPath = await el.locator('tbody tr.row', { hasText: 'CS0168' }).locator('td[title]').evaluateAll(cells => cells.map(c => c.title).find(t => /[\\/]/.test(t) && /\.cs$/.test(t)) ?? '').catch(() => '');
+    const solutionPath = await tree.locator('.tree-node.solution').first().getAttribute('data-vscode-context').catch(() => null)
+        .then(c => { try { return JSON.parse(Buffer.from(JSON.parse(c).nodeId, 'base64url').toString()).path; } catch { return `(no node id: ${c})`; } });
     console.log(`diagnostic path: ${diagnosticPath}\nsolution path:   ${solutionPath}`);
     check('double-click opens Order.cs', await win.locator('.tab[aria-label*="Order.cs"]').count() > 0, `${rowText} | tabs ${JSON.stringify(await win.locator('.tab').allInnerTexts())}`);
     check('at line 15', await win.locator('.statusbar').getByText(/Ln 15,/).count() > 0, await win.locator('.statusbar').innerText().then(t => t.replace(/\s+/g, ' ').slice(0, 200)));

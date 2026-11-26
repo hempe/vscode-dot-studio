@@ -4,15 +4,14 @@
 // Not covered: the platform column of the grid, Select Solution Platform in the title bar (native menu), F5 and Pack using the mapped configuration.
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { prepareWorkspace, launch, openSolutionExplorer, sh, checkSolutionHas, check } from './lib.mjs';
+import { prepareWorkspace, launch, openSolutionExplorer, sh, writeSln, check } from './lib.mjs';
 
 for (const kind of ['slnx', 'sln']) {
     const ws = prepareWorkspace({});
     const solution = `Contoso.${kind}`;
     if (kind === 'sln') {
         rmSync(join(ws.folder, 'Contoso.slnx'));
-        const output = await sh(ws, 'dotnet new sln -n Contoso --format sln') + await sh(ws, 'dotnet sln Contoso.sln add src/Shop.Core/Shop.Core.csproj src/Shop.Web/Shop.Web.csproj');
-        checkSolutionHas(ws, 'Contoso.sln', ['Shop.Core', 'Shop.Web'], output);
+        writeSln(ws, 'Contoso.sln', { '': ['src/Shop.Core/Shop.Core.csproj', 'src/Shop.Web/Shop.Web.csproj'] });
     }
     const text = () => readFileSync(join(ws.folder, solution), 'utf8');
     const built = (project, configuration) => existsSync(join(ws.folder, 'src', project, 'bin', configuration));

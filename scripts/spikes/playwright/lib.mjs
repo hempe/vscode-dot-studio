@@ -503,19 +503,41 @@ export async function part(name, fn) {
 /** Makes the Contoso sample a .sln with the solution folders src (Shop.*) and tests (the test projects) instead of the .slnx */
 export async function toSln(ws) {
     rmSync(join(ws.folder, 'Contoso.slnx'));
-    const output = [
-        await sh(ws, 'dotnet new sln -n Contoso --format sln'),
-        await sh(ws, 'dotnet sln Contoso.sln add --solution-folder src src/Shop.Core/Shop.Core.csproj src/Shop.Generators/Shop.Generators.csproj src/Shop.Web/Shop.Web.csproj src/Shop.Worker/Shop.Worker.csproj'),
-        await sh(ws, 'dotnet sln Contoso.sln add --solution-folder tests tests/Shop.Core.Tests/Shop.Core.Tests.csproj tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj'),
-    ].join('\n');
-    checkSolutionHas(ws, 'Contoso.sln', ['Shop.Core', 'Shop.Generators', 'Shop.Web', 'Shop.Worker', 'Shop.Core.Tests'], output);
+    writeSln(ws, 'Contoso.sln', {
+        src: ['src/Shop.Core/Shop.Core.csproj', 'src/Shop.Generators/Shop.Generators.csproj', 'src/Shop.Web/Shop.Web.csproj', 'src/Shop.Worker/Shop.Worker.csproj'],
+        tests: ['tests/Shop.Core.Tests/Shop.Core.Tests.csproj', 'tests/Shop.Core.NUnitTests/Shop.Core.NUnitTests.csproj', 'tests/Shop.Core.XUnit2Tests/Shop.Core.XUnit2Tests.csproj'],
+    });
 }
 
-/** Throws with dotnet's output when the solution file lacks one of the projects (a `dotnet sln add` that failed) */
-export function checkSolutionHas(ws, file, projects, output) {
-    const text = existsSync(join(ws.folder, file)) ? readFileSync(join(ws.folder, file), 'utf8') : '';
-    const missing = projects.filter(name => !text.includes(`${name}.csproj`));
-    if (missing.length) throw new Error(`${file} lacks ${missing.join(', ')}; dotnet said:\n${output}`);
+/**
+ * Writes a .sln as `dotnet new sln` and `dotnet sln add` make it (Debug and Release, Any CPU), with fixed GUIDs: `folders` maps a solution
+ * folder ('' for the root) to its projects. Not `dotnet sln add` itself: on the CI runners (SDK 10.0.404) it also adds the referenced
+ * projects and then refuses the next one as a duplicate, leaving the file without projects.
+ */
+export function writeSln(ws, file, folders) {
+    const guid = n => `{${n.toString(16).padStart(8, '0').toUpperCase()}-0000-4000-8000-000000000000}`;
+    let n = 1;
+    const lines = ['', 'Microsoft Visual Studio Solution File, Format Version 12.00', '# Visual Studio Version 17', 'VisualStudioVersion = 17.0.31903.59', 'MinimumVisualStudioVersion = 10.0.40219.1'];
+    const projects = [];
+    const nested = [];
+    for (const [folder, paths] of Object.entries(folders)) {
+        const folderGuid = folder ? guid(n++) : undefined;
+        if (folder) lines.push(`Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "${folder}", "${folder}", "${folderGuid}"`, 'EndProject');
+        for (const project of paths) {
+            const projectGuid = guid(n++);
+            const name = project.split('/').pop().replace(/\.\w+proj$/, '');
+            lines.push(`Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "${name}", "${project.split('/').join('\\')}", "${projectGuid}"`, 'EndProject');
+            projects.push(projectGuid);
+            if (folderGuid) nested.push(`\t\t${projectGuid} = ${folderGuid}`);
+        }
+    }
+    lines.push('Global', '\tGlobalSection(SolutionConfigurationPlatforms) = preSolution', '\t\tDebug|Any CPU = Debug|Any CPU', '\t\tRelease|Any CPU = Release|Any CPU', '\tEndGlobalSection',
+        '\tGlobalSection(ProjectConfigurationPlatforms) = postSolution',
+        ...projects.flatMap(g => ['Debug', 'Release'].flatMap(c => [`\t\t${g}.${c}|Any CPU.ActiveCfg = ${c}|Any CPU`, `\t\t${g}.${c}|Any CPU.Build.0 = ${c}|Any CPU`])),
+        '\tEndGlobalSection', '\tGlobalSection(SolutionProperties) = preSolution', '\t\tHideSolutionNode = FALSE', '\tEndGlobalSection',
+        ...(nested.length ? ['\tGlobalSection(NestedProjects) = preSolution', ...nested, '\tEndGlobalSection'] : []),
+        'EndGlobal', '');
+    writeFileSync(join(ws.folder, file), lines.join('\r\n'));
 }
 
 /** Starts a rename in the tree (the row's Rename menu item), types the name and presses Enter */

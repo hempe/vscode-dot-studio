@@ -49,15 +49,6 @@ try {
     check('a failed test carries its message', all.some(r => r.text.startsWith('FailsOnPurpose') && /Assert|Expected|Failure/i.test(r.text)));
     check('MultipliesByQuantity errored (the sample throws)', states('MultipliesByQuantity').includes('error'), JSON.stringify(states('MultipliesByQuantity')));
     check('parameterized cases are listed and passed (xUnit v2)', all.some(r => r.text.startsWith('quantity: 10, expected: 10') && r.state === 'passed'));
-    // The Testing view's filter shows the matching rows opened, whatever the walk above reached on a busy machine
-    const filter = win.locator('.pane-header, .pane-body').locator('input[placeholder*="Filter"]').first();
-    await filter.fill('CountsQuantities').catch(() => {});
-    await win.waitForTimeout(1500);
-    for (const row of await read()) seen.set(row.text, row);
-    await filter.fill('').catch(() => {});
-    all.splice(0, all.length, ...seen.values());
-    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'), JSON.stringify(all.filter(r => /NUnit|Count/.test(r.text)).map(r => `${r.text.slice(0, 70)} [${r.state}]`)));
-
     // A click on a failed test opens its file at the line
     const failed = rows.filter({ hasText: /^FailsOnPurpose/ }).first();
     await failed.dblclick();
@@ -66,4 +57,21 @@ try {
     const status = await win.locator('.statusbar').innerText().then(t => t.replace(/\s+/g, ' '));
     const line = Number(status.match(/Ln (\d+)/)?.[1] ?? 0);
     check('at the test\'s line', line >= 14 && line <= 25, status.slice(0, 160));
+
+    // The Testing view's filter shows the matching rows opened, whatever the walk above reached on a busy machine
+    // (a small editor, not an input field: clicked, then typed into)
+    const filter = win.locator('.testing-filter-wrapper .suggest-input-container').first();
+    await filter.click();
+    await win.keyboard.press('Control+a');
+    await win.keyboard.type('CountsQuantities');
+    await win.waitForTimeout(2000);
+    // The filtered rows opened down to the cases
+    await rows.first().click().catch(() => {});
+    for (let i = 0; i < 12; i++) { await win.keyboard.press('ArrowRight'); await win.waitForTimeout(150); await win.keyboard.press('ArrowDown'); }
+    for (const row of await read()) seen.set(row.text, row);
+    await filter.click();
+    await win.keyboard.press('Control+a');
+    await win.keyboard.press('Backspace');
+    all.splice(0, all.length, ...seen.values());
+    check('parameterized cases are listed and passed (NUnit)', all.some(r => /CountsQuantities/.test(r.text) && r.state === 'passed'), JSON.stringify(all.filter(r => /NUnit|Count/.test(r.text)).map(r => `${r.text.slice(0, 70)} [${r.state}]`)));
 } finally { await app.close(); }
