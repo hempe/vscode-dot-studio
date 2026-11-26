@@ -139,6 +139,35 @@ In a **multi-root workspace**, every folder is searched; the folder that holds t
 
 **Open Solution...** in the toolbar's `...` menu (or **.NET: Open Solution...**), like Visual Studio's File > Open > Solution, lists the solutions of the workspace and offers **Browse...** for any other `.sln` or `.slnx`. The solution you open is the one that opens next time.
 
+### Without a solution
+
+A folder with projects (`.csproj`, `.vbproj`, `.fsproj`) and no solution opens like Visual Studio's temporary solution: the Solution Explorer shows a solution named after the folder with all of its projects (up to three levels down), marked **(not saved)**. Build, F5, tests and the NuGet manager work as with any solution. Nothing is written into your folder until you change the solution itself (add or remove a project, a solution folder or a solution item, rename a project, Configuration Manager): then it asks to save it first, and **Save...** lets you choose where and whether `.slnx` or `.sln` (next to the projects by default). **Cancel** changes nothing. **Save Solution As...** on the solution's context menu saves it without a change. A folder without any project still offers **Open Solution...** and **Create New Project...**.
+
+### Opening a solution or project file
+
+A `.sln`, `.slnx` or project file opened in VS Code without a folder (a double-click in your file manager, or `code App.slnx`) reopens the window on the file's folder and opens it there: a solution as it is (also when the folder has others), a project as a temporary solution with exactly that project, as in Visual Studio.
+
+For the double-click, tell your system to open these files with VS Code (or VSCodium):
+
+- **Windows**: right-click a `.sln` > Open with > Choose another app > Visual Studio Code, with *Always use this app*; the same for `.slnx` and `.csproj`.
+- **macOS**: select a `.sln` > Get Info > Open with: Visual Studio Code > Change All...; the same for `.slnx` and `.csproj`.
+- **Linux**: file managers see these files as plain text, so give them a type of their own. Save as `~/.local/share/mime/packages/visual-studio-solution.xml`:
+
+  ```xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+    <mime-type type="text/x-vs-solution">
+      <comment>Visual Studio solution or project</comment>
+      <sub-class-of type="text/plain"/>
+      <glob pattern="*.sln"/>
+      <glob pattern="*.slnx"/>
+      <glob pattern="*.csproj"/>
+    </mime-type>
+  </mime-info>
+  ```
+
+  then run `update-mime-database ~/.local/share/mime` and `xdg-mime default code.desktop text/x-vs-solution` (`codium.desktop` for VSCodium; the name of the `.desktop` file your package installed, see `/usr/share/applications`).
+
 ## .sln and .slnx
 
 `.slnx` is the current solution format (XML, readable diffs), the default since the .NET 10 SDK and supported by Visual Studio 2022 17.13 and later. When a `.sln` opens, you are offered to convert it:
