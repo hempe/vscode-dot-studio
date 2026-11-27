@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$REPO/docs/images"
 CODE="${CODE:-code-oss}"
 CSHARP_EXT="${CSHARP_EXT:-$(ls -d "$HOME"/.vscode-oss/extensions/muhammad-sammy.csharp-* "$HOME"/.vscode/extensions/ms-dotnettools.csharp-* 2>/dev/null | tail -1 || true)}"
-SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop gif-central-packages gif-grpc gif-change-signature}"
+SCENES="${SCENES:-solution-explorer dependencies context-menu error-list tests nuget new-project publish gif-navigate gif-nuget gif-new-project gif-configuration-manager gif-startup-projects gif-attach-to-process gif-dev-cert gif-hot-reload gif-code-cleanup gif-sync-namespaces gif-show-all-files gif-drag-and-drop gif-central-packages gif-grpc gif-change-signature temporary-solution}"
 GIF_FPS=8
 GIF_WIDTH=960
 DISPLAY_NUMBER=97
@@ -750,6 +750,25 @@ if wants gif-change-signature; then
     # The sample is the same for the next scenes
     cp "$REPO/scripts/screenshots/sample/src/Shop.Core/Pricing/PriceCalculator.cs" "$SOLUTION/src/Shop.Core/Pricing/PriceCalculator.cs"
     cp "$REPO/scripts/screenshots/sample/src/Shop.Worker/Worker.cs" "$SOLUTION/src/Shop.Worker/Worker.cs"
+fi
+
+# Last: it moves the window to another folder, the scenes above need Contoso
+if wants temporary-solution; then
+    echo "Scene: temporary-solution"
+    reset
+    # A folder with two projects and no solution (Shop.Web references ..\Shop.Core): Visual Studio's temporary solution
+    mkdir -p "$WORK/Shop"
+    cp -r "$SOLUTION/src/Shop.Core" "$SOLUTION/src/Shop.Web" "$WORK/Shop/"
+    "$CODE" --user-data-dir="$WORK/profile" --extensions-dir="$WORK/extensions" --reuse-window "$WORK/Shop" >>"$WORK/code.log" 2>&1
+    pause 15
+    xdotool windowfocus "$WINDOW"
+    tree_focus
+    tree_open Shop
+    # The solution's menu, Save Solution As... at its end
+    click 165 "$TREE_TOP" 3
+    pause 2
+    shot temporary-solution
+    key Escape
 fi
 
 echo "Done: $OUT"
