@@ -151,34 +151,40 @@ For the double-click, tell your system to open these files with VS Code (or VSCo
 
 - **Windows**: right-click a `.sln` > Open with > Choose another app > Visual Studio Code, with *Always use this app*; the same for `.slnx` and `.csproj`.
 - **macOS**: select a `.sln` > Get Info > Open with: Visual Studio Code > Change All...; the same for `.slnx` and `.csproj`.
-- **Linux**: file managers see these files as plain text, so give them a type of their own. Save as `~/.local/share/mime/packages/visual-studio-solution.xml`:
+- **Linux**: file managers see these files as plain text, so give them types of their own: a solution and a C#, Visual Basic and F# project, each with the icon the Solution Explorer shows ([file-icons](file-icons/README.md)), opened in a new window (with an editor already running, a plain `code` would open the file as text in the window you have open). Run this in a terminal, with `codium` or `code-oss` in the first line for VSCodium or Code - OSS:
 
-  ```xml
+  ```bash
+  editor=code
+  mkdir -p ~/.local/share/mime/packages ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/mimetypes
+  cat > ~/.local/share/mime/packages/visual-studio-solution.xml <<'XML'
   <?xml version="1.0" encoding="UTF-8"?>
   <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-    <mime-type type="text/x-vs-solution">
-      <comment>Visual Studio solution or project</comment>
-      <sub-class-of type="text/plain"/>
-      <glob pattern="*.sln"/>
-      <glob pattern="*.slnx"/>
-      <glob pattern="*.csproj"/>
-    </mime-type>
+    <mime-type type="text/x-vs-solution"><comment>Visual Studio solution</comment><icon name="text-x-vs-solution"/><sub-class-of type="text/plain"/><glob pattern="*.sln" weight="80"/><glob pattern="*.slnx" weight="80"/></mime-type>
+    <mime-type type="text/x-vs-csproj"><comment>C# project</comment><icon name="text-x-vs-csproj"/><sub-class-of type="text/plain"/><glob pattern="*.csproj" weight="80"/></mime-type>
+    <mime-type type="text/x-vs-vbproj"><comment>Visual Basic project</comment><icon name="text-x-vs-vbproj"/><sub-class-of type="text/plain"/><glob pattern="*.vbproj" weight="80"/></mime-type>
+    <mime-type type="text/x-vs-fsproj"><comment>F# project</comment><icon name="text-x-vs-fsproj"/><sub-class-of type="text/plain"/><glob pattern="*.fsproj" weight="80"/></mime-type>
   </mime-info>
-  ```
-
-  and a launcher that opens a new window (with an editor already running, a plain `code` would open the file as text in the window you have open) as `~/.local/share/applications/code-solution.desktop`:
-
-  ```ini
+  XML
+  for type in solution csproj vbproj fsproj; do
+    curl -fsSL -o ~/.local/share/icons/hicolor/scalable/mimetypes/text-x-vs-$type.svg \
+      https://raw.githubusercontent.com/hempe/vscode-dot-studio/master/docs/file-icons/text-x-vs-$type.svg
+  done
+  cat > ~/.local/share/applications/$editor-solution.desktop <<DESKTOP
   [Desktop Entry]
   Type=Application
-  Name=VS Code (solution)
-  Exec=code --new-window %F
-  Icon=vscode
-  MimeType=text/x-vs-solution;
+  Name=$editor (solution)
+  Exec=$editor --new-window %F
+  Icon=$editor
+  MimeType=text/x-vs-solution;text/x-vs-csproj;text/x-vs-vbproj;text/x-vs-fsproj;
   NoDisplay=true
+  DESKTOP
+  update-mime-database ~/.local/share/mime
+  update-desktop-database ~/.local/share/applications
+  gtk-update-icon-cache -f -t ~/.local/share/icons/hicolor
+  for type in solution csproj vbproj fsproj; do xdg-mime default $editor-solution.desktop text/x-vs-$type; done
   ```
 
-  (`codium` or `code-oss` instead of `code` for VSCodium or Code - OSS), then run `update-mime-database ~/.local/share/mime` and `xdg-mime default code-solution.desktop text/x-vs-solution`.
+  Restart the file manager to see the icons (`thunar -q`, `nautilus -q`). To undo: delete what they wrote (`visual-studio-solution.xml`, the `-solution.desktop` launcher and the four `text-x-vs-*.svg` icons) and run the three `update-` commands again.
 
 ## .sln and .slnx
 
