@@ -166,7 +166,19 @@ For the double-click, tell your system to open these files with VS Code (or VSCo
   </mime-info>
   ```
 
-  then run `update-mime-database ~/.local/share/mime` and `xdg-mime default code.desktop text/x-vs-solution` (`codium.desktop` for VSCodium; the name of the `.desktop` file your package installed, see `/usr/share/applications`).
+  and a launcher that opens a new window (with an editor already running, a plain `code` would open the file as text in the window you have open) as `~/.local/share/applications/code-solution.desktop`:
+
+  ```ini
+  [Desktop Entry]
+  Type=Application
+  Name=VS Code (solution)
+  Exec=code --new-window %F
+  Icon=vscode
+  MimeType=text/x-vs-solution;
+  NoDisplay=true
+  ```
+
+  (`codium` or `code-oss` instead of `code` for VSCodium or Code - OSS), then run `update-mime-database ~/.local/share/mime` and `xdg-mime default code-solution.desktop text/x-vs-solution`.
 
 ## .sln and .slnx
 
