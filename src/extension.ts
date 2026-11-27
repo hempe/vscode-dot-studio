@@ -64,6 +64,7 @@ import { t } from './core/i18n';
 import { sln } from './core/utils';
 import { PROJECT_FILE, staleTempFolders } from './services/solution/tempSolution';
 import { recordPendingOpen } from './services/solution/pendingOpen';
+import { RUN_DEBUG_TYPE, RunAdapterFactory, RunWithoutDebuggerProvider } from './services/debug/run/runWithoutDebugger';
 import { solutionForProject } from './services/solution/solutionForProject';
 
 const logger = loggerFn('Extensions');
@@ -379,6 +380,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('shinobi.solution.collapseAll', () => solutionWebviewProvider.collapseAll()),
         vscode.commands.registerCommand('shinobi.solution.showAllFiles', () => solutionWebviewProvider.toggleShowAllFiles()),
         // Visual Studio's View > Solution Explorer (Ctrl+Alt+L) and View > Error List
+        // Start without debugging where the debugger would attach anyway (netcoredbg of the Open VSX C# extension)
+        vscode.debug.registerDebugConfigurationProvider('coreclr', new RunWithoutDebuggerProvider()),
+        vscode.debug.registerDebugAdapterDescriptorFactory(RUN_DEBUG_TYPE, new RunAdapterFactory()),
         vscode.commands.registerCommand('shinobi.solution.focusSolutionExplorer', () => vscode.commands.executeCommand(
             `${SolutionWebviewProvider.viewType}.focus`)),
         // Visual Studio's File > Open > Solution: another solution of the workspace, or any solution file

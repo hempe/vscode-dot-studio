@@ -2,6 +2,7 @@
 
 ## 1.0.1
 
+- **Fixed, start without debugging with the Open VSX C# extension** (VSCodium, Cursor, Windsurf): Ctrl+F5 and the projects of a startup profile set to Start without debugging ran under the debugger anyway (netcoredbg ignores it). They start without a debugger now, with their launch profile, their output in the Debug Console, and Stop ends them ([#7](https://github.com/hempe/vscode-dot-studio/issues/7)).
 - **Changed, opening a project file:** a `.csproj` (`.vbproj`, `.fsproj`) opened without a folder opens with the solution in its folder or the folder above that lists it, as Visual Studio looks for it; only without one it is a temporary solution.
 
 ## 1.0.0

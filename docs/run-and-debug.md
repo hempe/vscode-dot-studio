@@ -62,7 +62,7 @@ Keys of a profile that this extension does not know stay as they are when you ap
 
 | | |
 |---|---|
-| **F5** | Builds the solution once, then starts every project of the profile: **Start** ones in the debugger, **Start without debugging** ones without it (known limitation: with the Open VSX C# extension, `muhammad-sammy.csharp`, a project set to Start without debugging is still attached to the debugger, but gets no breakpoints) |
+| **F5** | Builds the solution once, then starts every project of the profile: **Start** ones in the debugger, **Start without debugging** ones without it |
 | **Ctrl+F5** | The same, every project without the debugger |
 | **Stop** (Shift+F5, the toolbar) | Stops every project of the profile. A project that ends on its own leaves the others running |
 
@@ -99,6 +99,8 @@ Solutions with several platforms (Any CPU, x64) add **Select Solution Platform..
 The program path comes from MSBuild, so `OutputPath`, `AssemblyName` and the artifacts layout work.
 
 ## .NET Framework projects on Linux and macOS
+
+**Start without debugging with the Open VSX C# extension** (`muhammad-sammy.csharp`, VSCodium, Cursor, Windsurf): its debugger, netcoredbg, ignores "without debugging" and would attach anyway. So Ctrl+F5, Start Without Debugging and the projects of a startup profile set to Start without debugging are started by the extension itself: the program runs without a debugger, with its launch profile's arguments, environment and URLs, its output goes to the Debug Console (the browser still opens when the app reports its URL), and Stop (Shift+F5, or stopping the startup profile) ends it. Console input does not reach such a program; for an app that reads from the keyboard use F5. With Microsoft's C# extension, its debugger runs without debugging itself.
 
 SDK-style projects that target .NET Framework (`net48`, `net472`, ...) run and debug with Mono: install Mono (the `mono` command must work) and Microsoft's [Mono Debug](https://marketplace.visualstudio.com/items?itemName=ms-vscode.mono-debug) extension (`ms-vscode.mono-debug`). The `Startup` configuration then has the type `mono` and points at the `.exe`; the launch profile's `commandLineArgs` and `environmentVariables` go into its `args` and `env` (Mono Debug does not read `launchSettings.json`, and has no `applicationUrl` or browser launch). Ctrl+F5, Start New Instance and Start Without Debugging tell what is missing before they start; with plain F5, VS Code reports the missing debug type. In a multi-targeted project (`net48;net10.0`) F5 picks the newest framework, Select Framework switches to `net48`.
 

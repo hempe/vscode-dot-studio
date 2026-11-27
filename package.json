@@ -78,6 +78,13 @@
   "main": "./out/extension.js",
   "l10n": "./l10n",
   "contributes": {
+    "debuggers": [
+      {
+        "type": "dotnet-run",
+        "label": "%debugger.dotnet-run.label%",
+        "hiddenWhen": "true"
+      }
+    ],
     "csharpExtensionLoadPaths": [
       "out/server-extension/roslyn-5.13/Shinobi.Refactorings.dll",
       "out/server-extension/Shinobi.Refactorings.dll"
