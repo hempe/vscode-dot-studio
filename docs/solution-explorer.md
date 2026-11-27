@@ -145,7 +145,7 @@ A folder with projects (`.csproj`, `.vbproj`, `.fsproj`) and no solution opens l
 
 ### Opening a solution or project file
 
-A `.sln`, `.slnx` or project file opened in VS Code without a folder (a double-click in your file manager, or `code App.slnx`) reopens the window on the file's folder and opens it there: a solution as it is (also when the folder has others), a project as a temporary solution with exactly that project, as in Visual Studio.
+A `.sln`, `.slnx` or project file opened in VS Code without a folder (a double-click in your file manager, or `code App.slnx`) reopens the window on the file's folder and opens it there: a solution as it is (also when the folder has others), a project, as in Visual Studio, with the solution in its folder or the folder above that lists it (the window then opens on the solution's folder), else as a temporary solution with exactly that project.
 
 For the double-click, tell your system to open these files with VS Code (or VSCodium):
 

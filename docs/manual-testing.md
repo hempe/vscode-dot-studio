@@ -149,6 +149,7 @@ What the Playwright checks in `scripts/spikes/playwright` cannot do or that make
 
 - [x] Double-click a `.slnx` and a `.csproj` in the file manager on Linux (Manjaro, XFCE, Code - OSS with 1.0.0, the `--new-window` launcher of [Solution Explorer](solution-explorer.md#opening-a-solution-or-project-file)): the window opens on the folder with the solution, the project alone as a temporary solution (confirmed 2026-11-27)
 - [ ] Double-click a `.slnx`, a `.sln` and a `.csproj` in the file manager (after the file association of [Solution Explorer](solution-explorer.md#opening-a-solution-or-project-file)), on Windows and macOS, and in VSCodium: the window opens on the file's folder with that solution, or the project alone as "(not saved)"; also with VS Code already running (a new window)
+- [ ] Double-click a `.csproj` whose solution lists it one folder up (`repo/App.sln`, `repo/App/App.csproj`): the window opens on `repo` with that solution, not a temporary one (1.0.1; automated as a probe 2026-11-27, not by a double-click)
 
 ### Needs a Chinese VS Code
 

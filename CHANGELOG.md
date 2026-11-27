@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- **Changed, opening a project file:** a `.csproj` (`.vbproj`, `.fsproj`) opened without a folder opens with the solution in its folder or the folder above that lists it, as Visual Studio looks for it; only without one it is a temporary solution.
+
 ## 1.0.0
 
 The first stable release: what 0.3.0 brought, Visual Studio's temporary solution (open a folder or project without a solution, or double-click a solution or project file), and the fixes found since by the automated checks that drive the real VS Code on Linux and Windows.

@@ -64,6 +64,7 @@ import { t } from './core/i18n';
 import { sln } from './core/utils';
 import { PROJECT_FILE, staleTempFolders } from './services/solution/tempSolution';
 import { recordPendingOpen } from './services/solution/pendingOpen';
+import { solutionForProject } from './services/solution/solutionForProject';
 
 const logger = loggerFn('Extensions');
 
@@ -531,7 +532,8 @@ export function deactivate() {
 
 /**
  * A solution or project file opened with no folder (a double-click in the file manager, `code App.slnx`): the window reopens on the
- * file's folder, where the Solution Explorer opens that solution, or the project as a temporary solution (Visual Studio does the same)
+ * file's folder, where the Solution Explorer opens that solution; a project opens with the solution in its folder or the one above that
+ * lists it, else as a temporary solution (Visual Studio does the same)
  */
 async function openFileWithoutFolder(globalState: vscode.Memento): Promise<void> {
     if (vscode.workspace.workspaceFolders?.length) {
@@ -541,6 +543,8 @@ async function openFileWithoutFolder(globalState: vscode.Memento): Promise<void>
     if (file?.scheme !== 'file' || !(sln(file.fsPath) || PROJECT_FILE.test(file.fsPath))) {
         return;
     }
-    await recordPendingOpen(globalState, path.dirname(file.fsPath), file.fsPath);
-    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(path.dirname(file.fsPath)), { forceReuseWindow: true });
+    // A project of a solution in its folder or the one above opens with that solution, in the solution's folder (Visual Studio's search)
+    const target = (PROJECT_FILE.test(file.fsPath) ? await solutionForProject(file.fsPath) : undefined) ?? file.fsPath;
+    await recordPendingOpen(globalState, path.dirname(target), target);
+    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(path.dirname(target)), { forceReuseWindow: true });
 }
